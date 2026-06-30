@@ -22,3 +22,13 @@ export async function deleteRecipe(id: string): Promise<void> {
   const res = await fetch(`${BASE}/recipes/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`deleteRecipe failed: ${res.status}`);
 }
+
+export async function updateRecipe(id: string, body: CreateRecipeRequest): Promise<Recipe> {
+  const res = await fetch(`${BASE}/recipes/${id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`updateRecipe failed: ${res.status}`);
+  return (await res.json()) as Recipe;
+}

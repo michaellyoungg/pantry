@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Recipe } from "@pantry/types";
+import type { Recipe, Ingredient } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
-import { deleteRecipe, listRecipes } from "../lib/recipeService";
+import { deleteRecipe, listRecipes, updateRecipe } from "../lib/recipeService";
+import { RecipeEditDialog } from "./RecipeEditDialog";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [editing, setEditing] = useState<Recipe | null>(null);
   const addToBasket = useMutation(api.basket.add);
   const removeFromBasket = useMutation(api.basket.remove);
+  const updateBasketTitle = useMutation(api.basket.updateTitle);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,6 +41,19 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     }
   }
 
+  async function onSaveEdit(title: string, ingredients: Ingredient[]) {
+    if (!editing) return;
+    const id = editing.id;
+    try {
+      await updateRecipe(id, { title, ingredients });
+      await updateBasketTitle({ recipeId: id, title }); // idempotent no-op if not in basket
+      await refresh();
+      setEditing(null);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   return (
     <div className="panel">
       <h2>Recipes</h2>
@@ -48,11 +64,15 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
             <span>{r.title}</span>
             <span>
               <button onClick={() => addToBasket({ recipeId: r.id, title: r.title })}>Add to basket</button>
+              <button onClick={() => setEditing(r)}>Edit</button>
               <button onClick={() => onDelete(r)}>Delete</button>
             </span>
           </li>
         ))}
       </ul>
+      {editing && (
+        <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
+      )}
     </div>
   );
 }
