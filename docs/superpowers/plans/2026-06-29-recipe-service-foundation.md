@@ -6,12 +6,12 @@
 
 **Architecture:** A pnpm + Turborepo monorepo with `apps/` and `packages/`. `packages/types` holds the shared TypeScript contract. `apps/recipe-service` is a Go service (stdlib `net/http` routing) over Postgres, exposing recipe CRUD plus a `POST /grocery-list` aggregation endpoint. Auth is stubbed to a fixed dev user. Everything runs locally via `docker compose`.
 
-**Tech Stack:** pnpm 9, Turborepo, TypeScript 5, Node 22 LTS, Go 1.23, Postgres 17, `jackc/pgx/v5`, Docker Compose.
+**Tech Stack:** pnpm 9, Turborepo, TypeScript 5, Node 22 LTS, Go 1.25 (raised from 1.23 by latest pgx deps), Postgres 17, `jackc/pgx/v5`, Docker Compose.
 
 ## Global Constraints
 
 - Package manager is **pnpm** (version pinned via `packageManager` field). Never use `npm`/`yarn` for workspace ops.
-- Go module path is **`pantry/apps/recipe-service`** (non-URL module path; this is a private monorepo, not `go get`-able). Go version floor **1.23**.
+- Go module path is **`pantry/apps/recipe-service`** (non-URL module path; this is a private monorepo, not `go get`-able). Go version directive **1.25** — the latest `pgx v5` and its `golang.org/x/*` deps require Go ≥ 1.25, consistent with the project's "latest technology" goal. (Earlier tasks scaffolded with `go 1.23`; `go get` in Task 6 raised it to 1.25.0. The Docker base image must match — see Task 7.)
 - The recipe-service router uses **Go stdlib `net/http`** pattern routing only. Do **not** add `chi` or any router dependency in this plan.
 - The only third-party Go dependency permitted in this plan is **`github.com/jackc/pgx/v5`** (Postgres driver + pool). No ORM, no migration tool.
 - Ingredients are structured `{ quantity, unit, item, note? }`. Aggregation is **literal exact-match** on `item`+`unit` (trim + lowercase for the match key); **no** unit conversion or synonym normalization (that is backlog BL-0003).
@@ -1385,7 +1385,7 @@ DATABASE_URL=postgres://pantry:pantry@postgres:5432/pantry?sslmode=disable
 `apps/recipe-service/Dockerfile`:
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM golang:1.23-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -1411,7 +1411,10 @@ services:
       POSTGRES_PASSWORD: pantry
       POSTGRES_DB: pantry
     ports:
-      - "5432:5432"
+      # Host 5433 -> container 5432. 5432 is commonly occupied by other local
+      # Postgres containers; the service itself reaches Postgres in-network at
+      # postgres:5432 regardless of this host binding.
+      - "5433:5432"
     volumes:
       - ./.data/postgres:/var/lib/postgresql/data
     healthcheck:
