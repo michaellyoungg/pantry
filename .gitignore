@@ -20,6 +20,9 @@ bin/
 .env
 .env.*
 !.env.example
+!.env.local.example
+# Convex self-hosted local config (gitignored; see packages/convex/.env.local.example)
+packages/convex/.env.local
 
 # Logs
 *.log
