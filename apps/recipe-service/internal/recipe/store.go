@@ -42,7 +42,7 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings
 		UserID:      userID,
 		Title:       title,
 		Ingredients: ings,
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
 	s.byID[rec.ID] = rec
 	s.order = append(s.order, rec.ID)

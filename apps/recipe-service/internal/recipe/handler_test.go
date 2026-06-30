@@ -221,12 +221,16 @@ func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	if got.Title != "French Toast" || len(got.Ingredients) != 1 || got.Ingredients[0].Item != "brioche" {
 		t.Fatalf("body = %+v, want updated title+ingredient", got)
 	}
+	if got.ID != rec.ID {
+		t.Fatalf("ID = %q, want %q", got.ID, rec.ID)
+	}
 }
 
 func TestUpdateRecipe_MissingReturns404(t *testing.T) {
 	srv, _ := newTestServer(t)
 	body := bytes.NewBufferString(`{"title":"X","ingredients":[]}`)
 	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/nope", body)
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("PUT: %v", err)
@@ -242,6 +246,7 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
 	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
 	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("PUT: %v", err)
