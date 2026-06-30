@@ -22,10 +22,10 @@ services:
     build:
       context: ./apps/recipe-service
     environment:
-      PORT: "8080"
+      PORT: "8090"
       DATABASE_URL: postgres://pantry:pantry@postgres:5432/pantry?sslmode=disable
     ports:
-      - "8080:8080"
+      - "8090:8090"
     depends_on:
       postgres:
         condition: service_healthy
