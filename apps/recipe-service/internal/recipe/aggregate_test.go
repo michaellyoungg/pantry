@@ -64,6 +64,9 @@ func TestAggregate_PreservesFirstSeenOrder(t *testing.T) {
 
 func TestAggregate_EmptyInputYieldsEmptySlice(t *testing.T) {
 	got := Aggregate(nil)
+	if got == nil {
+		t.Fatal("got nil, want non-nil empty slice")
+	}
 	if len(got) != 0 {
 		t.Fatalf("got %+v, want empty", got)
 	}
