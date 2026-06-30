@@ -137,3 +137,43 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 }
+
+func TestWithCORS_PreflightReturns204WithHeaders(t *testing.T) {
+	h := WithCORS(NewRouter(NewMemoryStore()), "http://localhost:5173")
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+
+	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/recipes", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("preflight: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("preflight status = %d, want 204", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Fatalf("Allow-Origin = %q, want the web origin", got)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Methods"); got == "" {
+		t.Fatal("missing Access-Control-Allow-Methods")
+	}
+}
+
+func TestWithCORS_NormalRequestCarriesOriginHeader(t *testing.T) {
+	h := WithCORS(NewRouter(NewMemoryStore()), "http://localhost:5173")
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/healthz")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Fatalf("Allow-Origin = %q, want the web origin", got)
+	}
+}

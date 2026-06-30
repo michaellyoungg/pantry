@@ -29,8 +29,14 @@ func main() {
 		log.Print("DATABASE_URL unset; using in-memory store")
 	}
 
-	log.Printf("recipe-service listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, recipe.NewRouter(store)); err != nil {
+	webOrigin := os.Getenv("WEB_ORIGIN")
+	if webOrigin == "" {
+		webOrigin = "http://localhost:5173"
+	}
+	handler := recipe.WithCORS(recipe.NewRouter(store), webOrigin)
+
+	log.Printf("recipe-service listening on :%s (CORS origin %s)", port, webOrigin)
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }
