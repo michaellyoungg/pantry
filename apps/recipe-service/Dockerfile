@@ -8,6 +8,6 @@ RUN CGO_ENABLED=0 go build -o /out/recipe-service ./cmd/server
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/recipe-service /recipe-service
-EXPOSE 8080
+EXPOSE 8090
 USER nonroot:nonroot
 ENTRYPOINT ["/recipe-service"]
