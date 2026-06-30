@@ -9,12 +9,13 @@ import (
 )
 
 func main() {
-	addr := os.Getenv("PORT")
-	if addr == "" {
-		addr = "8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-	log.Printf("recipe-service listening on :%s", addr)
-	if err := http.ListenAndServe(":"+addr, recipe.NewRouter()); err != nil {
+	store := recipe.NewMemoryStore() // replaced by Postgres store in the next task
+	log.Printf("recipe-service listening on :%s", port)
+	if err := http.ListenAndServe(":"+port, recipe.NewRouter(store)); err != nil {
 		log.Fatal(err)
 	}
 }
