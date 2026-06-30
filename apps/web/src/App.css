@@ -6,3 +6,4 @@
 .ingredient-row { display: flex; gap: .5rem; margin: .25rem 0; }
 input { padding: .25rem; }
 button { cursor: pointer; }
+.error { color: #c00; font-size: .85rem; margin: .25rem 0 0; }
