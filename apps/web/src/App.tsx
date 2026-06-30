@@ -1,13 +1,16 @@
-import { api } from "@pantry/convex/api";
+import { useState } from "react";
+import { RecipeForm } from "./components/RecipeForm";
+import { RecipeList } from "./components/RecipeList";
 
 export default function App() {
-  // Referencing the generated api here proves the cross-package import +
-  // types resolve at build time. Panels are added in later tasks.
-  void api;
+  const [refreshKey, setRefreshKey] = useState(0);
   return (
-    <main>
+    <main className="container">
       <h1>Pantry</h1>
-      <p>Plan, cook, shop.</p>
+      <div className="grid">
+        <RecipeForm onCreated={() => setRefreshKey((k) => k + 1)} />
+        <RecipeList refreshKey={refreshKey} />
+      </div>
     </main>
   );
 }
