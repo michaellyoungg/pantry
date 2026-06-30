@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: pantry
+      POSTGRES_PASSWORD: pantry
+      POSTGRES_DB: pantry
+    ports:
+      # Host 5433 -> container 5432. 5432 is commonly occupied by other local
+      # Postgres containers; the service itself reaches Postgres in-network at
+      # postgres:5432 regardless of this host binding.
+      - "5433:5432"
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantry"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  recipe-service:
+    build:
+      context: ./apps/recipe-service
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://pantry:pantry@postgres:5432/pantry?sslmode=disable
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy

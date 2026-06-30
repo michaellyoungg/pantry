@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -13,7 +14,21 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	store := recipe.NewMemoryStore() // replaced by Postgres store in the next task
+
+	var store recipe.Store
+	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
+		pg, err := recipe.NewPostgresStore(context.Background(), dsn)
+		if err != nil {
+			log.Fatalf("postgres: %v", err)
+		}
+		defer pg.Close()
+		store = pg
+		log.Print("using Postgres store")
+	} else {
+		store = recipe.NewMemoryStore()
+		log.Print("DATABASE_URL unset; using in-memory store")
+	}
+
 	log.Printf("recipe-service listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, recipe.NewRouter(store)); err != nil {
 		log.Fatal(err)
