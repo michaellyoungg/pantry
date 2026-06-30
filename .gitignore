@@ -33,3 +33,9 @@ npm-debug.log*
 
 # Docker volumes (local data)
 .data/
+
+# SDD scratch
+.superpowers/
+
+# Turbo cache
+.turbo/
