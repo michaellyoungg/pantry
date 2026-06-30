@@ -155,8 +155,45 @@ func TestWithCORS_PreflightReturns204WithHeaders(t *testing.T) {
 	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
 		t.Fatalf("Allow-Origin = %q, want the web origin", got)
 	}
-	if got := resp.Header.Get("Access-Control-Allow-Methods"); got == "" {
-		t.Fatal("missing Access-Control-Allow-Methods")
+	if got := resp.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, "DELETE") {
+		t.Fatalf("Access-Control-Allow-Methods = %q, want it to include DELETE", got)
+	}
+}
+
+func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", resp.StatusCode)
+	}
+	// gone afterwards
+	get, err := http.Get(srv.URL + "/recipes/" + rec.ID)
+	if err != nil {
+		t.Fatalf("GET after delete: %v", err)
+	}
+	defer get.Body.Close()
+	if get.StatusCode != http.StatusNotFound {
+		t.Fatalf("GET after delete = %d, want 404", get.StatusCode)
+	}
+}
+
+func TestDeleteRecipe_MissingReturns404(t *testing.T) {
+	srv, _ := newTestServer(t)
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/recipes/nope", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
 	}
 }
 

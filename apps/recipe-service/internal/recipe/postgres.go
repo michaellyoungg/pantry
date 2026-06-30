@@ -93,6 +93,17 @@ func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recip
 	return s.scanRecipesWithIngredients(ctx, rows)
 }
 
+func (s *PostgresStore) DeleteRecipe(ctx context.Context, id string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM recipes WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error) {
 	out := []Recipe{}
 	for _, id := range ids {
