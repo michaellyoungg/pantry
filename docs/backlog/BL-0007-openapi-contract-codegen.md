@@ -15,6 +15,14 @@ TypeScript types in `packages/types` and mirrored Go structs. This guarantees
 drift — they will silently diverge and surface as a serialization mismatch at a
 bad time.
 
+After Plan 2a, the grocery-list line shape (`{item,unit,quantity}`) is now
+written in **four** places: the Go `GroceryLine` struct, `@pantry/types`, a
+local `type` in `convex/recipes.ts`, and an inline validator in
+`convex/groceryList.ts`. `@pantry/convex` does not yet depend on `@pantry/types`.
+As a cheap interim step (before full OpenAPI codegen), have `@pantry/convex`
+import the line/ingredient types from `@pantry/types` to collapse the two
+JS-side copies.
+
 ## Proposal
 
 Establish a single source of truth for the contract before it grows complex:

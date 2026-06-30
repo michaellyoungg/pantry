@@ -22,6 +22,13 @@ with real sessions; propagate the authenticated user id to recipe-service calls
 (e.g. signed token / forwarded identity) so recipe ownership is enforced
 server-side. Add login/signup UI.
 
+**Specific gaps to close when this lands** (surfaced in Plan 2a review):
+- `groceryList.toggleItem` patches any `groceryList` `_id` with no ownership
+  check — an IDOR once there are multiple users. Add an ownership guard (verify
+  the row's `userId` matches the caller) at auth time.
+- Replace the hardcoded `DEV_USER_ID` reads in every Convex function and the Go
+  service's `DevUserID` with the authenticated identity.
+
 ## Alternatives considered
 
 - Hosted provider (Clerk/Auth0) — viable, but Convex Auth keeps identity inside
