@@ -14,6 +14,7 @@ func NewRouter(store Store) http.Handler {
 	mux.HandleFunc("POST /recipes", h.createRecipe)
 	mux.HandleFunc("GET /recipes", h.listRecipes)
 	mux.HandleFunc("GET /recipes/{id}", h.getRecipe)
+	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
 	mux.HandleFunc("POST /grocery-list", h.groceryList)
 	return mux
 }
@@ -67,6 +68,19 @@ func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rec)
 }
 
+func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
+	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"))
+	if errors.Is(err, ErrNotFound) {
+		writeError(w, http.StatusNotFound, "recipe not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not delete recipe")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RecipeIDs []string `json:"recipeIds"`
@@ -99,7 +113,7 @@ func WithCORS(next http.Handler, allowedOrigin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Add("Vary", "Origin")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

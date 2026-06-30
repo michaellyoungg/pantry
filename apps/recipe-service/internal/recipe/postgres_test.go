@@ -74,3 +74,35 @@ func TestPostgres_GetRecipesByIDsPreservesRequestOrder(t *testing.T) {
 		t.Fatalf("order/skip wrong: %+v", got)
 	}
 }
+
+func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	rec, err := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+		{Quantity: 2, Unit: "slices", Item: "bread"},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if err := s.DeleteRecipe(ctx, rec.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := s.GetRecipe(ctx, rec.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("after delete GetRecipe err = %v, want ErrNotFound", err)
+	}
+
+	// ingredients are gone via ON DELETE CASCADE
+	var n int
+	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM ingredients WHERE recipe_id = $1", rec.ID).Scan(&n); err != nil {
+		t.Fatalf("count ingredients: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("ingredient rows after delete = %d, want 0", n)
+	}
+
+	if err := s.DeleteRecipe(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("delete missing err = %v, want ErrNotFound", err)
+	}
+}

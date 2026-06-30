@@ -53,3 +53,26 @@ func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *test
 		t.Fatalf("order/skip wrong: %+v", got)
 	}
 }
+
+func TestMemoryStore_DeleteRemovesRecipe(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+	rec, _ := s.CreateRecipe(ctx, DevUserID, "Toast", nil)
+
+	if err := s.DeleteRecipe(ctx, rec.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := s.GetRecipe(ctx, rec.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("after delete GetRecipe err = %v, want ErrNotFound", err)
+	}
+	list, _ := s.ListRecipes(ctx, DevUserID)
+	if len(list) != 0 {
+		t.Fatalf("list after delete = %+v, want empty", list)
+	}
+}
+
+func TestMemoryStore_DeleteMissingReturnsErrNotFound(t *testing.T) {
+	if err := NewMemoryStore().DeleteRecipe(context.Background(), "nope"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}

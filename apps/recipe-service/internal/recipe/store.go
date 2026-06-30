@@ -15,6 +15,7 @@ type Store interface {
 	GetRecipe(ctx context.Context, id string) (Recipe, error)
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
 	GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error)
+	DeleteRecipe(ctx context.Context, id string) error
 }
 
 type MemoryStore struct {
@@ -67,6 +68,22 @@ func (s *MemoryStore) ListRecipes(_ context.Context, userID string) ([]Recipe, e
 		}
 	}
 	return out, nil
+}
+
+func (s *MemoryStore) DeleteRecipe(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.byID[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.byID, id)
+	for i, oid := range s.order {
+		if oid == id {
+			s.order = append(s.order[:i], s.order[i+1:]...)
+			break
+		}
+	}
+	return nil
 }
 
 func (s *MemoryStore) GetRecipesByIDs(_ context.Context, ids []string) ([]Recipe, error) {
