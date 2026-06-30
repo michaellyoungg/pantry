@@ -1,6 +1,6 @@
 import type { Recipe, CreateRecipeRequest } from "@pantry/types";
 
-const BASE = (import.meta.env.VITE_RECIPE_SERVICE_URL as string) ?? "http://localhost:8080";
+const BASE = (import.meta.env.VITE_RECIPE_SERVICE_URL as string) ?? "http://localhost:8090";
 
 export async function createRecipe(body: CreateRecipeRequest): Promise<Recipe> {
   const res = await fetch(`${BASE}/recipes`, {

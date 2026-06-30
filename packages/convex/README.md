@@ -30,7 +30,7 @@ The Convex backend + dashboard run as services in the repo-root
    action runs *inside* the `convex-backend` container, so it reaches the Go
    service by its compose service name (NOT `localhost`):
    ```bash
-   pnpm exec convex env set RECIPE_SERVICE_URL http://recipe-service:8080
+   pnpm exec convex env set RECIPE_SERVICE_URL http://recipe-service:8090
    ```
    Confirm with `pnpm exec convex env list`. **This is required** — the action
    throws if `RECIPE_SERVICE_URL` is unset.
