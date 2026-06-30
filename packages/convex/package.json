@@ -4,8 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./api": "./convex/_generated/api.js",
-    "./dataModel": "./convex/_generated/dataModel.js"
+    "./api": {
+      "types": "./convex/_generated/api.d.ts",
+      "default": "./convex/_generated/api.js"
+    },
+    "./dataModel": {
+      "types": "./convex/_generated/dataModel.d.ts"
+    }
   },
   "scripts": {
     "dev": "convex dev",
@@ -14,5 +19,8 @@
   },
   "dependencies": {
     "convex": "^1.42.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2"
   }
 }
