@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -88,6 +90,26 @@ func TestListRecipes_ReturnsDevUserRecipes(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Title != "A" {
 		t.Fatalf("unexpected list: %+v", got)
+	}
+}
+
+func TestCreateRecipe_NoIngredientsSerializesAsEmptyArray(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp, err := http.Post(srv.URL+"/recipes", "application/json",
+		bytes.NewBufferString(`{"title":"Plain"}`))
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), `"ingredients":[]`) {
+		t.Fatalf("body should contain \"ingredients\":[], got: %s", body)
+	}
+	if strings.Contains(string(body), `"ingredients":null`) {
+		t.Fatalf("body must not contain null ingredients, got: %s", body)
 	}
 }
 

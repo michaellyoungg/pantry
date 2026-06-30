@@ -33,6 +33,9 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 func (s *PostgresStore) Close() { s.pool.Close() }
 
 func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, ings []Ingredient) (Recipe, error) {
+	if ings == nil {
+		ings = []Ingredient{}
+	}
 	id := newID()
 	createdAt := time.Now().UTC()
 

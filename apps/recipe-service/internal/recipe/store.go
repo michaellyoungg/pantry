@@ -29,6 +29,9 @@ func NewMemoryStore() *MemoryStore {
 }
 
 func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings []Ingredient) (Recipe, error) {
+	if ings == nil {
+		ings = []Ingredient{}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.seq++
