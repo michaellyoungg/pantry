@@ -48,6 +48,7 @@ pantry/
           aggregate_test.go
           store.go                  # Store interface + Memory store (test double)
           store_test.go             # Memory store behaviour
+          id.go                     # newID() — crypto/rand identifier (no extra dep)
           postgres.go               # PostgresStore (implements Store)
           postgres_test.go          # integration test (skips without PANTRY_TEST_DATABASE_URL)
           schema.sql                # embedded CREATE TABLE IF NOT EXISTS
@@ -845,7 +846,6 @@ Replace the entire contents of `internal/recipe/handler.go`:
 package recipe
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -937,9 +937,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
-
-// ensure context import is used even if handlers above change.
-var _ = context.Background
 ```
 
 - [ ] **Step 4: Update main to construct a store**
@@ -972,7 +969,7 @@ func main() {
 - [ ] **Step 5: Run the full package test suite**
 
 Run: `go test ./internal/recipe/ -v` and `go build ./...`
-Expected: all tests PASS; build succeeds. (If the unused `context` guard line trips `go vet`, delete the `var _ = context.Background` line and the `context` import.)
+Expected: all tests PASS; build succeeds.
 
 - [ ] **Step 6: Commit**
 
@@ -987,6 +984,7 @@ git commit -m "feat(recipe-service): recipe CRUD and grocery-list HTTP endpoints
 
 **Files:**
 - Create: `apps/recipe-service/internal/recipe/schema.sql`
+- Create: `apps/recipe-service/internal/recipe/id.go`
 - Create: `apps/recipe-service/internal/recipe/postgres.go`
 - Create: `apps/recipe-service/internal/recipe/postgres_test.go`
 
@@ -1118,7 +1116,29 @@ func TestPostgres_GetRecipesByIDsPreservesRequestOrder(t *testing.T) {
 Run: `go test ./internal/recipe/ -run TestPostgres -v`
 Expected: FAIL — `undefined: PostgresStore` / `NewPostgresStore`.
 
-- [ ] **Step 5: Implement the Postgres store**
+- [ ] **Step 5: Add the ID generator (crypto/rand, no new dependency)**
+
+`internal/recipe/id.go`:
+```go
+package recipe
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+)
+
+// newID returns a random 128-bit hex identifier. Uses crypto/rand so we add no
+// third-party dependency (the plan's pgx-only constraint).
+func newID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic("recipe: crypto/rand failed: " + err.Error())
+	}
+	return hex.EncodeToString(b[:])
+}
+```
+
+- [ ] **Step 6: Implement the Postgres store**
 
 `internal/recipe/postgres.go`:
 ```go
@@ -1131,7 +1151,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -1158,7 +1177,7 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 func (s *PostgresStore) Close() { s.pool.Close() }
 
 func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, ings []Ingredient) (Recipe, error) {
-	id := uuid.NewString()
+	id := newID()
 	createdAt := time.Now().UTC()
 
 	tx, err := s.pool.Begin(ctx)
@@ -1271,16 +1290,15 @@ func (s *PostgresStore) ingredientsFor(ctx context.Context, recipeID string) ([]
 }
 ```
 
-- [ ] **Step 6: Add the uuid dependency and tidy**
+- [ ] **Step 7: Tidy modules**
 
 Run:
 ```bash
-go get github.com/google/uuid@latest
 go mod tidy
 ```
-Expected: `github.com/google/uuid` and `github.com/jackc/pgx/v5` present in `go.mod`. (uuid is a tiny, ubiquitous dependency; it is the one exception to "pgx-only" for ID generation. If you prefer zero extra deps, generate IDs with `crypto/rand` instead — but uuid keeps the code clear.)
+Expected: `github.com/jackc/pgx/v5` is the only third-party dependency in `go.mod` (no `google/uuid` — IDs come from the `crypto/rand` helper in `id.go`).
 
-- [ ] **Step 7: Start Postgres and run the integration test**
+- [ ] **Step 8: Start Postgres and run the integration test**
 
 Run:
 ```bash
@@ -1291,10 +1309,10 @@ docker stop pantry-test-pg
 ```
 Expected: all `TestPostgres_*` PASS. (Without the env var, these tests SKIP — confirm that too with a plain `go test ./...`.)
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add apps/recipe-service/internal/recipe/schema.sql apps/recipe-service/internal/recipe/postgres.go apps/recipe-service/internal/recipe/postgres_test.go apps/recipe-service/go.mod apps/recipe-service/go.sum
+git add apps/recipe-service/internal/recipe/schema.sql apps/recipe-service/internal/recipe/id.go apps/recipe-service/internal/recipe/postgres.go apps/recipe-service/internal/recipe/postgres_test.go apps/recipe-service/go.mod apps/recipe-service/go.sum
 git commit -m "feat(recipe-service): Postgres store with embedded schema and integration tests"
 ```
 
