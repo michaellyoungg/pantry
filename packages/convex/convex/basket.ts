@@ -38,3 +38,16 @@ export const remove = mutation({
     if (existing) await ctx.db.delete(existing._id);
   },
 });
+
+export const updateTitle = mutation({
+  args: { recipeId: v.string(), title: v.string() },
+  handler: async (ctx, { recipeId, title }) => {
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) =>
+        q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId),
+      )
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { title });
+  },
+});

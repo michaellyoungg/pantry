@@ -76,3 +76,40 @@ func TestMemoryStore_DeleteMissingReturnsErrNotFound(t *testing.T) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+	rec, _ := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+		{Quantity: 1, Unit: "slice", Item: "bread"},
+	})
+
+	got, err := s.UpdateRecipe(ctx, rec.ID, "French Toast", []Ingredient{
+		{Quantity: 2, Unit: "slices", Item: "brioche"},
+		{Quantity: 1, Unit: "", Item: "egg"},
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if got.Title != "French Toast" {
+		t.Fatalf("title = %q, want French Toast", got.Title)
+	}
+	if len(got.Ingredients) != 2 || got.Ingredients[0].Item != "brioche" {
+		t.Fatalf("ingredients = %+v, want replaced", got.Ingredients)
+	}
+	if got.ID != rec.ID || got.UserID != rec.UserID || !got.CreatedAt.Equal(rec.CreatedAt) {
+		t.Fatalf("meta changed: got id=%s user=%s created=%v", got.ID, got.UserID, got.CreatedAt)
+	}
+	// the stored copy reflects the update
+	reread, _ := s.GetRecipe(ctx, rec.ID)
+	if reread.Title != "French Toast" || len(reread.Ingredients) != 2 {
+		t.Fatalf("reread = %+v, want updated", reread)
+	}
+}
+
+func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
+	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "X", nil)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}

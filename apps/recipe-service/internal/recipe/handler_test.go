@@ -155,8 +155,10 @@ func TestWithCORS_PreflightReturns204WithHeaders(t *testing.T) {
 	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
 		t.Fatalf("Allow-Origin = %q, want the web origin", got)
 	}
-	if got := resp.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, "DELETE") {
-		t.Fatalf("Access-Control-Allow-Methods = %q, want it to include DELETE", got)
+	for _, m := range []string{"PUT", "DELETE"} {
+		if got := resp.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, m) {
+			t.Fatalf("Access-Control-Allow-Methods = %q, want it to include %s", got, m)
+		}
 	}
 }
 
@@ -194,6 +196,64 @@ func TestDeleteRecipe_MissingReturns404(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+
+	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}]}`)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Title != "French Toast" || len(got.Ingredients) != 1 || got.Ingredients[0].Item != "brioche" {
+		t.Fatalf("body = %+v, want updated title+ingredient", got)
+	}
+	if got.ID != rec.ID {
+		t.Fatalf("ID = %q, want %q", got.ID, rec.ID)
+	}
+}
+
+func TestUpdateRecipe_MissingReturns404(t *testing.T) {
+	srv, _ := newTestServer(t)
+	body := bytes.NewBufferString(`{"title":"X","ingredients":[]}`)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/nope", body)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
 	}
 }
 

@@ -16,6 +16,7 @@ type Store interface {
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
 	GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error)
 	DeleteRecipe(ctx context.Context, id string) error
+	UpdateRecipe(ctx context.Context, id, title string, ings []Ingredient) (Recipe, error)
 }
 
 type MemoryStore struct {
@@ -41,7 +42,7 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings
 		UserID:      userID,
 		Title:       title,
 		Ingredients: ings,
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
 	s.byID[rec.ID] = rec
 	s.order = append(s.order, rec.ID)
@@ -84,6 +85,22 @@ func (s *MemoryStore) DeleteRecipe(_ context.Context, id string) error {
 		}
 	}
 	return nil
+}
+
+func (s *MemoryStore) UpdateRecipe(_ context.Context, id, title string, ings []Ingredient) (Recipe, error) {
+	if ings == nil {
+		ings = []Ingredient{}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rec, ok := s.byID[id]
+	if !ok {
+		return Recipe{}, ErrNotFound
+	}
+	rec.Title = title
+	rec.Ingredients = ings
+	s.byID[id] = rec
+	return rec, nil
 }
 
 func (s *MemoryStore) GetRecipesByIDs(_ context.Context, ids []string) ([]Recipe, error) {
