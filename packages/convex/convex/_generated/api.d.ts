@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as basket from "../basket.js";
 import type * as constants from "../constants.js";
 
 import type {
@@ -17,6 +18,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  basket: typeof basket;
   constants: typeof constants;
 }>;
 
