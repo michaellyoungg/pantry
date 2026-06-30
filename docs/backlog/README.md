@@ -34,3 +34,5 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | proposed | infra | M |
 | [BL-0007](BL-0007-openapi-contract-codegen.md) | OpenAPI contract codegen | proposed | infra | M |
 | [BL-0008](BL-0008-self-hosted-convex-prod-hardening.md) | Self-hosted Convex prod hardening | proposed | infra | M |
+| [BL-0009](BL-0009-recipe-service-http-hardening.md) | recipe-service HTTP hardening (timeouts, body cap, graceful shutdown) | proposed | infra | S |
+| [BL-0010](BL-0010-wire-go-into-turborepo.md) | Wire the Go recipe-service into the Turborepo task graph | proposed | infra | S |

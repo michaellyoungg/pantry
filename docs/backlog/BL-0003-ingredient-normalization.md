@@ -26,6 +26,16 @@ aggregation logic already live):
 URL import (BL-0001), which produces free text, is the moment this earns its
 keep.
 
+## Related polish surfaced during Plan 1 review
+
+- **Display casing:** aggregation currently emits the normalized (trimmed,
+  lowercased) match key as the display `item`/`unit`, so "Garlic"/"Cloves"
+  shows as `garlic`/`cloves`. Preserve first-seen original casing for display
+  while still matching on the normalized key.
+- **Quantity rounding:** grocery quantities are summed as `float64`, so inputs
+  like `0.1 + 0.2` surface as `0.30000000000000004`. Add sensible rounding when
+  this normalization layer lands.
+
 ## Alternatives considered
 
 - Normalize at write-time vs at aggregate-time — likely aggregate-time so the
