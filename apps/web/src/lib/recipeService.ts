@@ -17,3 +17,8 @@ export async function listRecipes(): Promise<Recipe[]> {
   if (!res.ok) throw new Error(`listRecipes failed: ${res.status}`);
   return (await res.json()) as Recipe[];
 }
+
+export async function deleteRecipe(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/recipes/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`deleteRecipe failed: ${res.status}`);
+}
