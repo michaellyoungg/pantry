@@ -106,3 +106,42 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 		t.Fatalf("delete missing err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	rec, err := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+		{Quantity: 1, Unit: "slice", Item: "bread"},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	got, err := s.UpdateRecipe(ctx, rec.ID, "French Toast", []Ingredient{
+		{Quantity: 2, Unit: "slices", Item: "brioche"},
+		{Quantity: 1, Unit: "", Item: "egg"},
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if got.Title != "French Toast" || len(got.Ingredients) != 2 {
+		t.Fatalf("update result = %+v, want title+2 ingredients", got)
+	}
+	if !got.CreatedAt.Equal(rec.CreatedAt) || got.UserID != rec.UserID {
+		t.Fatalf("meta changed: %+v vs %+v", got, rec)
+	}
+
+	// exactly the new ingredient rows persist (old ones replaced)
+	reread, err := s.GetRecipe(ctx, rec.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if len(reread.Ingredients) != 2 || reread.Ingredients[0].Item != "brioche" || reread.Ingredients[1].Item != "egg" {
+		t.Fatalf("reread ingredients = %+v, want [brioche egg]", reread.Ingredients)
+	}
+
+	if _, err := s.UpdateRecipe(ctx, "nope", "X", nil); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("update missing err = %v, want ErrNotFound", err)
+	}
+}

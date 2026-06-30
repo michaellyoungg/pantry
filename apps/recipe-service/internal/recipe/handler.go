@@ -15,6 +15,7 @@ func NewRouter(store Store) http.Handler {
 	mux.HandleFunc("GET /recipes", h.listRecipes)
 	mux.HandleFunc("GET /recipes/{id}", h.getRecipe)
 	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
+	mux.HandleFunc("PUT /recipes/{id}", h.updateRecipe)
 	mux.HandleFunc("POST /grocery-list", h.groceryList)
 	return mux
 }
@@ -81,6 +82,31 @@ func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Title       string       `json:"title"`
+		Ingredients []Ingredient `json:"ingredients"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if strings.TrimSpace(req.Title) == "" {
+		writeError(w, http.StatusBadRequest, "title is required")
+		return
+	}
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), req.Title, req.Ingredients)
+	if errors.Is(err, ErrNotFound) {
+		writeError(w, http.StatusNotFound, "recipe not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not update recipe")
+		return
+	}
+	writeJSON(w, http.StatusOK, rec)
+}
+
 func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RecipeIDs []string `json:"recipeIds"`
@@ -113,7 +139,7 @@ func WithCORS(next http.Handler, allowedOrigin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Add("Vary", "Origin")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
