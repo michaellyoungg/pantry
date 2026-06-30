@@ -9,7 +9,13 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const addToBasket = useMutation(api.basket.add);
 
   useEffect(() => {
-    listRecipes().then(setRecipes).catch(console.error);
+    let active = true;
+    listRecipes()
+      .then((r) => active && setRecipes(r))
+      .catch(console.error);
+    return () => {
+      active = false;
+    };
   }, [refreshKey]);
 
   return (
