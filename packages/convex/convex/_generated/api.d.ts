@@ -10,6 +10,8 @@
 
 import type * as basket from "../basket.js";
 import type * as constants from "../constants.js";
+import type * as groceryList from "../groceryList.js";
+import type * as recipes from "../recipes.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +22,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   basket: typeof basket;
   constants: typeof constants;
+  groceryList: typeof groceryList;
+  recipes: typeof recipes;
 }>;
 
 /**
