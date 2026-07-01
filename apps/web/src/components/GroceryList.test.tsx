@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 // Hoisted, mutable so each test can set the query result; one shared mutation spy.
 const { state, mutationMock } = vi.hoisted(() => ({
   state: { lines: [] as Array<Record<string, unknown>> },
-  mutationMock: vi.fn(() => Promise.reject(new Error("toggle failed"))),
+  mutationMock: vi.fn(() => Promise.reject(new Error("mutation failed"))),
 }));
 
 vi.mock("convex/react", () => ({
@@ -38,7 +38,7 @@ describe("GroceryList", () => {
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("checkbox"));
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("toggle failed");
+    expect(alert.textContent).toContain("mutation failed");
   });
 
   it("clears the list via the clear mutation when confirmed", async () => {
@@ -46,6 +46,7 @@ describe("GroceryList", () => {
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("button", { name: /clear list/i }));
     expect(mutationMock).toHaveBeenCalledTimes(1);
+    expect(mutationMock).toHaveBeenCalledWith({}); // the clear mutation, args {}
     // the shared mock rejects → let the run() settle so no act warning
     await screen.findByRole("alert");
   });
