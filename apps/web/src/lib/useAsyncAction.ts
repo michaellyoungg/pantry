@@ -23,5 +23,9 @@ export function useAsyncAction() {
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { run, error, pending, clearError };
+  // Surface a message directly, e.g. for a best-effort secondary step that
+  // failed after a primary op already succeeded (so it can't go through `run`).
+  const showError = useCallback((message: string) => setError(message), []);
+
+  return { run, error, pending, clearError, showError };
 }

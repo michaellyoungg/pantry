@@ -1,7 +1,7 @@
 ---
 id: BL-0015
 title: Cross-store delete/basket partial-failure consistency
-status: proposed
+status: done
 area: web
 effort: S
 related_specs: [2026-06-30-web-ui-polish-design.md]
