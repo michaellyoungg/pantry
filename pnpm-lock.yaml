@@ -68,6 +68,9 @@ importers:
 
   packages/convex:
     dependencies:
+      '@pantry/types':
+        specifier: workspace:^
+        version: link:../types
       convex:
         specifier: ^1.42.1
         version: 1.42.1(react@19.2.7)
