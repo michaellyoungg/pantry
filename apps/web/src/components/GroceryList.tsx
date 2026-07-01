@@ -3,6 +3,7 @@ import { api } from "@pantry/convex/api";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { toggleItemOptimistic } from "../lib/optimistic";
 import { ErrorText } from "./ErrorText";
+import { Card } from "./ui/Card";
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
@@ -10,24 +11,28 @@ export function GroceryList() {
   const { run, error } = useAsyncAction();
 
   return (
-    <div className="panel">
-      <h2>Grocery list</h2>
-      {lines.length === 0 && <p>Nothing yet — generate from your basket.</p>}
-      <ul>
+    <Card title="Grocery list">
+      {lines.length === 0 && <p className="text-sm text-muted">Nothing yet — generate from your basket.</p>}
+      <ul className="flex flex-col gap-1">
         {lines.map((line) => (
           <li key={line._id}>
-            <label style={{ textDecoration: line.checked ? "line-through" : "none" }}>
+            <label
+              className={`flex items-center gap-2 text-sm ${line.checked ? "text-muted line-through" : "text-text"}`}
+            >
               <input
                 type="checkbox"
+                className="h-4 w-4 accent-[--color-primary]"
                 checked={line.checked}
                 onChange={(e) => run(() => toggle({ id: line._id, checked: e.target.checked }))}
               />
-              {line.quantity} {line.unit} {line.item}
+              <span>
+                {line.quantity} {line.unit} {line.item}
+              </span>
             </label>
           </li>
         ))}
       </ul>
       <ErrorText message={error} />
-    </div>
+    </Card>
   );
 }

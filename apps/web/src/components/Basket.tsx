@@ -3,6 +3,8 @@ import { api } from "@pantry/convex/api";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
 import { ErrorText } from "./ErrorText";
+import { Card } from "./ui/Card";
+import { Button } from "./ui/Button";
 
 export function Basket() {
   const items = useQuery(api.basket.list) ?? [];
@@ -12,21 +14,36 @@ export function Basket() {
   const rm = useAsyncAction();
 
   return (
-    <div className="panel">
-      <h2>Basket</h2>
-      {items.length === 0 && <p>Basket is empty.</p>}
-      <ul>
+    <Card title="Basket">
+      {items.length === 0 && <p className="text-sm text-muted">Basket is empty.</p>}
+      <ul className="flex flex-col divide-y divide-border">
         {items.map((b) => (
-          <li key={b._id}>
-            <span>{b.title}</span>
-            <button onClick={() => { gen.clearError(); rm.run(() => remove({ recipeId: b.recipeId })); }}>Remove</button>
+          <li key={b._id} className="flex items-center justify-between gap-2 py-2">
+            <span className="text-text">{b.title}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                gen.clearError();
+                rm.run(() => remove({ recipeId: b.recipeId }));
+              }}
+            >
+              Remove
+            </Button>
           </li>
         ))}
       </ul>
-      <button onClick={() => { rm.clearError(); gen.run(() => generate({})); }} disabled={gen.pending || items.length === 0}>
+      <Button
+        className="mt-3"
+        onClick={() => {
+          rm.clearError();
+          gen.run(() => generate({}));
+        }}
+        disabled={gen.pending || items.length === 0}
+      >
         {gen.pending ? "Generating…" : "Generate grocery list"}
-      </button>
+      </Button>
       <ErrorText message={gen.error ?? rm.error} />
-    </div>
+    </Card>
   );
 }

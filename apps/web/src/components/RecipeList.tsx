@@ -7,6 +7,8 @@ import { useAsyncAction } from "../lib/useAsyncAction";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
 import { ErrorText } from "./ErrorText";
 import { RecipeEditDialog } from "./RecipeEditDialog";
+import { Card } from "./ui/Card";
+import { Button } from "./ui/Button";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -52,25 +54,35 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   }
 
   return (
-    <div className="panel">
-      <h2>Recipes</h2>
-      {recipes.length === 0 && <p>No recipes yet.</p>}
-      <ul>
+    <Card title="Recipes">
+      {recipes.length === 0 && <p className="text-sm text-muted">No recipes yet.</p>}
+      <ul className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
-          <li key={r.id}>
-            <span>{r.title}</span>
-            <span>
-              <button onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}>Add to basket</button>
-              <button onClick={() => { clearError(); setEditing(r); }}>Edit</button>
-              <button onClick={() => onDelete(r)}>Delete</button>
+          <li key={r.id} className="flex items-center justify-between gap-2 py-2">
+            <span className="font-medium text-text">{r.title}</span>
+            <span className="flex items-center gap-1.5">
+              <Button variant="secondary" size="sm" onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}>
+                Add to basket
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  clearError();
+                  setEditing(r);
+                }}
+              >
+                Edit
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => onDelete(r)}>
+                Delete
+              </Button>
             </span>
           </li>
         ))}
       </ul>
       <ErrorText message={error} />
-      {editing && (
-        <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
-      )}
-    </div>
+      {editing && <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />}
+    </Card>
   );
 }

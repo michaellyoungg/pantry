@@ -3,6 +3,9 @@ import type { Ingredient } from "@pantry/types";
 import { createRecipe } from "../lib/recipeService";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { Card } from "./ui/Card";
+import { Input } from "./ui/Input";
+import { Button } from "./ui/Button";
 
 const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
@@ -32,28 +35,43 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="panel">
-      <h2>New recipe</h2>
-      <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      {ingredients.map((ing, i) => (
-        <div key={i} className="ingredient-row">
-          <input
-            type="number"
-            value={ing.quantity}
-            onChange={(e) => update(i, { quantity: Number(e.target.value) })}
-            style={{ width: "4rem" }}
-          />
-          <input placeholder="unit" value={ing.unit} onChange={(e) => update(i, { unit: e.target.value })} />
-          <input placeholder="item" value={ing.item} onChange={(e) => update(i, { item: e.target.value })} />
+    <Card title="New recipe">
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <div className="flex flex-col gap-2">
+          {ingredients.map((ing, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                type="number"
+                className="w-16"
+                value={ing.quantity}
+                onChange={(e) => update(i, { quantity: Number(e.target.value) })}
+              />
+              <Input
+                placeholder="unit"
+                className="w-24"
+                value={ing.unit}
+                onChange={(e) => update(i, { unit: e.target.value })}
+              />
+              <Input
+                placeholder="item"
+                className="flex-1"
+                value={ing.item}
+                onChange={(e) => update(i, { item: e.target.value })}
+              />
+            </div>
+          ))}
         </div>
-      ))}
-      <button type="button" onClick={() => setIngredients((p) => [...p, emptyIngredient()])}>
-        + ingredient
-      </button>
-      <button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Create recipe"}
-      </button>
-      <ErrorText message={error} />
-    </form>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setIngredients((p) => [...p, emptyIngredient()])}>
+            + ingredient
+          </Button>
+          <Button type="submit" disabled={pending} className="ml-auto">
+            {pending ? "Saving…" : "Create recipe"}
+          </Button>
+        </div>
+        <ErrorText message={error} />
+      </form>
+    </Card>
   );
 }

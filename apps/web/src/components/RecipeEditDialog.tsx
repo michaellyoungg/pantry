@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Recipe, Ingredient } from "@pantry/types";
+import { Input } from "./ui/Input";
+import { Button } from "./ui/Button";
 
 const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
@@ -32,38 +34,60 @@ export function RecipeEditDialog({
     if (!title.trim()) return;
     setBusy(true);
     try {
-      await onSave(title.trim(), ingredients.filter((ing) => ing.item.trim() !== ""));
+      await onSave(
+        title.trim(),
+        ingredients.filter((ing) => ing.item.trim() !== ""),
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <dialog ref={ref} onCancel={onClose} onClose={onClose}>
-      <form onSubmit={submit}>
-        <h2>Edit recipe</h2>
-        <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        {ingredients.map((ing, i) => (
-          <div key={i} className="ingredient-row">
-            <input
-              type="number"
-              value={ing.quantity}
-              onChange={(e) => update(i, { quantity: Number(e.target.value) })}
-              style={{ width: "4rem" }}
-            />
-            <input placeholder="unit" value={ing.unit} onChange={(e) => update(i, { unit: e.target.value })} />
-            <input placeholder="item" value={ing.item} onChange={(e) => update(i, { item: e.target.value })} />
-          </div>
-        ))}
-        <button type="button" onClick={() => setIngredients((p) => [...p, emptyIngredient()])}>
-          + ingredient
-        </button>
-        <button type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
+    <dialog
+      ref={ref}
+      onCancel={onClose}
+      onClose={onClose}
+      className="m-auto w-full max-w-md rounded-xl border border-border bg-surface p-5 text-text shadow-lg backdrop:bg-black/40"
+    >
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Edit recipe</h2>
+        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <div className="flex flex-col gap-2">
+          {ingredients.map((ing, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                type="number"
+                className="w-16"
+                value={ing.quantity}
+                onChange={(e) => update(i, { quantity: Number(e.target.value) })}
+              />
+              <Input
+                placeholder="unit"
+                className="w-24"
+                value={ing.unit}
+                onChange={(e) => update(i, { unit: e.target.value })}
+              />
+              <Input
+                placeholder="item"
+                className="flex-1"
+                value={ing.item}
+                onChange={(e) => update(i, { item: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" onClick={() => setIngredients((p) => [...p, emptyIngredient()])} className="mr-auto">
+            + ingredient
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </form>
     </dialog>
   );
