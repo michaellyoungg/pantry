@@ -19,11 +19,11 @@ export function Basket() {
         {items.map((b) => (
           <li key={b._id}>
             <span>{b.title}</span>
-            <button onClick={() => rm.run(() => remove({ recipeId: b.recipeId }))}>Remove</button>
+            <button onClick={() => { gen.clearError(); rm.run(() => remove({ recipeId: b.recipeId })); }}>Remove</button>
           </li>
         ))}
       </ul>
-      <button onClick={() => gen.run(() => generate({}))} disabled={gen.pending || items.length === 0}>
+      <button onClick={() => { rm.clearError(); gen.run(() => generate({})); }} disabled={gen.pending || items.length === 0}>
         {gen.pending ? "Generating…" : "Generate grocery list"}
       </button>
       <ErrorText message={gen.error ?? rm.error} />

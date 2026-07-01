@@ -14,7 +14,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const addToBasket = useMutation(api.basket.add);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(removeFromBasketOptimistic);
   const updateBasketTitle = useMutation(api.basket.updateTitle);
-  const { run, error } = useAsyncAction();
+  const { run, error, clearError } = useAsyncAction();
 
   const refresh = useCallback(async () => {
     setRecipes(await listRecipes());
@@ -61,7 +61,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
             <span>{r.title}</span>
             <span>
               <button onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}>Add to basket</button>
-              <button onClick={() => setEditing(r)}>Edit</button>
+              <button onClick={() => { clearError(); setEditing(r); }}>Edit</button>
               <button onClick={() => onDelete(r)}>Delete</button>
             </span>
           </li>
