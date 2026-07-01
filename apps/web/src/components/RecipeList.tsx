@@ -14,7 +14,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const addToBasket = useMutation(api.basket.add);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(removeFromBasketOptimistic);
   const updateBasketTitle = useMutation(api.basket.updateTitle);
-  const { run, error, clearError } = useAsyncAction();
+  const { run, error, clearError, showError } = useAsyncAction();
 
   const refresh = useCallback(async () => {
     setRecipes(await listRecipes());
@@ -30,25 +30,40 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     };
   }, [refreshKey]);
 
+  // The recipe-service op is the source of truth. The Convex basket cleanup that
+  // follows is best-effort: once the recipe is deleted/updated we must never let
+  // a basket failure roll the UI back into an inconsistent state — always
+  // refresh so the list reflects reality, and surface a targeted note instead.
   async function onDelete(r: Recipe) {
     if (!window.confirm(`Delete "${r.title}"?`)) return;
-    await run(async () => {
+    const deleted = await run(async () => {
       await deleteRecipe(r.id);
-      await removeFromBasket({ recipeId: r.id }); // idempotent no-op if not in basket
-      await refresh();
+      return true;
     });
+    if (!deleted) return;
+    try {
+      await removeFromBasket({ recipeId: r.id }); // idempotent no-op if not in basket
+    } catch {
+      showError(`Deleted "${r.title}", but couldn't update the basket — it may show a stale item until reload.`);
+    }
+    await refresh();
   }
 
   async function onSaveEdit(title: string, ingredients: Ingredient[]) {
     if (!editing) return;
     const id = editing.id;
-    const ok = await run(async () => {
+    const saved = await run(async () => {
       await updateRecipe(id, { title, ingredients });
-      await updateBasketTitle({ recipeId: id, title }); // idempotent no-op if not in basket
-      await refresh();
       return true;
     });
-    if (ok) setEditing(null);
+    if (!saved) return;
+    setEditing(null);
+    try {
+      await updateBasketTitle({ recipeId: id, title }); // idempotent no-op if not in basket
+    } catch {
+      showError(`Saved "${title}", but couldn't update the basket title — it may show the old title until reload.`);
+    }
+    await refresh();
   }
 
   return (
