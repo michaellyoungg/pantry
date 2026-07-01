@@ -1,14 +1,21 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
 import { useAsyncAction } from "../lib/useAsyncAction";
-import { toggleItemOptimistic } from "../lib/optimistic";
+import { toggleItemOptimistic, clearGroceryListOptimistic } from "../lib/optimistic";
 import { ErrorText } from "./ErrorText";
 import { Card } from "./ui/Card";
+import { Button } from "./ui/Button";
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
   const toggle = useMutation(api.groceryList.toggleItem).withOptimisticUpdate(toggleItemOptimistic);
+  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(clearGroceryListOptimistic);
   const { run, error } = useAsyncAction();
+
+  function onClear() {
+    if (!window.confirm("Clear the grocery list?")) return;
+    run(() => clearList({}));
+  }
 
   return (
     <Card title="Grocery list">
@@ -32,6 +39,13 @@ export function GroceryList() {
           </li>
         ))}
       </ul>
+      {lines.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            Clear list
+          </Button>
+        </div>
+      )}
       <ErrorText message={error} />
     </Card>
   );
