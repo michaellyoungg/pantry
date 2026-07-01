@@ -54,3 +54,14 @@ export const toggleItem = mutation({
     await ctx.db.patch(id, { checked });
   },
 });
+
+export const clearGroceryList = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("groceryList")
+      .withIndex("by_user", (q) => q.eq("userId", DEV_USER_ID))
+      .collect();
+    for (const row of rows) await ctx.db.delete(row._id);
+  },
+});

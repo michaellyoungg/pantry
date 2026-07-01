@@ -27,3 +27,9 @@ export function removeFromBasketOptimistic(
     cur.filter((b) => b.recipeId !== args.recipeId),
   );
 }
+
+export function clearGroceryListOptimistic(localStore: OptimisticLocalStore): void {
+  const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
+  if (cur === undefined) return;
+  localStore.setQuery(api.groceryList.getGroceryList, {}, []);
+}

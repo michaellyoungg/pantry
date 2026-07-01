@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { toggleItemOptimistic, removeFromBasketOptimistic } from "./optimistic";
+import { toggleItemOptimistic, removeFromBasketOptimistic, clearGroceryListOptimistic } from "./optimistic";
 
 // Minimal fake store: a single cached value, ignoring which query is asked for.
 function fakeStore(initial: unknown) {
@@ -46,6 +46,23 @@ describe("removeFromBasketOptimistic", () => {
   it("no-ops when the query is not in the cache", () => {
     const { store } = fakeStore(undefined);
     removeFromBasketOptimistic(store as never, { recipeId: "r1" });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("clearGroceryListOptimistic", () => {
+  it("empties the grocery list cache", () => {
+    const { store, state } = fakeStore([
+      { _id: "g1", item: "egg", unit: "", quantity: 1, checked: false },
+      { _id: "g2", item: "milk", unit: "", quantity: 1, checked: true },
+    ]);
+    clearGroceryListOptimistic(store as never);
+    expect(state.value).toEqual([]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    clearGroceryListOptimistic(store as never);
     expect(store.setQuery).not.toHaveBeenCalled();
   });
 });
