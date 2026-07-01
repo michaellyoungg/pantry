@@ -36,7 +36,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0008](BL-0008-self-hosted-convex-prod-hardening.md) | Self-hosted Convex prod hardening | proposed | infra | M |
 | [BL-0009](BL-0009-recipe-service-http-hardening.md) | recipe-service HTTP hardening (timeouts, body cap, graceful shutdown) | done | infra | S |
 | [BL-0010](BL-0010-wire-go-into-turborepo.md) | Wire the Go recipe-service into the Turborepo task graph | done | infra | S |
-| [BL-0011](BL-0011-convex-browser-safe-types.md) | Browser-safe @pantry/convex type entry (remove node-types leak) | proposed | infra | M |
+| [BL-0011](BL-0011-convex-browser-safe-types.md) | Browser-safe @pantry/convex type entry (remove node-types leak) | done | infra | M |
 | [BL-0012](BL-0012-web-ui-interaction-polish.md) | Web UI interaction polish (optimistic updates + error surfacing) | proposed | web | M |
 | [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | proposed | recipes | M |
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | proposed | infra | M |

@@ -1,7 +1,7 @@
 ---
 id: BL-0011
 title: Browser-safe @pantry/convex type entry (remove node-types leak)
-status: proposed
+status: done
 area: infra
 effort: M
 related_specs: [2026-06-29-web-app.md]
