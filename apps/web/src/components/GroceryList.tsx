@@ -1,9 +1,13 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
+import { useAsyncAction } from "../lib/useAsyncAction";
+import { toggleItemOptimistic } from "../lib/optimistic";
+import { ErrorText } from "./ErrorText";
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
-  const toggle = useMutation(api.groceryList.toggleItem);
+  const toggle = useMutation(api.groceryList.toggleItem).withOptimisticUpdate(toggleItemOptimistic);
+  const { run, error } = useAsyncAction();
 
   return (
     <div className="panel">
@@ -16,13 +20,14 @@ export function GroceryList() {
               <input
                 type="checkbox"
                 checked={line.checked}
-                onChange={(e) => toggle({ id: line._id, checked: e.target.checked })}
+                onChange={(e) => run(() => toggle({ id: line._id, checked: e.target.checked }))}
               />
               {line.quantity} {line.unit} {line.item}
             </label>
           </li>
         ))}
       </ul>
+      <ErrorText message={error} />
     </div>
   );
 }
