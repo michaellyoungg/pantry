@@ -1,0 +1,11 @@
+{
+  "name": "@pantry/recipe-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Task adapter so the Go recipe-service participates in the Turborepo pipeline. Go remains the source of truth; these scripts just shell out to the toolchain.",
+  "scripts": {
+    "build": "go build ./...",
+    "test": "go test ./...",
+    "lint": "go vet ./..."
+  }
+}

@@ -1,7 +1,7 @@
 ---
 id: BL-0010
 title: Wire the Go recipe-service into the Turborepo task graph
-status: proposed
+status: done
 area: infra
 effort: S
 related_specs: [2026-06-29-recipe-to-grocery-list-design.md]
