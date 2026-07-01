@@ -21,7 +21,7 @@ export function GroceryList() {
             >
               <input
                 type="checkbox"
-                className="h-4 w-4 accent-[--color-primary]"
+                className="h-4 w-4 accent-[var(--color-primary)]"
                 checked={line.checked}
                 onChange={(e) => run(() => toggle({ id: line._id, checked: e.target.checked }))}
               />
