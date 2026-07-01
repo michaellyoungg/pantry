@@ -18,6 +18,7 @@
     "codegen": "convex codegen"
   },
   "dependencies": {
+    "@pantry/types": "workspace:^",
     "convex": "^1.42.1"
   },
   "devDependencies": {

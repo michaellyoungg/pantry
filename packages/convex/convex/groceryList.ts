@@ -1,6 +1,20 @@
 import { query, mutation, internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
+import type { GroceryLine } from "@pantry/types";
 import { DEV_USER_ID } from "./constants";
+
+// Single runtime source for the grocery-line shape on the Convex side. Its
+// inferred type is pinned to the @pantry/types contract by the guard below, so
+// the validator and the shared TS type can't silently drift.
+export const groceryLineValidator = v.object({
+  item: v.string(),
+  unit: v.string(),
+  quantity: v.number(),
+});
+
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+// Fails to compile if groceryLineValidator and @pantry/types GroceryLine drift.
+export const _groceryLineInSync: Equals<Infer<typeof groceryLineValidator>, GroceryLine> = true;
 
 export const getGroceryList = query({
   args: {},
@@ -14,9 +28,7 @@ export const getGroceryList = query({
 
 export const replaceGroceryList = internalMutation({
   args: {
-    lines: v.array(
-      v.object({ item: v.string(), unit: v.string(), quantity: v.number() }),
-    ),
+    lines: v.array(groceryLineValidator),
   },
   handler: async (ctx, { lines }) => {
     const existing = await ctx.db

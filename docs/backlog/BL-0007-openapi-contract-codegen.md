@@ -23,6 +23,13 @@ As a cheap interim step (before full OpenAPI codegen), have `@pantry/convex`
 import the line/ingredient types from `@pantry/types` to collapse the two
 JS-side copies.
 
+**Progress:** the interim JS-side collapse is done (branch
+`myoung/feat-convex-share-contract-types`): `@pantry/convex` now depends on
+`@pantry/types`, `convex/recipes.ts` uses the shared `GroceryLine`, and
+`convex/groceryList.ts` derives its validator with a compile-time guard pinning
+it to the contract type. Still open: the Go struct is a separate copy, and the
+full OpenAPI-spec → TS + Go codegen (the Proposal below) is not started.
+
 ## Proposal
 
 Establish a single source of truth for the contract before it grows complex:
