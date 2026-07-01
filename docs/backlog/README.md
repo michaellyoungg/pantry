@@ -40,3 +40,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0012](BL-0012-web-ui-interaction-polish.md) | Web UI interaction polish (optimistic updates + error surfacing) | proposed | web | M |
 | [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | proposed | recipes | M |
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | proposed | infra | M |
+| [BL-0015](BL-0015-cross-store-delete-consistency.md) | Cross-store delete/basket partial-failure consistency | proposed | web | S |

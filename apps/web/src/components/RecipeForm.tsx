@@ -1,13 +1,15 @@
 import { useState } from "react";
 import type { Ingredient } from "@pantry/types";
 import { createRecipe } from "../lib/recipeService";
+import { useAsyncAction } from "../lib/useAsyncAction";
+import { ErrorText } from "./ErrorText";
 
 const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
-  const [busy, setBusy] = useState(false);
+  const { run, error, pending } = useAsyncAction();
 
   function update(i: number, patch: Partial<Ingredient>) {
     setIngredients((prev) => prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing)));
@@ -16,17 +18,16 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    setBusy(true);
-    try {
-      await createRecipe({
+    const created = await run(() =>
+      createRecipe({
         title: title.trim(),
         ingredients: ingredients.filter((ing) => ing.item.trim() !== ""),
-      });
+      }),
+    );
+    if (created) {
       setTitle("");
       setIngredients([emptyIngredient()]);
       onCreated();
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -49,9 +50,10 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       <button type="button" onClick={() => setIngredients((p) => [...p, emptyIngredient()])}>
         + ingredient
       </button>
-      <button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Create recipe"}
+      <button type="submit" disabled={pending}>
+        {pending ? "Saving…" : "Create recipe"}
       </button>
+      <ErrorText message={error} />
     </form>
   );
 }
