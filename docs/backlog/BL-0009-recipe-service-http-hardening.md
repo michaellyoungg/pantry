@@ -1,7 +1,7 @@
 ---
 id: BL-0009
 title: recipe-service HTTP hardening (timeouts, body cap, graceful shutdown)
-status: proposed
+status: done
 area: infra
 effort: S
 related_specs: [2026-06-29-recipe-to-grocery-list-design.md]

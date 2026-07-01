@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// maxBodyBytes caps request payloads to bound memory use and slow-body abuse.
+const maxBodyBytes = 1 << 20 // 1 MiB
+
 func NewRouter(store Store) http.Handler {
 	h := &handlers{store: store}
 	mux := http.NewServeMux()
@@ -31,8 +34,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		Title       string       `json:"title"`
 		Ingredients []Ingredient `json:"ingredients"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
@@ -87,8 +89,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		Title       string       `json:"title"`
 		Ingredients []Ingredient `json:"ingredients"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
@@ -111,8 +112,7 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RecipeIDs []string `json:"recipeIds"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	recs, err := h.store.GetRecipesByIDs(r.Context(), req.RecipeIDs)
@@ -121,6 +121,22 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, Aggregate(recs))
+}
+
+// decodeJSON reads a JSON request body with a size cap. It writes an error
+// response and returns false if the body is too large (413) or malformed (400).
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return false
+		}
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return false
+	}
+	return true
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
