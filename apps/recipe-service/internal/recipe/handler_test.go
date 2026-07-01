@@ -64,6 +64,23 @@ func TestCreateRecipe_RejectsEmptyTitle(t *testing.T) {
 	}
 }
 
+func TestCreateRecipe_RejectsOversizedBody(t *testing.T) {
+	srv, _ := newTestServer(t)
+	// Valid JSON that would be accepted (201) without a cap, but exceeds the
+	// server's body limit so it must be rejected with 413.
+	huge := strings.Repeat("a", 2<<20) // 2 MiB
+	body := `{"title":"` + huge + `","ingredients":[]}`
+	resp, err := http.Post(srv.URL+"/recipes", "application/json",
+		bytes.NewBufferString(body))
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413", resp.StatusCode)
+	}
+}
+
 func TestGetRecipe_NotFound(t *testing.T) {
 	srv, _ := newTestServer(t)
 	resp, err := http.Get(srv.URL + "/recipes/nope")
