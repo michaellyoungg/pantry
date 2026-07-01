@@ -4,14 +4,11 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    // "node" is required because the @pantry/convex/api type chain reaches
-    // Convex action source (process.env). Footgun: app code can reference Node
-    // globals that don't exist in the browser. Remove once @pantry/convex ships
-    // a browser-safe declaration entry (see backlog BL-0011).
-    "types": ["vite/client", "node"],
-    "paths": {
-      "@pantry/convex/api": ["../../packages/convex/convex/_generated/api.d.ts"]
-    },
+    // Browser-only ambient types. The @pantry/convex/api type chain reaches
+    // Convex server source that reads process.env; rather than pulling all of
+    // @types/node (Buffer/fs/__dirname/...) into the browser app, src/convex-env.d.ts
+    // declares just the minimal `process` global so those stay type errors here.
+    "types": ["vite/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
