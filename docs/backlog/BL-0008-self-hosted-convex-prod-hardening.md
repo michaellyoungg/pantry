@@ -18,11 +18,18 @@ is earlier-adopter than Cloud and we own the guardrails.
 
 Before relying on self-hosted Convex in production:
 
-- Pin specific image versions (never `:latest`).
+- Pin specific image versions (never `:latest`). ✅ **Done** (branch
+  `myoung/feat-pin-convex-images`): `docker-compose.yml` pins
+  `convex-backend`/`convex-dashboard` by immutable digest with an update
+  procedure in-comment. Convex tags self-hosted images by git commit SHA (no
+  semver), so digest is the correct pin.
 - Point Convex at Postgres (not SQLite) in the same region; size ~4GB RAM.
 - Set up persistent storage + automated backups + a restore drill.
 - Establish an upgrade process and changelog-watching cadence.
 - Decide dashboard access model (unavailable in Railway "private" mode).
+
+The remaining bullets are prod-deployment concerns (they land with BL-0006
+Railway deploy); only the image-version pin is actionable in the local skeleton.
 
 ## Alternatives considered
 
