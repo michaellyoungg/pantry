@@ -59,7 +59,7 @@ func (h *handlers) listRecipes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
-	rec, err := h.store.GetRecipe(r.Context(), r.PathValue("id"))
+	rec, err := h.store.GetRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -72,7 +72,7 @@ func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
-	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"))
+	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -96,7 +96,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), req.Title, req.Ingredients)
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -115,7 +115,7 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	recs, err := h.store.GetRecipesByIDs(r.Context(), req.RecipeIDs)
+	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), req.RecipeIDs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load recipes")
 		return
@@ -147,20 +147,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-// WithCORS wraps a handler with permissive-but-scoped CORS for the web dev
-// origin, and answers preflight OPTIONS requests directly.
-func WithCORS(next http.Handler, allowedOrigin string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Add("Vary", "Origin")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

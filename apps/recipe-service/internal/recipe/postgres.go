@@ -64,10 +64,10 @@ func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, 
 	return Recipe{ID: id, UserID: userID, Title: title, Ingredients: ings, CreatedAt: createdAt}, nil
 }
 
-func (s *PostgresStore) GetRecipe(ctx context.Context, id string) (Recipe, error) {
+func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recipe, error) {
 	rec := Recipe{}
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, user_id, title, created_at FROM recipes WHERE id = $1`, id).
+		`SELECT id, user_id, title, created_at FROM recipes WHERE id = $1 AND user_id = $2`, id, userID).
 		Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Recipe{}, ErrNotFound
@@ -93,8 +93,8 @@ func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recip
 	return s.scanRecipesWithIngredients(ctx, rows)
 }
 
-func (s *PostgresStore) DeleteRecipe(ctx context.Context, id string) error {
-	tag, err := s.pool.Exec(ctx, `DELETE FROM recipes WHERE id = $1`, id)
+func (s *PostgresStore) DeleteRecipe(ctx context.Context, id, userID string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM recipes WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return err
 	}
@@ -104,10 +104,10 @@ func (s *PostgresStore) DeleteRecipe(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error) {
+func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error) {
 	out := []Recipe{}
 	for _, id := range ids {
-		rec, err := s.GetRecipe(ctx, id)
+		rec, err := s.GetRecipe(ctx, id, userID)
 		if errors.Is(err, ErrNotFound) {
 			continue
 		}
@@ -119,7 +119,7 @@ func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, ids []string) ([]Re
 	return out, nil
 }
 
-func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, title string, ings []Ingredient) (Recipe, error) {
+func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title string, ings []Ingredient) (Recipe, error) {
 	if ings == nil {
 		ings = []Ingredient{}
 	}
@@ -129,7 +129,7 @@ func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, title string, ings
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx, `UPDATE recipes SET title = $1 WHERE id = $2`, title, id)
+	tag, err := tx.Exec(ctx, `UPDATE recipes SET title = $1 WHERE id = $2 AND user_id = $3`, title, id, userID)
 	if err != nil {
 		return Recipe{}, err
 	}
@@ -150,7 +150,7 @@ func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, title string, ings
 	if err := tx.Commit(ctx); err != nil {
 		return Recipe{}, err
 	}
-	return s.GetRecipe(ctx, id)
+	return s.GetRecipe(ctx, id, userID)
 }
 
 func (s *PostgresStore) scanRecipesWithIngredients(ctx context.Context, rows pgx.Rows) ([]Recipe, error) {

@@ -31,7 +31,7 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
 		{Quantity: 1, Unit: "tbsp", Item: "butter", Note: "softened"},
 	})
@@ -39,7 +39,7 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	got, err := s.GetRecipe(ctx, created.ID)
+	got, err := s.GetRecipe(ctx, created.ID, "user-a")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -47,14 +47,14 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
 
-	list, err := s.ListRecipes(ctx, DevUserID)
+	list, err := s.ListRecipes(ctx, "user-a")
 	if err != nil || len(list) != 1 {
 		t.Fatalf("list: %v / %+v", err, list)
 	}
 }
 
 func TestPostgres_GetMissingReturnsErrNotFound(t *testing.T) {
-	_, err := newTestPostgres(t).GetRecipe(context.Background(), "nope")
+	_, err := newTestPostgres(t).GetRecipe(context.Background(), "nope", "user-a")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
@@ -63,10 +63,10 @@ func TestPostgres_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestPostgres_GetRecipesByIDsPreservesRequestOrder(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	a, _ := s.CreateRecipe(ctx, DevUserID, "A", nil)
-	b, _ := s.CreateRecipe(ctx, DevUserID, "B", nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil)
 
-	got, err := s.GetRecipesByIDs(ctx, []string{b.ID, "missing", a.ID})
+	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
 		t.Fatalf("by ids: %v", err)
 	}
@@ -79,17 +79,17 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	rec, err := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	if err := s.DeleteRecipe(ctx, rec.ID); err != nil {
+	if err := s.DeleteRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if _, err := s.GetRecipe(ctx, rec.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("after delete GetRecipe err = %v, want ErrNotFound", err)
 	}
 
@@ -102,7 +102,7 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 		t.Fatalf("ingredient rows after delete = %d, want 0", n)
 	}
 
-	if err := s.DeleteRecipe(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+	if err := s.DeleteRecipe(ctx, "nope", "user-a"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("delete missing err = %v, want ErrNotFound", err)
 	}
 }
@@ -111,14 +111,14 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	rec, err := s.CreateRecipe(ctx, DevUserID, "Toast", []Ingredient{
+	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	got, err := s.UpdateRecipe(ctx, rec.ID, "French Toast", []Ingredient{
+	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
 	})
@@ -133,7 +133,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 	}
 
 	// exactly the new ingredient rows persist (old ones replaced)
-	reread, err := s.GetRecipe(ctx, rec.ID)
+	reread, err := s.GetRecipe(ctx, rec.ID, "user-a")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 		t.Fatalf("reread ingredients = %+v, want [brioche egg]", reread.Ingredients)
 	}
 
-	if _, err := s.UpdateRecipe(ctx, "nope", "X", nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, "nope", "user-a", "X", nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("update missing err = %v, want ErrNotFound", err)
 	}
 }

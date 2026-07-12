@@ -2,9 +2,6 @@ package recipe
 
 import "time"
 
-// DevUserID is the stubbed owner for all recipes until real auth (BL-0004).
-const DevUserID = "dev-user"
-
 type Ingredient struct {
 	Quantity float64 `json:"quantity"`
 	Unit     string  `json:"unit"`

@@ -22,7 +22,7 @@ func authReq(method, target string, body io.Reader) *http.Request {
 		panic(err)
 	}
 	req.Header.Set("X-Service-Secret", testSecret)
-	req.Header.Set("X-User-Id", DevUserID)
+	req.Header.Set("X-User-Id", "user-a")
 	return req
 }
 
@@ -67,7 +67,7 @@ func TestCreateRecipe_ReturnsCreatedWithDevOwner(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.ID == "" || got.UserID != DevUserID || got.Title != "Toast" || len(got.Ingredients) != 1 {
+	if got.ID == "" || got.UserID != "user-a" || got.Title != "Toast" || len(got.Ingredients) != 1 {
 		t.Fatalf("unexpected recipe: %+v", got)
 	}
 }
@@ -105,7 +105,7 @@ func TestGetRecipe_NotFound(t *testing.T) {
 
 func TestListRecipes_ReturnsDevUserRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
-	_, _ = store.CreateRecipe(context.Background(), DevUserID, "A", nil)
+	_, _ = store.CreateRecipe(context.Background(), "user-a", "A", nil)
 	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes", nil)
 	defer resp.Body.Close()
 	var got []Recipe
@@ -136,8 +136,8 @@ func TestCreateRecipe_NoIngredientsSerializesAsEmptyArray(t *testing.T) {
 func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	a, _ := store.CreateRecipe(ctx, DevUserID, "A", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
-	b, _ := store.CreateRecipe(ctx, DevUserID, "B", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
+	a, _ := store.CreateRecipe(ctx, "user-a", "A", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
+	b, _ := store.CreateRecipe(ctx, "user-a", "B", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
 
 	body, _ := json.Marshal(map[string][]string{"recipeIds": {a.ID, b.ID}})
 	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
@@ -155,33 +155,9 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	}
 }
 
-func TestWithCORS_PreflightReturns204WithHeaders(t *testing.T) {
-	h := WithCORS(NewRouter(NewMemoryStore(), testSecret), "http://localhost:5173")
-	srv := httptest.NewServer(h)
-	t.Cleanup(srv.Close)
-
-	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/recipes", nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("preflight: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("preflight status = %d, want 204", resp.StatusCode)
-	}
-	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
-		t.Fatalf("Allow-Origin = %q, want the web origin", got)
-	}
-	for _, m := range []string{"PUT", "DELETE"} {
-		if got := resp.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, m) {
-			t.Fatalf("Access-Control-Allow-Methods = %q, want it to include %s", got, m)
-		}
-	}
-}
-
 func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
 
 	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
 	defer resp.Body.Close()
@@ -207,7 +183,7 @@ func TestDeleteRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
 
 	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
@@ -249,7 +225,7 @@ func TestUpdateRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
 	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
@@ -260,23 +236,5 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", resp.StatusCode)
-	}
-}
-
-func TestWithCORS_NormalRequestCarriesOriginHeader(t *testing.T) {
-	h := WithCORS(NewRouter(NewMemoryStore(), testSecret), "http://localhost:5173")
-	srv := httptest.NewServer(h)
-	t.Cleanup(srv.Close)
-
-	resp, err := http.Get(srv.URL + "/healthz")
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
-	}
-	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
-		t.Fatalf("Allow-Origin = %q, want the web origin", got)
 	}
 }
