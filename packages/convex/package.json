@@ -18,7 +18,7 @@
     "codegen": "convex codegen"
   },
   "dependencies": {
-    "@auth/core": "0.37.0",
+    "@auth/core": "0.41.2",
     "@convex-dev/auth": "^0.0.94",
     "@pantry/types": "workspace:^",
     "convex": "^1.42.1"
