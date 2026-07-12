@@ -31,7 +31,11 @@ cleanly while keeping the current single-page UI visually identical.
 - **Devtools included** (`@tanstack/react-router-devtools`), dev-only and
   tree-shaken from production builds.
 - **Generated route tree gitignored** (`routeTree.gen.ts` is regenerated on
-  dev/build).
+  dev/build). Because `tsc` does not run the Vite plugin, the `typecheck` and
+  `build` scripts prepend `tsr generate` (from `@tanstack/router-cli`, config
+  in `apps/web/tsr.config.json`) so a clean checkout generates the tree before
+  `tsc` runs. Without this, `tsc -b` fails on a fresh clone with
+  `Cannot find module './routeTree.gen'`.
 
 ## Design
 
@@ -40,7 +44,9 @@ cleanly while keeping the current single-page UI visually identical.
 - `@tanstack/react-router` — runtime router.
 - `@tanstack/react-router-devtools` — dev dependency, dev-only devtools panel.
 - `@tanstack/router-plugin` — dev dependency, Vite plugin that generates the
-  route tree.
+  route tree at dev/build.
+- `@tanstack/router-cli` — dev dependency, provides the `tsr generate` command
+  used by the `typecheck`/`build` scripts to generate the tree ahead of `tsc`.
 
 ### Vite config (`vite.config.ts`)
 
