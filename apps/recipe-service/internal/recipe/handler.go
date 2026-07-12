@@ -10,7 +10,7 @@ import (
 // maxBodyBytes caps request payloads to bound memory use and slow-body abuse.
 const maxBodyBytes = 1 << 20 // 1 MiB
 
-func NewRouter(store Store) http.Handler {
+func NewRouter(store Store, secret string) http.Handler {
 	h := &handlers{store: store}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.healthz)
@@ -21,7 +21,7 @@ func NewRouter(store Store) http.Handler {
 	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
 	mux.HandleFunc("PUT /recipes/{id}", h.updateRecipe)
 	mux.HandleFunc("POST /grocery-list", h.groceryList)
-	return mux
+	return requireService(secret, mux)
 }
 
 type handlers struct{ store Store }
@@ -42,7 +42,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), DevUserID, req.Title, req.Ingredients)
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create recipe")
 		return
@@ -51,7 +51,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) listRecipes(w http.ResponseWriter, r *http.Request) {
-	recs, err := h.store.ListRecipes(r.Context(), DevUserID)
+	recs, err := h.store.ListRecipes(r.Context(), userIDFrom(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not list recipes")
 		return
@@ -69,7 +69,7 @@ func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
-	rec, err := h.store.GetRecipe(r.Context(), r.PathValue("id"))
+	rec, err := h.store.GetRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -82,7 +82,7 @@ func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
-	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"))
+	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -106,7 +106,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), req.Title, req.Ingredients)
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
@@ -125,7 +125,7 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	recs, err := h.store.GetRecipesByIDs(r.Context(), req.RecipeIDs)
+	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), req.RecipeIDs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load recipes")
 		return
@@ -157,20 +157,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-// WithCORS wraps a handler with permissive-but-scoped CORS for the web dev
-// origin, and answers preflight OPTIONS requests directly.
-func WithCORS(next http.Handler, allowedOrigin string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Add("Vary", "Origin")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

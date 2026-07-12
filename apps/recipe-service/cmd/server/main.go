@@ -40,11 +40,11 @@ func run() error {
 		log.Print("DATABASE_URL unset; using in-memory store")
 	}
 
-	webOrigin := os.Getenv("WEB_ORIGIN")
-	if webOrigin == "" {
-		webOrigin = "http://localhost:5173"
+	secret := os.Getenv("RECIPE_SERVICE_SECRET")
+	if secret == "" {
+		return errors.New("RECIPE_SERVICE_SECRET is required")
 	}
-	handler := recipe.WithCORS(recipe.NewRouter(store), webOrigin)
+	handler := recipe.NewRouter(store, secret)
 
 	srv := &http.Server{
 		Addr:              ":" + port,
@@ -62,7 +62,7 @@ func run() error {
 
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("recipe-service listening on :%s (CORS origin %s)", port, webOrigin)
+		log.Printf("recipe-service listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}

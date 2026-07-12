@@ -1,5 +1,18 @@
+import { useAuthActions } from "@convex-dev/auth/react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { AuthForm } from "../components/AuthForm";
+import { Button } from "../components/ui/Button";
+
+function SignOutButton() {
+  const { signOut } = useAuthActions();
+  return (
+    <Button variant="ghost" size="sm" onClick={() => signOut()} className="ml-auto">
+      Sign out
+    </Button>
+  );
+}
 
 function RootLayout() {
   return (
@@ -10,9 +23,21 @@ function RootLayout() {
             🥕
           </span>
           <h1 className="text-xl font-semibold tracking-tight text-text">Pantry</h1>
+          <Authenticated>
+            <SignOutButton />
+          </Authenticated>
         </div>
       </header>
-      <Outlet />
+      <Unauthenticated>
+        <main className="mx-auto max-w-5xl px-6 py-8">
+          <div className="mx-auto max-w-sm">
+            <AuthForm />
+          </div>
+        </main>
+      </Unauthenticated>
+      <Authenticated>
+        <Outlet />
+      </Authenticated>
       {import.meta.env.DEV ? <TanStackRouterDevtools /> : null}
     </div>
   );

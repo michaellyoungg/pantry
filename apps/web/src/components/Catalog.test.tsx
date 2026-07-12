@@ -1,17 +1,23 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { addMock } = vi.hoisted(() => ({ addMock: vi.fn(() => Promise.resolve()) }));
+vi.mock("@pantry/convex/api", () => ({
+  api: {
+    recipes: { listCatalog: "recipes.listCatalog" },
+    basket: { add: "basket.add" },
+  },
+}));
+
+const { listCatalog, addMock } = vi.hoisted(() => ({
+  listCatalog: vi.fn(),
+  addMock: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock("convex/react", () => ({
+  useAction: () => listCatalog,
   useMutation: () => addMock,
 }));
 
-vi.mock("../lib/recipeService", () => ({
-  listCatalog: vi.fn(),
-}));
-
-import { listCatalog } from "../lib/recipeService";
 import { Catalog } from "./Catalog";
 
 const CAT = {
@@ -26,7 +32,7 @@ describe("Catalog", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("renders catalog recipes and adds one to the basket by reference", async () => {
-    vi.mocked(listCatalog).mockResolvedValue([CAT]);
+    listCatalog.mockResolvedValue([CAT]);
     render(<Catalog />);
     await screen.findByText("Garlic Bread");
 
@@ -37,7 +43,7 @@ describe("Catalog", () => {
   });
 
   it("shows an empty state when the catalog is empty", async () => {
-    vi.mocked(listCatalog).mockResolvedValue([]);
+    listCatalog.mockResolvedValue([]);
     render(<Catalog />);
     await screen.findByText(/no catalog recipes/i);
   });

@@ -8,9 +8,10 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
-import type * as constants from "../constants.js";
 import type * as groceryList from "../groceryList.js";
+import type * as http from "../http.js";
 import type * as recipes from "../recipes.js";
 
 import type {
@@ -20,9 +21,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   basket: typeof basket;
-  constants: typeof constants;
   groceryList: typeof groceryList;
+  http: typeof http;
   recipes: typeof recipes;
 }>;
 

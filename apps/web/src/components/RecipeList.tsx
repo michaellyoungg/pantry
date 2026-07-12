@@ -1,9 +1,8 @@
 import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
-import { deleteRecipe, listRecipes, updateRecipe } from "../lib/recipeService";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeEditDialog } from "./RecipeEditDialog";
@@ -13,6 +12,9 @@ import { Card } from "./ui/Card";
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [editing, setEditing] = useState<Recipe | null>(null);
+  const listRecipes = useAction(api.recipes.list);
+  const deleteRecipe = useAction(api.recipes.remove);
+  const updateRecipe = useAction(api.recipes.update);
   const addToBasket = useMutation(api.basket.add);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
@@ -22,7 +24,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
 
   const refresh = useCallback(async () => {
     setRecipes(await listRecipes());
-  }, []);
+  }, [listRecipes]);
 
   useEffect(() => {
     let active = true;
@@ -32,7 +34,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     return () => {
       active = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, listRecipes]);
 
   // The recipe-service op is the source of truth. The Convex basket cleanup that
   // follows is best-effort: once the recipe is deleted/updated we must never let
@@ -41,7 +43,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   async function onDelete(r: Recipe) {
     if (!window.confirm(`Delete "${r.title}"?`)) return;
     const deleted = await run(async () => {
-      await deleteRecipe(r.id);
+      await deleteRecipe({ id: r.id });
       return true;
     });
     if (!deleted) return;
@@ -59,7 +61,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      await updateRecipe(id, { title, ingredients });
+      await updateRecipe({ id, title, ingredients });
       return true;
     });
     if (!saved) return;

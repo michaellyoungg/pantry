@@ -12,11 +12,11 @@ var ErrNotFound = errors.New("recipe not found")
 
 type Store interface {
 	CreateRecipe(ctx context.Context, userID, title string, ings []Ingredient) (Recipe, error)
-	GetRecipe(ctx context.Context, id string) (Recipe, error)
+	GetRecipe(ctx context.Context, id, userID string) (Recipe, error)
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
-	GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error)
-	DeleteRecipe(ctx context.Context, id string) error
-	UpdateRecipe(ctx context.Context, id, title string, ings []Ingredient) (Recipe, error)
+	GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error)
+	DeleteRecipe(ctx context.Context, id, userID string) error
+	UpdateRecipe(ctx context.Context, id, userID, title string, ings []Ingredient) (Recipe, error)
 	UpsertRecipe(ctx context.Context, rec Recipe) error
 }
 
@@ -50,11 +50,11 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings
 	return rec, nil
 }
 
-func (s *MemoryStore) GetRecipe(_ context.Context, id string) (Recipe, error) {
+func (s *MemoryStore) GetRecipe(_ context.Context, id, userID string) (Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec, ok := s.byID[id]
-	if !ok {
+	if !ok || rec.UserID != userID {
 		return Recipe{}, ErrNotFound
 	}
 	return rec, nil
@@ -72,10 +72,10 @@ func (s *MemoryStore) ListRecipes(_ context.Context, userID string) ([]Recipe, e
 	return out, nil
 }
 
-func (s *MemoryStore) DeleteRecipe(_ context.Context, id string) error {
+func (s *MemoryStore) DeleteRecipe(_ context.Context, id, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.byID[id]; !ok {
+	if rec, ok := s.byID[id]; !ok || rec.UserID != userID {
 		return ErrNotFound
 	}
 	delete(s.byID, id)
@@ -88,14 +88,14 @@ func (s *MemoryStore) DeleteRecipe(_ context.Context, id string) error {
 	return nil
 }
 
-func (s *MemoryStore) UpdateRecipe(_ context.Context, id, title string, ings []Ingredient) (Recipe, error) {
+func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, ings []Ingredient) (Recipe, error) {
 	if ings == nil {
 		ings = []Ingredient{}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec, ok := s.byID[id]
-	if !ok {
+	if !ok || rec.UserID != userID {
 		return Recipe{}, ErrNotFound
 	}
 	rec.Title = title
@@ -104,12 +104,12 @@ func (s *MemoryStore) UpdateRecipe(_ context.Context, id, title string, ings []I
 	return rec, nil
 }
 
-func (s *MemoryStore) GetRecipesByIDs(_ context.Context, ids []string) ([]Recipe, error) {
+func (s *MemoryStore) GetRecipesByIDs(_ context.Context, userID string, ids []string) ([]Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := []Recipe{}
 	for _, id := range ids {
-		if rec, ok := s.byID[id]; ok {
+		if rec, ok := s.byID[id]; ok && rec.UserID == userID {
 			out = append(out, rec)
 		}
 	}

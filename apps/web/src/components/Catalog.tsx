@@ -1,8 +1,7 @@
 import { api } from "@pantry/convex/api";
 import type { Recipe } from "@pantry/types";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
-import { listCatalog } from "../lib/recipeService";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -10,6 +9,7 @@ import { Card } from "./ui/Card";
 
 export function Catalog() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const listCatalog = useAction(api.recipes.listCatalog);
   const addToBasket = useMutation(api.basket.add);
   const { run, error } = useAsyncAction();
 
@@ -21,7 +21,7 @@ export function Catalog() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [listCatalog]);
 
   return (
     <Card title="Catalog">

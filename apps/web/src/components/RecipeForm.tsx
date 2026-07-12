@@ -1,6 +1,7 @@
+import { api } from "@pantry/convex/api";
 import type { Ingredient } from "@pantry/types";
+import { useAction } from "convex/react";
 import { useState } from "react";
-import { createRecipe } from "../lib/recipeService";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -12,6 +13,7 @@ const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
+  const createRecipe = useAction(api.recipes.create);
   const { run, error, pending } = useAsyncAction();
 
   function update(i: number, patch: Partial<Ingredient>) {
