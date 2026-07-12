@@ -284,7 +284,7 @@ func TestSnapNice(t *testing.T) {
 		{0.749, 0.75},              // within epsilon of 3/4
 		{0.6667, 0.667},            // within epsilon of 2/3
 		{2.0, 2.0},
-		{2.51, 2.51}, // not nice -> 2dp
+		{2.4, 2.4}, // not within epsilon of any nice value -> 2dp
 	}
 	for _, c := range cases {
 		if got := snapNice(c.in); got != c.want {
@@ -756,7 +756,7 @@ describe("formatQuantity", () => {
 
   it("falls back to a trimmed 2-decimal for non-nice values", () => {
     expect(formatQuantity(0.3)).toBe("0.3");
-    expect(formatQuantity(2.51)).toBe("2.51");
+    expect(formatQuantity(2.4)).toBe("2.4");
   });
 });
 ```
