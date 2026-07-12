@@ -145,3 +145,51 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 		t.Fatalf("update missing err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestPostgres_GetRecipe_ScopedToOwner(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+
+	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
+		t.Fatalf("owner get: %v", err)
+	}
+	if _, err := s.GetRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("non-owner get: want ErrNotFound, got %v", err)
+	}
+}
+
+func TestPostgres_DeleteRecipe_ScopedToOwner(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+
+	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
+	}
+	// row must survive the non-owner delete
+	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
+		t.Fatalf("owner get after non-owner delete: %v", err)
+	}
+	if err := s.DeleteRecipe(ctx, rec.ID, "user-a"); err != nil {
+		t.Fatalf("owner delete: %v", err)
+	}
+}
+
+func TestPostgres_UpdateRecipe_ScopedToOwner(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
+	}
+	// title must be unchanged for the owner
+	got, err := s.GetRecipe(ctx, rec.ID, "user-a")
+	if err != nil {
+		t.Fatalf("owner get: %v", err)
+	}
+	if got.Title != "Toast" {
+		t.Fatalf("title = %q, want Toast (non-owner update must not persist)", got.Title)
+	}
+}

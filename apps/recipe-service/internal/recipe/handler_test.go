@@ -26,6 +26,14 @@ func authReq(method, target string, body io.Reader) *http.Request {
 	return req
 }
 
+// authReqAs is like authReq but lets the caller choose the X-User-Id, so tests
+// can exercise cross-user access with a valid service secret.
+func authReqAs(method, target, userID string, body io.Reader) *http.Request {
+	req := authReq(method, target, body)
+	req.Header.Set("X-User-Id", userID)
+	return req
+}
+
 func newTestServer(t *testing.T) (*httptest.Server, Store) {
 	t.Helper()
 	store := NewMemoryStore()
@@ -43,6 +51,15 @@ func doAuth(t *testing.T, method, url string, body io.Reader) *http.Response {
 	return resp
 }
 
+func doAuthAs(t *testing.T, method, url, userID string, body io.Reader) *http.Response {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(authReqAs(method, url, userID, body))
+	if err != nil {
+		t.Fatalf("%s %s as %s: %v", method, url, userID, err)
+	}
+	return resp
+}
+
 func TestHealthz(t *testing.T) {
 	srv, _ := newTestServer(t)
 	resp, err := http.Get(srv.URL + "/healthz")
@@ -55,7 +72,7 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
-func TestCreateRecipe_ReturnsCreatedWithDevOwner(t *testing.T) {
+func TestCreateRecipe_ReturnsCreatedWithOwner(t *testing.T) {
 	srv, _ := newTestServer(t)
 	body := `{"title":"Toast","ingredients":[{"quantity":2,"unit":"slices","item":"bread"}]}`
 	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
@@ -103,7 +120,7 @@ func TestGetRecipe_NotFound(t *testing.T) {
 	}
 }
 
-func TestListRecipes_ReturnsDevUserRecipes(t *testing.T) {
+func TestListRecipes_ReturnsOwnerRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	_, _ = store.CreateRecipe(context.Background(), "user-a", "A", nil)
 	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes", nil)
@@ -236,5 +253,67 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestRecipes_CrossUserReturns404 is the HTTP-layer IDOR regression: a recipe
+// owned by user-a must be invisible and immutable to user-b, even though user-b
+// carries a valid service secret. Every per-id operation must 404, and user-b's
+// list must be empty.
+func TestRecipes_CrossUserReturns404(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, err := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	path := srv.URL + "/recipes/" + rec.ID
+
+	// GET as user-b → 404
+	get := doAuthAs(t, http.MethodGet, path, "user-b", nil)
+	defer get.Body.Close()
+	if get.StatusCode != http.StatusNotFound {
+		t.Fatalf("GET as user-b = %d, want 404", get.StatusCode)
+	}
+
+	// DELETE as user-b → 404 (and must not remove the row)
+	del := doAuthAs(t, http.MethodDelete, path, "user-b", nil)
+	defer del.Body.Close()
+	if del.StatusCode != http.StatusNotFound {
+		t.Fatalf("DELETE as user-b = %d, want 404", del.StatusCode)
+	}
+
+	// PUT as user-b → 404
+	putBody := bytes.NewBufferString(`{"title":"Hax","ingredients":[]}`)
+	putReq := authReqAs(http.MethodPut, path, "user-b", putBody)
+	putReq.Header.Set("Content-Type", "application/json")
+	putResp, err := http.DefaultClient.Do(putReq)
+	if err != nil {
+		t.Fatalf("PUT as user-b: %v", err)
+	}
+	defer putResp.Body.Close()
+	if putResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("PUT as user-b = %d, want 404", putResp.StatusCode)
+	}
+
+	// GET /recipes as user-b → empty list, not user-a's recipe
+	list := doAuthAs(t, http.MethodGet, srv.URL+"/recipes", "user-b", nil)
+	defer list.Body.Close()
+	if list.StatusCode != http.StatusOK {
+		t.Fatalf("LIST as user-b = %d, want 200", list.StatusCode)
+	}
+	var got []Recipe
+	if err := json.NewDecoder(list.Body).Decode(&got); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("LIST as user-b = %+v, want empty", got)
+	}
+
+	// sanity: the recipe still belongs to user-a (the cross-user delete was a no-op)
+	ownerGet := doAuthAs(t, http.MethodGet, path, "user-a", nil)
+	defer ownerGet.Body.Close()
+	if ownerGet.StatusCode != http.StatusOK {
+		t.Fatalf("GET as owner user-a = %d, want 200 (row must survive cross-user delete)", ownerGet.StatusCode)
 	}
 }
