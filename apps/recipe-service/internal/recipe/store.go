@@ -17,6 +17,7 @@ type Store interface {
 	GetRecipesByIDs(ctx context.Context, ids []string) ([]Recipe, error)
 	DeleteRecipe(ctx context.Context, id string) error
 	UpdateRecipe(ctx context.Context, id, title string, ings []Ingredient) (Recipe, error)
+	UpsertRecipe(ctx context.Context, rec Recipe) error
 }
 
 type MemoryStore struct {
@@ -113,4 +114,27 @@ func (s *MemoryStore) GetRecipesByIDs(_ context.Context, ids []string) ([]Recipe
 		}
 	}
 	return out, nil
+}
+
+// UpsertRecipe inserts rec, or replaces the existing row with the same id. On
+// replace the original CreatedAt is preserved so catalog ordering stays stable.
+func (s *MemoryStore) UpsertRecipe(_ context.Context, rec Recipe) error {
+	if rec.ID == "" {
+		return errors.New("upsert: recipe id is required")
+	}
+	if rec.Ingredients == nil {
+		rec.Ingredients = []Ingredient{}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existing, ok := s.byID[rec.ID]; ok {
+		rec.CreatedAt = existing.CreatedAt
+	} else {
+		if rec.CreatedAt.IsZero() {
+			rec.CreatedAt = time.Now().UTC().Truncate(time.Microsecond)
+		}
+		s.order = append(s.order, rec.ID)
+	}
+	s.byID[rec.ID] = rec
+	return nil
 }

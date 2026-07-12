@@ -30,8 +30,24 @@ services:
       postgres:
         condition: service_healthy
 
+  seed:
+    build:
+      context: ./apps/recipe-service
+      target: seed
+    environment:
+      DATABASE_URL: postgres://pantry:pantry@postgres:5432/pantry?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: [seed]
+
   convex-backend:
-    image: ghcr.io/get-convex/convex-backend:latest
+    # Pinned by digest for reproducibility (never :latest — see backlog BL-0008).
+    # Convex tags self-hosted images by git commit SHA, not semver, so we pin the
+    # immutable digest. Pinned 2026-06-30 (was :latest). To bump: pull the new
+    # :latest, read `docker image inspect ghcr.io/get-convex/convex-backend:latest
+    # --format '{{index .RepoDigests 0}}'`, and update both this and the dashboard.
+    image: ghcr.io/get-convex/convex-backend@sha256:705b8d89a7f812c5ef49937be8154bf8e5c803d596cc980fa53fc33dc7380d0c
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
@@ -53,7 +69,8 @@ services:
       retries: 10
 
   convex-dashboard:
-    image: ghcr.io/get-convex/convex-dashboard:latest
+    # Pinned by digest — keep in lockstep with convex-backend above (BL-0008).
+    image: ghcr.io/get-convex/convex-dashboard@sha256:f3a8ccb90a07c9cb580974c0e4a03f38137b5b53dd4c70cd5b242d5d7ae2260b
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:

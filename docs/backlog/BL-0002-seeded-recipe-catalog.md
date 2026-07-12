@@ -1,10 +1,10 @@
 ---
 id: BL-0002
 title: Seeded recipe catalog
-status: proposed
+status: in-progress
 area: recipes
 effort: M
-related_specs: [2026-06-29-recipe-to-grocery-list-design.md]
+related_specs: [2026-06-29-recipe-to-grocery-list-design.md, 2026-07-12-seeded-recipe-catalog-design.md]
 created: 2026-06-29
 ---
 

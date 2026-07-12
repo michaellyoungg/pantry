@@ -32,3 +32,9 @@ export async function updateRecipe(id: string, body: CreateRecipeRequest): Promi
   if (!res.ok) throw new Error(`updateRecipe failed: ${res.status}`);
   return (await res.json()) as Recipe;
 }
+
+export async function listCatalog(): Promise<Recipe[]> {
+  const res = await fetch(`${BASE}/catalog`);
+  if (!res.ok) throw new Error(`listCatalog failed: ${res.status}`);
+  return (await res.json()) as Recipe[];
+}

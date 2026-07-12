@@ -26,6 +26,10 @@ edges surfaced in review + the live browser smoke:
   `toggleItem` (and basket add/remove) so the UI responds instantly.
 - Surface errors: a small inline error string per panel on rejected
   mutations/actions/fetches, instead of `console.error`/silent.
+- The `Catalog` panel (BL-0002) fetches via `listCatalog()` and shows the same
+  "No catalog recipes yet." for loading, empty, and fetch-failure (the rejection
+  is only `console.error`'d). Distinguish loading / empty / backend-down there
+  when this lands.
 
 ## Alternatives considered
 
