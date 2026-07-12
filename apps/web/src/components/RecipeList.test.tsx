@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // A Convex mutation stub that rejects, with the .withOptimisticUpdate chain the
 // component calls on the basket-remove mutation.
@@ -22,8 +22,8 @@ vi.mock("../lib/recipeService", () => ({
   updateRecipe: vi.fn(),
 }));
 
+import { deleteRecipe, listRecipes } from "../lib/recipeService";
 import { RecipeList } from "./RecipeList";
-import { listRecipes, deleteRecipe } from "../lib/recipeService";
 
 const RECIPE = {
   id: "r1",
@@ -43,7 +43,7 @@ describe("RecipeList cross-store delete consistency", () => {
     // Initial load returns the recipe; the post-delete refresh returns empty
     // (the recipe IS gone from the canonical store).
     vi.mocked(listRecipes).mockResolvedValueOnce([RECIPE]).mockResolvedValue([]);
-    vi.mocked(deleteRecipe).mockResolvedValue(undefined as unknown as void);
+    vi.mocked(deleteRecipe).mockResolvedValue(undefined);
 
     render(<RecipeList refreshKey={0} />);
     await screen.findByText("Garlic Bread");

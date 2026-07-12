@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # JS/TS dependencies (pnpm workspace, resolved via the npm ecosystem).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for the routine minor/patch bumps to cut review noise.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Go modules for the recipe-service.
+  - package-ecosystem: gomod
+    directory: "/apps/recipe-service"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # The GitHub Actions used by our own workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
