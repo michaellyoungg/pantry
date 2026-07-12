@@ -24,4 +24,9 @@ describe("formatQuantity", () => {
     expect(formatQuantity(0.3)).toBe("0.3");
     expect(formatQuantity(2.4)).toBe("2.4");
   });
+
+  it("snaps a near-whole fraction up to the next whole (mirrors server)", () => {
+    expect(formatQuantity(1.99)).toBe("2");
+    expect(formatQuantity(0.99)).toBe("1");
+  });
 });

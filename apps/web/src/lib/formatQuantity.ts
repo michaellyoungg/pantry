@@ -21,5 +21,6 @@ export function formatQuantity(n: number): string {
     }
   }
   if (Math.abs(frac) <= EPSILON) return String(whole);
+  if (Math.abs(frac - 1) <= EPSILON) return String(whole + 1);
   return String(Math.round(n * 100) / 100);
 }
