@@ -12,13 +12,13 @@
     "test:coverage": "turbo run test:coverage",
     "lint": "biome check && turbo run lint",
     "format": "biome check --write",
-    "knip": "knip",
+    "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
     "knip": "^6.26.0",
-    "turbo": "^2.1.0",
+    "turbo": "^2.10.4",
     "typescript": "^5.6.0"
   }
 }
