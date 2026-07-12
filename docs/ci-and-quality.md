@@ -11,13 +11,18 @@ that keep `main` green.
 | Job | Steps |
 | --- | --- |
 | **Node** | Biome (lint + format + import order) · TypeScript typecheck · Vitest with coverage · build · Knip (dead code / unused deps) |
-| **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` |
-
-`.github/workflows/codeql.yml` runs GitHub CodeQL security analysis for
-JavaScript/TypeScript and Go on PRs, pushes to `main`, and weekly.
+| **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
-and the GitHub Actions we use.
+and the GitHub Actions we use. Combined with **Dependabot alerts** (enabled in
+repo settings) this is the free dependency-vulnerability layer for this private
+repo.
+
+> **On CodeQL:** GitHub's CodeQL code scanning requires GitHub Advanced
+> Security, which is **free only for public repos** — on a private repo it is a
+> paid add-on. We therefore rely on Dependabot alerts + `govulncheck` for free
+> security coverage. If the repo goes public (or GHAS is purchased), a CodeQL
+> workflow can be added.
 
 ## Running the checks locally
 
@@ -64,18 +69,22 @@ These live in GitHub repo settings, not in code, so an admin must enable them:
 1. **Branch protection for `main`** — Settings → Branches → add a rule:
    - Require a pull request before merging.
    - Require status checks to pass: select **Node (lint · typecheck · test ·
-     build)** and **Go (vet · test · golangci-lint)**.
+     build)** and **Go (vet · test · lint · vuln)**.
    - Require branches to be up to date before merging.
    This is what actually stops a red PR from landing.
 2. **Secret scanning + push protection** — Settings → Code security → enable
    *Secret scanning* and *Push protection*. Blocks committed credentials
-   (relevant given the Convex/auth work and `.env.example`).
-3. **CodeQL / Dependabot alerts** — Settings → Code security → enable
-   *Dependabot alerts* and *Code scanning*. The workflows above populate them.
+   (relevant given the Convex/auth work and `.env.example`). Free on private
+   repos.
+3. **Dependabot alerts** — Settings → Code security → enable *Dependabot
+   alerts* (and security updates). Free on private repos; surfaces known CVEs
+   in our npm and Go dependencies.
 
 ## Cost
 
 GitHub Actions is free for this project's needs: private repos on the Free plan
 include 2,000 Linux minutes/month (3,000 on Team). A full CI run here is a few
 minutes and Turborepo caching skips unchanged packages, so real usage is a small
-fraction of the quota. CodeQL, Dependabot, and secret scanning are free.
+fraction of the quota. Dependabot, secret scanning, and push protection are free
+on private repos. CodeQL code scanning is **not** free on private repos (it
+needs GitHub Advanced Security) — see the note above.
