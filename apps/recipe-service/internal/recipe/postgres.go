@@ -85,7 +85,7 @@ func (s *PostgresStore) GetRecipe(ctx context.Context, id string) (Recipe, error
 
 func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recipe, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, user_id, title, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at`, userID)
+		`SELECT id, user_id, title, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
 	if err != nil {
 		return nil, err
 	}
