@@ -1,7 +1,7 @@
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { v } from "convex/values";
-import type { GroceryLine, Recipe } from "@pantry/types";
+import { v, type Infer } from "convex/values";
+import type { GroceryLine, Recipe, Ingredient } from "@pantry/types";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 const ingredientValidator = v.object({
@@ -10,6 +10,11 @@ const ingredientValidator = v.object({
   item: v.string(),
   note: v.optional(v.string()),
 });
+
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+// Fails to compile if ingredientValidator and @pantry/types Ingredient drift,
+// mirroring the guard on groceryList.ts's groceryLineValidator.
+export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingredient> = true;
 
 // Calls recipe-service as Convex: proves identity with the shared secret and
 // forwards the authenticated user id. Never reachable from the browser.
