@@ -10,6 +10,7 @@ export const groceryLineValidator = v.object({
   item: v.string(),
   unit: v.string(),
   quantity: v.number(),
+  aisle: v.string(),
 });
 
 type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -42,6 +43,7 @@ export const replaceGroceryList = internalMutation({
         item: line.item,
         unit: line.unit,
         quantity: line.quantity,
+        aisle: line.aisle,
         checked: false,
       });
     }

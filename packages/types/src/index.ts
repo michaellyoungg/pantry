@@ -17,6 +17,7 @@ export interface GroceryLine {
   item: string;
   unit: string;
   quantity: number;
+  aisle: string;
 }
 
 export interface CreateRecipeRequest {
