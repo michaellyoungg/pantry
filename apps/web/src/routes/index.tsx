@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Basket } from "../components/Basket";
+import { Catalog } from "../components/Catalog";
+import { GroceryList } from "../components/GroceryList";
 import { RecipeForm } from "../components/RecipeForm";
 import { RecipeList } from "../components/RecipeList";
-import { Catalog } from "../components/Catalog";
-import { Basket } from "../components/Basket";
-import { GroceryList } from "../components/GroceryList";
 
 function HomePage() {
   const [refreshKey, setRefreshKey] = useState(0);

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { addMock } = vi.hoisted(() => ({ addMock: vi.fn(() => Promise.resolve()) }));
 
@@ -11,8 +11,8 @@ vi.mock("../lib/recipeService", () => ({
   listCatalog: vi.fn(),
 }));
 
-import { Catalog } from "./Catalog";
 import { listCatalog } from "../lib/recipeService";
+import { Catalog } from "./Catalog";
 
 const CAT = {
   id: "cat-garlic-bread",

@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { api } from "@pantry/convex/api";
 import type { Recipe } from "@pantry/types";
 import { useMutation } from "convex/react";
-import { api } from "@pantry/convex/api";
+import { useEffect, useState } from "react";
 import { listCatalog } from "../lib/recipeService";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
-import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
 
 export function Catalog() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);

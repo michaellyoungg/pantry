@@ -1,7 +1,7 @@
+import type { Ingredient, Recipe } from "@pantry/types";
 import { useEffect, useRef, useState } from "react";
-import type { Recipe, Ingredient } from "@pantry/types";
-import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
 
 const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
@@ -78,7 +78,11 @@ export function RecipeEditDialog({
           ))}
         </div>
         <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" onClick={() => setIngredients((p) => [...p, emptyIngredient()])} className="mr-auto">
+          <Button
+            variant="ghost"
+            onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
+            className="mr-auto"
+          >
             + ingredient
           </Button>
           <Button variant="ghost" onClick={onClose}>

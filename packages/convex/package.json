@@ -15,13 +15,18 @@
   "scripts": {
     "dev": "convex dev",
     "deploy": "convex dev --once",
-    "codegen": "convex codegen"
+    "codegen": "convex codegen",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@pantry/types": "workspace:^",
     "convex": "^1.42.1"
   },
   "devDependencies": {
-    "@types/node": "^24.13.2"
+    "@edge-runtime/vm": "^5.0.0",
+    "@types/node": "^24.13.2",
+    "convex-test": "^0.0.54",
+    "vitest": "^4.1.9"
   }
 }

@@ -21,10 +21,10 @@ type Store interface {
 }
 
 type MemoryStore struct {
-	mu     sync.Mutex
-	seq    int
-	byID   map[string]Recipe
-	order  []string
+	mu    sync.Mutex
+	seq   int
+	byID  map[string]Recipe
+	order []string
 }
 
 func NewMemoryStore() *MemoryStore {
