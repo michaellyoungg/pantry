@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -107,4 +108,64 @@ func (n *Normalizer) aisleRank(aisle string) int {
 		return i
 	}
 	return len(n.data.AisleOrder)
+}
+
+const (
+	niceEpsilon   = 0.02
+	bulkThreshold = 4.0
+)
+
+// niceFracs are the fractional parts we snap to (quarters, thirds, halves).
+var niceFracs = []float64{0, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 0.75, 1.0}
+
+// niceValue snaps v to the nearest whole+nice-fraction within niceEpsilon.
+// ok is false when v is not close to any nice value.
+func niceValue(v float64) (float64, bool) {
+	whole := math.Floor(v)
+	frac := v - whole
+	best, bestDist := 0.0, math.Inf(1)
+	for _, f := range niceFracs {
+		if d := math.Abs(frac - f); d < bestDist {
+			bestDist, best = d, f
+		}
+	}
+	if bestDist <= niceEpsilon {
+		return math.Round((whole+best)*1000) / 1000, true
+	}
+	return 0, false
+}
+
+// snapNice returns v snapped to a nice value, or rounded to 2 decimals otherwise.
+// This also erases float-sum noise like 0.1 + 0.2.
+func snapNice(v float64) float64 {
+	if s, ok := niceValue(v); ok {
+		return s
+	}
+	return math.Round(v*100) / 100
+}
+
+// Friendly picks the largest display unit in which baseQty reads cleanly and
+// returns the snapped quantity in that unit. It promotes to a larger unit when
+// the amount is at least a whole there, or when the amount is bulky in the
+// smaller unit (>= bulkThreshold) and lands on a nice fraction in the larger.
+func (n *Normalizer) Friendly(dimension string, baseQty float64) (float64, string) {
+	ladder := n.ladders[dimension]
+	if len(ladder) == 0 {
+		return snapNice(baseQty), dimension
+	}
+	idx := 0
+	for idx < len(ladder)-1 {
+		cur := ladder[idx]
+		next := ladder[idx+1]
+		q0 := baseQty / cur.toBase
+		q1 := baseQty / next.toBase
+		snapped1, ok1 := niceValue(q1)
+		if q1 >= 1 || (ok1 && snapped1 >= 1) || (ok1 && snapped1 >= 0.25 && snapped1 < 1 && q0 >= bulkThreshold) {
+			idx++
+			continue
+		}
+		break
+	}
+	chosen := ladder[idx]
+	return snapNice(baseQty / chosen.toBase), chosen.unit
 }
