@@ -291,3 +291,48 @@ func TestWithCORS_NormalRequestCarriesOriginHeader(t *testing.T) {
 		t.Fatalf("Allow-Origin = %q, want the web origin", got)
 	}
 }
+
+func TestListCatalog_ReturnsCatalogOwnedRecipesOnly(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	if err := store.UpsertRecipe(ctx, Recipe{
+		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// A dev-user recipe must NOT leak into the catalog.
+	_, _ = store.CreateRecipe(ctx, DevUserID, "Mine", nil)
+
+	resp, err := http.Get(srv.URL + "/catalog")
+	if err != nil {
+		t.Fatalf("GET /catalog: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got []Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "cat-x" || got[0].UserID != CatalogUserID {
+		t.Fatalf("unexpected catalog: %+v", got)
+	}
+}
+
+func TestListCatalog_EmptySerializesAsEmptyArray(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp, err := http.Get(srv.URL + "/catalog")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(body)) != "[]" {
+		t.Fatalf("body = %q, want []", body)
+	}
+}
