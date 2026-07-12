@@ -1,33 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-// A Convex mutation stub that rejects, with the .withOptimisticUpdate chain the
-// component calls on the basket-remove mutation.
-const { rejectingMutation } = vi.hoisted(() => {
-  const fn = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
+vi.mock("@pantry/convex/api", () => ({
+  api: {
+    recipes: { list: "recipes.list", remove: "recipes.remove", update: "recipes.update" },
+    basket: { add: "basket.add", remove: "basket.remove", updateTitle: "basket.updateTitle" },
+  },
+}));
+
+const { listRecipes, deleteRecipe, updateRecipe, rejectingMutation } = vi.hoisted(() => {
+  const listRecipes = vi.fn();
+  const deleteRecipe = vi.fn();
+  const updateRecipe = vi.fn();
+  const m = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
     (...a: unknown[]): Promise<unknown>;
     withOptimisticUpdate: ReturnType<typeof vi.fn>;
   };
-  fn.withOptimisticUpdate = vi.fn(() => fn);
-  return { rejectingMutation: fn };
+  m.withOptimisticUpdate = vi.fn(() => m);
+  return { listRecipes, deleteRecipe, updateRecipe, rejectingMutation: m };
 });
 
 vi.mock("convex/react", () => ({
+  useAction: (ref: string) =>
+    ref === "recipes.list" ? listRecipes : ref === "recipes.remove" ? deleteRecipe : updateRecipe,
   useMutation: () => rejectingMutation,
 }));
 
-vi.mock("../lib/recipeService", () => ({
-  listRecipes: vi.fn(),
-  deleteRecipe: vi.fn(),
-  updateRecipe: vi.fn(),
-}));
-
 import { RecipeList } from "./RecipeList";
-import { listRecipes, deleteRecipe } from "../lib/recipeService";
 
 const RECIPE = {
   id: "r1",
-  userId: "dev-user",
+  userId: "user-a",
   title: "Garlic Bread",
   ingredients: [],
   createdAt: "2026-06-30T00:00:00.000Z",
@@ -40,27 +43,20 @@ describe("RecipeList cross-store delete consistency", () => {
   });
 
   it("still refreshes the list and shows a targeted note when basket cleanup fails after delete", async () => {
-    // Initial load returns the recipe; the post-delete refresh returns empty
-    // (the recipe IS gone from the canonical store).
-    vi.mocked(listRecipes).mockResolvedValueOnce([RECIPE]).mockResolvedValue([]);
-    vi.mocked(deleteRecipe).mockResolvedValue(undefined as unknown as void);
+    listRecipes.mockResolvedValueOnce([RECIPE]).mockResolvedValue([]);
+    deleteRecipe.mockResolvedValue(undefined);
 
     render(<RecipeList refreshKey={0} />);
     await screen.findByText("Garlic Bread");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    // The recipe delete succeeded, so the list must reflect that even though the
-    // basket mutation rejected — the row should disappear (refresh ran).
     await waitFor(() => expect(screen.queryByText("Garlic Bread")).toBeNull());
 
-    // And the failure is surfaced as a targeted message, not swallowed and not a
-    // generic "basket backend down".
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(/basket/i);
     expect(alert.textContent).toContain("Garlic Bread");
 
-    // refresh() actually ran after the failing basket op.
-    expect(vi.mocked(listRecipes).mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(listRecipes.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });
