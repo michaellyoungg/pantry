@@ -17,6 +17,7 @@ func NewRouter(store Store) http.Handler {
 	mux.HandleFunc("POST /recipes", h.createRecipe)
 	mux.HandleFunc("GET /recipes", h.listRecipes)
 	mux.HandleFunc("GET /recipes/{id}", h.getRecipe)
+	mux.HandleFunc("GET /catalog", h.listCatalog)
 	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
 	mux.HandleFunc("PUT /recipes/{id}", h.updateRecipe)
 	mux.HandleFunc("POST /grocery-list", h.groceryList)
@@ -53,6 +54,15 @@ func (h *handlers) listRecipes(w http.ResponseWriter, r *http.Request) {
 	recs, err := h.store.ListRecipes(r.Context(), DevUserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not list recipes")
+		return
+	}
+	writeJSON(w, http.StatusOK, recs)
+}
+
+func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
+	recs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not list catalog")
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
