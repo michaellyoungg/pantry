@@ -1,7 +1,7 @@
-import { query, mutation, internalMutation } from "./_generated/server";
-import { v, type Infer } from "convex/values";
-import type { GroceryLine } from "@pantry/types";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import type { GroceryLine } from "@pantry/types";
+import { type Infer, v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 // Single runtime source for the grocery-line shape on the Convex side. Its
 // inferred type is pinned to the @pantry/types contract by the guard below, so

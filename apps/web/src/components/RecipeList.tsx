@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Recipe, Ingredient } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
-import { useAsyncAction } from "../lib/useAsyncAction";
+import type { Ingredient, Recipe } from "@pantry/types";
+import { useAction, useMutation } from "convex/react";
+import { useCallback, useEffect, useState } from "react";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
+import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeEditDialog } from "./RecipeEditDialog";
-import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -16,7 +16,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const deleteRecipe = useAction(api.recipes.remove);
   const updateRecipe = useAction(api.recipes.update);
   const addToBasket = useMutation(api.basket.add);
-  const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(removeFromBasketOptimistic);
+  const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
+    removeFromBasketOptimistic,
+  );
   const updateBasketTitle = useMutation(api.basket.updateTitle);
   const { run, error, clearError, showError } = useAsyncAction();
 
@@ -48,7 +50,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     try {
       await removeFromBasket({ recipeId: r.id }); // idempotent no-op if not in basket
     } catch {
-      showError(`Deleted "${r.title}", but couldn't update the basket — it may show a stale item until reload.`);
+      showError(
+        `Deleted "${r.title}", but couldn't update the basket — it may show a stale item until reload.`,
+      );
     }
     await refresh();
   }
@@ -65,7 +69,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     try {
       await updateBasketTitle({ recipeId: id, title }); // idempotent no-op if not in basket
     } catch {
-      showError(`Saved "${title}", but couldn't update the basket title — it may show the old title until reload.`);
+      showError(
+        `Saved "${title}", but couldn't update the basket title — it may show the old title until reload.`,
+      );
     }
     await refresh();
   }
@@ -78,7 +84,11 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
           <li key={r.id} className="flex items-center justify-between gap-2 py-2">
             <span className="font-medium text-text">{r.title}</span>
             <span className="flex items-center gap-1.5">
-              <Button variant="secondary" size="sm" onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
+              >
                 Add to basket
               </Button>
               <Button
@@ -99,7 +109,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
         ))}
       </ul>
       <ErrorText message={error} />
-      {editing && <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />}
+      {editing && (
+        <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
+      )}
     </Card>
   );
 }

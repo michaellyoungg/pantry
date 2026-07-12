@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
-import { Button } from "./ui/Button";
 
 export function AuthForm() {
   const { signIn } = useAuthActions();

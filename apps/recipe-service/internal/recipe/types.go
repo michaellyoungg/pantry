@@ -2,6 +2,10 @@ package recipe
 
 import "time"
 
+// CatalogUserID owns the shared, system-curated recipe catalog (BL-0002).
+// Catalog recipes are ordinary recipes rows with this user_id.
+const CatalogUserID = "catalog"
+
 type Ingredient struct {
 	Quantity float64 `json:"quantity"`
 	Unit     string  `json:"unit"`

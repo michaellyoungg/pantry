@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { signIn } = vi.hoisted(() => ({ signIn: vi.fn(() => Promise.resolve()) }));
+const { signIn } = vi.hoisted(() => ({
+  signIn: vi.fn((_provider: string, _formData: FormData) => Promise.resolve()),
+}));
 vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signIn, signOut: vi.fn() }),
 }));
@@ -30,7 +32,9 @@ describe("AuthForm", () => {
     fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "hunter2" } });
     fireEvent.submit(screen.getByTestId("auth-form"));
     expect(signIn).toHaveBeenCalledTimes(1);
-    const [provider, formData] = signIn.mock.calls[0];
+    const call = signIn.mock.calls[0];
+    if (!call) throw new Error("signIn was not called");
+    const [provider, formData] = call;
     expect(provider).toBe("password");
     expect(formData.get("email")).toBe("a@b.com");
     expect(formData.get("password")).toBe("hunter2");

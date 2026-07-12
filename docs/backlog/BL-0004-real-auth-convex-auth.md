@@ -28,6 +28,12 @@ server-side. Add login/signup UI.
   the row's `userId` matches the caller) at auth time.
 - Replace the hardcoded `DEV_USER_ID` reads in every Convex function and the Go
   service's `DevUserID` with the authenticated identity.
+- **Guard the recipe-service mutations.** `DELETE`/`PUT /recipes/{id}` have no
+  ownership check. Since BL-0002 landed the seeded catalog, these now expose
+  *shared* system-owned rows (owner `catalog`, stable guessable ids like
+  `cat-garlic-bread`) to mutation/deletion by any client — a bigger blast radius
+  than per-user dev data. Enforce ownership (and treat catalog rows as
+  read-only to end users) when identity lands.
 
 ## Alternatives considered
 

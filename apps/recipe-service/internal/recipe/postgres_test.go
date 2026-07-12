@@ -193,3 +193,35 @@ func TestPostgres_UpdateRecipe_ScopedToOwner(t *testing.T) {
 		t.Fatalf("title = %q, want Toast (non-owner update must not persist)", got.Title)
 	}
 }
+
+func TestPostgres_UpsertReplacesAndPreservesCreatedAt(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	rec := Recipe{
+		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+	}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	first, _ := s.GetRecipe(ctx, rec.ID, CatalogUserID)
+
+	rec.Title = "Cat X v2"
+	rec.Ingredients = []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}, {Quantity: 1, Unit: "loaf", Item: "bread"}}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("replace: %v", err)
+	}
+	got, _ := s.GetRecipe(ctx, rec.ID, CatalogUserID)
+	if got.Title != "Cat X v2" || len(got.Ingredients) != 2 {
+		t.Fatalf("replace mismatch: %+v", got)
+	}
+	if !got.CreatedAt.Equal(first.CreatedAt) {
+		t.Fatalf("CreatedAt changed: %v vs %v", got.CreatedAt, first.CreatedAt)
+	}
+
+	list, _ := s.ListRecipes(ctx, CatalogUserID)
+	if len(list) != 1 {
+		t.Fatalf("catalog list = %d, want 1", len(list))
+	}
+}

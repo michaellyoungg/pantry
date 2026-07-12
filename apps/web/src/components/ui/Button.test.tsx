@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { Button } from "./Button";
 
 describe("Button", () => {
@@ -11,9 +11,13 @@ describe("Button", () => {
 
   it("exposes the variant via data-variant (default primary)", () => {
     render(<Button variant="danger">Delete</Button>);
-    expect(screen.getByRole("button", { name: "Delete" }).getAttribute("data-variant")).toBe("danger");
+    expect(screen.getByRole("button", { name: "Delete" }).getAttribute("data-variant")).toBe(
+      "danger",
+    );
     render(<Button>Plain</Button>);
-    expect(screen.getByRole("button", { name: "Plain" }).getAttribute("data-variant")).toBe("primary");
+    expect(screen.getByRole("button", { name: "Plain" }).getAttribute("data-variant")).toBe(
+      "primary",
+    );
   });
 
   it("forwards onClick and honors disabled", () => {

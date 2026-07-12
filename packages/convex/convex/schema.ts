@@ -1,6 +1,6 @@
+import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
   ...authTables,
@@ -17,7 +17,8 @@ export default defineSchema({
     userId: v.string(),
     recipeId: v.string(),
     title: v.string(), // denormalized for display; NOT the recipe body
-  }).index("by_user", ["userId"])
+  })
+    .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),
 
   // The live, reactive grocery list (aggregated lines).

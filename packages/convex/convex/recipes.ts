@@ -1,8 +1,8 @@
-import { action } from "./_generated/server";
-import { api, internal } from "./_generated/api";
-import { v, type Infer } from "convex/values";
-import type { GroceryLine, Recipe, Ingredient } from "@pantry/types";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import type { GroceryLine, Ingredient, Recipe } from "@pantry/types";
+import { type Infer, v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import { action } from "./_generated/server";
 
 const ingredientValidator = v.object({
   quantity: v.number(),
@@ -77,6 +77,18 @@ export const update = action({
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return recipeServiceFetch<Recipe>(userId, "PUT", `/recipes/${id}`, { title, ingredients });
+  },
+});
+
+// Lists the shared, system-curated recipe catalog (BL-0002). recipe-service
+// scopes /catalog to the catalog owner server-side; the caller's identity is
+// only used to satisfy the service auth boundary.
+export const listCatalog = action({
+  args: {},
+  handler: async (ctx): Promise<Recipe[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog");
   },
 });
 

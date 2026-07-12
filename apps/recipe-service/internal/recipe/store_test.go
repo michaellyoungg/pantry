@@ -149,3 +149,59 @@ func TestMemoryStore_UpdateRecipe_ScopedToOwner(t *testing.T) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 }
+
+func TestMemoryStore_UpsertInsertsThenReplacesPreservingCreatedAt(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	rec := Recipe{
+		ID:     "cat-garlic-bread",
+		UserID: CatalogUserID,
+		Title:  "Garlic Bread",
+		Ingredients: []Ingredient{
+			{Quantity: 4, Unit: "cloves", Item: "garlic"},
+		},
+	}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("insert upsert: %v", err)
+	}
+	first, err := s.GetRecipe(ctx, rec.ID, CatalogUserID)
+	if err != nil {
+		t.Fatalf("get after insert: %v", err)
+	}
+	if first.CreatedAt.IsZero() {
+		t.Fatal("expected a stamped CreatedAt on first insert")
+	}
+
+	// Re-upsert same id with new title + ingredients.
+	rec.Title = "Garlic Bread (v2)"
+	rec.Ingredients = []Ingredient{
+		{Quantity: 1, Unit: "loaf", Item: "baguette"},
+		{Quantity: 6, Unit: "cloves", Item: "garlic"},
+	}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("replace upsert: %v", err)
+	}
+	got, err := s.GetRecipe(ctx, rec.ID, CatalogUserID)
+	if err != nil {
+		t.Fatalf("get after replace: %v", err)
+	}
+	if got.Title != "Garlic Bread (v2)" || len(got.Ingredients) != 2 || got.Ingredients[0].Item != "baguette" {
+		t.Fatalf("replace mismatch: %+v", got)
+	}
+	if !got.CreatedAt.Equal(first.CreatedAt) {
+		t.Fatalf("CreatedAt changed on re-upsert: %v vs %v", got.CreatedAt, first.CreatedAt)
+	}
+
+	// Exactly one row, and no duplicate order entry (list returns it once).
+	list, _ := s.ListRecipes(ctx, CatalogUserID)
+	if len(list) != 1 {
+		t.Fatalf("catalog list = %d rows, want 1", len(list))
+	}
+}
+
+func TestMemoryStore_UpsertRequiresID(t *testing.T) {
+	if err := NewMemoryStore().UpsertRecipe(context.Background(), Recipe{UserID: CatalogUserID, Title: "x"}); err == nil {
+		t.Fatal("expected an error when id is empty")
+	}
+}

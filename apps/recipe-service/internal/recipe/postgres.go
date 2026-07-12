@@ -85,7 +85,7 @@ func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recip
 
 func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recipe, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, user_id, title, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at`, userID)
+		`SELECT id, user_id, title, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +151,48 @@ func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title stri
 		return Recipe{}, err
 	}
 	return s.GetRecipe(ctx, id, userID)
+}
+
+// UpsertRecipe inserts rec, or replaces the row with the same id (title, owner,
+// and ingredients). created_at is only written on first insert — ON CONFLICT
+// leaves the existing value so catalog ordering stays stable across re-seeds.
+func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
+	if rec.ID == "" {
+		return errors.New("upsert: recipe id is required")
+	}
+	ings := rec.Ingredients
+	if ings == nil {
+		ings = []Ingredient{}
+	}
+	createdAt := rec.CreatedAt
+	if createdAt.IsZero() {
+		createdAt = time.Now().UTC().Truncate(time.Microsecond)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO recipes (id, user_id, title, created_at) VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, title = EXCLUDED.title`,
+		rec.ID, rec.UserID, rec.Title, createdAt); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM ingredients WHERE recipe_id = $1`, rec.ID); err != nil {
+		return err
+	}
+	for i, ing := range ings {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO ingredients (recipe_id, position, quantity, unit, item, note)
+			 VALUES ($1,$2,$3,$4,$5,$6)`,
+			rec.ID, i, ing.Quantity, ing.Unit, ing.Item, ing.Note); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStore) scanRecipesWithIngredients(ctx context.Context, rows pgx.Rows) ([]Recipe, error) {
