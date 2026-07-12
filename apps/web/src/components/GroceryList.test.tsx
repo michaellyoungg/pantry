@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted, mutable so each test can set the query result; one shared mutation spy.
 const { state, mutationMock } = vi.hoisted(() => ({
@@ -10,7 +10,8 @@ const { state, mutationMock } = vi.hoisted(() => ({
 vi.mock("convex/react", () => ({
   useQuery: () => state.lines,
   useMutation: () => {
-    const fn = ((...args: unknown[]) => (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
+    const fn = ((...args: unknown[]) =>
+      (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
       (...a: unknown[]): Promise<unknown>;
       withOptimisticUpdate: (u: unknown) => typeof fn;
     };
@@ -22,7 +23,15 @@ vi.mock("convex/react", () => ({
 import { GroceryList } from "./GroceryList";
 
 const oneLine = [
-  { _id: "g1", userId: "dev-user", item: "egg", unit: "", quantity: 1, checked: false, _creationTime: 0 },
+  {
+    _id: "g1",
+    userId: "dev-user",
+    item: "egg",
+    unit: "",
+    quantity: 1,
+    checked: false,
+    _creationTime: 0,
+  },
 ];
 
 beforeEach(() => {

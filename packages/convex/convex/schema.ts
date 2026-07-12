@@ -14,7 +14,8 @@ export default defineSchema({
     userId: v.string(),
     recipeId: v.string(),
     title: v.string(), // denormalized for display; NOT the recipe body
-  }).index("by_user", ["userId"])
+  })
+    .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),
 
   // The live, reactive grocery list (aggregated lines).

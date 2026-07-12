@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 import { DEV_USER_ID } from "./constants";
 
 export const list = query({
@@ -17,9 +17,7 @@ export const add = mutation({
   handler: async (ctx, { recipeId, title }) => {
     const existing = await ctx.db
       .query("basket")
-      .withIndex("by_user_recipe", (q) =>
-        q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId),
-      )
+      .withIndex("by_user_recipe", (q) => q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId))
       .unique();
     if (existing) return existing._id;
     return await ctx.db.insert("basket", { userId: DEV_USER_ID, recipeId, title });
@@ -31,9 +29,7 @@ export const remove = mutation({
   handler: async (ctx, { recipeId }) => {
     const existing = await ctx.db
       .query("basket")
-      .withIndex("by_user_recipe", (q) =>
-        q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId),
-      )
+      .withIndex("by_user_recipe", (q) => q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId))
       .unique();
     if (existing) await ctx.db.delete(existing._id);
   },
@@ -44,9 +40,7 @@ export const updateTitle = mutation({
   handler: async (ctx, { recipeId, title }) => {
     const existing = await ctx.db
       .query("basket")
-      .withIndex("by_user_recipe", (q) =>
-        q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId),
-      )
+      .withIndex("by_user_recipe", (q) => q.eq("userId", DEV_USER_ID).eq("recipeId", recipeId))
       .unique();
     if (existing) await ctx.db.patch(existing._id, { title });
   },

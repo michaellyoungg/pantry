@@ -1,6 +1,6 @@
-import { action } from "./_generated/server";
-import { api, internal } from "./_generated/api";
 import type { GroceryLine } from "@pantry/types";
+import { api, internal } from "./_generated/api";
+import { action } from "./_generated/server";
 
 // Reads the basket, asks recipe-service to aggregate those recipes into a
 // grocery list, and persists the result as the reactive grocery list.

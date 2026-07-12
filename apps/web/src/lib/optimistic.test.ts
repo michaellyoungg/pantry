@@ -1,5 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { toggleItemOptimistic, removeFromBasketOptimistic, clearGroceryListOptimistic } from "./optimistic";
+import { describe, expect, it, vi } from "vitest";
+import {
+  clearGroceryListOptimistic,
+  removeFromBasketOptimistic,
+  toggleItemOptimistic,
+} from "./optimistic";
 
 // Minimal fake store: a single cached value, ignoring which query is asked for.
 function fakeStore(initial: unknown) {

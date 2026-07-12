@@ -1,15 +1,17 @@
-import { useQuery, useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
+import { useMutation, useQuery } from "convex/react";
+import { clearGroceryListOptimistic, toggleItemOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
-import { toggleItemOptimistic, clearGroceryListOptimistic } from "../lib/optimistic";
 import { ErrorText } from "./ErrorText";
-import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
   const toggle = useMutation(api.groceryList.toggleItem).withOptimisticUpdate(toggleItemOptimistic);
-  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(clearGroceryListOptimistic);
+  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
+    clearGroceryListOptimistic,
+  );
   const { run, error } = useAsyncAction();
 
   function onClear() {
@@ -19,7 +21,9 @@ export function GroceryList() {
 
   return (
     <Card title="Grocery list">
-      {lines.length === 0 && <p className="text-sm text-muted">Nothing yet — generate from your basket.</p>}
+      {lines.length === 0 && (
+        <p className="text-sm text-muted">Nothing yet — generate from your basket.</p>
+      )}
       <ul className="flex flex-col gap-1">
         {lines.map((line) => (
           <li key={line._id}>

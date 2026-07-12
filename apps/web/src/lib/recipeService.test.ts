@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { createRecipe, listRecipes, deleteRecipe, updateRecipe } from "./recipeService";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRecipe, deleteRecipe, listRecipes, updateRecipe } from "./recipeService";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -20,7 +20,9 @@ describe("recipeService", () => {
   });
 
   it("listRecipes GETs /recipes and returns the array", async () => {
-    const recipes = [{ id: "r1", userId: "dev-user", title: "Toast", ingredients: [], createdAt: "" }];
+    const recipes = [
+      { id: "r1", userId: "dev-user", title: "Toast", ingredients: [], createdAt: "" },
+    ];
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => recipes }));
     const result = await listRecipes();
     expect(result).toEqual(recipes);
@@ -46,7 +48,13 @@ describe("recipeService", () => {
   });
 
   it("updateRecipe PUTs /recipes/{id} and returns the updated recipe", async () => {
-    const updated = { id: "r1", userId: "dev-user", title: "French Toast", ingredients: [], createdAt: "" };
+    const updated = {
+      id: "r1",
+      userId: "dev-user",
+      title: "French Toast",
+      ingredients: [],
+      createdAt: "",
+    };
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated });
     vi.stubGlobal("fetch", fetchMock);
     const result = await updateRecipe("r1", { title: "French Toast", ingredients: [] });

@@ -1,4 +1,4 @@
-import type { Recipe, CreateRecipeRequest } from "@pantry/types";
+import type { CreateRecipeRequest, Recipe } from "@pantry/types";
 
 const BASE = (import.meta.env.VITE_RECIPE_SERVICE_URL as string) ?? "http://localhost:8090";
 

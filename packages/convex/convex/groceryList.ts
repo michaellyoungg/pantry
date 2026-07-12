@@ -1,6 +1,6 @@
-import { query, mutation, internalMutation } from "./_generated/server";
-import { v, type Infer } from "convex/values";
 import type { GroceryLine } from "@pantry/types";
+import { type Infer, v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { DEV_USER_ID } from "./constants";
 
 // Single runtime source for the grocery-line shape on the Convex side. Its
