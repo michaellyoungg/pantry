@@ -27,6 +27,6 @@
     "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^24.13.2",
     "convex-test": "^0.0.54",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }
