@@ -19,6 +19,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@convex-dev/auth':
+        specifier: ^0.0.94
+        version: 0.0.94(@auth/core@0.41.2)(convex@1.42.1(react@19.2.7))(react@19.2.7)
       '@pantry/convex':
         specifier: workspace:^
         version: link:../../packages/convex

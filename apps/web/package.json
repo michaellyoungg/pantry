@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@convex-dev/auth": "^0.0.94",
     "@pantry/convex": "workspace:^",
     "@pantry/types": "workspace:^",
     "convex": "^1.42.1",
