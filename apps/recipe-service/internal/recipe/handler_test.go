@@ -11,12 +11,36 @@ import (
 	"testing"
 )
 
+// authReq builds a request carrying the service secret + dev user id headers.
+// Unlike httptest.NewRequest, this uses http.NewRequest because these tests
+// exercise a real httptest.Server over the network via http.DefaultClient;
+// httptest.NewRequest sets RequestURI, which http.Client rejects
+// ("RequestURI can't be set in client requests").
+func authReq(method, target string, body io.Reader) *http.Request {
+	req, err := http.NewRequest(method, target, body)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("X-Service-Secret", testSecret)
+	req.Header.Set("X-User-Id", DevUserID)
+	return req
+}
+
 func newTestServer(t *testing.T) (*httptest.Server, Store) {
 	t.Helper()
 	store := NewMemoryStore()
-	srv := httptest.NewServer(NewRouter(store))
+	srv := httptest.NewServer(NewRouter(store, testSecret))
 	t.Cleanup(srv.Close)
 	return srv, store
+}
+
+func doAuth(t *testing.T, method, url string, body io.Reader) *http.Response {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(authReq(method, url, body))
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, url, err)
+	}
+	return resp
 }
 
 func TestHealthz(t *testing.T) {
@@ -34,10 +58,7 @@ func TestHealthz(t *testing.T) {
 func TestCreateRecipe_ReturnsCreatedWithDevOwner(t *testing.T) {
 	srv, _ := newTestServer(t)
 	body := `{"title":"Toast","ingredients":[{"quantity":2,"unit":"slices","item":"bread"}]}`
-	resp, err := http.Post(srv.URL+"/recipes", "application/json", bytes.NewBufferString(body))
-	if err != nil {
-		t.Fatalf("POST /recipes: %v", err)
-	}
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("status = %d, want 201", resp.StatusCode)
@@ -53,11 +74,7 @@ func TestCreateRecipe_ReturnsCreatedWithDevOwner(t *testing.T) {
 
 func TestCreateRecipe_RejectsEmptyTitle(t *testing.T) {
 	srv, _ := newTestServer(t)
-	resp, err := http.Post(srv.URL+"/recipes", "application/json",
-		bytes.NewBufferString(`{"title":"","ingredients":[]}`))
-	if err != nil {
-		t.Fatalf("POST: %v", err)
-	}
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(`{"title":"","ingredients":[]}`))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", resp.StatusCode)
@@ -70,11 +87,7 @@ func TestCreateRecipe_RejectsOversizedBody(t *testing.T) {
 	// server's body limit so it must be rejected with 413.
 	huge := strings.Repeat("a", 2<<20) // 2 MiB
 	body := `{"title":"` + huge + `","ingredients":[]}`
-	resp, err := http.Post(srv.URL+"/recipes", "application/json",
-		bytes.NewBufferString(body))
-	if err != nil {
-		t.Fatalf("POST: %v", err)
-	}
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want 413", resp.StatusCode)
@@ -83,10 +96,7 @@ func TestCreateRecipe_RejectsOversizedBody(t *testing.T) {
 
 func TestGetRecipe_NotFound(t *testing.T) {
 	srv, _ := newTestServer(t)
-	resp, err := http.Get(srv.URL + "/recipes/nope")
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
+	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes/nope", nil)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
@@ -96,10 +106,7 @@ func TestGetRecipe_NotFound(t *testing.T) {
 func TestListRecipes_ReturnsDevUserRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	_, _ = store.CreateRecipe(context.Background(), DevUserID, "A", nil)
-	resp, err := http.Get(srv.URL + "/recipes")
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
+	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes", nil)
 	defer resp.Body.Close()
 	var got []Recipe
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
@@ -112,11 +119,7 @@ func TestListRecipes_ReturnsDevUserRecipes(t *testing.T) {
 
 func TestCreateRecipe_NoIngredientsSerializesAsEmptyArray(t *testing.T) {
 	srv, _ := newTestServer(t)
-	resp, err := http.Post(srv.URL+"/recipes", "application/json",
-		bytes.NewBufferString(`{"title":"Plain"}`))
-	if err != nil {
-		t.Fatalf("POST: %v", err)
-	}
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(`{"title":"Plain"}`))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("status = %d, want 201", resp.StatusCode)
@@ -137,10 +140,7 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	b, _ := store.CreateRecipe(ctx, DevUserID, "B", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
 
 	body, _ := json.Marshal(map[string][]string{"recipeIds": {a.ID, b.ID}})
-	resp, err := http.Post(srv.URL+"/grocery-list", "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		t.Fatalf("POST /grocery-list: %v", err)
-	}
+	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
@@ -156,7 +156,7 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 }
 
 func TestWithCORS_PreflightReturns204WithHeaders(t *testing.T) {
-	h := WithCORS(NewRouter(NewMemoryStore()), "http://localhost:5173")
+	h := WithCORS(NewRouter(NewMemoryStore(), testSecret), "http://localhost:5173")
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 
@@ -183,20 +183,13 @@ func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
 	srv, store := newTestServer(t)
 	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
 
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("DELETE: %v", err)
-	}
+	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204", resp.StatusCode)
 	}
 	// gone afterwards
-	get, err := http.Get(srv.URL + "/recipes/" + rec.ID)
-	if err != nil {
-		t.Fatalf("GET after delete: %v", err)
-	}
+	get := doAuth(t, http.MethodGet, srv.URL+"/recipes/"+rec.ID, nil)
 	defer get.Body.Close()
 	if get.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET after delete = %d, want 404", get.StatusCode)
@@ -205,11 +198,7 @@ func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
 
 func TestDeleteRecipe_MissingReturns404(t *testing.T) {
 	srv, _ := newTestServer(t)
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/recipes/nope", nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("DELETE: %v", err)
-	}
+	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/nope", nil)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
@@ -221,7 +210,7 @@ func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
 
 	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}]}`)
-	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -246,7 +235,7 @@ func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 func TestUpdateRecipe_MissingReturns404(t *testing.T) {
 	srv, _ := newTestServer(t)
 	body := bytes.NewBufferString(`{"title":"X","ingredients":[]}`)
-	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/nope", body)
+	req := authReq(http.MethodPut, srv.URL+"/recipes/nope", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -262,7 +251,7 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	srv, store := newTestServer(t)
 	rec, _ := store.CreateRecipe(context.Background(), DevUserID, "Toast", nil)
 	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
-	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -275,7 +264,7 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 }
 
 func TestWithCORS_NormalRequestCarriesOriginHeader(t *testing.T) {
-	h := WithCORS(NewRouter(NewMemoryStore()), "http://localhost:5173")
+	h := WithCORS(NewRouter(NewMemoryStore(), testSecret), "http://localhost:5173")
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 
