@@ -28,3 +28,19 @@ A hybrid, multi-service monorepo:
 
 Local development runs everything via `docker compose`. Production targets
 Railway (self-hosted Convex + Postgres).
+
+## Local development
+
+### Seed the catalog
+
+The shared recipe catalog (system-owned browse-and-pick recipes) is loaded by a
+one-shot seed job against the Postgres-backed stack:
+
+```bash
+docker compose up -d postgres recipe-service
+docker compose run --rm seed
+```
+
+Re-running is safe — recipes upsert by stable id. The catalog requires Postgres;
+running recipe-service with the in-memory store (no `DATABASE_URL`) has an empty
+catalog.

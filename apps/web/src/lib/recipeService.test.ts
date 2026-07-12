@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createRecipe, listRecipes, deleteRecipe, updateRecipe } from "./recipeService";
+import { createRecipe, listRecipes, deleteRecipe, updateRecipe, listCatalog } from "./recipeService";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -59,5 +59,19 @@ describe("recipeService", () => {
   it("updateRecipe throws on a non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     await expect(updateRecipe("nope", { title: "X", ingredients: [] })).rejects.toThrow();
+  });
+
+  it("listCatalog GETs /catalog and returns the array", async () => {
+    const recipes = [{ id: "cat-garlic-bread", userId: "catalog", title: "Garlic Bread", ingredients: [], createdAt: "" }];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => recipes });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await listCatalog();
+    expect(result).toEqual(recipes);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/catalog$/);
+  });
+
+  it("listCatalog throws on a non-ok response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    await expect(listCatalog()).rejects.toThrow();
   });
 });

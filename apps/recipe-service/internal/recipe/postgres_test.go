@@ -145,3 +145,35 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 		t.Fatalf("update missing err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestPostgres_UpsertReplacesAndPreservesCreatedAt(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	rec := Recipe{
+		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+	}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	first, _ := s.GetRecipe(ctx, rec.ID)
+
+	rec.Title = "Cat X v2"
+	rec.Ingredients = []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}, {Quantity: 1, Unit: "loaf", Item: "bread"}}
+	if err := s.UpsertRecipe(ctx, rec); err != nil {
+		t.Fatalf("replace: %v", err)
+	}
+	got, _ := s.GetRecipe(ctx, rec.ID)
+	if got.Title != "Cat X v2" || len(got.Ingredients) != 2 {
+		t.Fatalf("replace mismatch: %+v", got)
+	}
+	if !got.CreatedAt.Equal(first.CreatedAt) {
+		t.Fatalf("CreatedAt changed: %v vs %v", got.CreatedAt, first.CreatedAt)
+	}
+
+	list, _ := s.ListRecipes(ctx, CatalogUserID)
+	if len(list) != 1 {
+		t.Fatalf("catalog list = %d, want 1", len(list))
+	}
+}

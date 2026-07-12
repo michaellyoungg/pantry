@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { RecipeForm } from "../components/RecipeForm";
 import { RecipeList } from "../components/RecipeList";
+import { Catalog } from "../components/Catalog";
 import { Basket } from "../components/Basket";
 import { GroceryList } from "../components/GroceryList";
 
@@ -12,6 +13,7 @@ function HomePage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <RecipeForm onCreated={() => setRefreshKey((k) => k + 1)} />
         <RecipeList refreshKey={refreshKey} />
+        <Catalog />
         <Basket />
         <GroceryList />
       </div>
