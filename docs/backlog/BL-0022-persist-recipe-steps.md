@@ -1,7 +1,7 @@
 ---
 id: BL-0022
 title: Persist recipe steps
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-07-12-url-import-recipe-parser-design.md]
