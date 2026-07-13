@@ -18,7 +18,10 @@ type Recipe struct {
 	UserID      string       `json:"userId"`
 	Title       string       `json:"title"`
 	Ingredients []Ingredient `json:"ingredients"`
-	CreatedAt   time.Time    `json:"createdAt"`
+	// Steps are the ordered instruction lines (the method). May be empty; recipes
+	// imported before steps were persisted, or entered ingredients-only, have none.
+	Steps     []string  `json:"steps"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type GroceryLine struct {

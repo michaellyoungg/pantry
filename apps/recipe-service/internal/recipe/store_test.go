@@ -12,7 +12,7 @@ func TestMemoryStore_CreateAndGet(t *testing.T) {
 
 	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
-	})
+	}, []string{"Toast the bread.", "Butter it."})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -30,6 +30,9 @@ func TestMemoryStore_CreateAndGet(t *testing.T) {
 	if got.ID != created.ID || len(got.Ingredients) != 1 {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
+	if len(got.Steps) != 2 || got.Steps[0] != "Toast the bread." || got.Steps[1] != "Butter it." {
+		t.Fatalf("steps round-trip mismatch: %+v", got.Steps)
+	}
 }
 
 func TestMemoryStore_GetMissingReturnsErrNotFound(t *testing.T) {
@@ -42,8 +45,8 @@ func TestMemoryStore_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil)
-	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil)
 
 	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
@@ -57,7 +60,7 @@ func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *test
 func TestMemoryStore_DeleteRemovesRecipe(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -82,12 +85,12 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 	s := NewMemoryStore()
 	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
-	})
+	}, []string{"Toast it."})
 
 	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
-	})
+	}, []string{"Soak the brioche.", "Fry both sides."})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -96,6 +99,9 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 	}
 	if len(got.Ingredients) != 2 || got.Ingredients[0].Item != "brioche" {
 		t.Fatalf("ingredients = %+v, want replaced", got.Ingredients)
+	}
+	if len(got.Steps) != 2 || got.Steps[0] != "Soak the brioche." {
+		t.Fatalf("steps = %+v, want replaced", got.Steps)
 	}
 	if got.ID != rec.ID || got.UserID != rec.UserID || !got.CreatedAt.Equal(rec.CreatedAt) {
 		t.Fatalf("meta changed: got id=%s user=%s created=%v", got.ID, got.UserID, got.CreatedAt)
@@ -108,7 +114,7 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 }
 
 func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
-	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil)
+	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil, nil)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
@@ -117,7 +123,7 @@ func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
 
 	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("owner get: %v", err)
@@ -130,7 +136,7 @@ func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
@@ -143,9 +149,9 @@ func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_UpdateRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
 
-	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 }
@@ -161,6 +167,7 @@ func TestMemoryStore_UpsertInsertsThenReplacesPreservingCreatedAt(t *testing.T) 
 		Ingredients: []Ingredient{
 			{Quantity: 4, Unit: "cloves", Item: "garlic"},
 		},
+		Steps: []string{"Mince the garlic."},
 	}
 	if err := s.UpsertRecipe(ctx, rec); err != nil {
 		t.Fatalf("insert upsert: %v", err)
@@ -179,6 +186,7 @@ func TestMemoryStore_UpsertInsertsThenReplacesPreservingCreatedAt(t *testing.T) 
 		{Quantity: 1, Unit: "loaf", Item: "baguette"},
 		{Quantity: 6, Unit: "cloves", Item: "garlic"},
 	}
+	rec.Steps = []string{"Slice the baguette.", "Rub with garlic.", "Bake."}
 	if err := s.UpsertRecipe(ctx, rec); err != nil {
 		t.Fatalf("replace upsert: %v", err)
 	}
@@ -188,6 +196,9 @@ func TestMemoryStore_UpsertInsertsThenReplacesPreservingCreatedAt(t *testing.T) 
 	}
 	if got.Title != "Garlic Bread (v2)" || len(got.Ingredients) != 2 || got.Ingredients[0].Item != "baguette" {
 		t.Fatalf("replace mismatch: %+v", got)
+	}
+	if len(got.Steps) != 3 || got.Steps[2] != "Bake." {
+		t.Fatalf("steps replace mismatch: %+v", got.Steps)
 	}
 	if !got.CreatedAt.Equal(first.CreatedAt) {
 		t.Fatalf("CreatedAt changed on re-upsert: %v vs %v", got.CreatedAt, first.CreatedAt)

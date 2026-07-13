@@ -44,6 +44,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title       string       `json:"title"`
 		Ingredients []Ingredient `json:"ingredients"`
+		Steps       []string     `json:"steps"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -52,7 +53,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients)
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients, req.Steps)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create recipe")
 		return
@@ -108,6 +109,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title       string       `json:"title"`
 		Ingredients []Ingredient `json:"ingredients"`
+		Steps       []string     `json:"steps"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -116,7 +118,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients)
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients, req.Steps)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, http.StatusNotFound, "recipe not found")
 		return
