@@ -29,6 +29,30 @@ normalization — so imports need zero special downstream handling.
   fallback — much cheaper than its "L" estimate given the existing ingredient model).
 - Add a `sourceUrl` field to `Recipe` for attribution + re-import.
 
+## Progress
+
+Shipping in increments (this item is effort **M**).
+
+- **Increment 1 (done):**
+  - **One editable review surface.** Extracted a shared `RecipeFields` component
+    (title + ingredient rows + add-row) now used by manual create, URL-import
+    review, and the edit dialog — delivering "the import review screen and the
+    edit dialog should be one component." `emptyIngredient`/`cleanIngredients`
+    are shared helpers; the two paths no longer duplicate the editor.
+  - **Catalog search box** — client-side filter over title + ingredient names,
+    with a distinct no-match state. (The spec accepts client-side while the seed
+    catalog is small.)
+  - Frontend-only; no schema, recipe-service, or basket change.
+- **Deferred to later increments:**
+  - **Filter chips** (cook time / diet / cuisine). Need recipe schema fields
+    (`totalMinutes`, `cuisine`, `tags[]`) that don't exist yet — Go `Recipe` +
+    `catalog.json` + `@pantry/types` + Convex validators. Overlaps BL-0002
+    (seeded catalog); coordinate before adding.
+  - **Clone-on-add** for catalog recipes (user edits don't mutate the shared
+    catalog) — touches basket/recipe-create semantics; coordinate with BL-0018.
+  - **`sourceUrl`** field on `Recipe` (attribution + re-import) — schema change.
+  - **URL parsing** itself is BL-0001 (already done); **photo import** is later.
+
 ## Alternatives considered
 
 - **Keep separate add paths** — more surface area, inconsistent editing, and no single place

@@ -47,4 +47,45 @@ describe("Catalog", () => {
     render(<Catalog />);
     await screen.findByText(/no catalog recipes/i);
   });
+
+  const TWO = [
+    { id: "a", userId: "catalog", title: "Garlic Bread", ingredients: [], createdAt: "" },
+    {
+      id: "b",
+      userId: "catalog",
+      title: "Pancakes",
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+      createdAt: "",
+    },
+  ];
+
+  it("filters the catalog by title as the query changes", async () => {
+    listCatalog.mockResolvedValue(TWO);
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+
+    fireEvent.change(screen.getByLabelText(/search catalog/i), { target: { value: "pan" } });
+    expect(screen.queryByText("Garlic Bread")).toBeNull();
+    expect(screen.getByText("Pancakes")).toBeTruthy();
+  });
+
+  it("also matches on ingredient names", async () => {
+    listCatalog.mockResolvedValue(TWO);
+    render(<Catalog />);
+    await screen.findByText("Pancakes");
+
+    fireEvent.change(screen.getByLabelText(/search catalog/i), { target: { value: "flour" } });
+    expect(screen.getByText("Pancakes")).toBeTruthy();
+    expect(screen.queryByText("Garlic Bread")).toBeNull();
+  });
+
+  it("shows a no-match message when nothing matches the query", async () => {
+    listCatalog.mockResolvedValue([CAT]);
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+
+    fireEvent.change(screen.getByLabelText(/search catalog/i), { target: { value: "zzz" } });
+    await screen.findByText(/no recipes match/i);
+    expect(screen.queryByText("Garlic Bread")).toBeNull();
+  });
 });
