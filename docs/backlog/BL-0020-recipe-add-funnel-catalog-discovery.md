@@ -1,7 +1,7 @@
 ---
 id: BL-0020
 title: Recipe "Add" funnel (one review screen) + catalog search & filters
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-07-12-full-app-ux-plan.md, 2026-07-12-seeded-recipe-catalog-design.md]
