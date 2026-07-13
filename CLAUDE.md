@@ -31,3 +31,10 @@ When you pick up a backlog item (`docs/backlog/BL-NNNN-*.md`):
 
 The point is the *separate changeset*: the claim is a small, fast, standalone
 signal that reaches other agents before your longer implementation work does.
+
+## Open pull requests for review, not as drafts
+
+When you open a PR — whether the claim changeset or the implementation work —
+publish it as a normal, ready-for-review PR. **Do not open it as a draft.** The
+PR is meant to be reviewed, so it should be visible for review the moment it is
+opened.
