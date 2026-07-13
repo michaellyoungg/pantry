@@ -16,11 +16,20 @@ recipe-service.
 
 ## Where it lives
 
-Inside the existing Go **`recipe-service`**, as a new package (`internal/recipeimport`).
-recipe-service is already the canonical source of truth for recipe definitions;
-import produces the same `Recipe` shape its store consumes, so import belongs
-here rather than in a new deployable or in the browser. It may split into its own
-service later if it earns one (per BL-0001), but starts in-process.
+Inside the existing Go **`recipe-service`**. recipe-service is already the
+canonical source of truth for recipe definitions; import produces the same
+`Recipe` shape its store consumes, so import belongs here rather than in a new
+deployable or in the browser. It may split into its own service later if it earns
+one (per BL-0001), but starts in-process.
+
+**Implementation note (as built):** the import code lives in `package recipe` as
+`import_*.go` files (`import_lineparser.go`, `import_jsonld.go`, `import_fetch.go`,
+`import_llm.go`, `import.go`, `import_text.go`), matching how `normalize.go`,
+`aggregate.go`, and `catalog.go` are organized, rather than a separate
+`internal/recipeimport` subpackage — it is tightly coupled to the `Recipe`/
+`Ingredient` types and the HTTP handlers. The router adds `NewRouterWithImporter`
+alongside the existing `NewRouter` (which delegates with a nil importer), so the
+existing router tests are untouched.
 
 ## Architecture
 
@@ -91,7 +100,12 @@ type Extractor interface {
     Extract(ctx context.Context, pageText string) (Recipe, error)
 }
 ```
-- Claude-backed implementation via `github.com/anthropics/anthropic-sdk-go`.
+- Claude-backed implementation over **stdlib `net/http`** (one `POST /v1/messages`),
+  **not** `github.com/anthropics/anthropic-sdk-go` — recipe-service is
+  deliberately dependency-minimal (`go.mod` requires only `pgx`; `id.go` avoids a
+  UUID lib on purpose), and pulling the SDK's dependency tree would cut against
+  that. The base URL is injectable so tests point it at a canned `httptest`
+  endpoint (no live calls).
 - Model: **`claude-haiku-4-5`** — recipe extraction is a simple, high-volume
   extraction task; Haiku is fast, cheap, and supports structured outputs. (House
   default is Opus 4.8; Haiku chosen deliberately for cost/latency here.)
