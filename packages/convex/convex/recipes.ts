@@ -118,7 +118,7 @@ export const generateGroceryList = action({
       recipeIds,
     });
 
-    await ctx.runMutation(internal.groceryList.replaceGroceryList, { userId, lines });
+    await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
     return { count: lines.length };
   },
 });
