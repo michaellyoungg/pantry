@@ -59,6 +59,23 @@ jobs:
     defaults:
       run:
         working-directory: apps/recipe-service
+    # Postgres for the recipe-service <-> DB integration tests (postgres_test.go).
+    # Without PANTRY_TEST_DATABASE_URL those tests t.Skip, so CI previously never
+    # exercised the real DB code path — this closes that gap.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pantry
+          POSTGRES_PASSWORD: pantry
+          POSTGRES_DB: pantry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pantry"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
 
@@ -75,6 +92,8 @@ jobs:
 
       - name: Test (race + coverage)
         run: go test -race -cover ./...
+        env:
+          PANTRY_TEST_DATABASE_URL: postgres://pantry:pantry@localhost:5432/pantry_test?sslmode=disable
 
       # v8 of the action installs golangci-lint v2 (our .golangci.yml uses the
       # v2 schema); "latest" is built with a Go >= the module's go directive.
@@ -92,3 +111,54 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           "$(go env GOPATH)/bin/govulncheck" ./...
+
+  integration:
+    name: Integration (Convex ⇄ recipe-service ⇄ Postgres)
+    runs-on: ubuntu-latest
+    # Exercises the real cross-service contract: the Convex actions in
+    # recipes.ts make genuine HTTP calls to a running recipe-service backed by
+    # Postgres — no fetch mock. Catches contract drift the unit suites can't.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pantry
+          POSTGRES_PASSWORD: pantry
+          POSTGRES_DB: pantry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pantry"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      PANTRY_TEST_DATABASE_URL: postgres://pantry:pantry@localhost:5432/pantry_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/recipe-service/go.mod
+          cache-dependency-path: apps/recipe-service/go.sum
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prebuild the service so the test's globalSetup launches a binary
+      # (fast, deterministic) rather than compiling via `go run` on first hit.
+      - name: Build recipe-service
+        run: go build -o "$RUNNER_TEMP/recipe-service" ./cmd/server
+        working-directory: apps/recipe-service
+
+      - name: Integration tests (Convex ⇄ recipe-service)
+        run: pnpm --filter @pantry/convex test:integration
+        env:
+          RECIPE_SERVICE_BIN: ${{ runner.temp }}/recipe-service

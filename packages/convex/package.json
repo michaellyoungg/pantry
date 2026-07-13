@@ -17,7 +17,8 @@
     "deploy": "convex dev --once",
     "codegen": "convex codegen",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@auth/core": "0.41.2",

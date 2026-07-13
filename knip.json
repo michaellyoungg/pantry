@@ -7,6 +7,9 @@
     },
     "apps/recipe-service": {
       "ignoreBinaries": ["go"]
+    },
+    "packages/convex": {
+      "ignoreBinaries": ["go"]
     }
   }
 }
