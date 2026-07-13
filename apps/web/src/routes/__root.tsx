@@ -2,6 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Authenticated, Unauthenticated } from "convex/react";
+import { useEffect, useState } from "react";
 import { AuthForm } from "../components/AuthForm";
 import { Nav } from "../components/Nav";
 import { Button } from "../components/ui/Button";
@@ -13,6 +14,28 @@ function SignOutButton() {
       Sign out
     </Button>
   );
+}
+
+/**
+ * Renders the router devtools, but keeps the floating toggle button hidden by
+ * default so it doesn't sit in the way. Press Ctrl+Shift+D to toggle it.
+ */
+function Devtools() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.ctrlKey && event.shiftKey && (event.key === "D" || event.key === "d")) {
+        event.preventDefault();
+        setVisible((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  if (!visible) return null;
+  return <TanStackRouterDevtools />;
 }
 
 function RootLayout() {
@@ -44,7 +67,7 @@ function RootLayout() {
           </main>
         </div>
       </Authenticated>
-      {import.meta.env.DEV ? <TanStackRouterDevtools /> : null}
+      {import.meta.env.DEV ? <Devtools /> : null}
     </div>
   );
 }
