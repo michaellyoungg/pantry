@@ -104,10 +104,20 @@ describe("mergeGroceryList (increment 2)", () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert("groceryList", {
-        userId: USER_ID, item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: true,
+        userId: USER_ID,
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: true,
       });
       await ctx.db.insert("groceryList", {
-        userId: USER_ID, item: "Eggs", unit: "count", quantity: 6, aisle: "other", checked: false,
+        userId: USER_ID,
+        item: "Eggs",
+        unit: "count",
+        quantity: 6,
+        aisle: "other",
+        checked: false,
       });
     });
     await t.mutation(internal.groceryList.mergeGroceryList, {
