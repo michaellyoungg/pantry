@@ -31,6 +31,25 @@ Optimized for one-handed in-store phone use.
 - **Live household sync polish:** presence + highlight on remote change (Convex — nearly
   free).
 
+## Progress
+
+Shipping in increments (this item is effort **L**).
+
+- **Increment 1 (done):** aisle sections collapsible with counts; tap-to-check
+  primary with full-row ≥44px targets; checked items move into a collapsible
+  **In cart** section; bottom thumb-zone controls + remaining count;
+  **Done shopping** → remove-purchased vs keep-unbought (`removeChecked`
+  mutation). Frontend + one additive Convex mutation; no cross-service change.
+- **Deferred to later increments:**
+  - **Recipe provenance** ("N recipes" + detail sheet). The Convex `GroceryLine`
+    contract is `{item, unit, quantity, aisle}` today — no source-recipe data is
+    retained at the Convex boundary. Needs extending `@pantry/types` +
+    `groceryLineValidator` + the Go aggregator to surface contributing recipes.
+    Coordinate with the planner's Generate-list work (BL-0018).
+  - **Manual add** with recent/favorite chips + auto-categorization into an aisle.
+  - **Swipe-to-delete** with undo (accelerator; tap stays primary).
+  - **Live household presence** + highlight on remote change.
+
 ## Alternatives considered
 
 - **Offline PWA now** — the biggest structural web weakness for in-store use, but larger

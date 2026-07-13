@@ -82,3 +82,21 @@ export const clearGroceryList = mutation({
     for (const row of rows) await ctx.db.delete(row._id);
   },
 });
+
+// "Done shopping — remove purchased" (BL-0019): drop the checked (in-cart) rows
+// and keep the unbought ones for the next trip. Distinct from clearGroceryList,
+// which wipes everything regardless of checked state.
+export const removeChecked = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const rows = await ctx.db
+      .query("groceryList")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of rows) {
+      if (row.checked) await ctx.db.delete(row._id);
+    }
+  },
+});

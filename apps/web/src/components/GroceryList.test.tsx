@@ -147,4 +147,67 @@ describe("GroceryList", () => {
     expect(screen.getByText(/Milk/)).toBeTruthy();
     expect(screen.getByText(/Butter/)).toBeTruthy();
   });
+
+  it("moves checked items into a collapsible In cart section", () => {
+    state.lines = [
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+      {
+        _id: "b",
+        userId: "dev-user",
+        item: "Bread",
+        unit: "loaf",
+        quantity: 1,
+        aisle: "bakery",
+        checked: true,
+        _creationTime: 1,
+      },
+    ];
+    render(<GroceryList />);
+    // Unchecked item stays in its aisle; checked item leaves the to-buy sections.
+    expect(screen.getByText("Dairy")).toBeTruthy();
+    expect(screen.getByText(/Milk/)).toBeTruthy();
+    expect(screen.queryByText("Bakery")).toBeNull();
+    // Checked item is tucked into a collapsed "In cart" drawer until expanded.
+    expect(screen.getByText("In cart")).toBeTruthy();
+    expect(screen.queryByText(/Bread/)).toBeNull();
+    fireEvent.click(screen.getByText("In cart"));
+    expect(screen.getByText(/Bread/)).toBeTruthy();
+  });
+
+  it("collapses an aisle section when its header is tapped", () => {
+    render(<GroceryList />); // oneLine: a single unchecked "egg" in aisle "other"
+    expect(screen.getByText(/egg/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Other"));
+    expect(screen.queryByText(/egg/)).toBeNull();
+  });
+
+  it("removes purchased items through the Done shopping flow", async () => {
+    state.lines = [
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: true,
+        _creationTime: 0,
+      },
+    ];
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /done shopping/i }));
+    fireEvent.click(screen.getByRole("button", { name: /remove purchased/i }));
+    expect(mutationMock).toHaveBeenCalledWith({});
+    // shared mock rejects → let run() settle so no act warning
+    await screen.findByRole("alert");
+  });
 });

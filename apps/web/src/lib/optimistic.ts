@@ -33,3 +33,13 @@ export function clearGroceryListOptimistic(localStore: OptimisticLocalStore): vo
   if (cur === undefined) return;
   localStore.setQuery(api.groceryList.getGroceryList, {}, []);
 }
+
+export function removeCheckedOptimistic(localStore: OptimisticLocalStore): void {
+  const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.groceryList.getGroceryList,
+    {},
+    cur.filter((l) => !l.checked),
+  );
+}

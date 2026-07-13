@@ -97,4 +97,57 @@ describe("groceryList", () => {
     const rows = await asUser.query(api.groceryList.getGroceryList, {});
     expect(rows).toHaveLength(0);
   });
+
+  it("removeChecked drops only the checked rows and keeps unbought ones", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: true,
+      });
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "bread",
+        unit: "loaf",
+        quantity: 1,
+        aisle: "bakery",
+        checked: false,
+      });
+    });
+
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.groceryList.removeChecked, {});
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ item: "bread", checked: false });
+  });
+
+  it("removeChecked leaves another user's checked rows untouched", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", {
+        userId: "someone-else",
+        item: "eggs",
+        unit: "count",
+        quantity: 6,
+        aisle: "other",
+        checked: true,
+      });
+    });
+
+    await t.withIdentity(identity).mutation(api.groceryList.removeChecked, {});
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db
+        .query("groceryList")
+        .withIndex("by_user", (q) => q.eq("userId", "someone-else"))
+        .collect(),
+    );
+    expect(rows).toHaveLength(1);
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clearGroceryListOptimistic,
+  removeCheckedOptimistic,
   removeFromBasketOptimistic,
   toggleItemOptimistic,
 } from "./optimistic";
@@ -67,6 +68,25 @@ describe("clearGroceryListOptimistic", () => {
   it("no-ops when the query is not in the cache", () => {
     const { store } = fakeStore(undefined);
     clearGroceryListOptimistic(store as never);
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeCheckedOptimistic", () => {
+  it("drops only the checked rows", () => {
+    const { store, state } = fakeStore([
+      { _id: "g1", item: "egg", unit: "", quantity: 1, checked: true },
+      { _id: "g2", item: "milk", unit: "", quantity: 1, checked: false },
+    ]);
+    removeCheckedOptimistic(store as never);
+    expect(state.value).toEqual([
+      { _id: "g2", item: "milk", unit: "", quantity: 1, checked: false },
+    ]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    removeCheckedOptimistic(store as never);
     expect(store.setQuery).not.toHaveBeenCalled();
   });
 });
