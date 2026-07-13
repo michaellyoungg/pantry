@@ -17,7 +17,8 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "line" : "list",
+  // In CI also emit an HTML report (uploaded as an artifact) for debugging.
+  reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
   // Convex round-trips (auth, recipe-service aggregation) are slower than a
   // pure client render, so give assertions and each test more headroom.
   timeout: 60_000,

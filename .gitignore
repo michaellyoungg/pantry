@@ -10,6 +10,12 @@ build/
 # Test coverage
 coverage/
 
+# Playwright (e2e) generated artifacts
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/playwright/.cache/
+
 # Go
 bin/
 *.exe
