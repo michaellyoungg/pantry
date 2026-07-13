@@ -1,13 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Basket } from "../components/Basket";
+import { Planner } from "../components/planner/Planner";
 
-function PlanPage() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-2xl font-semibold text-text">Plan</h2>
-      <Basket />
-    </div>
-  );
-}
-
-export const Route = createFileRoute("/plan")({ component: PlanPage });
+export const Route = createFileRoute("/plan")({ component: Planner });
