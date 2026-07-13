@@ -1,4 +1,5 @@
 import { api } from "@pantry/convex/api";
+import type { Id } from "@pantry/convex/dataModel";
 import { useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
@@ -28,9 +29,11 @@ export function Planner({ initialToday }: { initialToday?: string }) {
   const byDay = (iso: string) => entries.filter((e) => e.plannedDate === iso);
 
   const cardHandlers = {
-    onServings: (id: string, mult: number) => setServings({ id, servingsMultiplier: mult }),
-    onToggleLeftover: (id: string, type: "meal" | "leftover") => setType({ id, type }),
-    onRemove: (id: string) => removeEntry({ id }),
+    onServings: (id: string, mult: number) =>
+      setServings({ id: id as Id<"basket">, servingsMultiplier: mult }),
+    onToggleLeftover: (id: string, type: "meal" | "leftover") =>
+      setType({ id: id as Id<"basket">, type }),
+    onRemove: (id: string) => removeEntry({ id: id as Id<"basket"> }),
   };
 
   return (
@@ -100,7 +103,7 @@ export function Planner({ initialToday }: { initialToday?: string }) {
                       variant="secondary"
                       size="sm"
                       aria-label={`Move ${e.title} to ${weekdayLabel(iso)}`}
-                      onClick={() => assignDay({ id: e._id, plannedDate: iso })}
+                      onClick={() => assignDay({ id: e._id as Id<"basket">, plannedDate: iso })}
                     >
                       {weekdayLabel(iso)}
                     </Button>
