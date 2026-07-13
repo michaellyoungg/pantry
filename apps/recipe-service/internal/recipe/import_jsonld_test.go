@@ -42,3 +42,29 @@ func TestExtractJSONLD_NoRecipe(t *testing.T) {
 		t.Fatal("expected no Recipe node")
 	}
 }
+
+// Recipe sites routinely HTML-encode entities inside JSON-LD text (e.g. the
+// apostrophe in "World's" as &#39;). Those must be decoded so the preview shows
+// clean text, not raw entities.
+const pageEntities = `<html><head>
+<script type="application/ld+json">
+{"@type":"Recipe","name":"World&#39;s Best Lasagna",
+ "recipeIngredient":["1 tbsp salt &amp; pepper"],
+ "recipeInstructions":["Season &amp; bake."]}
+</script></head></html>`
+
+func TestExtractJSONLD_UnescapesEntities(t *testing.T) {
+	got, ok := extractJSONLD([]byte(pageEntities))
+	if !ok {
+		t.Fatal("expected a Recipe node to be found")
+	}
+	if got.Title != "World's Best Lasagna" {
+		t.Errorf("title = %q, want %q", got.Title, "World's Best Lasagna")
+	}
+	if len(got.IngredientLines) != 1 || got.IngredientLines[0] != "1 tbsp salt & pepper" {
+		t.Errorf("ingredients = %v, want [%q]", got.IngredientLines, "1 tbsp salt & pepper")
+	}
+	if len(got.Steps) != 1 || got.Steps[0] != "Season & bake." {
+		t.Errorf("steps = %v, want [%q]", got.Steps, "Season & bake.")
+	}
+}

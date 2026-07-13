@@ -26,7 +26,7 @@ it can be filtered/sorted/updated programmatically.
 
 | ID | Title | Status | Area | Effort |
 |---|---|---|---|---|
-| [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | in-progress | recipes | L |
+| [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | done | recipes | L |
 | [BL-0002](BL-0002-seeded-recipe-catalog.md) | Seeded recipe catalog | in-progress | recipes | M |
 | [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | done | grocery-list | L |
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | done | auth | M |
@@ -47,3 +47,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, provenance, done-shopping | proposed | grocery-list | L |
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | proposed | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | proposed | pantry | L |
+| [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps (schema + import already extracts them) | proposed | recipes | M |
