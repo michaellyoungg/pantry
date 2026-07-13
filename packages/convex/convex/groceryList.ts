@@ -17,6 +17,10 @@ type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Fails to compile if groceryLineValidator and @pantry/types GroceryLine drift.
 export const _groceryLineInSync: Equals<Infer<typeof groceryLineValidator>, GroceryLine> = true;
 
+// Returns rows in insertion order (recipe-service pre-sorts lines by aisle
+// before they're persisted). The web GroceryList relies on this ordering to
+// group consecutive same-aisle lines under one header — do not add .order()
+// here without updating that grouping.
 export const getGroceryList = query({
   args: {},
   handler: async (ctx) => {

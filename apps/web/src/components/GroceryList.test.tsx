@@ -81,4 +81,15 @@ describe("GroceryList", () => {
     render(<GroceryList />);
     expect(screen.getByText(/¾ cup Butter/)).toBeTruthy();
   });
+
+  it("groups consecutive same-aisle lines under a single header", () => {
+    state.lines = [
+      { _id: "a", userId: "dev-user", item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: false, _creationTime: 0 },
+      { _id: "b", userId: "dev-user", item: "Butter", unit: "cup", quantity: 0.5, aisle: "dairy", checked: false, _creationTime: 1 },
+    ];
+    render(<GroceryList />);
+    expect(screen.getAllByText("Dairy")).toHaveLength(1);
+    expect(screen.getByText(/Milk/)).toBeTruthy();
+    expect(screen.getByText(/Butter/)).toBeTruthy();
+  });
 });
