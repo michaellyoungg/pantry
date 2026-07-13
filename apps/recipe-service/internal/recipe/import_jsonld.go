@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"encoding/json"
+	"html"
 	"regexp"
 	"strings"
 )
@@ -68,7 +69,7 @@ func hasType(t any, want string) bool {
 func buildRecipe(m map[string]any) jsonLDRecipe {
 	rec := jsonLDRecipe{Title: asString(m["name"])}
 	for _, ing := range asStringSlice(m["recipeIngredient"]) {
-		if s := strings.TrimSpace(ing); s != "" {
+		if s := cleanText(ing); s != "" {
 			rec.IngredientLines = append(rec.IngredientLines, s)
 		}
 	}
@@ -76,9 +77,15 @@ func buildRecipe(m map[string]any) jsonLDRecipe {
 	return rec
 }
 
+// cleanText decodes HTML entities (recipe sites routinely encode e.g. "&#39;"
+// inside JSON-LD strings) and trims surrounding whitespace.
+func cleanText(s string) string {
+	return strings.TrimSpace(html.UnescapeString(s))
+}
+
 func asString(v any) string {
 	s, _ := v.(string)
-	return strings.TrimSpace(s)
+	return cleanText(s)
 }
 
 // asStringSlice accepts a string or a list of strings and returns a slice.
@@ -104,14 +111,14 @@ func extractSteps(v any) []string {
 	var out []string
 	switch t := v.(type) {
 	case string:
-		if s := strings.TrimSpace(t); s != "" {
+		if s := cleanText(t); s != "" {
 			out = append(out, s)
 		}
 	case []any:
 		for _, item := range t {
 			switch step := item.(type) {
 			case string:
-				if s := strings.TrimSpace(step); s != "" {
+				if s := cleanText(step); s != "" {
 					out = append(out, s)
 				}
 			case map[string]any:
