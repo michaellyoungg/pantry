@@ -1,10 +1,10 @@
 ---
 id: BL-0001
 title: URL import + recipe parser service
-status: proposed
+status: in-progress
 area: recipes
 effort: L
-related_specs: [2026-06-29-recipe-to-grocery-list-design.md]
+related_specs: [2026-06-29-recipe-to-grocery-list-design.md, 2026-07-12-url-import-recipe-parser-design.md]
 created: 2026-06-29
 ---
 

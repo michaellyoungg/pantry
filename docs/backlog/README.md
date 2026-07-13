@@ -26,7 +26,7 @@ it can be filtered/sorted/updated programmatically.
 
 | ID | Title | Status | Area | Effort |
 |---|---|---|---|---|
-| [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | proposed | recipes | L |
+| [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | in-progress | recipes | L |
 | [BL-0002](BL-0002-seeded-recipe-catalog.md) | Seeded recipe catalog | in-progress | recipes | M |
 | [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | done | grocery-list | L |
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | done | auth | M |
