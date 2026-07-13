@@ -9,5 +9,8 @@ export default defineConfig({
     environment: "edge-runtime",
     server: { deps: { inline: ["convex-test"] } },
     include: ["convex/**/*.test.ts"],
+    // Integration tests hit a real recipe-service and run under a separate
+    // config (vitest.integration.config.ts); keep the default unit run hermetic.
+    exclude: ["**/node_modules/**", "**/*.integration.test.ts"],
   },
 });

@@ -44,3 +44,47 @@ docker compose run --rm seed
 Re-running is safe — recipes upsert by stable id. The catalog requires Postgres;
 running recipe-service with the in-memory store (no `DATABASE_URL`) has an empty
 catalog.
+
+## Testing
+
+### Unit tests
+
+Fast, hermetic, no external services. Run in CI on every push/PR.
+
+```bash
+pnpm test            # all workspaces (web, convex, go)
+```
+
+- **web** — Vitest + jsdom (components + lib).
+- **convex** — `convex-test` runs functions against an in-memory backend.
+- **recipe-service** — `go test ./...` (DB-backed tests skip without a database).
+
+### Integration tests
+
+Verify the seams **between** services with no mocks:
+
+- **recipe-service ⇄ Postgres** (`postgres_test.go`) — the real DB code path.
+- **Convex actions ⇄ recipe-service ⇄ Postgres** (`recipes.integration.test.ts`)
+  — the Convex actions in `packages/convex/convex/recipes.ts` make genuine HTTP
+  calls (paths, `X-Service-Secret`/`X-User-Id` headers, JSON shapes) to a real
+  running recipe-service. Catches contract drift the unit suites can't.
+
+Run the full suite against a real Postgres (needs Docker + Go):
+
+```bash
+pnpm test:integration
+```
+
+This starts the compose Postgres, creates a dedicated `pantry_test` database
+(never touches dev `pantry`), runs the Go DB tests, then runs the Convex
+contract tests against a freshly built recipe-service.
+
+Just the cross-service contract, **no infrastructure** (the service falls back to
+its in-memory store when no database is set):
+
+```bash
+pnpm --filter @pantry/convex test:integration
+```
+
+In CI, the `go` and `integration` jobs run these against a Postgres service
+container on every push/PR — so CI and local verify the same seams.

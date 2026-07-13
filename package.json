@@ -10,6 +10,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
+    "test:integration": "bash scripts/integration.sh",
     "lint": "biome check && turbo run lint",
     "format": "biome check --write",
     "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
