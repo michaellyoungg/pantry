@@ -19,6 +19,7 @@ export default defineConfig({
         "src/test/**",
         "src/**/*.d.ts",
         "src/main.tsx",
+        "src/routes/**",
         "src/routeTree.gen.ts",
       ],
       // Ratchet floor set just below current coverage so CI catches
