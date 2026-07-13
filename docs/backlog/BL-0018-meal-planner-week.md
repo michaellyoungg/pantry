@@ -1,10 +1,10 @@
 ---
 id: BL-0018
 title: Meal planner — basket becomes a dinner-first week plan
-status: proposed
+status: in-progress
 area: meal-planning
 effort: L
-related_specs: [2026-07-12-full-app-ux-plan.md]
+related_specs: [2026-07-12-full-app-ux-plan.md, 2026-07-13-meal-planner-design.md]
 created: 2026-07-12
 ---
 
