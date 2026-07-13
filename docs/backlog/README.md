@@ -41,3 +41,9 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | proposed | recipes | M |
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | proposed | infra | M |
 | [BL-0015](BL-0015-cross-store-delete-consistency.md) | Cross-store delete/basket partial-failure consistency | done | web | S |
+| [BL-0016](BL-0016-app-ia-responsive-nav.md) | App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs) | proposed | web | M |
+| [BL-0017](BL-0017-home-dashboard-weekly-handoff.md) | Home dashboard — state-aware next action + shopping-day handoff | proposed | web | M |
+| [BL-0018](BL-0018-meal-planner-week.md) | Meal planner — basket becomes a dinner-first week plan | proposed | meal-planning | L |
+| [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, provenance, done-shopping | proposed | grocery-list | L |
+| [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | proposed | recipes | M |
+| [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | proposed | pantry | L |
