@@ -54,3 +54,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | in-progress | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | proposed | pantry | L |
 | [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps (schema + import already extracts them) | in-progress | recipes | M |
+| [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | proposed | pricing | L |
