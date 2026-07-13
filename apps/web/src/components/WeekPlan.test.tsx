@@ -1,0 +1,86 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Hoisted, mutable so each test seeds the basket query. One shared mutation spy
+// (mirrors GroceryList.test); tests distinguish which mutation fired by the
+// args it was called with — schedule carries a `weekday`, unschedule does not.
+const { state, mutationMock, actionMock } = vi.hoisted(() => ({
+  state: { items: [] as Array<Record<string, unknown>> },
+  mutationMock: vi.fn(() => Promise.resolve()),
+  actionMock: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("convex/react", () => ({
+  useQuery: () => state.items,
+  useAction: () => actionMock,
+  useMutation: () => {
+    const fn = ((...args: unknown[]) =>
+      (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
+      (...a: unknown[]): Promise<unknown>;
+      withOptimisticUpdate: (u: unknown) => typeof fn;
+    };
+    fn.withOptimisticUpdate = () => fn;
+    return fn;
+  },
+}));
+
+import { WeekPlan } from "./WeekPlan";
+
+const row = (over: Record<string, unknown>) => ({
+  _id: "b1",
+  userId: "user-a",
+  recipeId: "r1",
+  title: "Toast",
+  _creationTime: 0,
+  ...over,
+});
+
+const ALL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  state.items = [];
+});
+afterEach(() => vi.restoreAllMocks());
+
+describe("WeekPlan", () => {
+  it("renders all seven days", () => {
+    render(<WeekPlan />);
+    for (const day of ALL_DAYS) expect(screen.getByText(day)).toBeTruthy();
+  });
+
+  it("shows an unscheduled recipe in the rail and schedules it on the picked day", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast" })]; // no weekday => unscheduled
+    render(<WeekPlan />);
+
+    expect(screen.getByText("Not yet planned")).toBeTruthy();
+    // Pick Wednesday (index 2) from that row's day picker.
+    fireEvent.click(screen.getByRole("button", { name: "Wednesday" }));
+
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1", weekday: 2 });
+  });
+
+  it("renders a scheduled recipe under its day and unschedules it on ×", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0 })]; // Monday
+    render(<WeekPlan />);
+
+    expect(screen.getByText("Toast")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Toast from Monday" }));
+
+    // unschedule is called with just the recipe id (no weekday).
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1" });
+  });
+
+  it("generate is disabled with an empty basket and calls the action otherwise", () => {
+    const { rerender } = render(<WeekPlan />);
+    const btn = () =>
+      screen.getByRole("button", { name: /Generate grocery list/ }) as HTMLButtonElement;
+    expect(btn().disabled).toBe(true);
+
+    state.items = [row({ recipeId: "r1", weekday: 1 })];
+    rerender(<WeekPlan />);
+    expect(btn().disabled).toBe(false);
+    fireEvent.click(btn());
+    expect(actionMock).toHaveBeenCalledTimes(1);
+  });
+});

@@ -1,7 +1,7 @@
 ---
 id: BL-0018
 title: Meal planner — basket becomes a dinner-first week plan
-status: proposed
+status: in-progress
 area: meal-planning
 effort: L
 related_specs: [2026-07-12-full-app-ux-plan.md]
@@ -38,3 +38,16 @@ must be deliberately low-effort.
   fill; dinner-first with optional slots matches real behavior.
 - **Drag-and-drop v1** — most-praised feature but desktop-first and expensive on touch;
   defer to the vision layer after tap-based add/move proves out.
+
+## Progress
+
+- **2026-07-12 — Increment 1 (shipped):** dinner-first week-plan data model +
+  assign/move UI. Added optional `weekday` (0=Mon..6=Sun) and `slot` to the
+  `basket` table (backward compatible; aggregation unchanged), `basket.schedule`
+  / `basket.unschedule` mutations, and a responsive `WeekPlan` (`/plan`) —
+  7-column grid on desktop / stacked agenda on phone, an unscheduled rail with a
+  day picker, and the existing "Generate grocery list".
+- **Deferred (next increments):** `servingsMultiplier` flowing into aggregation
+  (needs recipe-service quantity scaling), `type: leftover`, non-dinner slots,
+  and the **non-destructive diff-merge regeneration** (UX-plan decision #2 —
+  flagged *confirm before building*; today's generate still replaces the list).

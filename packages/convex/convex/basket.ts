@@ -41,6 +41,40 @@ export const remove = mutation({
   },
 });
 
+// Schedule a basketed recipe onto a weekday (BL-0018). weekday is 0=Mon..6=Sun.
+// slot defaults to "dinner" — the only slot in the dinner-first v1. Idempotent
+// no-op if the recipe isn't in the basket.
+export const schedule = mutation({
+  args: { recipeId: v.string(), weekday: v.number(), slot: v.optional(v.string()) },
+  handler: async (ctx, { recipeId, weekday, slot }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      throw new Error("weekday must be an integer 0..6");
+    }
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { weekday, slot: slot ?? "dinner" });
+  },
+});
+
+// Move a recipe back to the unscheduled rail (clears its day/slot) without
+// removing it from the basket. Idempotent no-op if the recipe isn't basketed.
+export const unschedule = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { weekday: undefined, slot: undefined });
+  },
+});
+
 export const updateTitle = mutation({
   args: { recipeId: v.string(), title: v.string() },
   handler: async (ctx, { recipeId, title }) => {
