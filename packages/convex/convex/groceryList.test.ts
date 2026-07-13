@@ -22,13 +22,20 @@ describe("groceryList", () => {
         item: "flour",
         unit: "g",
         quantity: 500,
+        aisle: "pantry",
         checked: false,
       });
     });
 
     const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ item: "flour", unit: "g", quantity: 500, checked: false });
+    expect(rows[0]).toMatchObject({
+      item: "flour",
+      unit: "g",
+      quantity: 500,
+      aisle: "pantry",
+      checked: false,
+    });
   });
 
   it("toggles an item's checked flag for the owner", async () => {
@@ -40,6 +47,7 @@ describe("groceryList", () => {
         item: "eggs",
         unit: "count",
         quantity: 6,
+        aisle: "other",
         checked: false,
       }),
     );
@@ -58,6 +66,7 @@ describe("groceryList", () => {
         item: "eggs",
         unit: "count",
         quantity: 6,
+        aisle: "other",
         checked: false,
       }),
     );
@@ -76,6 +85,7 @@ describe("groceryList", () => {
           item,
           unit: "g",
           quantity: 100,
+          aisle: "pantry",
           checked: false,
         });
       }

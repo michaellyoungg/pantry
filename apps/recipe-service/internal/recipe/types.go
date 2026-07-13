@@ -25,4 +25,5 @@ type GroceryLine struct {
 	Item     string  `json:"item"`
 	Unit     string  `json:"unit"`
 	Quantity float64 `json:"quantity"`
+	Aisle    string  `json:"aisle"`
 }

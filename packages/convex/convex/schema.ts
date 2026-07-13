@@ -27,6 +27,7 @@ export default defineSchema({
     item: v.string(),
     unit: v.string(),
     quantity: v.number(),
+    aisle: v.string(),
     checked: v.boolean(),
   }).index("by_user", ["userId"]),
 });

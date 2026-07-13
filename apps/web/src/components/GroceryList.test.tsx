@@ -29,6 +29,7 @@ const oneLine = [
     item: "egg",
     unit: "",
     quantity: 1,
+    aisle: "other",
     checked: false,
     _creationTime: 0,
   },
@@ -71,5 +72,79 @@ describe("GroceryList", () => {
     state.lines = [];
     render(<GroceryList />);
     expect(screen.queryByRole("button", { name: /clear list/i })).toBeNull();
+  });
+
+  it("renders aisle section headers and groups lines under them", () => {
+    state.lines = [
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+      {
+        _id: "b",
+        userId: "dev-user",
+        item: "Sriracha",
+        unit: "tbsp",
+        quantity: 2,
+        aisle: "other",
+        checked: false,
+        _creationTime: 1,
+      },
+    ];
+    render(<GroceryList />);
+    expect(screen.getByText("Dairy")).toBeTruthy();
+    expect(screen.getByText("Other")).toBeTruthy();
+  });
+
+  it("renders quantities as fraction glyphs", () => {
+    state.lines = [
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Butter",
+        unit: "cup",
+        quantity: 0.75,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+    ];
+    render(<GroceryList />);
+    expect(screen.getByText(/¾ cup Butter/)).toBeTruthy();
+  });
+
+  it("groups consecutive same-aisle lines under a single header", () => {
+    state.lines = [
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+      {
+        _id: "b",
+        userId: "dev-user",
+        item: "Butter",
+        unit: "cup",
+        quantity: 0.5,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 1,
+      },
+    ];
+    render(<GroceryList />);
+    expect(screen.getAllByText("Dairy")).toHaveLength(1);
+    expect(screen.getByText(/Milk/)).toBeTruthy();
+    expect(screen.getByText(/Butter/)).toBeTruthy();
   });
 });
