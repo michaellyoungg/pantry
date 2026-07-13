@@ -3,6 +3,7 @@ import type { GroceryLine, Ingredient, Recipe } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
+import { planItemsForWeek } from "./weekFilter";
 
 const ingredientValidator = v.object({
   quantity: v.number(),
@@ -107,15 +108,15 @@ export const listCatalog = action({
 // Reads the basket, asks recipe-service to aggregate those recipes into a
 // grocery list, and persists the result as the reactive grocery list.
 export const generateGroceryList = action({
-  args: {},
-  handler: async (ctx): Promise<{ count: number }> => {
+  args: { weekStart: v.string() },
+  handler: async (ctx, { weekStart }): Promise<{ count: number }> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const basket = await ctx.runQuery(api.basket.list, {});
-    const recipeIds = basket.map((b: { recipeId: string }) => b.recipeId);
+    const items = planItemsForWeek(basket, weekStart);
 
     const lines = await recipeServiceFetch<GroceryLine[]>(userId, "POST", "/grocery-list", {
-      recipeIds,
+      items,
     });
 
     await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
