@@ -84,3 +84,26 @@ describe("WeekPlan", () => {
     expect(actionMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("WeekPlan servings & leftovers (increment 2)", () => {
+  it("increases servings on a scheduled meal", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0 })];
+    render(<WeekPlan />);
+    fireEvent.click(screen.getByRole("button", { name: /increase servings for Toast/i }));
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1", servingsMultiplier: 1.5 });
+  });
+
+  it("does not decrease servings below 0.25", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0, servingsMultiplier: 0.25 })];
+    render(<WeekPlan />);
+    fireEvent.click(screen.getByRole("button", { name: /decrease servings for Toast/i }));
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1", servingsMultiplier: 0.25 });
+  });
+
+  it("marks a scheduled meal as leftover", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0 })];
+    render(<WeekPlan />);
+    fireEvent.click(screen.getByRole("button", { name: /mark Toast as leftover/i }));
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1", type: "leftover" });
+  });
+});
