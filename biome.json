@@ -9,6 +9,7 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
+      "!**/.claude",
       "!**/_generated",
       "!**/dist",
       "!**/node_modules",
