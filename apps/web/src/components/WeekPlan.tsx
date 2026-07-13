@@ -25,6 +25,8 @@ type BasketRow = {
   recipeId: string;
   title: string;
   weekday?: number;
+  servingsMultiplier?: number;
+  type?: "meal" | "leftover";
 };
 
 /** A compact 7-day selector; the active day is highlighted. */
@@ -52,6 +54,8 @@ export function WeekPlan() {
   const items = (useQuery(api.basket.list) ?? []) as BasketRow[];
   const schedule = useMutation(api.basket.schedule);
   const unschedule = useMutation(api.basket.unschedule);
+  const setServings = useMutation(api.basket.setServings);
+  const setType = useMutation(api.basket.setType);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );
@@ -77,25 +81,92 @@ export function WeekPlan() {
                 <p className="text-xs text-muted">No dinner planned</p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {dayItems.map((i) => (
-                    <li
-                      key={i._id}
-                      className="flex items-start justify-between gap-1 rounded-lg bg-primary/10 px-2 py-1.5"
-                    >
-                      <span className="text-sm text-text">{i.title}</span>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${i.title} from ${DAY_FULL[day]}`}
-                        onClick={() => {
-                          gen.clearError();
-                          act.run(() => unschedule({ recipeId: i.recipeId }));
-                        }}
-                        className="shrink-0 text-muted hover:text-text"
+                  {dayItems.map((i) => {
+                    const mult = i.servingsMultiplier ?? 1;
+                    const isLeftover = i.type === "leftover";
+                    return (
+                      <li
+                        key={i._id}
+                        className={`flex flex-col gap-1 rounded-lg px-2 py-1.5 ${
+                          isLeftover ? "bg-border/30 text-muted" : "bg-primary/10"
+                        }`}
                       >
-                        ×
-                      </button>
-                    </li>
-                  ))}
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="text-sm text-text">{i.title}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${i.title} from ${DAY_FULL[day]}`}
+                            onClick={() => {
+                              gen.clearError();
+                              act.run(() => unschedule({ recipeId: i.recipeId }));
+                            }}
+                            className="shrink-0 text-muted hover:text-text"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted">
+                          {isLeftover ? (
+                            <span>leftovers — not on list</span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label={`Decrease servings for ${i.title}`}
+                                onClick={() => {
+                                  gen.clearError();
+                                  act.run(() =>
+                                    setServings({
+                                      recipeId: i.recipeId,
+                                      servingsMultiplier: Math.max(0.25, mult - 0.5),
+                                    }),
+                                  );
+                                }}
+                                className="h-5 w-5 rounded border border-border hover:border-primary hover:text-text"
+                              >
+                                −
+                              </button>
+                              <span className="tabular-nums">×{mult}</span>
+                              <button
+                                type="button"
+                                aria-label={`Increase servings for ${i.title}`}
+                                onClick={() => {
+                                  gen.clearError();
+                                  act.run(() =>
+                                    setServings({
+                                      recipeId: i.recipeId,
+                                      servingsMultiplier: mult + 0.5,
+                                    }),
+                                  );
+                                }}
+                                className="h-5 w-5 rounded border border-border hover:border-primary hover:text-text"
+                              >
+                                +
+                              </button>
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            aria-label={
+                              isLeftover ? `Mark ${i.title} as meal` : `Mark ${i.title} as leftover`
+                            }
+                            onClick={() => {
+                              gen.clearError();
+                              act.run(() =>
+                                setType({
+                                  recipeId: i.recipeId,
+                                  type: isLeftover ? "meal" : "leftover",
+                                }),
+                              );
+                            }}
+                            className="ml-auto hover:text-text"
+                          >
+                            {isLeftover ? "↩ meal" : "♻ leftover"}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

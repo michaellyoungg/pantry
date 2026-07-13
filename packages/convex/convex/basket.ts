@@ -87,3 +87,37 @@ export const updateTitle = mutation({
     if (existing) await ctx.db.patch(existing._id, { title });
   },
 });
+
+// Servings multiplier applied to this recipe's ingredient quantities when the
+// grocery list is generated (BL-0018 increment 2). Clamped to >= 0.25.
+export const setServings = mutation({
+  args: { recipeId: v.string(), servingsMultiplier: v.number() },
+  handler: async (ctx, { recipeId, servingsMultiplier }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        servingsMultiplier: Math.max(0.25, servingsMultiplier),
+      });
+    }
+  },
+});
+
+// Marks a planned recipe as a leftover (occupies its day but adds nothing to
+// the grocery list) or back to a meal.
+export const setType = mutation({
+  args: { recipeId: v.string(), type: v.union(v.literal("meal"), v.literal("leftover")) },
+  handler: async (ctx, { recipeId, type }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { type });
+  },
+});

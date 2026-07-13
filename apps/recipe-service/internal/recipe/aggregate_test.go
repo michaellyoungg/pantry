@@ -99,3 +99,33 @@ func TestAggregate_EmptyInputYieldsEmptySlice(t *testing.T) {
 		t.Fatalf("got %+v, want empty", got)
 	}
 }
+
+func TestAggregateScaled_MultipliesQuantities(t *testing.T) {
+	got := AggregateScaled([]ScaledRecipe{
+		{Recipe: r("a", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}), Multiplier: 2},
+	})
+	want := []GroceryLine{{Item: "Garlic", Unit: "cloves", Quantity: 4, Aisle: "produce"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestAggregateScaled_SumsRepeatedRecipeInstances(t *testing.T) {
+	rec := r("a", Ingredient{Quantity: 1, Unit: "cloves", Item: "garlic"})
+	got := AggregateScaled([]ScaledRecipe{
+		{Recipe: rec, Multiplier: 1},
+		{Recipe: rec, Multiplier: 2},
+	})
+	want := []GroceryLine{{Item: "Garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestAggregate_WrapperEqualsMultiplierOne(t *testing.T) {
+	ings := r("a", Ingredient{Quantity: 3, Unit: "cloves", Item: "garlic"})
+	if !reflect.DeepEqual(Aggregate([]Recipe{ings}),
+		AggregateScaled([]ScaledRecipe{{Recipe: ings, Multiplier: 1}})) {
+		t.Fatal("Aggregate must equal AggregateScaled at multiplier 1")
+	}
+}

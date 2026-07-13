@@ -160,17 +160,40 @@ func (h *handlers) importRecipe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		RecipeIDs []string `json:"recipeIds"`
+		Items []struct {
+			RecipeID   string  `json:"recipeId"`
+			Multiplier float64 `json:"multiplier"`
+		} `json:"items"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), req.RecipeIDs)
+
+	ids := make([]string, 0, len(req.Items))
+	seen := map[string]bool{}
+	for _, it := range req.Items {
+		if !seen[it.RecipeID] {
+			seen[it.RecipeID] = true
+			ids = append(ids, it.RecipeID)
+		}
+	}
+	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), ids)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load recipes")
 		return
 	}
-	writeJSON(w, http.StatusOK, Aggregate(recs))
+	byID := make(map[string]Recipe, len(recs))
+	for _, rec := range recs {
+		byID[rec.ID] = rec
+	}
+
+	entries := make([]ScaledRecipe, 0, len(req.Items))
+	for _, it := range req.Items {
+		if rec, ok := byID[it.RecipeID]; ok {
+			entries = append(entries, ScaledRecipe{Recipe: rec, Multiplier: it.Multiplier})
+		}
+	}
+	writeJSON(w, http.StatusOK, AggregateScaled(entries))
 }
 
 // decodeJSON reads a JSON request body with a size cap. It writes an error
