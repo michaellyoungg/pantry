@@ -22,7 +22,7 @@ vi.mock("convex/react", () => ({
 import { GroceryList } from "./GroceryList";
 
 const oneLine = [
-  { _id: "g1", userId: "dev-user", item: "egg", unit: "", quantity: 1, checked: false, _creationTime: 0 },
+  { _id: "g1", userId: "dev-user", item: "egg", unit: "", quantity: 1, aisle: "other", checked: false, _creationTime: 0 },
 ];
 
 beforeEach(() => {
@@ -62,5 +62,23 @@ describe("GroceryList", () => {
     state.lines = [];
     render(<GroceryList />);
     expect(screen.queryByRole("button", { name: /clear list/i })).toBeNull();
+  });
+
+  it("renders aisle section headers and groups lines under them", () => {
+    state.lines = [
+      { _id: "a", userId: "dev-user", item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: false, _creationTime: 0 },
+      { _id: "b", userId: "dev-user", item: "Sriracha", unit: "tbsp", quantity: 2, aisle: "other", checked: false, _creationTime: 1 },
+    ];
+    render(<GroceryList />);
+    expect(screen.getByText("Dairy")).toBeTruthy();
+    expect(screen.getByText("Other")).toBeTruthy();
+  });
+
+  it("renders quantities as fraction glyphs", () => {
+    state.lines = [
+      { _id: "a", userId: "dev-user", item: "Butter", unit: "cup", quantity: 0.75, aisle: "dairy", checked: false, _creationTime: 0 },
+    ];
+    render(<GroceryList />);
+    expect(screen.getByText(/¾ cup Butter/)).toBeTruthy();
   });
 });
