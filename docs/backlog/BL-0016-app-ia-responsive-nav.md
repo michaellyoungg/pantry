@@ -1,7 +1,7 @@
 ---
 id: BL-0016
 title: App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs)
-status: proposed
+status: done
 area: web
 effort: M
 related_specs: [2026-07-12-full-app-ux-plan.md]

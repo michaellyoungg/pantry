@@ -13,10 +13,16 @@ export default defineSchema({
   }).index("by_user", ["userId"]),
 
   // "What I'm cooking" — references to recipe ids owned by recipe-service.
+  // Doubles as the week plan: an entry with a `weekday` is scheduled onto that
+  // day; without one it sits unscheduled in the plan rail. All planner fields
+  // are optional so pre-planner rows keep working and aggregation is unchanged.
   basket: defineTable({
     userId: v.string(),
     recipeId: v.string(),
     title: v.string(), // denormalized for display; NOT the recipe body
+    // Week plan (BL-0018). weekday: 0=Mon … 6=Sun; undefined = unscheduled.
+    weekday: v.optional(v.number()),
+    slot: v.optional(v.string()), // "dinner" for now; other slots arrive later
   })
     .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),
