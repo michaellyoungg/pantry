@@ -35,7 +35,11 @@ export const getGroceryList = query({
 
 // Called only from the generateGroceryList action, which passes the
 // authenticated userId it already resolved. Internal → not client-callable.
-export const replaceGroceryList = internalMutation({
+// Non-destructive merge: lines matching an existing row by item+unit+aisle keep
+// their `checked` state (only the quantity is refreshed); new lines are
+// inserted unchecked; existing rows absent from the new list are deleted. This
+// preserves in-store check-off progress across re-generation (BL-0018 inc 2).
+export const mergeGroceryList = internalMutation({
   args: {
     userId: v.string(),
     lines: v.array(groceryLineValidator),
@@ -45,16 +49,30 @@ export const replaceGroceryList = internalMutation({
       .query("groceryList")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    for (const row of existing) await ctx.db.delete(row._id);
+    const keyOf = (l: { item: string; unit: string; aisle: string }) =>
+      `${l.item} ${l.unit} ${l.aisle}`;
+    const byKey = new Map(existing.map((row) => [keyOf(row), row]));
+    const seen = new Set<string>();
+
     for (const line of lines) {
-      await ctx.db.insert("groceryList", {
-        userId,
-        item: line.item,
-        unit: line.unit,
-        quantity: line.quantity,
-        aisle: line.aisle,
-        checked: false,
-      });
+      const k = keyOf(line);
+      const row = byKey.get(k);
+      if (row && !seen.has(k)) {
+        await ctx.db.patch(row._id, { quantity: line.quantity }); // keep checked
+      } else {
+        await ctx.db.insert("groceryList", {
+          userId,
+          item: line.item,
+          unit: line.unit,
+          quantity: line.quantity,
+          aisle: line.aisle,
+          checked: false,
+        });
+      }
+      seen.add(k);
+    }
+    for (const row of existing) {
+      if (!seen.has(keyOf(row))) await ctx.db.delete(row._id);
     }
   },
 });

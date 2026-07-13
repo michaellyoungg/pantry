@@ -72,3 +72,33 @@ describe("basket planner", () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+describe("basket servings & leftovers (increment 2)", () => {
+  it("setServings clamps below 0.25", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.basket.setServings, { recipeId: "r1", servingsMultiplier: 0 });
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBe(0.25);
+  });
+
+  it("setServings stores a valid multiplier", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.basket.setServings, { recipeId: "r1", servingsMultiplier: 2 });
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBe(2);
+  });
+
+  it("setType marks a recipe as leftover and back to meal", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.basket.setType, { recipeId: "r1", type: "leftover" });
+    expect((await asUser.query(api.basket.list, {}))[0].type).toBe("leftover");
+    await asUser.mutation(api.basket.setType, { recipeId: "r1", type: "meal" });
+    expect((await asUser.query(api.basket.list, {}))[0].type).toBe("meal");
+  });
+});

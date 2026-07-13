@@ -23,6 +23,9 @@ export default defineSchema({
     // Week plan (BL-0018). weekday: 0=Mon … 6=Sun; undefined = unscheduled.
     weekday: v.optional(v.number()),
     slot: v.optional(v.string()), // "dinner" for now; other slots arrive later
+    // Increment 2: servings scaling + leftovers.
+    servingsMultiplier: v.optional(v.number()), // absent → treated as 1
+    type: v.optional(v.union(v.literal("meal"), v.literal("leftover"))), // absent → "meal"
   })
     .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),

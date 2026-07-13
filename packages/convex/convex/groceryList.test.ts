@@ -1,6 +1,6 @@
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 // convex-test discovers the function modules via Vite's import.meta.glob.
@@ -96,5 +96,31 @@ describe("groceryList", () => {
 
     const rows = await asUser.query(api.groceryList.getGroceryList, {});
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("mergeGroceryList (increment 2)", () => {
+  it("preserves checked state for surviving lines, inserts new, deletes gone", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID, item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: true,
+      });
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID, item: "Eggs", unit: "count", quantity: 6, aisle: "other", checked: false,
+      });
+    });
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Milk", unit: "cup", quantity: 2, aisle: "dairy" },
+        { item: "Bread", unit: "loaf", quantity: 1, aisle: "bakery" },
+      ],
+    });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const byItem = Object.fromEntries(rows.map((r) => [r.item, r]));
+    expect(Object.keys(byItem).sort()).toEqual(["Bread", "Milk"]);
+    expect(byItem.Milk).toMatchObject({ quantity: 2, checked: true });
+    expect(byItem.Bread).toMatchObject({ checked: false });
   });
 });

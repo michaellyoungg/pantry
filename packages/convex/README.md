@@ -46,6 +46,6 @@ The Convex backend + dashboard run as services in the repo-root
 - `recipes.generateGroceryList` (action) — reads the basket, asks `recipe-service`
   to aggregate those recipes (`POST /grocery-list`), and persists the result.
 - `groceryList.getGroceryList` (query) / `groceryList.toggleItem` (mutation) — read + check off.
-- `groceryList.replaceGroceryList` is **internal** (called only by the action).
+- `groceryList.mergeGroceryList` is **internal** (called only by the action).
 
 All functions are scoped to `DEV_USER_ID` ("dev-user") until real auth (see backlog BL-0004).

@@ -112,13 +112,20 @@ export const generateGroceryList = action({
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const basket = await ctx.runQuery(api.basket.list, {});
-    const recipeIds = basket.map((b: { recipeId: string }) => b.recipeId);
+    // Leftovers occupy a day but never contribute to the list; every other
+    // basketed recipe contributes at its servings multiplier (default 1).
+    const items = basket
+      .filter((b: { type?: string }) => b.type !== "leftover")
+      .map((b: { recipeId: string; servingsMultiplier?: number }) => ({
+        recipeId: b.recipeId,
+        multiplier: b.servingsMultiplier ?? 1,
+      }));
 
     const lines = await recipeServiceFetch<GroceryLine[]>(userId, "POST", "/grocery-list", {
-      recipeIds,
+      items,
     });
 
-    await ctx.runMutation(internal.groceryList.replaceGroceryList, { userId, lines });
+    await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
     return { count: lines.length };
   },
 });
