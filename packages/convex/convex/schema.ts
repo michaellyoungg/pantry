@@ -13,10 +13,15 @@ export default defineSchema({
   }).index("by_user", ["userId"]),
 
   // "What I'm cooking" — references to recipe ids owned by recipe-service.
+  // Plan entries — "what I'm cooking, and when". References recipe ids owned by
+  // recipe-service; a recipe may appear more than once (planned on many days).
   basket: defineTable({
     userId: v.string(),
     recipeId: v.string(),
     title: v.string(), // denormalized for display; NOT the recipe body
+    plannedDate: v.optional(v.string()), // "YYYY-MM-DD"; absent = unscheduled
+    servingsMultiplier: v.optional(v.number()), // absent → treated as 1
+    type: v.optional(v.union(v.literal("meal"), v.literal("leftover"))), // absent → "meal"
   })
     .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),
