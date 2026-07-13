@@ -3,6 +3,7 @@ import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { AuthForm } from "../components/AuthForm";
+import { Nav } from "../components/Nav";
 import { Button } from "../components/ui/Button";
 
 function SignOutButton() {
@@ -18,7 +19,7 @@ function RootLayout() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-6 py-4">
           <span className="text-2xl" aria-hidden>
             🥕
           </span>
@@ -36,13 +37,16 @@ function RootLayout() {
         </main>
       </Unauthenticated>
       <Authenticated>
-        <Outlet />
+        <div className="mx-auto flex max-w-6xl">
+          <Nav />
+          <main className="min-w-0 flex-1 px-6 py-8 pb-24 sm:pb-8">
+            <Outlet />
+          </main>
+        </div>
       </Authenticated>
       {import.meta.env.DEV ? <TanStackRouterDevtools /> : null}
     </div>
   );
 }
 
-export const Route = createRootRoute({
-  component: RootLayout,
-});
+export const Route = createRootRoute({ component: RootLayout });

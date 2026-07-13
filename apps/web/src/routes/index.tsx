@@ -1,26 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Basket } from "../components/Basket";
-import { Catalog } from "../components/Catalog";
-import { GroceryList } from "../components/GroceryList";
-import { RecipeForm } from "../components/RecipeForm";
-import { RecipeList } from "../components/RecipeList";
+import { Home } from "../components/Home";
 
-function HomePage() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <RecipeForm onCreated={() => setRefreshKey((k) => k + 1)} />
-        <RecipeList refreshKey={refreshKey} />
-        <Catalog />
-        <Basket />
-        <GroceryList />
-      </div>
-    </main>
-  );
-}
-
-export const Route = createFileRoute("/")({
-  component: HomePage,
-});
+export const Route = createFileRoute("/")({ component: Home });
