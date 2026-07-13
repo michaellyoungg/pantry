@@ -98,13 +98,18 @@ convex_cli env set RECIPE_SERVICE_URL "$RECIPE_SERVICE_INTERNAL_URL"
 convex_cli env set RECIPE_SERVICE_SECRET "$RECIPE_SERVICE_SECRET"
 
 # Convex Auth needs an RS256 keypair (JWT_PRIVATE_KEY + JWKS). Newlines in the
-# PKCS8 are stored as spaces, per @convex-dev/auth's convention.
+# PKCS8 are stored as spaces, per @convex-dev/auth's convention. Use Node's
+# built-in crypto so this has no dependency on `jose` being hoisted to a place
+# the repo-root `node` can resolve.
 echo "==> generating Convex Auth keys"
-KEYS="$(node -e "const {generateKeyPair,exportPKCS8,exportJWK}=require('jose');(async()=>{const {publicKey,privateKey}=await generateKeyPair('RS256',{extractable:true});const pk=await exportPKCS8(privateKey);const jwk=await exportJWK(publicKey);const jwks=JSON.stringify({keys:[{use:'sig',...jwk}]});process.stdout.write(pk.trimEnd().replace(/\n/g,' ')+'\n'+jwks+'\n');})()")"
+KEYS="$(node -e 'const c=require("crypto");const {publicKey,privateKey}=c.generateKeyPairSync("rsa",{modulusLength:2048});const pk=privateKey.export({type:"pkcs8",format:"pem"}).toString();const jwk=publicKey.export({format:"jwk"});const jwks=JSON.stringify({keys:[{use:"sig",...jwk}]});process.stdout.write(pk.trimEnd().replace(/\n/g," ")+"\n"+jwks+"\n");')"
 JWT_PRIVATE_KEY="$(printf '%s\n' "$KEYS" | sed -n '1p')"
 JWKS="$(printf '%s\n' "$KEYS" | sed -n '2p')"
-convex_cli env set JWT_PRIVATE_KEY "$JWT_PRIVATE_KEY"
-convex_cli env set JWKS "$JWKS"
+# Use the NAME=value form: the private key value starts with "-----BEGIN", which
+# the CLI's option parser would otherwise mistake for a flag. Splitting on the
+# first "=" keeps the leading dashes as part of the value.
+convex_cli env set "JWT_PRIVATE_KEY=$JWT_PRIVATE_KEY"
+convex_cli env set "JWKS=$JWKS"
 
 # --- 5. push functions -----------------------------------------------------
 echo "==> deploying Convex functions"

@@ -1,0 +1,46 @@
+import { expect, test } from "@playwright/test";
+import { createRecipeAndAddToBasket, scheduleAndGenerate, signUp, uniqueSuffix } from "./helpers";
+
+// Two cross-service guarantees that unit tests can't prove end to end:
+//   1. Ingredient aggregation — two recipes that each call for garlic must
+//      collapse into ONE grocery line (recipe-service normalization, BL-0003).
+//   2. Per-user isolation — a brand-new account sees none of another user's
+//      data (the real-auth boundary, BL-0004).
+test("aggregates ingredients across recipes and isolates data per user", async ({ page }) => {
+  const suffix = uniqueSuffix();
+  const recipeA = `E2E Aggregate A ${suffix}`;
+  const recipeB = `E2E Aggregate B ${suffix}`;
+
+  // --- user A: two garlic recipes → one aggregated line --------------------
+  await signUp(page);
+  await createRecipeAndAddToBasket(page, recipeA, {
+    quantity: "2",
+    unit: "cloves",
+    item: "garlic",
+  });
+  await createRecipeAndAddToBasket(page, recipeB, {
+    quantity: "3",
+    unit: "cloves",
+    item: "garlic",
+  });
+  await scheduleAndGenerate(page, [
+    { title: recipeA, day: "Monday" },
+    { title: recipeB, day: "Tuesday" },
+  ]);
+
+  await page.goto("/list");
+  // If aggregation works, both recipes' garlic merges into a single line; a
+  // regression that stopped merging would show two garlic lines here.
+  const garlicLines = page.getByRole("listitem").filter({ hasText: "garlic" });
+  await expect(garlicLines).toHaveCount(1);
+
+  // --- sign out returns to the auth gate -----------------------------------
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByTestId("auth-form")).toBeVisible();
+
+  // --- user B: a fresh account starts with an empty list -------------------
+  await signUp(page);
+  await page.goto("/list");
+  await expect(page.getByText("Nothing yet — generate from your basket.")).toBeVisible();
+  await expect(page.getByRole("listitem")).toHaveCount(0);
+});

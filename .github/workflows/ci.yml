@@ -162,3 +162,49 @@ jobs:
         run: pnpm --filter @pantry/convex test:integration
         env:
           RECIPE_SERVICE_BIN: ${{ runner.temp }}/recipe-service
+
+  e2e:
+    name: E2E (Playwright · full browser loop)
+    runs-on: ubuntu-latest
+    # Drives the whole user loop in a real browser against a compose-up stack
+    # (self-hosted Convex + Postgres + recipe-service + the Vite dev server):
+    # sign up → recipe → plan → generate list → check off → reload persists,
+    # plus cross-recipe aggregation and per-user isolation. Catches the
+    # cross-service, in-browser regressions the unit + integration suites can't
+    # (Convex Auth, Convex reactivity, the controlled checkbox). Heavier than the
+    # other jobs, so it runs on its own. See scripts/e2e.sh.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Chromium + its OS libraries (libnspr4, libnss3, libgbm1, libasound2, …).
+      - name: Install Playwright browser
+        run: pnpm --filter @pantry/web exec playwright install --with-deps chromium
+
+      # Brings up the stack, provisions the Convex deployment (admin key, auth
+      # JWT keys, recipe-service wiring), pushes functions, then runs Playwright
+      # (which starts the Vite dev server itself). Docker + Compose are preinstalled
+      # on ubuntu runners.
+      - name: End-to-end (compose stack + Playwright)
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
