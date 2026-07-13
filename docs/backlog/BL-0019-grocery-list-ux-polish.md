@@ -1,7 +1,7 @@
 ---
 id: BL-0019
 title: Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping
-status: proposed
+status: in-progress
 area: grocery-list
 effort: L
 related_specs: [2026-07-12-full-app-ux-plan.md]
