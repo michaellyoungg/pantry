@@ -1,7 +1,7 @@
 ---
 id: BL-0003
 title: Ingredient normalization + unit conversion + aisle grouping
-status: in-progress
+status: done
 area: grocery-list
 effort: L
 related_specs: [2026-06-29-recipe-to-grocery-list-design.md, 2026-07-12-ingredient-normalization-design.md]

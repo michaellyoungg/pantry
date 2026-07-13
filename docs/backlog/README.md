@@ -28,7 +28,7 @@ it can be filtered/sorted/updated programmatically.
 |---|---|---|---|---|
 | [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | proposed | recipes | L |
 | [BL-0002](BL-0002-seeded-recipe-catalog.md) | Seeded recipe catalog | in-progress | recipes | M |
-| [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | in-progress | grocery-list | L |
+| [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | done | grocery-list | L |
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | proposed | auth | M |
 | [BL-0005](BL-0005-recommendations-service.md) | Recommendations / preference-lookup service | proposed | recommendations | L |
 | [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | proposed | infra | M |
