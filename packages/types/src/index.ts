@@ -25,8 +25,13 @@ export interface CreateRecipeRequest {
   ingredients: Ingredient[];
 }
 
+export interface GroceryListItem {
+  recipeId: string;
+  multiplier: number;
+}
+
 export interface GroceryListRequest {
-  recipeIds: string[];
+  items: GroceryListItem[];
 }
 
 export interface ImportRecipeRequest {
