@@ -4,6 +4,7 @@ import { useAction } from "convex/react";
 import { useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -13,6 +14,7 @@ const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
+  const [steps, setSteps] = useState<string[]>([]);
   const [url, setUrl] = useState("");
   const createRecipe = useAction(api.recipes.create);
   const importFromUrl = useAction(api.recipes.importFromUrl);
@@ -31,6 +33,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     if (preview) {
       setTitle(preview.title);
       setIngredients(preview.ingredients.length ? preview.ingredients : [emptyIngredient()]);
+      setSteps(preview.steps ?? []);
     }
   }
 
@@ -41,11 +44,13 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       createRecipe({
         title: title.trim(),
         ingredients: ingredients.filter((ing) => ing.item.trim() !== ""),
+        steps: steps.map((s) => s.trim()).filter((s) => s !== ""),
       }),
     );
     if (created) {
       setTitle("");
       setIngredients([emptyIngredient()]);
+      setSteps([]);
       setUrl("");
       onCreated();
     }
@@ -91,18 +96,18 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
-          >
-            + ingredient
-          </Button>
-          <Button type="submit" disabled={pending} className="ml-auto">
-            {pending ? "Saving…" : "Create recipe"}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
+        >
+          + ingredient
+        </Button>
+        <StepsEditor steps={steps} onChange={setSteps} />
+        <Button type="submit" disabled={pending} className="self-end">
+          {pending ? "Saving…" : "Create recipe"}
+        </Button>
         <ErrorText message={error} />
       </form>
     </Card>

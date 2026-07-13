@@ -44,11 +44,19 @@ async function recipeServiceFetch<T>(
 }
 
 export const create = action({
-  args: { title: v.string(), ingredients: v.array(ingredientValidator) },
-  handler: async (ctx, { title, ingredients }): Promise<Recipe> => {
+  args: {
+    title: v.string(),
+    ingredients: v.array(ingredientValidator),
+    steps: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, { title, ingredients, steps }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes", { title, ingredients });
+    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes", {
+      title,
+      ingredients,
+      steps: steps ?? [],
+    });
   },
 });
 
@@ -72,11 +80,20 @@ export const remove = action({
 });
 
 export const update = action({
-  args: { id: v.string(), title: v.string(), ingredients: v.array(ingredientValidator) },
-  handler: async (ctx, { id, title, ingredients }): Promise<Recipe> => {
+  args: {
+    id: v.string(),
+    title: v.string(),
+    ingredients: v.array(ingredientValidator),
+    steps: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, { id, title, ingredients, steps }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe>(userId, "PUT", `/recipes/${id}`, { title, ingredients });
+    return recipeServiceFetch<Recipe>(userId, "PUT", `/recipes/${id}`, {
+      title,
+      ingredients,
+      steps: steps ?? [],
+    });
   },
 });
 
