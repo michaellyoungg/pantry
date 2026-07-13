@@ -38,6 +38,18 @@ pnpm knip            # unused files / exports / dependencies
 pnpm check           # lint + typecheck + test in one shot
 ```
 
+Two heavier suites are **not** part of the per-PR gate and run on demand:
+
+```bash
+pnpm test:integration  # cross-service contract (Convex ⇄ recipe-service ⇄ Postgres)
+pnpm test:e2e          # full loop in a real browser (Playwright) against a compose stack
+```
+
+`test:e2e` (see [`README.md`](../README.md#end-to-end-browser)) drives the whole
+user loop against a live stack; it needs Docker, Go, and a Playwright browser
+(`pnpm --filter @pantry/web exec playwright install --with-deps chromium`), so it
+stays out of the fast unit gate.
+
 Go tooling (run from `apps/recipe-service`):
 
 ```bash

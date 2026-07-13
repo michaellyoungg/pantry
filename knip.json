@@ -3,7 +3,7 @@
   "ignoreBinaries": ["gofmt"],
   "workspaces": {
     "apps/web": {
-      "entry": ["src/routes/**/*.{ts,tsx}"]
+      "entry": ["src/routes/**/*.{ts,tsx}", "e2e/**/*.ts"]
     },
     "apps/recipe-service": {
       "ignoreBinaries": ["go"]

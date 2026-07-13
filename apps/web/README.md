@@ -7,9 +7,11 @@ The Pantry web app — a React + Vite frontend for managing grocery lists, baske
 - Compose stack running (`docker compose up -d` from repo root)
 - `.env.local` with at minimum:
   ```
-  VITE_CONVEX_URL=<your-convex-deployment-url>
-  VITE_RECIPE_SERVICE_URL=http://localhost:3001
+  VITE_CONVEX_URL=http://127.0.0.1:3210
+  VITE_RECIPE_SERVICE_URL=http://localhost:8090
   ```
+  These match the compose stack defaults, so the app also runs with no
+  `.env.local` (see `src/main.tsx` for the fallbacks).
 
 ## Dev
 
