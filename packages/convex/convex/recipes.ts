@@ -80,6 +80,18 @@ export const update = action({
   },
 });
 
+// Imports a recipe from a URL: recipe-service fetches + parses the page and
+// returns a PREVIEW recipe (no id, not persisted). The web app drops it into the
+// recipe form; the user reviews and saves via the normal create action.
+export const importFromUrl = action({
+  args: { url: v.string() },
+  handler: async (ctx, { url }): Promise<Recipe> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes/import", { url });
+  },
+});
+
 // Lists the shared, system-curated recipe catalog (BL-0002). recipe-service
 // scopes /catalog to the catalog owner server-side; the caller's identity is
 // only used to satisfy the service auth boundary.

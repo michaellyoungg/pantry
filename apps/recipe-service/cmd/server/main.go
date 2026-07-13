@@ -44,7 +44,16 @@ func run() error {
 	if secret == "" {
 		return errors.New("RECIPE_SERVICE_SECRET is required")
 	}
-	handler := recipe.NewRouter(store, secret)
+
+	var extractor recipe.Extractor
+	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
+		extractor = recipe.NewClaudeExtractor(apiKey)
+		log.Print("recipe import: LLM fallback enabled")
+	} else {
+		log.Print("recipe import: ANTHROPIC_API_KEY unset; LLM fallback disabled")
+	}
+	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor)
+	handler := recipe.NewRouterWithImporter(store, secret, importer)
 
 	srv := &http.Server{
 		Addr:              ":" + port,

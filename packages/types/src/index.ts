@@ -28,3 +28,7 @@ export interface CreateRecipeRequest {
 export interface GroceryListRequest {
   recipeIds: string[];
 }
+
+export interface ImportRecipeRequest {
+  url: string;
+}
