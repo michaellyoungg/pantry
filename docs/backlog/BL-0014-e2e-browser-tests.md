@@ -1,7 +1,7 @@
 ---
 id: BL-0014
 title: End-to-end browser tests (Playwright)
-status: in-progress
+status: done
 area: infra
 effort: M
 related_specs: [2026-06-29-web-app.md]

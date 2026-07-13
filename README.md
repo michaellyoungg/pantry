@@ -88,3 +88,28 @@ pnpm --filter @pantry/convex test:integration
 
 In CI, the `go` and `integration` jobs run these against a Postgres service
 container on every push/PR — so CI and local verify the same seams.
+
+### End-to-end (browser)
+
+The full user loop, driven in a real browser (Playwright) against a complete
+compose-up stack — *sign up → create a recipe → plan a day → generate the
+aggregated grocery list → check an item off → reload persists*. This catches
+cross-service regressions the unit + integration suites can't: Convex Auth over
+the self-hosted backend, Convex reactivity, the Convex→recipe-service HTTP
+aggregation, and the controlled-checkbox round-trip.
+
+```bash
+# once, to install the browser + its OS deps:
+pnpm --filter @pantry/web exec playwright install --with-deps chromium
+# then, from the repo root:
+pnpm test:e2e
+```
+
+`pnpm test:e2e` runs [`scripts/e2e.sh`](scripts/e2e.sh), which brings up the
+stack, provisions the Convex deployment (admin key, auth JWT keys, recipe-service
+wiring), pushes the Convex functions, and then runs Playwright — which starts the
+Vite dev server itself. Each run signs up a fresh unique account, so it is
+self-isolating. It is **deliberately not part of `pnpm test`** (which stays
+unit-only and fast) or the per-PR CI gate — it needs Docker, Go, and a browser.
+Set `E2E_KEEP_STACK=1` to leave the stack up for debugging; pass extra flags
+through to Playwright, e.g. `pnpm test:e2e --headed`.
