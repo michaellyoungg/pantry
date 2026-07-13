@@ -5,12 +5,31 @@ import (
 	"strings"
 )
 
-// Aggregate combines ingredients across recipes into grocery lines. Items are
-// canonicalized (synonyms -> canonical), compatible units are summed in a base
-// unit and shown in a friendly unit, and each line is tagged with a grocery
-// aisle. Lines are returned sorted by aisle order, then first-seen order.
-// Non-convertible units (clove, "", ...) combine only on exact unit match.
+// ScaledRecipe pairs a recipe with a servings multiplier applied to every
+// ingredient quantity before aggregation. Multiplier <= 0 is treated as 1.
+type ScaledRecipe struct {
+	Recipe     Recipe
+	Multiplier float64
+}
+
+// Aggregate combines ingredients across recipes into grocery lines at
+// multiplier 1. Items are canonicalized (synonyms -> canonical), compatible
+// units are summed in a base unit and shown in a friendly unit, and each line
+// is tagged with a grocery aisle. Lines are returned sorted by aisle order,
+// then first-seen order. Non-convertible units (clove, "", ...) combine only
+// on exact unit match.
 func Aggregate(recipes []Recipe) []GroceryLine {
+	entries := make([]ScaledRecipe, len(recipes))
+	for i, rec := range recipes {
+		entries[i] = ScaledRecipe{Recipe: rec, Multiplier: 1}
+	}
+	return AggregateScaled(entries)
+}
+
+// AggregateScaled is Aggregate, scaling each recipe's ingredient quantities by
+// its multiplier before summing. Canonicalization, unit conversion, aisle
+// tagging, and sort order are identical to Aggregate.
+func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 	type key struct{ item, bucket string }
 	type acc struct {
 		display string
@@ -22,8 +41,12 @@ func Aggregate(recipes []Recipe) []GroceryLine {
 	accs := map[key]*acc{}
 	var order []key
 
-	for _, rec := range recipes {
-		for _, ing := range rec.Ingredients {
+	for _, e := range entries {
+		mult := e.Multiplier
+		if mult <= 0 {
+			mult = 1
+		}
+		for _, ing := range e.Recipe.Ingredients {
 			canonical, display, aisle := normalizer.CanonicalItem(ing.Item)
 			dim, toBase, convertible := normalizer.Unit(ing.Unit)
 
@@ -46,9 +69,9 @@ func Aggregate(recipes []Recipe) []GroceryLine {
 				order = append(order, k)
 			}
 			if convertible {
-				a.base += ing.Quantity * toBase
+				a.base += ing.Quantity * mult * toBase
 			} else {
-				a.base += ing.Quantity
+				a.base += ing.Quantity * mult
 			}
 		}
 	}

@@ -156,7 +156,10 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	a, _ := store.CreateRecipe(ctx, "user-a", "A", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
 	b, _ := store.CreateRecipe(ctx, "user-a", "B", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
 
-	body, _ := json.Marshal(map[string][]string{"recipeIds": {a.ID, b.ID}})
+	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
+		{"recipeId": a.ID, "multiplier": 1},
+		{"recipeId": b.ID, "multiplier": 1},
+	}})
 	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -169,6 +172,28 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	want := []GroceryLine{{Item: "Garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}}
 	if len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestGroceryList_ScalesByMultiplier(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Garlic",
+		[]Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
+
+	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
+		{"recipeId": rec.ID, "multiplier": 2},
+	}})
+	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got []GroceryLine
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 1 || got[0].Quantity != 4 {
+		t.Fatalf("want 4 cloves garlic, got %+v", got)
 	}
 }
 
