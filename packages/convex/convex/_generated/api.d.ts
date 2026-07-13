@@ -13,6 +13,7 @@ import type * as basket from "../basket.js";
 import type * as groceryList from "../groceryList.js";
 import type * as http from "../http.js";
 import type * as recipes from "../recipes.js";
+import type * as weekFilter from "../weekFilter.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   groceryList: typeof groceryList;
   http: typeof http;
   recipes: typeof recipes;
+  weekFilter: typeof weekFilter;
 }>;
 
 /**
