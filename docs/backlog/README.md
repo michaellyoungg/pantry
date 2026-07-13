@@ -19,8 +19,14 @@ it can be filtered/sorted/updated programmatically.
   - `created` — `YYYY-MM-DD`.
 - **Body sections:** `## Context` (the decision it branched off),
   `## Proposal` (what we'd do), `## Alternatives considered`.
-- When an item is picked up, set `status` and link the spec it produces back
-  into `related_specs`.
+- **Claim before you build.** When you pick up an item, first flip it to
+  `in-progress` — in the frontmatter *and* the index table below — in a
+  **dedicated changeset that lands before any implementation** (e.g.
+  `chore(backlog): claim BL-NNNN`). This is how parallel agents avoid grabbing
+  the same item; check the item isn't already `in-progress` before claiming.
+  See [`../../CLAUDE.md`](../../CLAUDE.md) for the full rule.
+- On completion, set `status: done` and link the spec it produces back into
+  `related_specs`.
 
 ## Index
 
