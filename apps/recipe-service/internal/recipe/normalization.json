@@ -1,14 +1,14 @@
 {
   "units": {
-    "tsp":  { "dimension": "volume", "toBase": 4.92892,  "display": true },
-    "tbsp": { "dimension": "volume", "toBase": 14.7868,  "display": true },
-    "cup":  { "dimension": "volume", "toBase": 236.588,  "display": true },
-    "ml":   { "dimension": "volume", "toBase": 1 },
-    "l":    { "dimension": "volume", "toBase": 1000 },
-    "g":    { "dimension": "mass",   "toBase": 1,    "display": true },
-    "kg":   { "dimension": "mass",   "toBase": 1000, "display": true },
-    "oz":   { "dimension": "mass",   "toBase": 28.3495 },
-    "lb":   { "dimension": "mass",   "toBase": 453.592 }
+    "tsp": { "dimension": "volume", "toBase": 4.92892, "display": true },
+    "tbsp": { "dimension": "volume", "toBase": 14.7868, "display": true },
+    "cup": { "dimension": "volume", "toBase": 236.588, "display": true },
+    "ml": { "dimension": "volume", "toBase": 1 },
+    "l": { "dimension": "volume", "toBase": 1000 },
+    "g": { "dimension": "mass", "toBase": 1, "display": true },
+    "kg": { "dimension": "mass", "toBase": 1000, "display": true },
+    "oz": { "dimension": "mass", "toBase": 28.3495 },
+    "lb": { "dimension": "mass", "toBase": 453.592 }
   },
   "synonyms": {
     "garlic cloves": "garlic",
@@ -16,11 +16,11 @@
     "scallions": "green onion"
   },
   "items": {
-    "garlic":      { "display": "Garlic",      "aisle": "produce" },
+    "garlic": { "display": "Garlic", "aisle": "produce" },
     "green onion": { "display": "Green onion", "aisle": "produce" },
-    "flour":       { "display": "Flour",       "aisle": "pantry" },
-    "butter":      { "display": "Butter",      "aisle": "dairy" },
-    "milk":        { "display": "Milk",        "aisle": "dairy" }
+    "flour": { "display": "Flour", "aisle": "pantry" },
+    "butter": { "display": "Butter", "aisle": "dairy" },
+    "milk": { "display": "Milk", "aisle": "dairy" }
   },
   "aisleOrder": ["produce", "meat", "dairy", "bakery", "pantry", "frozen", "other"]
 }

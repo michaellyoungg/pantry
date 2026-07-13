@@ -1,6 +1,6 @@
-import type { OptimisticLocalStore } from "convex/browser";
-import type { Id } from "@pantry/convex/dataModel";
 import { api } from "@pantry/convex/api";
+import type { Id } from "@pantry/convex/dataModel";
+import type { OptimisticLocalStore } from "convex/browser";
 
 export function toggleItemOptimistic(
   localStore: OptimisticLocalStore,

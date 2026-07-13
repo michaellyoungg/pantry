@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { api } from "@pantry/convex/api";
 import type { Ingredient } from "@pantry/types";
-import { createRecipe } from "../lib/recipeService";
+import { useAction } from "convex/react";
+import { useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
-import { Button } from "./ui/Button";
 
 const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
+  const createRecipe = useAction(api.recipes.create);
   const { run, error, pending } = useAsyncAction();
 
   function update(i: number, patch: Partial<Ingredient>) {
@@ -63,7 +65,11 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setIngredients((p) => [...p, emptyIngredient()])}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
+          >
             + ingredient
           </Button>
           <Button type="submit" disabled={pending} className="ml-auto">

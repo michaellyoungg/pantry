@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useAsyncAction, errorMessage } from "./useAsyncAction";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { errorMessage, useAsyncAction } from "./useAsyncAction";
 
 describe("errorMessage", () => {
   it("returns the message for an Error", () => {

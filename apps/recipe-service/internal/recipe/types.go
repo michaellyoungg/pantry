@@ -2,9 +2,6 @@ package recipe
 
 import "time"
 
-// DevUserID is the stubbed owner for all recipes until real auth (BL-0004).
-const DevUserID = "dev-user"
-
 // CatalogUserID owns the shared, system-curated recipe catalog (BL-0002).
 // Catalog recipes are ordinary recipes rows with this user_id.
 const CatalogUserID = "catalog"

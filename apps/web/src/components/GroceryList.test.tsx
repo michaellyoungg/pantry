@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted, mutable so each test can set the query result; one shared mutation spy.
 const { state, mutationMock } = vi.hoisted(() => ({
@@ -10,7 +10,8 @@ const { state, mutationMock } = vi.hoisted(() => ({
 vi.mock("convex/react", () => ({
   useQuery: () => state.lines,
   useMutation: () => {
-    const fn = ((...args: unknown[]) => (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
+    const fn = ((...args: unknown[]) =>
+      (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
       (...a: unknown[]): Promise<unknown>;
       withOptimisticUpdate: (u: unknown) => typeof fn;
     };
@@ -22,7 +23,16 @@ vi.mock("convex/react", () => ({
 import { GroceryList } from "./GroceryList";
 
 const oneLine = [
-  { _id: "g1", userId: "dev-user", item: "egg", unit: "", quantity: 1, aisle: "other", checked: false, _creationTime: 0 },
+  {
+    _id: "g1",
+    userId: "dev-user",
+    item: "egg",
+    unit: "",
+    quantity: 1,
+    aisle: "other",
+    checked: false,
+    _creationTime: 0,
+  },
 ];
 
 beforeEach(() => {
@@ -66,8 +76,26 @@ describe("GroceryList", () => {
 
   it("renders aisle section headers and groups lines under them", () => {
     state.lines = [
-      { _id: "a", userId: "dev-user", item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: false, _creationTime: 0 },
-      { _id: "b", userId: "dev-user", item: "Sriracha", unit: "tbsp", quantity: 2, aisle: "other", checked: false, _creationTime: 1 },
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+      {
+        _id: "b",
+        userId: "dev-user",
+        item: "Sriracha",
+        unit: "tbsp",
+        quantity: 2,
+        aisle: "other",
+        checked: false,
+        _creationTime: 1,
+      },
     ];
     render(<GroceryList />);
     expect(screen.getByText("Dairy")).toBeTruthy();
@@ -76,7 +104,16 @@ describe("GroceryList", () => {
 
   it("renders quantities as fraction glyphs", () => {
     state.lines = [
-      { _id: "a", userId: "dev-user", item: "Butter", unit: "cup", quantity: 0.75, aisle: "dairy", checked: false, _creationTime: 0 },
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Butter",
+        unit: "cup",
+        quantity: 0.75,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
     ];
     render(<GroceryList />);
     expect(screen.getByText(/¾ cup Butter/)).toBeTruthy();
@@ -84,8 +121,26 @@ describe("GroceryList", () => {
 
   it("groups consecutive same-aisle lines under a single header", () => {
     state.lines = [
-      { _id: "a", userId: "dev-user", item: "Milk", unit: "cup", quantity: 1, aisle: "dairy", checked: false, _creationTime: 0 },
-      { _id: "b", userId: "dev-user", item: "Butter", unit: "cup", quantity: 0.5, aisle: "dairy", checked: false, _creationTime: 1 },
+      {
+        _id: "a",
+        userId: "dev-user",
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 0,
+      },
+      {
+        _id: "b",
+        userId: "dev-user",
+        item: "Butter",
+        unit: "cup",
+        quantity: 0.5,
+        aisle: "dairy",
+        checked: false,
+        _creationTime: 1,
+      },
     ];
     render(<GroceryList />);
     expect(screen.getAllByText("Dairy")).toHaveLength(1);

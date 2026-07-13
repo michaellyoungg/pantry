@@ -1,18 +1,20 @@
-import { useQuery, useMutation } from "convex/react";
 import { api } from "@pantry/convex/api";
-import { useAsyncAction } from "../lib/useAsyncAction";
-import { toggleItemOptimistic, clearGroceryListOptimistic } from "../lib/optimistic";
+import { useMutation, useQuery } from "convex/react";
 import { formatQuantity } from "../lib/formatQuantity";
+import { clearGroceryListOptimistic, toggleItemOptimistic } from "../lib/optimistic";
+import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
-import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
 
 const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
   const toggle = useMutation(api.groceryList.toggleItem).withOptimisticUpdate(toggleItemOptimistic);
-  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(clearGroceryListOptimistic);
+  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
+    clearGroceryListOptimistic,
+  );
   const { run, error } = useAsyncAction();
 
   function onClear() {
@@ -30,11 +32,15 @@ export function GroceryList() {
 
   return (
     <Card title="Grocery list">
-      {lines.length === 0 && <p className="text-sm text-muted">Nothing yet — generate from your basket.</p>}
+      {lines.length === 0 && (
+        <p className="text-sm text-muted">Nothing yet — generate from your basket.</p>
+      )}
       <div className="flex flex-col gap-3">
         {groups.map((group) => (
           <div key={group.aisle}>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{titleCase(group.aisle)}</h3>
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              {titleCase(group.aisle)}
+            </h3>
             <ul className="flex flex-col gap-1">
               {group.lines.map((line) => (
                 <li key={line._id}>
@@ -45,7 +51,9 @@ export function GroceryList() {
                       type="checkbox"
                       className="h-4 w-4 accent-[var(--color-primary)]"
                       checked={line.checked}
-                      onChange={(e) => run(() => toggle({ id: line._id, checked: e.target.checked }))}
+                      onChange={(e) =>
+                        run(() => toggle({ id: line._id, checked: e.target.checked }))
+                      }
                     />
                     <span>
                       {formatQuantity(line.quantity)} {line.unit} {line.item}

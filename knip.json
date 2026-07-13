@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreBinaries": ["gofmt"],
+  "workspaces": {
+    "apps/web": {
+      "entry": ["src/routes/**/*.{ts,tsx}"]
+    },
+    "apps/recipe-service": {
+      "ignoreBinaries": ["go"]
+    }
+  }
+}

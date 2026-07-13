@@ -1,10 +1,10 @@
 ---
 id: BL-0004
 title: Real authentication (Convex Auth)
-status: proposed
+status: in-progress
 area: auth
 effort: M
-related_specs: [2026-06-29-recipe-to-grocery-list-design.md]
+related_specs: [2026-06-29-recipe-to-grocery-list-design.md, 2026-07-12-real-auth-design.md]
 created: 2026-06-29
 ---
 

@@ -1,0 +1,20 @@
+# golangci-lint v2 configuration for the Go recipe-service.
+# The "standard" set covers errcheck, govet, ineffassign, staticcheck, unused.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      # Deferred cleanup whose error is conventionally ignored: a Close on a
+      # read body, and a Rollback that no-ops after a successful Commit.
+      exclude-functions:
+        - (io.Closer).Close
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+
+formatters:
+  enable:
+    - gofmt
