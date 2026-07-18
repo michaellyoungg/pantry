@@ -1,7 +1,7 @@
 ---
 id: BL-0017
 title: Home dashboard — state-aware "what do I do now?" + shopping-day handoff
-status: proposed
+status: in-progress
 area: web
 effort: M
 related_specs: [2026-07-12-full-app-ux-plan.md]
