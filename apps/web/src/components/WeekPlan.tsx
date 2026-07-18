@@ -2,6 +2,7 @@ import { api } from "@pantry/convex/api";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { DAY_FULL, DAYS } from "../lib/week";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -9,16 +10,6 @@ import { Card } from "./ui/Card";
 // Dinner-first week plan (BL-0018). weekday 0=Mon … 6=Sun. A basket entry with a
 // weekday is scheduled onto that day; without one it waits in the rail. Slots
 // beyond dinner, servings, and diff-merge regeneration are deliberately later.
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const DAY_FULL = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
 
 type BasketRow = {
   _id: string;
