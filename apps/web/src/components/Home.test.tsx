@@ -98,6 +98,28 @@ describe("Home next action", () => {
     expect(cta.getAttribute("href")).toBe("/plan");
   });
 
+  // Regression: nothing clears a fully-checked list, so "shopped" persists into the
+  // next week's planning. If it only offered "Plan next week", the build action would
+  // be unreachable from Home for the rest of the week.
+  it("still offers to build a list while shopped with a planned week", async () => {
+    state.basket = [meal("a"), meal("b")];
+    state.list = [line("1", true)];
+    const router = await renderHome();
+
+    expect(screen.getByRole("heading", { name: /shopping done/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /rebuild grocery list \(2 meals\)/i }));
+
+    expect(state.generate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/list"));
+  });
+
+  it("omits the rebuild action when shopped with nothing planned", async () => {
+    state.basket = [];
+    state.list = [line("1", true)];
+    await renderHome();
+    expect(screen.queryByRole("button", { name: /rebuild grocery list/i })).toBeNull();
+  });
+
   it("shows a skeleton until the queries resolve", async () => {
     state.basket = undefined;
     state.list = undefined;
@@ -142,6 +164,24 @@ describe("Home week strip", () => {
     state.basket = [meal("a", { weekday: 2, title: "Chili", type: "leftover" })];
     await renderHome();
     expect(screen.getByText(/chili \(leftovers\)/i)).toBeTruthy();
+    // The aria-label replaces the cell's whole accessible name, so it has to carry
+    // the leftover marker too — otherwise the day is indistinguishable by screen reader.
+    expect(screen.getByRole("link", { name: /wednesday — chili \(leftovers\)/i })).toBeTruthy();
+  });
+
+  // Unscheduled rows appear in no day cell but still count toward "N meals ready",
+  // so the strip has to account for them or the two contradict each other.
+  it("accounts for meals that are not on a day yet", async () => {
+    state.basket = [meal("a", { weekday: 0 }), meal("b"), meal("c")];
+    await renderHome();
+    const link = screen.getByRole("link", { name: /2 meals not on a day yet/i });
+    expect(link.getAttribute("href")).toBe("/plan");
+  });
+
+  it("says nothing about unscheduled meals when every meal has a day", async () => {
+    state.basket = [meal("a", { weekday: 0 })];
+    await renderHome();
+    expect(screen.queryByText(/not on a day yet/i)).toBeNull();
   });
 });
 
