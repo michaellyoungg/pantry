@@ -22,7 +22,7 @@ export type HomeState =
   | { kind: "empty" }
   | { kind: "planned"; mealCount: number }
   | { kind: "shopping"; total: number; checked: number; remaining: number }
-  | { kind: "shopped"; total: number };
+  | { kind: "shopped"; total: number; mealCount: number };
 
 /** Meals that will actually produce grocery lines — leftovers are excluded server-side. */
 export function countMeals(basket: BasketRow[]): number {
@@ -32,6 +32,11 @@ export function countMeals(basket: BasketRow[]): number {
 /**
  * The grocery list is checked before the plan, so clearing the plan mid-shop doesn't
  * yank the shopping-day handoff away from someone standing in a store.
+ *
+ * Nothing clears the list automatically, so a fully-checked list persists into the
+ * next week's planning. `shopped` therefore carries the plan's meal count: it is a
+ * terminal-looking state that must still offer a way to build the next list, or Home
+ * strands the user for the rest of the week.
  */
 export function deriveHomeState(
   basket: BasketRow[] | undefined,
@@ -39,14 +44,15 @@ export function deriveHomeState(
 ): HomeState {
   if (basket === undefined || list === undefined) return { kind: "loading" };
 
+  const mealCount = countMeals(basket);
+
   if (list.length > 0) {
     const checked = list.filter((row) => row.checked).length;
-    if (checked === list.length) return { kind: "shopped", total: list.length };
+    if (checked === list.length) return { kind: "shopped", total: list.length, mealCount };
     return { kind: "shopping", total: list.length, checked, remaining: list.length - checked };
   }
 
   // A plan of nothing but leftovers generates an empty list, so it isn't ready to build.
-  const mealCount = countMeals(basket);
   if (mealCount > 0) return { kind: "planned", mealCount };
 
   return { kind: "empty" };

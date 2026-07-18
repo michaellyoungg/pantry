@@ -13,8 +13,10 @@ import { WeekStrip } from "./home/WeekStrip";
 // exactly one next action. All state derives from the plan and the list — see
 // lib/homeState.ts.
 export function Home() {
-  const basket = useQuery(api.basket.list) as BasketRow[] | undefined;
-  const list = useQuery(api.groceryList.getGroceryList) as GroceryRow[] | undefined;
+  // Annotated, not cast: this is the one place a schema drift in basket/groceryList
+  // would surface at compile time, and `as` would silence it.
+  const basket: BasketRow[] | undefined = useQuery(api.basket.list);
+  const list: GroceryRow[] | undefined = useQuery(api.groceryList.getGroceryList);
   const generate = useAction(api.recipes.generateGroceryList);
   const gen = useAsyncAction();
   const navigate = useNavigate();

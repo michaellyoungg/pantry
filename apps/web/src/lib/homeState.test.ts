@@ -45,7 +45,30 @@ describe("deriveHomeState", () => {
 
   it("is shopped once every line is checked", () => {
     const list = [line("1", true), line("2", true)];
-    expect(deriveHomeState([meal("a")], list)).toEqual({ kind: "shopped", total: 2 });
+    expect(deriveHomeState([meal("a")], list)).toEqual({
+      kind: "shopped",
+      total: 2,
+      mealCount: 1,
+    });
+  });
+
+  // Nothing clears a fully-checked list, so it survives into the next week's planning.
+  // The state must carry the meal count or Home has no way back to building a list.
+  it("reports the plan's meal count while shopped, so the build path stays reachable", () => {
+    const list = [line("1", true)];
+    expect(deriveHomeState([meal("a"), meal("b"), meal("c")], list)).toEqual({
+      kind: "shopped",
+      total: 1,
+      mealCount: 3,
+    });
+  });
+
+  it("reports zero meals when shopped with an empty plan", () => {
+    expect(deriveHomeState([], [line("1", true)])).toEqual({
+      kind: "shopped",
+      total: 1,
+      mealCount: 0,
+    });
   });
 
   it("keeps the shopping handoff when the plan is cleared mid-shop", () => {

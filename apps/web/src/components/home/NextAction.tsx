@@ -54,6 +54,8 @@ export function NextAction({
     );
   }
 
+  // Nothing clears a fully-checked list, so this state persists while the user plans
+  // the following week. It must keep offering the build action, or Home dead-ends.
   if (state.kind === "shopped") {
     return (
       <section aria-label="Next step" className="rounded-xl border border-border bg-surface p-5">
@@ -61,9 +63,21 @@ export function NextAction({
         <p className="mt-1 text-muted">
           All {plural(state.total, "item", "items")} checked off. Time to cook — or start next week.
         </p>
-        <Link to="/plan" className={`${ctaLink} mt-4`}>
-          Plan next week
-        </Link>
+        <div className="mt-4 flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/plan" className={ctaLink}>
+              Plan next week
+            </Link>
+            {state.mealCount > 0 && (
+              <Button variant="secondary" onClick={onBuildList} disabled={pending}>
+                {pending
+                  ? "Building…"
+                  : `Rebuild grocery list (${plural(state.mealCount, "meal", "meals")})`}
+              </Button>
+            )}
+          </div>
+          <ErrorText message={error} />
+        </div>
       </section>
     );
   }
