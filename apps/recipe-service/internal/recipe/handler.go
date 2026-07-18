@@ -3,6 +3,7 @@ package recipe
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -187,11 +188,42 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 		byID[rec.ID] = rec
 	}
 
+	// Catalog recipes are owned by CatalogUserID, not the caller, but the
+	// catalog UI lets anyone add them to their basket. Resolve whatever the
+	// user-scoped lookup missed against the shared catalog — without this,
+	// a basket of catalog recipes aggregates to an empty list. The second
+	// lookup is pinned to CatalogUserID, so it can't reach another user's
+	// private recipes.
+	missing := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := byID[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+	if len(missing) > 0 {
+		catRecs, err := h.store.GetRecipesByIDs(r.Context(), CatalogUserID, missing)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load catalog recipes")
+			return
+		}
+		for _, rec := range catRecs {
+			byID[rec.ID] = rec
+		}
+	}
+
 	entries := make([]ScaledRecipe, 0, len(req.Items))
+	skipped := make([]string, 0)
 	for _, it := range req.Items {
 		if rec, ok := byID[it.RecipeID]; ok {
 			entries = append(entries, ScaledRecipe{Recipe: rec, Multiplier: it.Multiplier})
+		} else {
+			skipped = append(skipped, it.RecipeID)
 		}
+	}
+	// An unresolvable id is not fatal (a basket can outlive a deleted recipe),
+	// but silently dropping it is how an empty list hides a real bug.
+	if len(skipped) > 0 {
+		log.Printf("grocery-list: skipped %d unresolvable recipe id(s): %v", len(skipped), skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
 }

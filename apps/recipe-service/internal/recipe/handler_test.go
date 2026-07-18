@@ -175,6 +175,56 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	}
 }
 
+// Catalog recipes are owned by the sentinel CatalogUserID, but any user can add
+// them to their basket from the catalog UI. Aggregation must resolve them, or
+// a basket of catalog recipes silently yields an empty grocery list.
+func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	own, _ := store.CreateRecipe(ctx, "user-a", "Own", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
+	cat, _ := store.CreateRecipe(ctx, CatalogUserID, "Catalog", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
+
+	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
+		{"recipeId": own.ID, "multiplier": 1},
+		{"recipeId": cat.ID, "multiplier": 1},
+	}})
+	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got []GroceryLine
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	want := GroceryLine{Item: "Garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("got %+v, want [%+v]", got, want)
+	}
+}
+
+// Resolving catalog recipes must not widen the lookup to every user's recipes.
+func TestGroceryList_ExcludesOtherUsersRecipes(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	mine, _ := store.CreateRecipe(ctx, "user-a", "Mine", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
+	theirs, _ := store.CreateRecipe(ctx, "user-b", "Theirs", []Ingredient{{Quantity: 5, Unit: "cloves", Item: "garlic"}})
+
+	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
+		{"recipeId": mine.ID, "multiplier": 1},
+		{"recipeId": theirs.ID, "multiplier": 1},
+	}})
+	resp := doAuth(t, http.MethodPost, srv.URL+"/grocery-list", bytes.NewBuffer(body))
+	defer resp.Body.Close()
+	var got []GroceryLine
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 1 || got[0].Quantity != 1 {
+		t.Fatalf("other user's recipe leaked: got %+v", got)
+	}
+}
+
 func TestGroceryList_ScalesByMultiplier(t *testing.T) {
 	srv, store := newTestServer(t)
 	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Garlic",
