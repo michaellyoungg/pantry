@@ -1,7 +1,7 @@
 ---
 id: BL-0021
 title: Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement
-status: proposed
+status: in-progress
 area: pantry
 effort: L
 related_specs: [2026-07-12-full-app-ux-plan.md]
