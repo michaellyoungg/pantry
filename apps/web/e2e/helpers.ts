@@ -27,6 +27,18 @@ export async function signUp(page: Page): Promise<{ email: string; password: str
   return { email, password };
 }
 
+/**
+ * Navigate the way a user does — by clicking the sidebar link.
+ *
+ * `page.goto()` is a full page load, which tears down the Convex websocket and
+ * cancels any mutation still in flight (e.g. the `basket.add` fired one line
+ * earlier, which has no visible confirmation on /recipes to wait for). Client-side
+ * navigation keeps the socket open so the write completes.
+ */
+export async function navigateTo(page: Page, label: string): Promise<void> {
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: label }).click();
+}
+
 /** Create a manual recipe with one ingredient row and add it to the basket. */
 export async function createRecipeAndAddToBasket(
   page: Page,
@@ -53,7 +65,7 @@ export async function scheduleAndGenerate(
   page: Page,
   plan: Array<{ title: string; day: string }>,
 ): Promise<void> {
-  await page.goto("/plan");
+  await navigateTo(page, "Plan");
   for (const { title, day } of plan) {
     const row = page.getByRole("listitem").filter({ hasText: title });
     await expect(row).toBeVisible();
