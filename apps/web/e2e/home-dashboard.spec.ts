@@ -50,4 +50,7 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   await navigateTo(page, "Home");
   await expect(page.getByRole("link", { name: "Plan next week" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Getting started" })).toBeHidden();
+  // …and the loop stays open: a finished list is never cleared, so Home must still
+  // offer a way to build the next one rather than dead-ending on "Shopping done".
+  await expect(page.getByRole("button", { name: /^Rebuild grocery list/ })).toBeVisible();
 });

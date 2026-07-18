@@ -12,7 +12,7 @@ function describe(row: BasketRow): string {
 export function WeekStrip({ basket }: { basket: BasketRow[] }) {
   // Rows without a weekday sit in the planner's unscheduled rail and appear in no cell
   // here — but they still count toward "N meals ready", so say where they went.
-  const unscheduled = basket.filter((row) => row.weekday == null).length;
+  const unscheduled = basket.filter((row) => row.weekday == null);
 
   return (
     <section aria-label="This week's plan">
@@ -53,9 +53,11 @@ export function WeekStrip({ basket }: { basket: BasketRow[] }) {
           );
         })}
       </div>
-      {unscheduled > 0 && (
+      {unscheduled.length > 0 && (
         <Link to="/plan" className="mt-2 inline-block text-sm text-muted hover:text-text">
-          {unscheduled === 1 ? "1 meal not on a day yet" : `${unscheduled} meals not on a day yet`}
+          {unscheduled.length === 1
+            ? `1 meal not on a day yet: ${unscheduled[0].title}`
+            : `${unscheduled.length} meals not on a day yet`}
         </Link>
       )}
     </section>

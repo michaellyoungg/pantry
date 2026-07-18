@@ -178,6 +178,12 @@ describe("Home week strip", () => {
     expect(link.getAttribute("href")).toBe("/plan");
   });
 
+  it("names the meal when exactly one is unscheduled", async () => {
+    state.basket = [meal("a", { weekday: 0 }), meal("b", { title: "Chili" })];
+    await renderHome();
+    expect(screen.getByRole("link", { name: /1 meal not on a day yet: chili/i })).toBeTruthy();
+  });
+
   it("says nothing about unscheduled meals when every meal has a day", async () => {
     state.basket = [meal("a", { weekday: 0 })];
     await renderHome();
