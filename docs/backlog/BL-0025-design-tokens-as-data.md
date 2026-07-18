@@ -25,7 +25,10 @@ Move the token values into a TypeScript module that is the single source of
 truth, and generate the CSS variables from it. The web app keeps consuming
 Tailwind exactly as it does today; the tokens simply stop being CSS-native.
 
-A future NativeWind configuration then consumes the same module.
+A future native styling layer then consumes the same module. Which library that
+will be is deliberately undecided — see the "Open: native styling layer" section
+of `2026-07-18-mobile-client-design.md` — but every candidate consumes tokens
+from a single source, so this work is not blocked by that decision.
 
 Scope is small and self-contained — no visual change should result.
 

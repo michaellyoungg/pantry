@@ -73,14 +73,15 @@ One developer, focused. Ranges reflect genuine uncertainty rather than padding.
 |---|---|---|
 | Extract headless `packages/core` | 1–1.5 wk | Planner bucketing, servings clamping, aisle grouping, import-review state. Improves web testability immediately. |
 | OpenAPI contract codegen (BL-0007) | ~1 wk | Already backlogged. Do it before a second consumer exists. |
-| Design tokens as data | 2–3 days | Today an `@theme` block in `apps/web/src/index.css`. Move to a TS module that emits CSS variables *and* feeds NativeWind. |
+| Design tokens as data | 2–3 days | Today an `@theme` block in `apps/web/src/index.css`. Move to a TS module that emits CSS variables *and* can feed a native styling layer. |
 | Platform-portable primitives | 2–3 days | Replace `window.confirm` with a confirm abstraction; replace `FormData` auth submission with plain values. |
 
 ### Phase 1 — React Native foundation (2–3 weeks)
 
 Expo scaffold, Metro resolution against pnpm workspaces (the genuinely fiddly
-part), Convex client wiring, auth via `expo-secure-store`, navigation, NativeWind
-bound to the shared tokens.
+part), Convex client wiring, auth via `expo-secure-store`, navigation, and a
+native styling layer bound to the shared tokens (library chosen at this point,
+not now — see "Open: native styling layer").
 
 ### Phase 2 — in-store subset (3.5–5 weeks)
 
@@ -113,8 +114,9 @@ These cost close to nothing today and become expensive to retrofit.
    service directly. True today; worth stating as a rule so it stays true.
 3. **Design tokens are data, not CSS.** One source of truth that both platforms
    consume.
-4. **NativeWind over a separate styling system**, so the two view layers read
-   similarly and reviewers can follow both.
+4. **Prefer a Tailwind-compatible native styling layer**, so the two view layers
+   read similarly and reviewers can follow both — but **do not pick the library
+   now**. See "Open: native styling layer" below.
 5. **Navigation does not leak into shared code.** `@tanstack/react-router` stays
    in `apps/web`; shared code receives navigation via props or a thin adapter.
 6. **Grocery check-off stays commutative.** It is already a boolean keyed on
@@ -122,6 +124,44 @@ These cost close to nothing today and become expensive to retrofit.
    ever becomes order-dependent, the offline story gets substantially harder.
 7. **Replace emoji icons with a real icon set** in `apps/web/src/components/Nav.tsx`
    — emoji render inconsistently across platforms.
+
+## Open: native styling layer
+
+**Deliberately undecided.** Phase 1 is 10+ weeks out at the earliest, this corner
+of the ecosystem is moving quickly, and an early pick would likely be stale by
+the time it mattered. Recorded here so the re-evaluation starts from facts rather
+than from scratch.
+
+The constraint that drives the choice: `apps/web` is on **Tailwind v4**
+(`@tailwindcss/vite` 4.3.2) with CSS-first `@theme` config. Any candidate has to
+meet that, which rules out more options than expected.
+
+State as of **2026-07-18**:
+
+| Option | Status | Notes |
+|---|---|---|
+| **NativeWind** | Stable 4.2.6 is **Tailwind v3 only**. The v4 release (v5) has sat at `5.0.0-preview.4` since 2026-05-15, docs marked "not intended for production use". | The default choice by mindshare, and likely fine *if* v5 ships. Carries breaking changes: JSX transform removed, `rem` no longer runtime-configurable. |
+| **Uniwind** | v1.10.0 (2026-07-01), stable 1.x, active cadence. | From the Unistyles team, built exclusively for Tailwind v4 with CSS-first `@theme` — matches our setup directly. Younger (~1 yr), thinner ecosystem, and has a paid Pro tier to evaluate against needs. |
+| **Tamagui** | `@tamagui/core` 2.4.6 (2026-07-16). | Genuinely universal, best web performance, strongest token/theming story. Not Tailwind — would mean diverging the web app's styling too. Compiler and bundler setup is a real cost. |
+| **gluestack-ui** | `@gluestack-ui/core` 5.0.15. | Unstyled universal components, Tailwind-ish props, copy-paste model. Built on `@react-native-aria`, so modal/accordion focus trapping is correct for VoiceOver and TalkBack. Fastest start, less performance-tuned. |
+
+**Component-library note:** Base UI (`@base-ui/react`) is web-only and will stay
+that way — `react-dom` is a hard peer dependency, `@floating-ui/react-dom` a
+direct one, with DOM measurement and event handling throughout
+([mui/base-ui#2612](https://github.com/mui/base-ui/issues/2612)). That does not
+conflict with this design, since view layers are per-platform regardless; it just
+means no component sharing, only logic sharing. On the native side,
+**React Native Reusables** is the closest analogue to a Radix/shadcn workflow —
+Radix on web, `rn-primitives` on native, one component API.
+
+**Re-evaluate when:** Phase 1 is actually scheduled, or NativeWind v5 reaches
+stable — whichever comes first. The specific thing to re-check is whether
+NativeWind v5 has shipped; if it has, it is probably the default again on
+ecosystem depth alone, and if it has not, Uniwind is the stronger candidate.
+
+**This does not block BL-0025** (design tokens as data). That work is valuable
+independent of which library wins — every candidate above consumes tokens from a
+single source, and Tailwind-based ones consume `@theme` directly.
 
 ## Risks
 
