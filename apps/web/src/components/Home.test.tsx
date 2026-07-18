@@ -98,6 +98,24 @@ describe("Home next action", () => {
     expect(cta.getAttribute("href")).toBe("/plan");
   });
 
+  // A finished list is never cleared automatically, so without a rebuild affordance
+  // Home would dead-end on "Shopping done" for every following week.
+  it("still offers a rebuild when the plan holds meals after shopping", async () => {
+    state.basket = [meal("a")];
+    state.list = [line("1", true)];
+    const router = await renderHome();
+    fireEvent.click(screen.getByRole("button", { name: /rebuild grocery list/i }));
+    expect(state.generate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/list"));
+  });
+
+  it("omits the rebuild button when nothing is planned", async () => {
+    state.basket = [];
+    state.list = [line("1", true)];
+    await renderHome();
+    expect(screen.queryByRole("button", { name: /rebuild grocery list/i })).toBeNull();
+  });
+
   it("shows a skeleton until the queries resolve", async () => {
     state.basket = undefined;
     state.list = undefined;
@@ -136,6 +154,12 @@ describe("Home week strip", () => {
     const monday = screen.getByRole("link", { name: /monday — chili/i });
     expect(monday.getAttribute("href")).toBe("/plan");
     expect(screen.getByRole("link", { name: /tuesday — nothing planned/i })).toBeTruthy();
+  });
+
+  it("surfaces meals that aren't on a day yet", async () => {
+    state.basket = [meal("a", { title: "Chili" }), meal("b", { weekday: 0 })];
+    await renderHome();
+    expect(screen.getByRole("link", { name: /1 meal not on a day yet: chili/i })).toBeTruthy();
   });
 
   it("marks leftover days as leftovers", async () => {

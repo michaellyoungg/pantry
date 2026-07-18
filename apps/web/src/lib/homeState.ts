@@ -22,7 +22,7 @@ export type HomeState =
   | { kind: "empty" }
   | { kind: "planned"; mealCount: number }
   | { kind: "shopping"; total: number; checked: number; remaining: number }
-  | { kind: "shopped"; total: number };
+  | { kind: "shopped"; total: number; mealCount: number };
 
 /** Meals that will actually produce grocery lines — leftovers are excluded server-side. */
 export function countMeals(basket: BasketRow[]): number {
@@ -39,14 +39,18 @@ export function deriveHomeState(
 ): HomeState {
   if (basket === undefined || list === undefined) return { kind: "loading" };
 
+  // A plan of nothing but leftovers generates an empty list, so it isn't ready to build.
+  const mealCount = countMeals(basket);
+
   if (list.length > 0) {
     const checked = list.filter((row) => row.checked).length;
-    if (checked === list.length) return { kind: "shopped", total: list.length };
+    // `shopped` must not be a dead end: nothing clears the list automatically, so it
+    // carries the meal count and NextAction offers rebuilding alongside planning.
+    // Otherwise Home would read "Shopping done" forever, week after week.
+    if (checked === list.length) return { kind: "shopped", total: list.length, mealCount };
     return { kind: "shopping", total: list.length, checked, remaining: list.length - checked };
   }
 
-  // A plan of nothing but leftovers generates an empty list, so it isn't ready to build.
-  const mealCount = countMeals(basket);
   if (mealCount > 0) return { kind: "planned", mealCount };
 
   return { kind: "empty" };

@@ -45,7 +45,30 @@ describe("deriveHomeState", () => {
 
   it("is shopped once every line is checked", () => {
     const list = [line("1", true), line("2", true)];
-    expect(deriveHomeState([meal("a")], list)).toEqual({ kind: "shopped", total: 2 });
+    expect(deriveHomeState([meal("a")], list)).toEqual({
+      kind: "shopped",
+      total: 2,
+      mealCount: 1,
+    });
+  });
+
+  // Nothing clears a finished list, so `shopped` must carry enough context for the
+  // UI to offer a way onward — otherwise Home dead-ends there week after week.
+  it("carries the meal count into shopped so rebuilding stays reachable", () => {
+    const basket = [meal("a"), meal("b"), meal("c", { type: "leftover" })];
+    expect(deriveHomeState(basket, [line("1", true)])).toEqual({
+      kind: "shopped",
+      total: 1,
+      mealCount: 2,
+    });
+  });
+
+  it("reports no meals to rebuild when the plan is empty", () => {
+    expect(deriveHomeState([], [line("1", true)])).toEqual({
+      kind: "shopped",
+      total: 1,
+      mealCount: 0,
+    });
   });
 
   it("keeps the shopping handoff when the plan is cleared mid-shop", () => {

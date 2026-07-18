@@ -5,6 +5,10 @@ import { DAY_FULL, DAYS } from "../../lib/week";
 // Read-and-route: cells link to /plan rather than deep-linking a focused day, because
 // /plan has no day parameter yet. Adding one is a follow-up once BL-0018 settles.
 export function WeekStrip({ basket }: { basket: BasketRow[] }) {
+  // Meals in the basket without a day would otherwise be invisible here, while the
+  // CTA above still counts them — so surface them instead of silently dropping them.
+  const unscheduled = basket.filter((row) => row.weekday == null);
+
   return (
     <section aria-label="This week's plan">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
@@ -44,6 +48,14 @@ export function WeekStrip({ basket }: { basket: BasketRow[] }) {
           );
         })}
       </div>
+
+      {unscheduled.length > 0 && (
+        <Link to="/plan" className="mt-2 inline-block text-sm text-muted hover:text-text">
+          {unscheduled.length === 1
+            ? `1 meal not on a day yet: ${unscheduled[0].title}`
+            : `${unscheduled.length} meals not on a day yet`}
+        </Link>
+      )}
     </section>
   );
 }
