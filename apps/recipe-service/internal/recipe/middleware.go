@@ -29,12 +29,12 @@ func requireService(secret string, next http.Handler) http.Handler {
 		}
 		got := r.Header.Get("X-Service-Secret")
 		if subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
-			writeError(w, http.StatusUnauthorized, "unauthorized")
+			writeError(w, r, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 		userID := r.Header.Get("X-User-Id")
 		if userID == "" {
-			writeError(w, http.StatusBadRequest, "missing user id")
+			writeError(w, r, http.StatusBadRequest, "missing user id")
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDKey, userID)))
