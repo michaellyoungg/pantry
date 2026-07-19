@@ -147,4 +147,32 @@ describe("GroceryList", () => {
     expect(screen.getByText(/Milk/)).toBeTruthy();
     expect(screen.getByText(/Butter/)).toBeTruthy();
   });
+
+  it("marks lines the user already owns", () => {
+    state.lines = [{ ...oneLine[0], item: "butter", alreadyHave: true }];
+    render(<GroceryList />);
+    expect(screen.getByText(/already have/i)).toBeTruthy();
+  });
+
+  it("does not mark ordinary lines", () => {
+    state.lines = [{ ...oneLine[0], alreadyHave: false }];
+    render(<GroceryList />);
+    expect(screen.queryByText(/already have/i)).toBeNull();
+  });
+
+  it("still renders owned lines in place, never hiding them", () => {
+    state.lines = [
+      { ...oneLine[0], _id: "g1", item: "butter", alreadyHave: true },
+      { ...oneLine[0], _id: "g2", item: "milk", alreadyHave: false },
+    ];
+    render(<GroceryList />);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  });
+
+  it("clears the flag via needItAnyway", () => {
+    state.lines = [{ ...oneLine[0], item: "butter", alreadyHave: true }];
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /need it anyway/i }));
+    expect(mutationMock).toHaveBeenCalledWith({ id: "g1" });
+  });
 });
