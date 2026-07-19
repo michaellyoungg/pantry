@@ -1,10 +1,10 @@
 ---
 id: BL-0021
 title: Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement
-status: in-progress
+status: done
 area: pantry
 effort: L
-related_specs: [2026-07-12-full-app-ux-plan.md]
+related_specs: [2026-07-12-full-app-ux-plan.md, 2026-07-18-pantry-thin-loop-design.md]
 created: 2026-07-12
 ---
 
@@ -38,3 +38,10 @@ type or scan. Waste reduction is secondary for the persona, so pantry must earn 
 - **Barcode / receipt / photo / AI input** — vision layer; higher friction or cost, deferred
   until the thin auto-loop proves the concept.
 - **Waste analytics first** — only credible once the outflow signal is trustworthy.
+
+## Increment status
+
+Increment 1 (inflow from check-off + don't-rebuy) shipped 2026-07-18; see
+`docs/superpowers/specs/2026-07-18-pantry-thin-loop-design.md`. Cook-decrement
+and shelf-life/expiry nudges remain — the former needs a `markCooked` event on
+`basket` that BL-0018 has not built. File them as new items before closing.
