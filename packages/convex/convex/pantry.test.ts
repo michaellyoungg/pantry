@@ -102,3 +102,88 @@ describe("pantry", () => {
     expect(rows[3]).toMatchObject({ aisle: "produce", display: "Zucchini" });
   });
 });
+
+describe("pantry inflow from check-off", () => {
+  async function seedLine(
+    t: ReturnType<typeof convexTest>,
+    over: Partial<{ canonicalItem: string | undefined }> = {},
+  ) {
+    return await t.run(async (ctx) =>
+      ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "Butter",
+        canonicalItem: "butter",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+        ...over,
+      }),
+    );
+  }
+
+  it("checking a line off records the item as owned", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await seedLine(t);
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+
+    const rows = await asUser.query(api.pantry.list, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      canonicalItem: "butter",
+      display: "Butter",
+      aisle: "dairy",
+      state: "have",
+      source: "auto",
+    });
+  });
+
+  it("checking the same item twice is idempotent", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await seedLine(t);
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: false });
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(1);
+  });
+
+  it("un-checking removes an auto-added row", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await seedLine(t);
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: false });
+
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
+  });
+
+  it("un-checking never destroys a manually curated row", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await seed(t, { source: "manual", state: "low" });
+    const id = await seedLine(t);
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: false });
+
+    const rows = await asUser.query(api.pantry.list, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ source: "manual", state: "have" });
+  });
+
+  it("is inert for legacy lines with no canonicalItem", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await seedLine(t, { canonicalItem: undefined });
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
+  });
+});

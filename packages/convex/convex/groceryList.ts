@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { GroceryLine } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { removeAutoRow, upsertFromCheckoff } from "./pantry";
 
 // Single runtime source for the grocery-line shape on the Convex side. Its
 // inferred type is pinned to the @pantry/types contract by the guard below, so
@@ -83,6 +84,10 @@ export const mergeGroceryList = internalMutation({
   },
 });
 
+// Checking a line off is also the pantry's inflow signal (BL-0021): it records
+// that the user now owns the item. Both writes happen in this one mutation, so
+// they are a single transaction — a checkbox can never report success while the
+// pantry write was lost.
 export const toggleItem = mutation({
   args: { id: v.id("groceryList"), checked: v.boolean() },
   handler: async (ctx, { id, checked }) => {
@@ -91,6 +96,20 @@ export const toggleItem = mutation({
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
     await ctx.db.patch(id, { checked });
+
+    // Rows predating BL-0021 have no canonical key and can't be joined to a
+    // pantry item; leave the pantry untouched for them.
+    if (row.canonicalItem === undefined) return;
+    if (checked) {
+      await upsertFromCheckoff(ctx, {
+        userId,
+        canonicalItem: row.canonicalItem,
+        display: row.item,
+        aisle: row.aisle,
+      });
+    } else {
+      await removeAutoRow(ctx, { userId, canonicalItem: row.canonicalItem });
+    }
   },
 });
 
