@@ -22,8 +22,12 @@ type Recipe struct {
 }
 
 type GroceryLine struct {
-	Item     string  `json:"item"`
-	Unit     string  `json:"unit"`
-	Quantity float64 `json:"quantity"`
-	Aisle    string  `json:"aisle"`
+	Item string `json:"item"`
+	// CanonicalItem is the normalized ingredient key (lowercased, synonyms
+	// resolved) that Item's display string was derived from. It is the identity
+	// the pantry is keyed on — Item is for humans, CanonicalItem is for joins.
+	CanonicalItem string  `json:"canonicalItem"`
+	Unit          string  `json:"unit"`
+	Quantity      float64 `json:"quantity"`
+	Aisle         string  `json:"aisle"`
 }

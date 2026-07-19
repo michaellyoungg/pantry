@@ -86,7 +86,13 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 		} else {
 			qty, unit = snapNice(a.base), a.unit
 		}
-		lines = append(lines, GroceryLine{Item: a.display, Unit: unit, Quantity: qty, Aisle: a.aisle})
+		lines = append(lines, GroceryLine{
+			Item:          a.display,
+			CanonicalItem: k.item,
+			Unit:          unit,
+			Quantity:      qty,
+			Aisle:         a.aisle,
+		})
 	}
 
 	// Stable sort keeps first-seen order within an aisle.
