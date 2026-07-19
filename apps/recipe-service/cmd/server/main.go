@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,19 +12,41 @@ import (
 	"time"
 
 	"pantry/apps/recipe-service/internal/recipe"
+	"pantry/apps/recipe-service/internal/telemetry"
 )
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("fatal", "err", err)
+		os.Exit(1)
 	}
 }
 
 func run() error {
+	// JSON to stdout: the container runtime collects it, and Alloy ships it to
+	// Loki. Trace stamping makes each line pivot to its trace in Tempo.
+	slog.SetDefault(slog.New(telemetry.NewTraceHandler(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+	)))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8090"
 	}
+
+	// Init before the store so the pgx tracer (BL-0027) sees a real provider.
+	shutdownTelemetry, err := telemetry.Init(context.Background(), "recipe-service")
+	if err != nil {
+		// Telemetry must never stop the service from serving traffic.
+		slog.Warn("telemetry disabled", "err", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(ctx); err != nil {
+			slog.Warn("telemetry shutdown", "err", err)
+		}
+	}()
 
 	var store recipe.Store
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
@@ -34,10 +56,10 @@ func run() error {
 		}
 		defer pg.Close()
 		store = pg
-		log.Print("using Postgres store")
+		slog.Info("store selected", "kind", "postgres")
 	} else {
 		store = recipe.NewMemoryStore()
-		log.Print("DATABASE_URL unset; using in-memory store")
+		slog.Info("store selected", "kind", "memory", "reason", "DATABASE_URL unset")
 	}
 
 	secret := os.Getenv("RECIPE_SERVICE_SECRET")
@@ -48,9 +70,9 @@ func run() error {
 	var extractor recipe.Extractor
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		extractor = recipe.NewClaudeExtractor(apiKey)
-		log.Print("recipe import: LLM fallback enabled")
+		slog.Info("recipe import: LLM fallback enabled")
 	} else {
-		log.Print("recipe import: ANTHROPIC_API_KEY unset; LLM fallback disabled")
+		slog.Info("recipe import: LLM fallback disabled", "reason", "ANTHROPIC_API_KEY unset")
 	}
 	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor)
 	handler := recipe.NewRouterWithImporter(store, secret, importer)
@@ -71,7 +93,7 @@ func run() error {
 
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("recipe-service listening on :%s", port)
+		slog.Info("recipe-service listening", "port", port)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
@@ -82,13 +104,13 @@ func run() error {
 		return fmt.Errorf("server: %w", err)
 	case <-ctx.Done():
 		stop()
-		log.Print("shutdown signal received; draining connections")
+		slog.Info("shutdown signal received; draining connections")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("graceful shutdown: %w", err)
 		}
-		log.Print("shutdown complete")
+		slog.Info("shutdown complete")
 		return nil
 	}
 }

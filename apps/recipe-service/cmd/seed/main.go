@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"pantry/apps/recipe-service/internal/recipe"
@@ -11,7 +11,8 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("fatal", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -37,6 +38,6 @@ func run() error {
 			return fmt.Errorf("upsert %q: %w", r.ID, err)
 		}
 	}
-	log.Printf("seeded %d catalog recipes", len(recipes))
+	slog.Info("seeded catalog recipes", "count", len(recipes))
 	return nil
 }
