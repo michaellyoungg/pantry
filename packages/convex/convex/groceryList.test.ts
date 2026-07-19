@@ -146,4 +146,37 @@ describe("mergeGroceryList (increment 2)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].canonicalItem).toBe("green onion");
   });
+
+  it("heals canonicalItem onto rows written before the field existed", async () => {
+    const t = convexTest(schema, modules);
+    // Insert a legacy row without canonicalItem (simulating pre-BL-0021 rows)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+      } as any); // cast to bypass validator requiring canonicalItem
+    });
+
+    // Merge with a line that provides canonicalItem
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    // Verify the row was healed to include canonicalItem
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      item: "Milk",
+      canonicalItem: "milk",
+      quantity: 2,
+      aisle: "dairy",
+    });
+  });
 });
