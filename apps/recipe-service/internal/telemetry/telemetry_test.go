@@ -38,3 +38,22 @@ func TestInitReturnsCallableShutdownOnBadEndpoint(t *testing.T) {
 		t.Fatalf("shutdown() error = %v, want nil", err)
 	}
 }
+
+// With a syntactically valid endpoint, Init must actually succeed: the
+// exporter, resource merge, and tracer-provider wiring must all complete
+// without error. otlptracehttp.New does not dial synchronously, so this does
+// not require a running collector.
+func TestInitWithValidEndpointSucceeds(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+
+	shutdown, err := telemetry.Init(context.Background(), "test-service")
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+	if shutdown == nil {
+		t.Fatal("Init() shutdown = nil, want a callable shutdown func")
+	}
+	if err := shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown() error = %v, want nil", err)
+	}
+}

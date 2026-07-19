@@ -41,11 +41,17 @@ func Init(ctx context.Context, serviceName string) (func(context.Context) error,
 		return noopShutdown, fmt.Errorf("otlp trace exporter: %w", err)
 	}
 
+	// Schemaless: resource.Default() already carries a schema URL (from the
+	// SDK's own semconv version), and resource.Merge refuses to merge two
+	// resources whose non-empty schema URLs differ. Since we pin a different
+	// semconv version for ServiceName below, giving this resource its own
+	// schema URL would make every merge fail.
 	res, err := resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(serviceName)),
+		resource.NewSchemaless(semconv.ServiceName(serviceName)),
 	)
 	if err != nil {
+		_ = exporter.Shutdown(ctx)
 		return noopShutdown, fmt.Errorf("telemetry resource: %w", err)
 	}
 
