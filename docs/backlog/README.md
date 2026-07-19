@@ -58,3 +58,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0024](BL-0024-headless-core-package.md) | Extract headless packages/core (planner, grocery list, import review) | proposed | infra | M |
 | [BL-0025](BL-0025-design-tokens-as-data.md) | Design tokens as data (single source for CSS and future native styling) | proposed | web | S |
 | [BL-0026](BL-0026-platform-portable-ui-primitives.md) | Platform-portable UI primitives (confirm dialog, auth submission) | proposed | web | S |
+| [BL-0027](BL-0027-observability-telemetry.md) | Observability & telemetry (OpenTelemetry + Grafana LGTM) | proposed | infra | L |
