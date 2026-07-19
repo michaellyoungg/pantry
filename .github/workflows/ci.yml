@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/recipe-service/go.mod
           cache-dependency-path: apps/recipe-service/go.sum
@@ -144,7 +144,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/recipe-service/go.mod
           cache-dependency-path: apps/recipe-service/go.sum
