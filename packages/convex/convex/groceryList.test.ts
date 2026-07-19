@@ -180,3 +180,108 @@ describe("mergeGroceryList (increment 2)", () => {
     });
   });
 });
+
+describe("don't-rebuy (BL-0021)", () => {
+  async function seedPantry(
+    t: ReturnType<typeof convexTest>,
+    canonicalItem: string,
+    state: "have" | "low" | "out",
+  ) {
+    await t.run(async (ctx) =>
+      ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem,
+        display: canonicalItem,
+        aisle: "dairy",
+        state,
+        source: "manual" as const,
+        updatedAt: 0,
+      }),
+    );
+  }
+
+  it("flags lines the user already has", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const byItem = Object.fromEntries(rows.map((r) => [r.item, r]));
+    expect(byItem.Butter.alreadyHave).toBe(true);
+    expect(byItem.Milk.alreadyHave).toBe(false);
+  });
+
+  it("does not flag items that are low or out", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "low");
+    await seedPantry(t, "milk", "out");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.every((r) => r.alreadyHave === false)).toBe(true);
+  });
+
+  it("never drops or reorders lines", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item)).toEqual(["Butter", "Milk"]);
+  });
+
+  it("needItAnyway clears the flag without touching the pantry row", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+      ],
+    });
+    const asUser = t.withIdentity(identity);
+    const [line] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.needItAnyway, { id: line._id });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows[0].alreadyHave).toBe(false);
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(1);
+  });
+
+  it("preserves a needItAnyway override across regeneration", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+    const line = { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" };
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+    const asUser = t.withIdentity(identity);
+    const [row] = await asUser.query(api.groceryList.getGroceryList, {});
+    await asUser.mutation(api.groceryList.needItAnyway, { id: row._id });
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows[0].alreadyHave).toBe(false);
+  });
+});

@@ -51,6 +51,20 @@ export const mergeGroceryList = internalMutation({
       .query("groceryList")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+
+    // "Don't rebuy": items the user already owns. Only `have` counts — `low`
+    // and `out` mean they still need to buy it.
+    const owned = new Set(
+      (
+        await ctx.db
+          .query("pantryItems")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect()
+      )
+        .filter((p) => p.state === "have")
+        .map((p) => p.canonicalItem),
+    );
+
     const keyOf = (l: { item: string; unit: string; aisle: string }) =>
       `${l.item} ${l.unit} ${l.aisle}`;
     const byKey = new Map(existing.map((row) => [keyOf(row), row]));
@@ -60,7 +74,7 @@ export const mergeGroceryList = internalMutation({
       const k = keyOf(line);
       const row = byKey.get(k);
       if (row && !seen.has(k)) {
-        // keep `checked`; heal canonicalItem onto pre-BL-0021 rows
+        // keep `checked` and any needItAnyway override; heal canonicalItem
         await ctx.db.patch(row._id, {
           quantity: line.quantity,
           canonicalItem: line.canonicalItem,
@@ -74,6 +88,7 @@ export const mergeGroceryList = internalMutation({
           quantity: line.quantity,
           aisle: line.aisle,
           checked: false,
+          alreadyHave: owned.has(line.canonicalItem),
         });
       }
       seen.add(k);
@@ -123,5 +138,19 @@ export const clearGroceryList = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const row of rows) await ctx.db.delete(row._id);
+  },
+});
+
+// "I need it anyway" — the pantry thinks the user owns this, but they don't (or
+// they want more). Clears the annotation for this line only; the pantry row is
+// left alone, because the user is correcting the list, not the pantry.
+export const needItAnyway = mutation({
+  args: { id: v.id("groceryList") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const row = await ctx.db.get(id);
+    if (row === null || row.userId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, { alreadyHave: false });
   },
 });

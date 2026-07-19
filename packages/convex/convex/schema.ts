@@ -41,6 +41,10 @@ export default defineSchema({
     quantity: v.number(),
     aisle: v.string(),
     checked: v.boolean(),
+    // Set during generation when a pantry row for this canonicalItem is in
+    // state "have". Purely an annotation — the line is still shown, still in
+    // its original position, still checkable. Cleared per-line by needItAnyway.
+    alreadyHave: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
