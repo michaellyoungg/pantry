@@ -8,6 +8,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 // the validator and the shared TS type can't silently drift.
 export const groceryLineValidator = v.object({
   item: v.string(),
+  canonicalItem: v.string(),
   unit: v.string(),
   quantity: v.number(),
   aisle: v.string(),
@@ -58,11 +59,16 @@ export const mergeGroceryList = internalMutation({
       const k = keyOf(line);
       const row = byKey.get(k);
       if (row && !seen.has(k)) {
-        await ctx.db.patch(row._id, { quantity: line.quantity }); // keep checked
+        // keep `checked`; heal canonicalItem onto pre-BL-0021 rows
+        await ctx.db.patch(row._id, {
+          quantity: line.quantity,
+          canonicalItem: line.canonicalItem,
+        });
       } else {
         await ctx.db.insert("groceryList", {
           userId,
           item: line.item,
+          canonicalItem: line.canonicalItem,
           unit: line.unit,
           quantity: line.quantity,
           aisle: line.aisle,

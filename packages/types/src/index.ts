@@ -15,6 +15,8 @@ export interface Recipe {
 
 export interface GroceryLine {
   item: string;
+  /** Normalized ingredient key ("green onion"); the identity the pantry joins on. */
+  canonicalItem: string;
   unit: string;
   quantity: number;
   aisle: string;

@@ -34,6 +34,9 @@ export default defineSchema({
   groceryList: defineTable({
     userId: v.string(),
     item: v.string(),
+    // Normalized key from recipe-service; optional because rows predating
+    // BL-0021 don't have it. Rows without it simply never match a pantry item.
+    canonicalItem: v.optional(v.string()),
     unit: v.string(),
     quantity: v.number(),
     aisle: v.string(),

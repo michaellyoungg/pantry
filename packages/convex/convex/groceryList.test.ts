@@ -123,8 +123,8 @@ describe("mergeGroceryList (increment 2)", () => {
     await t.mutation(internal.groceryList.mergeGroceryList, {
       userId: USER_ID,
       lines: [
-        { item: "Milk", unit: "cup", quantity: 2, aisle: "dairy" },
-        { item: "Bread", unit: "loaf", quantity: 1, aisle: "bakery" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+        { item: "Bread", canonicalItem: "bread", unit: "loaf", quantity: 1, aisle: "bakery" },
       ],
     });
     const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
@@ -132,5 +132,18 @@ describe("mergeGroceryList (increment 2)", () => {
     expect(Object.keys(byItem).sort()).toEqual(["Bread", "Milk"]);
     expect(byItem.Milk).toMatchObject({ quantity: 2, checked: true });
     expect(byItem.Bread).toMatchObject({ checked: false });
+  });
+
+  it("persists canonicalItem on inserted lines", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Green onion", canonicalItem: "green onion", unit: "bunch", quantity: 2, aisle: "produce" },
+      ],
+    });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].canonicalItem).toBe("green onion");
   });
 });
