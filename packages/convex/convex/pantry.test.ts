@@ -80,4 +80,25 @@ describe("pantry", () => {
 
     await expect(t.withIdentity(identity).mutation(api.pantry.remove, { id })).rejects.toThrow();
   });
+
+  it("lists items grouped by aisle, alphabetically within each aisle", async () => {
+    const t = convexTest(schema, modules);
+
+    // Seed items in an order that does NOT match the expected sorted output
+    // This ensures the test fails if the sort comparator is removed
+    await seed(t, { aisle: "produce", display: "Zucchini" });
+    await seed(t, { aisle: "dairy", display: "Yogurt" });
+    await seed(t, { aisle: "produce", display: "Apples" });
+    await seed(t, { aisle: "dairy", display: "Butter" });
+
+    const rows = await t.withIdentity(identity).query(api.pantry.list, {});
+
+    // Verify exact order: aisles grouped (dairy first, then produce),
+    // and within each aisle sorted alphabetically by display name
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatchObject({ aisle: "dairy", display: "Butter" });
+    expect(rows[1]).toMatchObject({ aisle: "dairy", display: "Yogurt" });
+    expect(rows[2]).toMatchObject({ aisle: "produce", display: "Apples" });
+    expect(rows[3]).toMatchObject({ aisle: "produce", display: "Zucchini" });
+  });
 });
