@@ -3,11 +3,7 @@ import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 
-export const pantryStateValidator = v.union(
-  v.literal("have"),
-  v.literal("low"),
-  v.literal("out"),
-);
+export const pantryStateValidator = v.union(v.literal("have"), v.literal("low"), v.literal("out"));
 
 // --- helpers, shared with groceryList.toggleItem (not client-callable) ---
 

@@ -139,7 +139,13 @@ describe("mergeGroceryList (increment 2)", () => {
     await t.mutation(internal.groceryList.mergeGroceryList, {
       userId: USER_ID,
       lines: [
-        { item: "Green onion", canonicalItem: "green onion", unit: "bunch", quantity: 2, aisle: "produce" },
+        {
+          item: "Green onion",
+          canonicalItem: "green onion",
+          unit: "bunch",
+          quantity: 2,
+          aisle: "produce",
+        },
       ],
     });
     const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
@@ -158,15 +164,13 @@ describe("mergeGroceryList (increment 2)", () => {
         quantity: 1,
         aisle: "dairy",
         checked: false,
-      } as any); // cast to bypass validator requiring canonicalItem
+      }); // canonicalItem is optional on the table, so a legacy row omits it
     });
 
     // Merge with a line that provides canonicalItem
     await t.mutation(internal.groceryList.mergeGroceryList, {
       userId: USER_ID,
-      lines: [
-        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
-      ],
+      lines: [{ item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" }],
     });
 
     // Verify the row was healed to include canonicalItem
@@ -273,7 +277,13 @@ describe("don't-rebuy (BL-0021)", () => {
   it("preserves a needItAnyway override across regeneration", async () => {
     const t = convexTest(schema, modules);
     await seedPantry(t, "butter", "have");
-    const line = { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" };
+    const line = {
+      item: "Butter",
+      canonicalItem: "butter",
+      unit: "cup",
+      quantity: 1,
+      aisle: "dairy",
+    };
     await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
     const asUser = t.withIdentity(identity);
     const [row] = await asUser.query(api.groceryList.getGroceryList, {});
