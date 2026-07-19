@@ -42,4 +42,21 @@ export default defineSchema({
     aisle: v.string(),
     checked: v.boolean(),
   }).index("by_user", ["userId"]),
+
+  // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
+  // quantity — numeric inventory drifts from reality within days. Keyed on the
+  // normalized ingredient so "Green onion" and "green onions" are one row.
+  pantryItems: defineTable({
+    userId: v.string(),
+    canonicalItem: v.string(), // "green onion"
+    display: v.string(), // "Green onion"
+    aisle: v.string(),
+    state: v.union(v.literal("have"), v.literal("low"), v.literal("out")),
+    // "auto" rows came from checking an item off the grocery list and may be
+    // removed by un-checking it. "manual" rows are user-curated and never are.
+    source: v.union(v.literal("auto"), v.literal("manual")),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_item", ["userId", "canonicalItem"]),
 });
