@@ -3,6 +3,7 @@ module pantry/apps/recipe-service
 go 1.25.0
 
 require (
+	github.com/exaring/otelpgx v0.11.1
 	github.com/jackc/pgx/v5 v5.10.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
