@@ -197,7 +197,7 @@ func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	want := GroceryLine{Item: "Garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}
+	want := GroceryLine{Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("got %+v, want [%+v]", got, want)
 	}
