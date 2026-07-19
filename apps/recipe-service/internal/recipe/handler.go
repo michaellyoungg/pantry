@@ -3,9 +3,13 @@ package recipe
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // maxBodyBytes caps request payloads to bound memory use and slow-body abuse.
@@ -15,21 +19,39 @@ func NewRouter(store Store, secret string) http.Handler {
 	return NewRouterWithImporter(store, secret, nil)
 }
 
+// traced renames the active server span to the matched route pattern. otelhttp
+// wraps the router before ServeMux has matched anything, so r.Pattern — which
+// the mux fills in during routing — is only available here, inside the handler.
+// Naming spans from the raw path instead would put recipe ids into span names
+// and blow up cardinality in Tempo.
+func traced(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if span := trace.SpanFromContext(r.Context()); span.IsRecording() && r.Pattern != "" {
+			span.SetName(r.Pattern)
+			span.SetAttributes(semconv.HTTPRoute(r.Pattern))
+		}
+		fn(w, r)
+	}
+}
+
 // NewRouterWithImporter is NewRouter plus URL import. imp may be nil, in which
 // case POST /recipes/import responds 503 (import not configured).
 func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handler {
 	h := &handlers{store: store, importer: imp}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", h.healthz)
-	mux.HandleFunc("POST /recipes", h.createRecipe)
-	mux.HandleFunc("GET /recipes", h.listRecipes)
-	mux.HandleFunc("GET /recipes/{id}", h.getRecipe)
-	mux.HandleFunc("GET /catalog", h.listCatalog)
-	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
-	mux.HandleFunc("PUT /recipes/{id}", h.updateRecipe)
-	mux.HandleFunc("POST /recipes/import", h.importRecipe)
-	mux.HandleFunc("POST /grocery-list", h.groceryList)
-	return requireService(secret, mux)
+	mux.HandleFunc("GET /healthz", traced(h.healthz))
+	mux.HandleFunc("POST /recipes", traced(h.createRecipe))
+	mux.HandleFunc("GET /recipes", traced(h.listRecipes))
+	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
+	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
+	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
+	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
+	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
+	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
+
+	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
+	// an auth failure is precisely when you want to see the request.
+	return otelhttp.NewHandler(requireService(secret, mux), "recipe-service")
 }
 
 type handlers struct {
@@ -223,7 +245,8 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	// An unresolvable id is not fatal (a basket can outlive a deleted recipe),
 	// but silently dropping it is how an empty list hides a real bug.
 	if len(skipped) > 0 {
-		log.Printf("grocery-list: skipped %d unresolvable recipe id(s): %v", len(skipped), skipped)
+		slog.WarnContext(r.Context(), "grocery-list: skipped unresolvable recipe ids",
+			"count", len(skipped), "ids", skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
 }
