@@ -45,6 +45,21 @@ export async function upsertFromCheckoff(
 /**
  * Undo an auto-add when the user un-checks a line. Rows with
  * `source: "manual"` are left alone — a checkbox must never destroy curated data.
+ *
+ * Two grocery lines can share one `canonicalItem` (the Go aggregator keeps
+ * non-convertible units as separate lines, e.g. "garlic, 2 cloves" and
+ * "garlic, 10 grams"). If another checked line still claims this
+ * canonicalItem, the user still owns it — deleting the pantry row here would
+ * wrongly un-suppress the ingredient on the next grocery-list generation. So
+ * before deleting we scan the user's other grocery lines for a surviving
+ * checked claim.
+ *
+ * Ordering dependency: `toggleItem` in groceryList.ts patches the line's
+ * `checked` field to false BEFORE calling this function, so the line being
+ * un-checked is already absent from the "checked" set below and never counts
+ * as its own survivor. If that ordering were ever reversed, this scan would
+ * always see the un-checking line as still-checked and the pantry row would
+ * never be deleted — do not reorder the patch and this call in toggleItem.
  */
 export async function removeAutoRow(
   ctx: MutationCtx,
@@ -57,6 +72,15 @@ export async function removeAutoRow(
     )
     .unique();
   if (existing === null || existing.source !== "auto") return;
+
+  const others = await ctx.db
+    .query("groceryList")
+    .withIndex("by_user", (q) => q.eq("userId", args.userId))
+    .filter((q) => q.eq(q.field("checked"), true))
+    .collect();
+  const stillClaimed = others.some((line) => line.canonicalItem === args.canonicalItem);
+  if (stillClaimed) return;
+
   await ctx.db.delete(existing._id);
 }
 

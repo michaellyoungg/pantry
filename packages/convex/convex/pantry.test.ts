@@ -106,7 +106,15 @@ describe("pantry", () => {
 describe("pantry inflow from check-off", () => {
   async function seedLine(
     t: ReturnType<typeof convexTest>,
-    over: Partial<{ canonicalItem: string | undefined }> = {},
+    over: Partial<{
+      userId: string;
+      item: string;
+      canonicalItem: string | undefined;
+      unit: string;
+      quantity: number;
+      aisle: string;
+      checked: boolean;
+    }> = {},
   ) {
     return await t.run(async (ctx) =>
       ctx.db.insert("groceryList", {
@@ -183,6 +191,60 @@ describe("pantry inflow from check-off", () => {
     const id = await seedLine(t, { canonicalItem: undefined });
 
     await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
+  });
+
+  it("keeps the pantry row while a sibling line with the same canonicalItem is still checked", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    // Two grocery lines share canonicalItem "garlic" but the Go aggregator
+    // kept them separate because the units don't convert (cloves vs grams).
+    const clovesId = await seedLine(t, {
+      item: "Garlic",
+      canonicalItem: "garlic",
+      unit: "cloves",
+      quantity: 2,
+    });
+    const gramsId = await seedLine(t, {
+      item: "Garlic",
+      canonicalItem: "garlic",
+      unit: "grams",
+      quantity: 10,
+    });
+
+    await asUser.mutation(api.groceryList.toggleItem, { id: clovesId, checked: true });
+    await asUser.mutation(api.groceryList.toggleItem, { id: gramsId, checked: true });
+
+    // Un-checking only the grams line must not delete the pantry row: the
+    // cloves line is still checked and still claims the ingredient.
+    await asUser.mutation(api.groceryList.toggleItem, { id: gramsId, checked: false });
+
+    const afterFirstUncheck = await asUser.query(api.pantry.list, {});
+    expect(afterFirstUncheck).toHaveLength(1);
+    expect(afterFirstUncheck[0]).toMatchObject({ canonicalItem: "garlic", source: "auto" });
+
+    // Now un-check the last remaining claim; the row should finally go away.
+    await asUser.mutation(api.groceryList.toggleItem, { id: clovesId, checked: false });
+
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
+  });
+
+  it("a still-checked line belonging to another user does not keep this user's row alive", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await seedLine(t, { canonicalItem: "garlic", unit: "cloves" });
+    // Another user's checked line shares the same canonicalItem — the
+    // by_user-scoped scan must not let it leak across users.
+    await seedLine(t, {
+      userId: "someone-else",
+      canonicalItem: "garlic",
+      unit: "grams",
+      checked: true,
+    });
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: false });
 
     expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
   });
