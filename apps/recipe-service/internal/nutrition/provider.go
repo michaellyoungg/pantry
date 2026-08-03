@@ -54,6 +54,22 @@ func (c ChainProvider) Lookup(ctx context.Context, canonicalItem string) (Food, 
 	return Food{}, false, firstErr
 }
 
+// NewProvider composes the standard provider stack: a read-through cache over
+// live FDC, with the checked-in snapshot underneath.
+//
+// The ordering matters. FDC comes first so a configured key yields real data
+// that the cache then keeps; the snapshot sits underneath so that with no key,
+// a rate limit, or no network, common ingredients still resolve. apiKey may be
+// empty — that costs coverage, not correctness.
+func NewProvider(cache Cache, apiKey string) *CachingProvider {
+	sources := ChainProvider{}
+	if fdc := NewFDCProvider(apiKey); fdc != nil {
+		sources = append(sources, fdc)
+	}
+	sources = append(sources, SnapshotProvider())
+	return NewCachingProvider(cache, sources)
+}
+
 // Cache is the persistent side of the mapping table. It is the cache *and* the
 // override point: one row per canonical ingredient, so a wrong fuzzy match is
 // corrected by editing a row rather than by tuning a matcher.

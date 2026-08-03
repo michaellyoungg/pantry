@@ -6,8 +6,8 @@ import "strings"
 //
 // It is duplicated rather than imported because internal/recipe imports this
 // package (for the endpoint), so an in-package test that imported recipe back
-// would be a cycle. TestNormalizerContractMatchesRecipe in internal/recipe pins
-// the two together from the other side.
+// would be a cycle. TestNormalizerUnitsNutritionReliesOn in internal/recipe
+// pins the two tables together from the other side.
 type testNormalizer struct{}
 
 var testUnits = map[string]struct {
