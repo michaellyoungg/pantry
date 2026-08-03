@@ -67,6 +67,11 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0027](BL-0027-observability-telemetry.md) | Observability & telemetry (OpenTelemetry + Grafana LGTM) | done | infra | L |
 | [BL-0028](BL-0028-pantry-cook-decrement.md) | Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked | done | pantry | M |
 | [BL-0029](BL-0029-pantry-shelf-life-expiry-nudges.md) | Pantry shelf-life & expiry nudges — category-default dates + "use this week" batches | done | pantry | L |
+| [BL-0030](BL-0030-recipe-discovery-metadata.md) | Recipe discovery metadata (cuisine, tags, cook time, source URL) | proposed | recipes | M |
+| [BL-0031](BL-0031-normalization-dictionary-coverage.md) | Normalization dictionary coverage + staple flag | proposed | grocery-list | M |
+| [BL-0032](BL-0032-purchase-units-leftover-residue.md) | Purchase units + leftover residue inference | proposed | grocery-list | L |
+| [BL-0033](BL-0033-suggest-my-week.md) | "Suggest my week" — set-level meal plan optimization | proposed | recommendations | L |
+| [BL-0034](BL-0034-llm-candidate-provider.md) | LLM candidate provider for recommendations | proposed | recommendations | M |
 | [BL-0035](BL-0035-recipe-yield-servings.md) | Recipe yield — servings on the recipe model + import extraction | done | recipes | S |
 | [BL-0036](BL-0036-nutrition-core-estimation.md) | Nutrition core — USDA FDC provider, gram resolution, per-recipe estimation | done | nutrition | L |
 | [BL-0037](BL-0037-nutrition-plan-rollup.md) | Nutrition plan rollup — day and week totals on the planner | done | nutrition | M |
@@ -82,3 +87,6 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0047](BL-0047-sale-aware-recommendations.md) | Sale-aware recommendations — plan the week around what's cheap right now | proposed | recommendations | L |
 | [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | done | infra | S |
 | [BL-0049](BL-0049-nutrition-facts-label.md) | Nutrition Facts panel — show estimates as the US Daily Value label people already know | proposed | nutrition | M |
+| [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | proposed | pantry | M |
+| [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | proposed | infra | S |
+| [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | proposed | recommendations | M |

@@ -5,11 +5,25 @@ import { v } from "convex/values";
 export default defineSchema({
   ...authTables,
 
-  // Per-user preferences placeholder (populated later).
+  // Per-user preferences (BL-0005). Ingredient-grounded fields score TODAY;
+  // the facet fields are captured but inert until recipes carry metadata
+  // (BL-0030), so switching them on later is a scoring change, not a migration
+  // plus a re-onboarding.
   preferences: defineTable({
     userId: v.string(),
-    // freeform for now; real fields arrive with the recommendations work.
-    data: v.optional(v.any()),
+    // Ingredient-grounded — active now. avoidItems is a HARD FILTER: a recipe
+    // containing one is removed, never merely down-weighted.
+    avoidItems: v.array(v.string()),
+    likedItems: v.array(v.string()),
+    dislikedItems: v.array(v.string()),
+    // Facets — captured, inert. Selecting a diet label PRE-FILLS avoidItems
+    // from a curated seed set rather than filtering by inference, so nothing is
+    // ever excluded invisibly.
+    dietLabels: v.optional(v.array(v.string())),
+    cuisines: v.optional(v.array(v.string())),
+    maxMinutes: v.optional(v.number()),
+    householdSize: v.optional(v.number()),
+    updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
   // "What I'm cooking" — references to recipe ids owned by recipe-service.
@@ -125,6 +139,10 @@ export default defineSchema({
     // "auto" rows came from checking an item off the grocery list and may be
     // removed by un-checking it. "manual" rows are user-curated and never are.
     source: v.union(v.literal("auto"), v.literal("manual")),
+    // "Things to use up" is a FLAG on the pantry row, not a second table — the
+    // row already carries canonicalItem (so it joins to recipes for free),
+    // display, and aisle, and it stays part of don't-rebuy.
+    useItUp: v.optional(v.boolean()),
     updatedAt: v.number(),
     // Approximate "use by" (BL-0029), stamped from the item's shelf life when
     // it entered the pantry. Optional: rows for items with no known shelf life

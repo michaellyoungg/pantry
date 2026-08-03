@@ -23,6 +23,7 @@ export function Pantry() {
   const items = useQuery(api.pantry.list) ?? [];
   const setState = useMutation(api.pantry.setState).withOptimisticUpdate(setPantryStateOptimistic);
   const remove = useMutation(api.pantry.remove).withOptimisticUpdate(removePantryItemOptimistic);
+  const setUseItUp = useMutation(api.pantry.setUseItUp);
   const { run, error } = useAsyncAction();
   const now = Date.now();
 
@@ -76,6 +77,22 @@ export function Pantry() {
                     }
                   >
                     {item.state}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={
+                      item.useItUp
+                        ? `Stop using up ${item.display}`
+                        : `Mark ${item.display} to use up`
+                    }
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      item.useItUp
+                        ? "bg-amber-500/20 text-amber-700"
+                        : "bg-border text-muted hover:text-text"
+                    }`}
+                    onClick={() => run(() => setUseItUp({ id: item._id, useItUp: !item.useItUp }))}
+                  >
+                    use up
                   </button>
                   <Button
                     variant="ghost"

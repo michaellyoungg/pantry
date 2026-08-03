@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Pantry } from "../components/Pantry";
+import { UseItUpSuggestions } from "../components/pantry/UseItUpSuggestions";
 import { UseItUp } from "../components/UseItUp";
 
 function PantryPage() {
@@ -8,6 +9,7 @@ function PantryPage() {
       <h2 className="text-2xl font-semibold text-text">Pantry</h2>
       <UseItUp />
       <Pantry />
+      <UseItUpSuggestions />
     </div>
   );
 }
