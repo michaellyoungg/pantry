@@ -32,7 +32,11 @@ describe("parseManualEntry", () => {
   });
 
   it("reads a written fraction", () => {
-    expect(parseManualEntry("1/2 cup cream")).toEqual({ quantity: 0.5, unit: "cup", item: "cream" });
+    expect(parseManualEntry("1/2 cup cream")).toEqual({
+      quantity: 0.5,
+      unit: "cup",
+      item: "cream",
+    });
   });
 
   it("reads a fraction glyph, which is what the list itself renders", () => {

@@ -253,8 +253,7 @@ export const insertManualLine = internalMutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     const match = existing.find(
-      (row) =>
-        row.item === line.item && row.unit === line.unit && row.aisle === line.aisle,
+      (row) => row.item === line.item && row.unit === line.unit && row.aisle === line.aisle,
     );
     if (match) {
       await ctx.db.patch(match._id, {

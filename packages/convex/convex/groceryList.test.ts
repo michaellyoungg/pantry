@@ -504,7 +504,12 @@ describe("manual grocery lines", () => {
     const t = convexTest(schema, modules);
     // Typed by hand, then a recipe wanted the same thing: the line keeps both
     // its manual protection and the recipe's provenance.
-    await addManual(t, { item: "Garlic", canonicalItem: "garlic", unit: "cloves", aisle: "produce" });
+    await addManual(t, {
+      item: "Garlic",
+      canonicalItem: "garlic",
+      unit: "cloves",
+      aisle: "produce",
+    });
     await t.mutation(internal.groceryList.mergeGroceryList, {
       userId: USER_ID,
       lines: [
