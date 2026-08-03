@@ -19,6 +19,14 @@ export {
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
 export {
+  formatNutrientAmount,
+  HEADLINE_NUTRIENTS,
+  NUTRITION_COVERAGE_THRESHOLD,
+  type NutrientRow,
+  nutrientRows,
+  unresolvedItems,
+} from "./nutrition";
+export {
   type DayExclusionReason,
   type DayPoint,
   type DaySummary,
@@ -33,9 +41,21 @@ export {
   type TrendDirection,
 } from "./nutritionHistory";
 export {
+  type DayNutritionSummary,
+  type NutritionGaps,
+  type NutritionSummary,
+  type PlanDayNutrition,
+  type PlanNutrition,
+  planNutritionSignature,
+  rollUpWeekNutrition,
+  summarizeNutrition,
+  type WeekNutritionRollup,
+} from "./nutritionRollup";
+export {
   canGenerateList,
   decreaseServings,
   increaseServings,
+  isCooked,
   isLeftover,
   MIN_SERVINGS_MULTIPLIER,
   type PlannedDay,

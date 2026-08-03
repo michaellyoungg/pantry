@@ -61,6 +61,7 @@ async function basketed(
     weekday?: number;
     servingsMultiplier?: number;
     type?: "meal" | "leftover";
+    cookedAt?: number;
   }>,
 ) {
   await t.run(async (ctx) => {
@@ -72,6 +73,7 @@ async function basketed(
         weekday: row.weekday,
         servingsMultiplier: row.servingsMultiplier,
         type: row.type,
+        cookedAt: row.cookedAt,
       });
     }
   });
@@ -346,18 +348,31 @@ describe("nutritionLog.recordPlannedWeek", () => {
 });
 
 /**
- * BL-0028 has not landed, so nothing writes `cooked` rows yet. These guard the
- * seam it will use: the same row, upgraded in place, and safe from every
- * subsequent plan sync.
+ * BL-0028 stamps `basket.cookedAt` when the user marks a meal cooked. The log
+ * inherits it, so a row upgrades planned → cooked in place.
  */
-describe("nutritionLog — the cooked upgrade path (BL-0028)", () => {
-  it("upgrades the same row rather than creating a second one", async () => {
+describe("nutritionLog — the cooked upgrade (BL-0028)", () => {
+  it("records a meal marked cooked as cooked, not planned", async () => {
+    const t = convexTest(schema, modules);
+    await basketed(t, [{ recipeId: "r1", weekday: 0, cookedAt: 1_700_000_000_000 }]);
+
+    await t
+      .withIdentity(identity)
+      .action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    const [row] = await t
+      .withIdentity(identity)
+      .query(api.nutritionLog.listRange, { from: "2026-08-03", to: "2026-08-09" });
+    expect(row.source).toBe("cooked");
+  });
+
+  it("upgrades the existing row in place rather than creating a second one", async () => {
     const t = convexTest(schema, modules);
     const asUser = t.withIdentity(identity);
     await basketed(t, [{ recipeId: "r1", weekday: 0 }]);
     await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
 
-    const id = await t.run(async (ctx) => {
+    const before = await t.run(async (ctx) => {
       const row = await ctx.db
         .query("nutritionLog")
         .withIndex("by_user_date_recipe", (q) =>
@@ -365,36 +380,48 @@ describe("nutritionLog — the cooked upgrade path (BL-0028)", () => {
         )
         .unique();
       if (!row) throw new Error("expected a planned row");
-      // What "mark cooked" will do: one patch, no migration, no second table.
-      await ctx.db.patch(row._id, { source: "cooked", servings: 1.5 });
+      expect(row.source).toBe("planned");
+      // What basket.markCooked does.
+      const basket = await ctx.db
+        .query("basket")
+        .withIndex("by_user_recipe", (q) => q.eq("userId", USER_ID).eq("recipeId", "r1"))
+        .unique();
+      if (basket) await ctx.db.patch(basket._id, { cookedAt: 1_700_000_000_000 });
       return row._id;
     });
+
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
 
     const rows = await asUser.query(api.nutritionLog.listRange, {
       from: "2026-08-03",
       to: "2026-08-09",
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ source: "cooked", servings: 1.5 });
-    expect(id).toBeDefined();
+    expect(rows[0].source).toBe("cooked");
+    const after = await t.run(async (ctx) =>
+      ctx.db
+        .query("nutritionLog")
+        .withIndex("by_user_date_recipe", (q) =>
+          q.eq("userId", USER_ID).eq("date", "2026-08-03").eq("recipeId", "r1"),
+        )
+        .unique(),
+    );
+    // The same document, not a replacement.
+    expect(after?._id).toBe(before);
   });
 
-  it("never overwrites a cooked row from the plan", async () => {
+  it("freezes a cooked row's snapshot against later re-estimation", async () => {
     const t = convexTest(schema, modules);
     const asUser = t.withIdentity(identity);
-    await t.run(async (ctx) => {
-      await ctx.db.insert("nutritionLog", {
-        userId: USER_ID,
-        date: "2026-08-03",
-        recipeId: "r1",
-        servings: 3,
-        source: "cooked",
-        snapshot: snapshot({ kcal: 999 }),
-        loggedAt: 0,
-      });
-    });
-    await basketed(t, [{ recipeId: "r1", weekday: 0 }]);
+    await basketed(t, [{ recipeId: "r1", weekday: 0, cookedAt: 1_700_000_000_000 }]);
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
 
+    // A food mapping is corrected and the estimate changes.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => estimate({ kcal: 2500 }),
+    });
     const result = await asUser.action(api.nutritionLog.recordPlannedWeek, {
       weekStart: WEEK_START,
     });
@@ -404,22 +431,81 @@ describe("nutritionLog — the cooked upgrade path (BL-0028)", () => {
       from: "2026-08-03",
       to: "2026-08-09",
     });
-    // The user's own account of the meal survives intact.
-    expect(row).toMatchObject({ source: "cooked", servings: 3 });
-    expect(row.snapshot.nutrients["1008"].amount).toBe(999);
+    // What was eaten does not change because the food data did.
+    expect(row.snapshot.nutrients["1008"].amount).toBe(600);
   });
 
-  it("never deletes a cooked row that the plan has dropped", async () => {
+  it("re-snapshots a still-planned row, which is a forecast and not yet history", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await basketed(t, [{ recipeId: "r1", weekday: 0 }]);
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => estimate({ kcal: 2500 }),
+    });
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    const [row] = await asUser.query(api.nutritionLog.listRange, {
+      from: "2026-08-03",
+      to: "2026-08-09",
+    });
+    expect(row.snapshot.nutrients["1008"].amount).toBe(2500);
+  });
+
+  it("demotes a row when the user un-marks the meal cooked", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await basketed(t, [{ recipeId: "r1", weekday: 0, cookedAt: 1_700_000_000_000 }]);
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    // basket.unmarkCooked — "I didn't cook this" is a retraction, and history
+    // must not keep asserting a meal the user has explicitly taken back.
+    await t.run(async (ctx) => {
+      const basket = await ctx.db
+        .query("basket")
+        .withIndex("by_user_recipe", (q) => q.eq("userId", USER_ID).eq("recipeId", "r1"))
+        .unique();
+      if (basket) await ctx.db.patch(basket._id, { cookedAt: undefined });
+    });
+    await asUser.action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    const [row] = await asUser.query(api.nutritionLog.listRange, {
+      from: "2026-08-03",
+      to: "2026-08-09",
+    });
+    expect(row.source).toBe("planned");
+  });
+
+  it("records a cooked leftover — reheated is still eaten", async () => {
+    const t = convexTest(schema, modules);
+    await basketed(t, [
+      { recipeId: "r1", weekday: 1, type: "leftover", cookedAt: 1_700_000_000_000 },
+    ]);
+
+    await t
+      .withIdentity(identity)
+      .action(api.nutritionLog.recordPlannedWeek, { weekStart: WEEK_START });
+
+    const [row] = await t
+      .withIdentity(identity)
+      .query(api.nutritionLog.listRange, { from: "2026-08-03", to: "2026-08-09" });
+    expect(row.source).toBe("cooked");
+  });
+
+  it("never overwrites or deletes a hand-logged row", async () => {
     const t = convexTest(schema, modules);
     const asUser = t.withIdentity(identity);
     await t.run(async (ctx) => {
       await ctx.db.insert("nutritionLog", {
         userId: USER_ID,
-        date: "2026-08-05",
-        recipeId: "eaten",
-        servings: 1,
-        source: "cooked",
-        snapshot: snapshot(),
+        date: "2026-08-03",
+        recipeId: "r1",
+        servings: 3,
+        source: "manual",
+        snapshot: snapshot({ kcal: 999 }),
         loggedAt: 0,
       });
       await ctx.db.insert("nutritionLog", {
@@ -432,19 +518,49 @@ describe("nutritionLog — the cooked upgrade path (BL-0028)", () => {
         loggedAt: 0,
       });
     });
-    // The plan for this week no longer mentions either dish.
+    // The plan schedules r1 on the same day and never mentions "hand-logged".
     await basketed(t, [{ recipeId: "r1", weekday: 0 }]);
 
     const result = await asUser.action(api.nutritionLog.recordPlannedWeek, {
       weekStart: WEEK_START,
     });
 
+    expect(result).toMatchObject({ preserved: 1, removed: 0 });
+    const rows = await asUser.query(api.nutritionLog.listRange, {
+      from: "2026-08-03",
+      to: "2026-08-09",
+    });
+    expect(rows.map((r) => r.source)).toEqual(["manual", "manual"]);
+    expect(rows[0].snapshot.nutrients["1008"].amount).toBe(999);
+  });
+
+  it("keeps a cooked row the plan has stopped mentioning", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("nutritionLog", {
+        userId: USER_ID,
+        date: "2026-08-05",
+        recipeId: "eaten",
+        servings: 1,
+        source: "cooked",
+        snapshot: snapshot(),
+        loggedAt: 0,
+      });
+    });
+    await basketed(t, [{ recipeId: "r1", weekday: 0 }]);
+
+    const result = await asUser.action(api.nutritionLog.recordPlannedWeek, {
+      weekStart: WEEK_START,
+    });
+
+    // The plan moving on is not the user retracting a meal.
     expect(result.removed).toBe(0);
     const rows = await asUser.query(api.nutritionLog.listRange, {
       from: "2026-08-03",
       to: "2026-08-09",
     });
-    expect(rows.map((r) => r.recipeId).sort()).toEqual(["eaten", "hand-logged", "r1"]);
+    expect(rows.map((r) => r.recipeId).sort()).toEqual(["eaten", "r1"]);
   });
 });
 

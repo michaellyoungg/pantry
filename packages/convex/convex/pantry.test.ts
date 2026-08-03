@@ -1,6 +1,7 @@
 import { convexTest } from "convex-test";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "./_generated/api";
+import { steppedDown } from "./pantry";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -310,5 +311,219 @@ describe("recipesToUse (BL-0029)", () => {
     await expect(t.action(api.pantry.recipesToUse, { items: ["spinach"] })).rejects.toThrow(
       /Not authenticated/,
     );
+  });
+});
+
+describe("steppedDown", () => {
+  it("steps have → low → out and stops there", () => {
+    expect(steppedDown("have")).toBe("low");
+    expect(steppedDown("low")).toBe("out");
+    // The floor: there is nothing below "you're out of it".
+    expect(steppedDown("out")).toBe("out");
+  });
+});
+
+describe("cook-decrement (BL-0028)", () => {
+  const originalFetch = globalThis.fetch;
+
+  // markCooked *schedules* the decrement, so nothing runs until timers advance.
+  // Without fake timers the scheduled action fires after the test (and after
+  // the stubs below are torn down), which reads as "the decrement did nothing".
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  /**
+   * Stubs POST /grocery-list, the endpoint cookDecrement reuses to turn a recipe
+   * into normalized ingredient ids. Returns the recorded call bodies so a test
+   * can assert recipe-service was never called at all.
+   */
+  function stubIngredients(canonicalItems: string[]) {
+    vi.stubEnv("RECIPE_SERVICE_URL", "http://recipe-service");
+    vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
+    const calls: { url: string; body: unknown }[] = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
+      const lines = canonicalItems.map((canonicalItem) => ({
+        item: canonicalItem,
+        canonicalItem,
+        unit: "g",
+        quantity: 1,
+        aisle: "other",
+      }));
+      return new Response(JSON.stringify(lines), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  async function seedPlanned(
+    t: ReturnType<typeof convexTest>,
+    over: Partial<{ userId: string; type: "meal" | "leftover" }> = {},
+  ) {
+    await t.run(async (ctx) => {
+      await ctx.db.insert("basket", {
+        userId: USER_ID,
+        recipeId: "r1",
+        title: "Buttered Spinach",
+        weekday: 2,
+        ...over,
+      });
+    });
+  }
+
+  /** Marks r1 cooked and drains the decrement the mutation scheduled. */
+  async function cook(t: ReturnType<typeof convexTest>) {
+    await t.withIdentity(identity).mutation(api.basket.markCooked, { recipeId: "r1" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  }
+
+  it("steps each of the recipe's ingredients one notch", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter", "spinach"]);
+    await seedPlanned(t);
+    await seed(t, { canonicalItem: "butter", display: "Butter", state: "have" });
+    await seed(t, { canonicalItem: "spinach", display: "Spinach", state: "low" });
+
+    await cook(t);
+
+    const rows = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(rows.map((r) => [r.canonicalItem, r.state])).toEqual([
+      ["butter", "low"],
+      ["spinach", "out"],
+    ]);
+  });
+
+  it("never steps below out", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t, { state: "out" });
+
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row.state).toBe("out");
+  });
+
+  it("keys on canonicalItem, not the display string", async () => {
+    const t = convexTest(schema, modules);
+    // recipe-service normalizes "Green onions" to "green onion"; the pantry row
+    // stores the same canonical key with a different display. Matching on
+    // display would step nothing and fail silently.
+    stubIngredients(["green onion"]);
+    await seedPlanned(t);
+    await seed(t, { canonicalItem: "green onion", display: "Green onions" });
+
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row.state).toBe("low");
+  });
+
+  it("marking the same recipe cooked twice does not double-step", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t, { state: "have" });
+
+    await cook(t);
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row.state).toBe("low");
+    // The guard fires before the schedule, so the second cook never even asks
+    // recipe-service for the ingredients.
+    expect(calls).toHaveLength(1);
+  });
+
+  it("steps again after an explicit unmark — that is a second asserted cook", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t, { state: "have" });
+
+    await cook(t);
+    await t.withIdentity(identity).mutation(api.basket.unmarkCooked, { recipeId: "r1" });
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row.state).toBe("out");
+  });
+
+  it("does not create pantry rows for ingredients the user never tracked", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter", "saffron"]);
+    await seedPlanned(t);
+    await seed(t, { canonicalItem: "butter", state: "have" });
+
+    await cook(t);
+
+    const rows = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ canonicalItem: "butter", state: "low" });
+  });
+
+  it("steps a manually curated row too — cooking consumes food whoever entered it", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t, { source: "manual", state: "have" });
+
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row).toMatchObject({ source: "manual", state: "low" });
+  });
+
+  it("leaves another user's row for the same ingredient alone", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t, { state: "have" });
+    await seed(t, { userId: "someone-else", state: "have" });
+
+    await cook(t);
+
+    const rows = await t.run(async (ctx) => await ctx.db.query("pantryItems").collect());
+    expect(rows.find((r) => r.userId === USER_ID)?.state).toBe("low");
+    expect(rows.find((r) => r.userId === "someone-else")?.state).toBe("have");
+  });
+
+  it("does not decrement for a leftover — reheating consumes nothing new", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubIngredients(["butter"]);
+    await seedPlanned(t, { type: "leftover" });
+    await seed(t, { state: "have" });
+
+    await cook(t);
+
+    const [row] = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(row.state).toBe("have");
+    expect(calls).toHaveLength(0);
+    // The plan record still says it was eaten.
+    const [planned] = await t.withIdentity(identity).query(api.basket.list, {});
+    expect(planned.cookedAt).toBeTypeOf("number");
+  });
+
+  it("asks recipe-service for exactly the cooked recipe, at multiplier 1", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubIngredients(["butter"]);
+    await seedPlanned(t);
+    await seed(t);
+
+    await cook(t);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("http://recipe-service/grocery-list");
+    expect(calls[0].body).toEqual({ items: [{ recipeId: "r1", multiplier: 1 }] });
   });
 });

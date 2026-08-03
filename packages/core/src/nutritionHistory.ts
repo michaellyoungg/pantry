@@ -1,5 +1,6 @@
 import type { NutritionLogEntry, NutritionLogSource } from "@pantry/types";
 import { type DateRange, datesInRange } from "./calendar";
+import { NUTRITION_COVERAGE_THRESHOLD } from "./nutrition";
 
 /**
  * Habit review — turning `nutritionLog` rows into a retrospective (BL-0039).
@@ -25,11 +26,14 @@ import { type DateRange, datesInRange } from "./calendar";
 /**
  * The share of a day's mass that must resolve for the day to count.
  *
- * Matches the recipe panel's suppression threshold in spirit, but is its own
- * constant on purpose: that one decides whether to render a single estimate,
- * this one decides whether a day enters an average. They are free to diverge.
+ * Aliased to the shared threshold rather than given its own number: a recipe
+ * panel refusing to show a figure while that same meal silently counts toward a
+ * weekly average would be the app arguing with itself. It keeps a distinct name
+ * because the two decisions are distinct — that one governs rendering a single
+ * estimate, this one governs entering an average — so they can diverge later
+ * without touching the recipe panel.
  */
-export const MIN_DAY_COVERAGE = 0.8;
+export const MIN_DAY_COVERAGE = NUTRITION_COVERAGE_THRESHOLD;
 
 /** Why a day contributes nothing to a trend. Never "it was zero". */
 export type DayExclusionReason =

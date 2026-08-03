@@ -1,7 +1,7 @@
 ---
 id: BL-0037
 title: Nutrition plan rollup — day and week totals on the planner
-status: in-progress
+status: done
 area: nutrition
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md, 2026-07-12-full-app-ux-plan.md]

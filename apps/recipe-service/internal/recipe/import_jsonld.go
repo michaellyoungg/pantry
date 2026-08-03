@@ -17,6 +17,10 @@ type jsonLDRecipe struct {
 	// Servings is nil when the page carries no recipeYield, or one we cannot
 	// read as a serving count. See parseRecipeYield.
 	Servings *int
+	// CookingMethods are the raw schema.org `cookingMethod` values, mapped onto
+	// the closed method enum by the caller. `recipeCategory` and `keywords` are
+	// deliberately NOT read here — they belong to BL-0030's tags.
+	CookingMethods []string
 }
 
 // extractJSONLD scans a page for schema.org Recipe JSON-LD and returns the first
@@ -78,6 +82,11 @@ func buildRecipe(m map[string]any) jsonLDRecipe {
 	}
 	rec.Steps = extractSteps(m["recipeInstructions"])
 	rec.Servings = parseRecipeYield(m["recipeYield"])
+	for _, cm := range asStringSlice(m["cookingMethod"]) {
+		if s := cleanText(cm); s != "" {
+			rec.CookingMethods = append(rec.CookingMethods, s)
+		}
+	}
 	return rec
 }
 

@@ -4,6 +4,8 @@ import {
   type DaySummary,
   exclusionLabel,
   habitReview,
+  formatNutrientAmount,
+  HEADLINE_NUTRIENTS,
   type NutrientTrend,
   startOfWeek,
   toISODate,
@@ -12,7 +14,6 @@ import {
 import { useAsyncAction } from "@pantry/core/react";
 import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
-import { formatAmount, HEADLINE_NUTRIENTS } from "../lib/nutrition";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -23,9 +24,10 @@ import { Card } from "./ui/Card";
  *
  * Two honesty rules run through every element here:
  *
- * 1. **Say which signal this is.** Until BL-0028 adds "mark cooked", the only
- *    thing recorded is what was *planned*. Calling that "what you ate" would be
- *    an overclaim the user has no way to check.
+ * 1. **Say which signal this is.** A meal you marked cooked (BL-0028) and a meal
+ *    you merely scheduled are different claims, and the banner distinguishes
+ *    them — derived from the rows in the window, never hard-coded, so a window
+ *    of confirmed cooks says so and a window of intentions admits it.
  * 2. **A day we cannot account for is left out, not counted as zero.** Averaging
  *    missing days in as zeroes under-reports everything on the page, and it does
  *    so worst when coverage is worst.
@@ -121,6 +123,7 @@ export function HabitReview({ today = toISODate(new Date()) }: { today?: string 
               <p className="text-sm text-muted">
                 No meals recorded in this window yet. Plan a week on the Plan tab, then use{" "}
                 <span className="text-text">Record this week's plan</span> to start a history.
+                Marking a meal cooked there records it as eaten rather than merely scheduled.
               </p>
             </Card>
           ) : (
@@ -196,7 +199,7 @@ function TrendCard({ trend }: { trend: NutrientTrend }) {
         </span>
       </div>
       <p className="mt-1 text-2xl font-semibold text-text">
-        {formatAmount({ nutrientId: trend.nutrientId, amount: trend.average, unit: trend.unit })}
+        {formatNutrientAmount({ nutrientId: trend.nutrientId, amount: trend.average, unit: trend.unit })}
         <span className="ml-1 text-sm font-normal text-muted">avg / day</span>
       </p>
       <p className="text-xs text-muted">
@@ -236,7 +239,7 @@ function Sparkline({ trend, label }: { trend: NutrientTrend; label: string }) {
               <span
                 className="w-full rounded-sm bg-[var(--color-primary)]/70"
                 style={{ height: `${height}%` }}
-                title={`${point.date}: ${formatAmount({
+                title={`${point.date}: ${formatNutrientAmount({
                   nutrientId: trend.nutrientId,
                   amount: value,
                   unit: trend.unit,

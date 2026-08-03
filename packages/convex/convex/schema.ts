@@ -26,6 +26,11 @@ export default defineSchema({
     // Increment 2: servings scaling + leftovers.
     servingsMultiplier: v.optional(v.number()), // absent → treated as 1
     type: v.optional(v.union(v.literal("meal"), v.literal("leftover"))), // absent → "meal"
+    // When the user marked this planned meal cooked (BL-0028). Absent = not yet
+    // cooked. This timestamp IS the idempotency guard for cook-decrement: it is
+    // written once, inside the same transaction that schedules the decrement, so
+    // a second "mark cooked" can never step the pantry a second time.
+    cookedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),
@@ -77,10 +82,11 @@ export default defineSchema({
 
   // Eating history (BL-0039). One row per recipe per calendar day.
   //
-  // Rows are written from the plan as `source: "planned"` — today nothing in the
-  // system records what was actually cooked. When BL-0028 (cook-decrement) adds
-  // "mark cooked", it patches this same row to `cooked`: no migration, no second
-  // table. `manual` is reserved for a future food diary.
+  // `source` is taken from the plan: a meal the user marked cooked (BL-0028's
+  // `basket.cookedAt`) records as `cooked`, one merely scheduled as `planned`.
+  // The upgrade is the same row and one field — no migration, no second table.
+  // `manual` is reserved for a future food diary and is never written from the
+  // plan.
   nutritionLog: defineTable({
     userId: v.string(),
     date: v.string(), // YYYY-MM-DD, the user's local calendar day

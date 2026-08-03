@@ -52,6 +52,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
 	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
 	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
+	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
@@ -59,6 +60,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
 	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
+	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
@@ -79,9 +81,11 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title string `json:"title"`
 		// Absent or null means "yield unknown" (BL-0035).
-		Servings    *int         `json:"servings"`
-		Ingredients []Ingredient `json:"ingredients"`
-		Steps       []string     `json:"steps"`
+		Servings    *int              `json:"servings"`
+		Ingredients []Ingredient      `json:"ingredients"`
+		Steps       []string          `json:"steps"`
+		Equipment   []RecipeEquipment `json:"equipment"`
+		Methods     []string          `json:"methods"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -93,7 +97,11 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	if !validServings(w, r, req.Servings) {
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
+	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
+		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+		return
+	}
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
@@ -117,6 +125,14 @@ func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
+}
+
+// listEquipment serves the curated hardware catalog so clients can render
+// equipment names and offer a picker without duplicating the dataset. It is
+// reference data — the same for every caller — but stays behind the service
+// secret like every other route.
+func (h *handlers) listEquipment(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, EquipmentList())
 }
 
 func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
@@ -150,9 +166,11 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		Title string `json:"title"`
 		// Update replaces the whole recipe, so an absent servings clears a
 		// previously known yield rather than leaving it in place.
-		Servings    *int         `json:"servings"`
-		Ingredients []Ingredient `json:"ingredients"`
-		Steps       []string     `json:"steps"`
+		Servings    *int              `json:"servings"`
+		Ingredients []Ingredient      `json:"ingredients"`
+		Steps       []string          `json:"steps"`
+		Equipment   []RecipeEquipment `json:"equipment"`
+		Methods     []string          `json:"methods"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -164,7 +182,11 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	if !validServings(w, r, req.Servings) {
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
+	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
+		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+		return
+	}
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
@@ -218,44 +240,18 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ids := make([]string, 0, len(req.Items))
-	seen := map[string]bool{}
 	for _, it := range req.Items {
-		if !seen[it.RecipeID] {
-			seen[it.RecipeID] = true
-			ids = append(ids, it.RecipeID)
-		}
+		ids = append(ids, it.RecipeID)
 	}
-	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), ids)
+	// Catalog recipes are owned by CatalogUserID, not the caller, but the catalog
+	// UI lets anyone add them to their basket — readableRecipes resolves both
+	// scopes, without which a basket of catalog recipes aggregates to an empty
+	// list. The nutrition rollup reads the same helper, so the two paths can
+	// never disagree about which recipes a plan contains.
+	byID, err := h.readableRecipes(r.Context(), ids)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not load recipes", err)
 		return
-	}
-	byID := make(map[string]Recipe, len(recs))
-	for _, rec := range recs {
-		byID[rec.ID] = rec
-	}
-
-	// Catalog recipes are owned by CatalogUserID, not the caller, but the
-	// catalog UI lets anyone add them to their basket. Resolve whatever the
-	// user-scoped lookup missed against the shared catalog — without this,
-	// a basket of catalog recipes aggregates to an empty list. The second
-	// lookup is pinned to CatalogUserID, so it can't reach another user's
-	// private recipes.
-	missing := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if _, ok := byID[id]; !ok {
-			missing = append(missing, id)
-		}
-	}
-	if len(missing) > 0 {
-		catRecs, err := h.store.GetRecipesByIDs(r.Context(), CatalogUserID, missing)
-		if err != nil {
-			writeErr(w, r, http.StatusInternalServerError, "could not load catalog recipes", err)
-			return
-		}
-		for _, rec := range catRecs {
-			byID[rec.ID] = rec
-		}
 	}
 
 	entries := make([]ScaledRecipe, 0, len(req.Items))

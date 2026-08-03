@@ -112,6 +112,27 @@ type IngredientEstimate struct {
 	MatchedFood string `json:"matchedFood,omitempty"`
 }
 
+// RecipeCoverage accounts for one recipe inside a multi-recipe rollup (BL-0037).
+//
+// A combined mass fraction cannot express every way a rollup can be incomplete.
+// It describes the food it *saw*: a recipe that could not be loaded at all —
+// deleted, or not visible to this caller — contributes nothing to either side of
+// that ratio, so a day missing an entire dinner would otherwise report 100%
+// coverage of the two recipes it did see. `Counted` is that missing case, named
+// explicitly so a client can say "excluding 1 recipe" instead of quietly
+// under-reporting.
+type RecipeCoverage struct {
+	RecipeID string `json:"recipeId"`
+	Title    string `json:"title,omitempty"`
+	// Multiplier is the servings dial this recipe contributed at.
+	Multiplier float64 `json:"multiplier"`
+	// Counted reports whether the recipe's ingredients reached the totals at all.
+	Counted bool `json:"counted"`
+	// Coverage is this recipe's own coverage, so a client can name the one dish
+	// that dragged a day down rather than reporting a single blended percentage.
+	Coverage Coverage `json:"coverage"`
+}
+
 // Estimate is the wire type, shared with packages/types.
 type Estimate struct {
 	Nutrients map[string]NutrientAmount `json:"nutrients"`
@@ -123,4 +144,7 @@ type Estimate struct {
 	Coverage    Coverage                  `json:"coverage"`
 	Ingredients []IngredientEstimate      `json:"ingredients"`
 	EstimatedAt time.Time                 `json:"estimatedAt"`
+	// Recipes is populated only by the multi-recipe rollup, where "which dish is
+	// missing?" is a question a single blended coverage figure cannot answer.
+	Recipes []RecipeCoverage `json:"recipes,omitempty"`
 }

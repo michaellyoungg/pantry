@@ -1,32 +1,16 @@
-import type { NutrientAmount, NutritionEstimate } from "@pantry/types";
+import {
+  formatNutrientAmount,
+  HEADLINE_NUTRIENTS,
+  NUTRITION_COVERAGE_THRESHOLD,
+  unresolvedItems,
+} from "@pantry/core";
+import type { NutritionEstimate } from "@pantry/types";
 
-/**
- * Below this share of a recipe's mass we suppress the figures entirely and name
- * what is missing instead.
- *
- * The design is explicit that a bare number is never acceptable at low coverage:
- * an estimate that silently reports 60% of a recipe as though it were the whole
- * thing is worse than one that admits it does not know — especially once goal
- * tracking (BL-0038) consumes these numbers.
- */
-export const COVERAGE_THRESHOLD = 0.8;
-
-/**
- * The nutrients the first UI surfaces, in display order: energy, macros, and the
- * few the stated scenarios need. This list is presentation only — the estimate
- * itself carries whatever FDC returned, so surfacing another nutrient is a
- * one-line change here and nothing else.
- */
-export const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "1008", label: "Calories" },
-  { id: "1003", label: "Protein" },
-  { id: "1005", label: "Carbs" },
-  { id: "1004", label: "Fat" },
-  { id: "1258", label: "Saturated fat" },
-  { id: "1079", label: "Fiber" },
-  { id: "1093", label: "Sodium" },
-  { id: "1253", label: "Cholesterol" },
-];
+// What the *recipe* panel may show. The plan rollup's equivalent lives in
+// @pantry/core (summarizeNutrition) because a second client needs it; this one
+// stays here only because per-serving display is specific to a recipe page. The
+// threshold, the headline list and the number formatting are shared, so a
+// recipe and a day can never disagree about whether a figure is showable.
 
 interface NutritionRow {
   id: string;
@@ -51,19 +35,6 @@ export type NutritionDisplay =
       servings: number;
     };
 
-/** Ingredients that did not make it into the estimate, in recipe order. */
-export function unresolvedItems(estimate: NutritionEstimate): string[] {
-  return estimate.ingredients.filter((i) => !i.resolved).map((i) => i.item);
-}
-
-/** Renders one amount at a precision appropriate to its unit. */
-export function formatAmount({ amount, unit }: NutrientAmount): string {
-  // Grams of protein deserve a decimal; milligrams of sodium and whole calories
-  // do not, and showing "1594.772 mg" reads as false precision on an estimate.
-  const decimals = unit === "g" ? 1 : 0;
-  return `${amount.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
-}
-
 /**
  * Decides what the recipe panel may show. Pure, so the coverage rule — the part
  * that decides whether the user sees a number at all — is tested directly rather
@@ -75,7 +46,7 @@ export function nutritionDisplay(estimate: NutritionEstimate): NutritionDisplay 
   const missing = unresolvedItems(estimate);
   const coveragePercent = Math.round(estimate.coverage.resolvedMassFraction * 100);
 
-  if (estimate.coverage.resolvedMassFraction < COVERAGE_THRESHOLD) {
+  if (estimate.coverage.resolvedMassFraction < NUTRITION_COVERAGE_THRESHOLD) {
     return { kind: "unavailable", missing, coveragePercent };
   }
 
@@ -87,7 +58,14 @@ export function nutritionDisplay(estimate: NutritionEstimate): NutritionDisplay 
     const amount = estimate.nutrients[id];
     if (!amount) return [];
     const each = estimate.perServing?.[id];
-    return [{ id, label, total: formatAmount(amount), perServing: each && formatAmount(each) }];
+    return [
+      {
+        id,
+        label,
+        total: formatNutrientAmount(amount),
+        perServing: each && formatNutrientAmount(each),
+      },
+    ];
   });
   if (rows.length === 0) return { kind: "unavailable", missing, coveragePercent };
 
