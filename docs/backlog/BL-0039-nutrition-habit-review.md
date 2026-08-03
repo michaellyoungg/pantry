@@ -1,7 +1,7 @@
 ---
 id: BL-0039
 title: Nutrition habit review — eating history and retrospective
-status: proposed
+status: in-progress
 area: nutrition
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md]
