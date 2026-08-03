@@ -1,10 +1,10 @@
 ---
 id: BL-0029
 title: Pantry shelf-life & expiry nudges — category-default dates + "use this week" batches
-status: in-progress
+status: done
 area: pantry
 effort: L
-related_specs: [2026-07-18-pantry-thin-loop-design.md]
+related_specs: [2026-07-18-pantry-thin-loop-design.md, 2026-08-03-pantry-shelf-life-expiry-design.md]
 created: 2026-08-03
 ---
 
