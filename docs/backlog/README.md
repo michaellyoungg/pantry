@@ -59,13 +59,8 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping | in-progress | grocery-list | L |
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | in-progress | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | done | pantry | L |
-<<<<<<< HEAD
 | [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps | done | recipes | M |
-| [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | in-progress | pricing | L |
-=======
-| [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps (schema + import already extracts them) | done | recipes | M |
 | [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | done | pricing | L |
->>>>>>> origin/main
 | [BL-0024](BL-0024-headless-core-package.md) | Extract headless packages/core (planner, grocery list, import review) | in-progress | infra | M |
 | [BL-0025](BL-0025-design-tokens-as-data.md) | Design tokens as data (single source for CSS and future native styling) | done | web | S |
 | [BL-0026](BL-0026-platform-portable-ui-primitives.md) | Platform-portable UI primitives (confirm dialog, auth submission) | done | web | S |
@@ -85,3 +80,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0045](BL-0045-generated-backlog-index.md) | Generate the backlog index from item frontmatter (kill the merge-conflict hotspot) | done | infra | S |
 | [BL-0046](BL-0046-kroger-real-store-prices.md) | Real store prices (opt-in) — Kroger Products API behind a feature flag | proposed | pricing | M |
 | [BL-0047](BL-0047-sale-aware-recommendations.md) | Sale-aware recommendations — plan the week around what's cheap right now | proposed | recommendations | L |
+| [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | proposed | infra | S |
