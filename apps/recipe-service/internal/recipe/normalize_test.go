@@ -70,3 +70,54 @@ func TestFriendly(t *testing.T) {
 		}
 	}
 }
+
+func TestShelfLife_PerItemOverridesAisleDefault(t *testing.T) {
+	d := normalizer.Details("spinach")
+	if d.Aisle != "produce" || d.ShelfLifeDays != 5 {
+		t.Fatalf("spinach: got aisle=%q shelfLife=%d, want produce/5", d.Aisle, d.ShelfLifeDays)
+	}
+}
+
+func TestShelfLife_FallsBackToAisleDefault(t *testing.T) {
+	n, err := loadNormalizer([]byte(`{
+		"items": {"widget": {"display": "Widget", "aisle": "produce"}},
+		"aisleShelfLife": {"produce": 7}
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := n.Details("widget"); d.ShelfLifeDays != 7 {
+		t.Fatalf("got %d, want the produce default of 7", d.ShelfLifeDays)
+	}
+}
+
+func TestShelfLife_UnknownItemHasNone(t *testing.T) {
+	d := normalizer.Details("sriracha")
+	if d.Aisle != "other" || d.ShelfLifeDays != 0 {
+		t.Fatalf("got aisle=%q shelfLife=%d, want other/0 (never guess for unknown items)", d.Aisle, d.ShelfLifeDays)
+	}
+}
+
+func TestCanonicalItem_FoldsKnownPluralsToSingular(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"tomatoes", "tomato"},
+		{"eggs", "egg"},
+		{"strawberries", "strawberry"},
+		{"Carrots", "carrot"},
+	}
+	for _, c := range cases {
+		if got, _, _ := normalizer.CanonicalItem(c.in); got != c.want {
+			t.Errorf("CanonicalItem(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestCanonicalItem_LeavesUnknownPluralLookingWordsAlone(t *testing.T) {
+	// "asparagus" must not be butchered into "asparagu" by naive -s stripping.
+	if got, _, aisle := normalizer.CanonicalItem("asparagus"); got != "asparagus" || aisle != "produce" {
+		t.Errorf("asparagus: got %q/%q, want asparagus/produce", got, aisle)
+	}
+	if got, _, _ := normalizer.CanonicalItem("hummus"); got != "hummus" {
+		t.Errorf("hummus: got %q, want hummus unchanged", got)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -49,6 +50,8 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handl
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
+	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
+	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
@@ -250,6 +253,98 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 			"count", len(skipped), "ids", skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
+}
+
+// maxRecipesUsing caps the "cook these" suggestions. The nudge is a prompt, not
+// a search results page — a long list is the nag BL-0029 exists to avoid.
+const maxRecipesUsing = 5
+
+// normalizationLookup exposes the shelf-life/aisle table to Convex, which
+// cannot hold a copy of it: canonicalization (synonyms, plural folding) lives
+// here, and a duplicated table would drift the moment either side is edited.
+// Input is raw ingredient text, so callers get canonicalization for free.
+func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []string `json:"items"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	seen := make(map[string]bool, len(req.Items))
+	out := make([]ItemDetails, 0, len(req.Items))
+	for _, raw := range req.Items {
+		d := normalizer.Details(raw)
+		if d.CanonicalItem == "" || seen[d.CanonicalItem] {
+			continue
+		}
+		seen[d.CanonicalItem] = true
+		out = append(out, d)
+	}
+	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
+}
+
+// recipesUsing answers "what can I cook with these before they go off". It
+// searches the caller's recipes and the shared catalog — a new user's pantry
+// would otherwise match nothing — and ranks by how many of the items a recipe
+// uses, so the suggestion that clears the most is first.
+func (h *handlers) recipesUsing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []string `json:"items"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	wanted := make(map[string]bool, len(req.Items))
+	for _, raw := range req.Items {
+		if canonical, _, _ := normalizer.CanonicalItem(raw); canonical != "" {
+			wanted[canonical] = true
+		}
+	}
+	if len(wanted) == 0 {
+		writeJSON(w, http.StatusOK, []RecipeMatch{})
+		return
+	}
+
+	userID := userIDFrom(r.Context())
+	recs, err := h.store.ListRecipes(r.Context(), userID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
+		return
+	}
+	if userID != CatalogUserID {
+		catRecs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+		if err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
+			return
+		}
+		recs = append(recs, catRecs...)
+	}
+
+	matches := make([]RecipeMatch, 0, len(recs))
+	for _, rec := range recs {
+		hit := map[string]bool{}
+		matched := []string{}
+		for _, ing := range rec.Ingredients {
+			canonical, _, _ := normalizer.CanonicalItem(ing.Item)
+			if wanted[canonical] && !hit[canonical] {
+				hit[canonical] = true
+				matched = append(matched, canonical)
+			}
+		}
+		if len(matched) > 0 {
+			matches = append(matches, RecipeMatch{Recipe: rec, MatchedItems: matched})
+		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool {
+		if len(matches[i].MatchedItems) != len(matches[j].MatchedItems) {
+			return len(matches[i].MatchedItems) > len(matches[j].MatchedItems)
+		}
+		return matches[i].Title < matches[j].Title
+	})
+	if len(matches) > maxRecipesUsing {
+		matches = matches[:maxRecipesUsing]
+	}
+	writeJSON(w, http.StatusOK, matches)
 }
 
 // decodeJSON reads a JSON request body with a size cap. It writes an error
