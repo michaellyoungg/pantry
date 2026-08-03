@@ -68,3 +68,31 @@ container, a deploy target, a secret, and a CI job for no isolation benefit.
   a separate feature gated on a pantry subsystem. That subsystem now exists
   (BL-0021, done), so it is **in scope** as the `/recommendations/pantry`
   endpoint.
+
+## Increment status
+
+**Increment 1 — delivered.** `preferences` schema + `/settings` screen, avoid-list
+hard filter, `POST /recommendations/pantry`, the `useItUp` flag, and the
+"cook from what you have" surface.
+
+Two implementation notes worth recording, because both differ from the design doc:
+
+- **`internal/recommend` is dependency-free; the HTTP handler and candidate
+  assembly live in `internal/recipe`.** The design put both inside
+  `internal/recommend`, which does not build: assembly needs `recipe.Store` and
+  the unexported `normalizer`, while the route registers on `recipe`'s mux — an
+  import cycle. Moving the boundary one notch left `recommend` with *zero*
+  imports, which is a stronger isolation than the design described.
+- **Exactly two scoring features are live**: `useItUpHits` and `coverage`.
+  `affinity` (needs the event log, increment 2), `missingNonStaple` (needs a
+  `staple` flag, BL-0031) and `recentlyPlanned` (needs plan history) are wired
+  and report unavailable, contributing to neither the numerator nor the
+  denominator of the score.
+
+**Not yet verified:** the Playwright e2e spec (`apps/web/e2e/recommendations.spec.ts`)
+is written and committed but has never had a green run — a git worktree gets its
+own docker compose project, so `e2e.sh` stands up a second stack that collides on
+port 8090 with the shared one. Run it from the main checkout, or let CI.
+
+**Increment 2 — next.** `/recommendations/discover`, the `recommendationEvents`
+log, and derived ingredient affinities.

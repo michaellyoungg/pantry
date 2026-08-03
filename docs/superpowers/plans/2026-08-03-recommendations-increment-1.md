@@ -19,6 +19,13 @@
 - **Convex verification needs the running self-hosted backend.** `convex codegen`, typecheck, and deploy all require it. `.env.local` must use `CONVEX_SELF_HOSTED_URL` on port **3210** — port 3212 is a phantom anonymous deployment the web app never uses.
 - **Biome no-ops from a worktree root.** `pnpm biome check` checks 0 files here and passes vacuously. Lint changed files **by explicit path**.
 - **Commit style:** conventional commits. Do not open PRs as drafts.
+- **Web tests use `fireEvent` + `toBeTruthy()`.** This repo does **not** depend on
+  `@testing-library/user-event` or `@testing-library/jest-dom`, and
+  `apps/web/src/components/RecipeForm.test.tsx` documents that jest-dom matchers
+  are deliberately not loaded. Do not add either library.
+- **The backlog index is generated.** Never hand-edit the table in
+  `docs/backlog/README.md`; change item frontmatter and run `pnpm backlog:index`
+  (`pnpm backlog:index:check` is the CI gate).
 
 ---
 
@@ -35,6 +42,15 @@ This plan resolves it by moving the boundary one notch:
 | HTTP handler, auth, tracing, JSON | `internal/recipe` | already owns all of it |
 
 `recommend` receives `Candidate` values whose ingredients are **already canonicalized** by the caller. This is a *stronger* boundary than the spec described — `recommend` has zero dependencies — and extraction to a separate service remains a refactor.
+
+### Correction applied during execution (Tasks 9, 10, 11)
+
+The test code shown in Tasks 9, 10 and 11 below uses `userEvent.setup()` and
+`toBeInTheDocument()`. **That was wrong** — neither library is a dependency here
+(see Global Constraints). The delivered tests keep every listed behavior and
+assertion but express interaction with `fireEvent` and assert with
+`toBeTruthy()`, matching `RecipeForm.test.tsx`. Treat the committed test files as
+the source of truth over the snippets below.
 
 **Increment 1 has exactly two live features:** `useItUpHits` and `coverage`. `affinity` needs the event log (increment 2), `missingNonStaple` needs a `staple` flag (BL-0031), and `recentlyPlanned` needs plan *history* (the basket is current-week only). All three are wired and report unavailable — that is the degradation mechanism doing its job, not an omission.
 
