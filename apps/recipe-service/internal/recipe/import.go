@@ -27,18 +27,20 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 
 	var title string
 	var ings []Ingredient
+	var steps []string
 
 	if ld, ok := extractJSONLD(html); ok && len(ld.IngredientLines) > 0 {
 		title = ld.Title
 		for _, line := range ld.IngredientLines {
 			ings = append(ings, parseIngredientLine(line))
 		}
+		steps = ld.Steps
 	} else if imp.extractor != nil {
 		ex, err := imp.extractor.Extract(ctx, htmlToText(html))
 		if err != nil {
 			return Recipe{}, fmt.Errorf("%w: %v", ErrImportUnparseable, err)
 		}
-		title, ings = ex.Title, ex.Ingredients
+		title, ings, steps = ex.Title, ex.Ingredients, ex.Steps
 	} else {
 		return Recipe{}, ErrImportUnparseable
 	}
@@ -46,5 +48,5 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	if strings.TrimSpace(title) == "" || len(ings) == 0 {
 		return Recipe{}, ErrImportUnparseable
 	}
-	return Recipe{UserID: userID, Title: strings.TrimSpace(title), Ingredients: ings}, nil
+	return Recipe{UserID: userID, Title: strings.TrimSpace(title), Ingredients: ings, Steps: steps}, nil
 }

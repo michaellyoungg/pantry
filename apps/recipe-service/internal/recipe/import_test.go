@@ -34,6 +34,9 @@ func TestImporter_JSONLDPath(t *testing.T) {
 	if rec.Ingredients[0] != (Ingredient{Quantity: 2, Unit: "clove", Item: "garlic", Note: "minced"}) {
 		t.Fatalf("first ingredient not parsed: %+v", rec.Ingredients[0])
 	}
+	if len(rec.Steps) != 2 || rec.Steps[0] != "Mince the garlic." || rec.Steps[1] != "Toast the bread." {
+		t.Fatalf("extracted steps not carried through import: %+v", rec.Steps)
+	}
 	if rec.ID != "" {
 		t.Errorf("preview must not carry an id, got %q", rec.ID)
 	}
@@ -43,6 +46,7 @@ func TestImporter_LLMFallback(t *testing.T) {
 	ex := fakeExtractor{rec: ExtractedRecipe{
 		Title:       "Soup",
 		Ingredients: []Ingredient{{Quantity: 1, Unit: "cup", Item: "broth"}},
+		Steps:       []string{"Simmer the broth."},
 	}}
 	imp := NewImporter(fakeFetcher{body: []byte("<html>no json-ld here</html>")}, ex)
 	rec, err := imp.Import(context.Background(), "u1", "https://example.com/r")
@@ -51,6 +55,9 @@ func TestImporter_LLMFallback(t *testing.T) {
 	}
 	if rec.Title != "Soup" || len(rec.Ingredients) != 1 {
 		t.Fatalf("unexpected recipe: %+v", rec)
+	}
+	if len(rec.Steps) != 1 || rec.Steps[0] != "Simmer the broth." {
+		t.Fatalf("LLM steps not carried through import: %+v", rec.Steps)
 	}
 }
 
