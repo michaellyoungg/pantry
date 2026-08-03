@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"pantry/apps/recipe-service/internal/nutrition"
 	"pantry/apps/recipe-service/internal/recipe"
 	"pantry/apps/recipe-service/internal/telemetry"
 )
@@ -49,6 +50,10 @@ func run() error {
 	}()
 
 	var store recipe.Store
+	// nutritionCache persists the ingredient -> food mapping when Postgres is
+	// available; without it nutrition still works, it just re-looks-up per
+	// process.
+	var nutritionCache nutrition.Cache = nutrition.NewMemoryCache()
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
 		pg, err := recipe.NewPostgresStore(context.Background(), dsn)
 		if err != nil {
@@ -57,6 +62,14 @@ func run() error {
 		defer pg.Close()
 		store = pg
 		slog.Info("store selected", "kind", "postgres")
+
+		pgCache := nutrition.NewPostgresCache(pg.Pool())
+		if err := pgCache.SeedNutrients(context.Background(), nutrition.SnapshotNutrients()); err != nil {
+			// Reference data only: the runtime reads units from the embedded
+			// snapshot, so this failing costs SQL-side legibility and nothing else.
+			slog.Warn("nutrition: could not seed the nutrients table", "err", err)
+		}
+		nutritionCache = pgCache
 	} else {
 		store = recipe.NewMemoryStore()
 		slog.Info("store selected", "kind", "memory", "reason", "DATABASE_URL unset")
@@ -75,7 +88,22 @@ func run() error {
 		slog.Info("recipe import: LLM fallback disabled", "reason", "ANTHROPIC_API_KEY unset")
 	}
 	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor)
-	handler := recipe.NewRouterWithImporter(store, secret, importer)
+
+	// Nutrition always runs. Without an FDC key it serves the checked-in
+	// snapshot alone, which covers common ingredients and reports honestly on
+	// everything else — a missing key costs coverage, never correctness.
+	fdcKey := os.Getenv("FDC_API_KEY")
+	if fdcKey == "" {
+		slog.Info("nutrition: live FDC lookups disabled", "reason", "FDC_API_KEY unset")
+	} else {
+		slog.Info("nutrition: live FDC lookups enabled")
+	}
+	estimator := nutrition.NewEstimator(
+		recipe.DefaultNormalizer(),
+		nutrition.NewProvider(nutritionCache, fdcKey),
+		nutrition.SnapshotNutrients(),
+	)
+	handler := recipe.NewRouterWithImporter(store, secret, importer, recipe.WithNutrition(estimator))
 
 	srv := &http.Server{
 		Addr:              ":" + port,

@@ -37,9 +37,7 @@
         "required": true
       }
     ],
-    "methods": [
-      "bake"
-    ]
+    "methods": ["bake"]
   },
   {
     "id": "cat-aglio-e-olio",
@@ -87,10 +85,7 @@
         "required": true
       }
     ],
-    "methods": [
-      "boil",
-      "saute"
-    ]
+    "methods": ["boil", "saute"]
   },
   {
     "id": "cat-margherita-pizza",
@@ -132,9 +127,7 @@
         "required": false
       }
     ],
-    "methods": [
-      "bake"
-    ]
+    "methods": ["bake"]
   },
   {
     "id": "cat-caesar-salad",
@@ -182,9 +175,7 @@
         "required": true
       }
     ],
-    "methods": [
-      "no_cook"
-    ]
+    "methods": ["no_cook"]
   },
   {
     "id": "cat-tomato-soup",
@@ -226,9 +217,7 @@
         "required": false
       }
     ],
-    "methods": [
-      "boil"
-    ]
+    "methods": ["boil"]
   },
   {
     "id": "cat-roasted-vegetables",
@@ -270,8 +259,6 @@
         "required": true
       }
     ],
-    "methods": [
-      "roast"
-    ]
+    "methods": ["roast"]
   }
 ]

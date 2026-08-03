@@ -255,4 +255,67 @@ describe("recipes <-> recipe-service contract", () => {
     expect(flourLines).toHaveLength(1);
     expect(flourLines[0].quantity).toBeGreaterThan(0);
   });
+
+  it("nutrition estimates a recipe, with coverage and per-ingredient provenance", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Integration Pancakes",
+      ingredients: [
+        { quantity: 1, unit: "cup", item: "flour" },
+        { quantity: 2, unit: "", item: "eggs" },
+        { quantity: 1, unit: "pinch", item: "salt" },
+      ],
+    });
+    created.push(recipe.id);
+
+    const estimate = await t.action(api.recipes.nutrition, { id: recipe.id });
+
+    // Energy is keyed by FDC nutrient number, never by a name of our own.
+    expect(estimate.nutrients["1008"]).toMatchObject({ nutrientId: "1008", unit: "kcal" });
+    expect(estimate.nutrients["1008"].amount).toBeGreaterThan(0);
+
+    // Coverage is not optional: two of three lines resolve, and the pinch of
+    // salt comes back named rather than silently dropped.
+    expect(estimate.coverage).toMatchObject({ resolvedCount: 2, totalCount: 3 });
+    expect(estimate.ingredients).toHaveLength(3);
+    const salt = estimate.ingredients[2];
+    expect(salt).toMatchObject({ item: "salt", resolved: false, grams: null });
+    expect(salt.reason).toBeTruthy();
+
+    // This recipe was created without a yield, so per-serving must be absent
+    // rather than derived from a guessed serving count.
+    expect(estimate.perServing).toBeUndefined();
+    expect(estimate.servings).toBe(0);
+  });
+
+  it("nutrition divides by the recipe's yield when it has one", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Integration Pancakes (serves 4)",
+      servings: 4,
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+    });
+    created.push(recipe.id);
+
+    const estimate = await t.action(api.recipes.nutrition, { id: recipe.id });
+
+    expect(estimate.servings).toBe(4);
+    expect(estimate.perServing).toBeDefined();
+    // Totals are unaffected by the division.
+    expect(estimate.perServing?.["1008"].amount).toBeCloseTo(
+      estimate.nutrients["1008"].amount / 4,
+      2,
+    );
+  });
+
+  it("nutrition 404s for a recipe the caller cannot see", async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: "other-user|session" });
+    const mine = await client().action(api.recipes.create, {
+      title: "Private",
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+    });
+    created.push(mine.id);
+
+    await expect(t.action(api.recipes.nutrition, { id: mine.id })).rejects.toThrow();
+  });
 });

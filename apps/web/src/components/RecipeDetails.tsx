@@ -1,5 +1,5 @@
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
-import { COOKING_METHOD_LABELS } from "@pantry/types";
+import { COOKING_METHOD_LABELS } from "../lib/cookingMethods";
 import { equipmentName } from "../lib/useEquipmentCatalog";
 
 function ingredientLine(ing: Ingredient): string {

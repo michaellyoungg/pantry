@@ -4,7 +4,7 @@ import type {
   EquipmentDef,
   RecipeEquipment,
 } from "@pantry/types";
-import { COOKING_METHOD_LABELS, COOKING_METHODS } from "@pantry/types";
+import { COOKING_METHOD_LABELS, COOKING_METHODS } from "../lib/cookingMethods";
 import { equipmentName } from "../lib/useEquipmentCatalog";
 import { Button } from "./ui/Button";
 

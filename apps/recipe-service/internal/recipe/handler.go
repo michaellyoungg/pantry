@@ -38,14 +38,19 @@ func traced(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 // NewRouterWithImporter is NewRouter plus URL import. imp may be nil, in which
-// case POST /recipes/import responds 503 (import not configured).
-func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handler {
+// case POST /recipes/import responds 503 (import not configured). Further
+// optional surfaces arrive as opts (see WithNutrition).
+func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...RouterOption) http.Handler {
 	h := &handlers{store: store, importer: imp}
+	for _, opt := range opts {
+		opt(h)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", traced(h.healthz))
 	mux.HandleFunc("POST /recipes", traced(h.createRecipe))
 	mux.HandleFunc("GET /recipes", traced(h.listRecipes))
 	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
+	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
 	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
 	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
@@ -62,8 +67,9 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handl
 }
 
 type handlers struct {
-	store    Store
-	importer *Importer
+	store     Store
+	importer  *Importer
+	nutrition NutritionEstimator
 }
 
 func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {
