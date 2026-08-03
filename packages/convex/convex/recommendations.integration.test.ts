@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
@@ -25,14 +25,34 @@ async function seedPantryRice(t: ReturnType<typeof convexTest>) {
 }
 
 describe("recommendations <-> recipe-service contract", () => {
+  // Track ids we create so each test cleans up after itself — the Postgres
+  // store persists across runs, so assertions must not assume an empty store.
+  let created: string[] = [];
+
+  beforeEach(() => {
+    created = [];
+  });
+
+  afterEach(async () => {
+    const t = convexTest(schema, modules).withIdentity(identity);
+    for (const id of created) {
+      try {
+        await t.action(api.recipes.remove, { id });
+      } catch {
+        // already gone / test asserted the delete — ignore
+      }
+    }
+  });
+
   it("ranks a recipe whose ingredients are in the pantry", async () => {
     const t = convexTest(schema, modules);
     const client = t.withIdentity(identity);
 
-    await client.action(api.recipes.create, {
+    const recipe = await client.action(api.recipes.create, {
       title: "Pantry Rice",
       ingredients: [{ quantity: 1, unit: "cup", item: "rice" }],
     });
+    created.push(recipe.id);
     await seedPantryRice(t);
 
     const results = await client.action(api.recommendations.pantry, {});
@@ -48,13 +68,14 @@ describe("recommendations <-> recipe-service contract", () => {
     const t = convexTest(schema, modules);
     const client = t.withIdentity(identity);
 
-    await client.action(api.recipes.create, {
+    const recipe = await client.action(api.recipes.create, {
       title: "Peanut Rice",
       ingredients: [
         { quantity: 1, unit: "cup", item: "rice" },
         { quantity: 2, unit: "tbsp", item: "peanut" },
       ],
     });
+    created.push(recipe.id);
     await seedPantryRice(t);
     await client.mutation(api.preferences.set, { avoidItems: ["peanut"] });
 
