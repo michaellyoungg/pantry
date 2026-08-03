@@ -313,7 +313,7 @@ interface, not the dashboard UI. That is already true of every script here.
 **Not yet verified:** admin-key rotation. The key is derived from
 `INSTANCE_SECRET`, so rotating it means changing that secret, and what a running
 deployment does with its existing data when the instance secret changes has not
-been tested. Filed as [BL-0045](backlog/BL-0045-convex-admin-key-rotation.md)
+been tested. Filed as [BL-0048](backlog/BL-0048-convex-admin-key-rotation.md)
 rather than asserted here.
 
 ---

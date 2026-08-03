@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
@@ -247,5 +247,68 @@ describe("pantry inflow from check-off", () => {
     await asUser.mutation(api.groceryList.toggleItem, { id, checked: false });
 
     expect(await asUser.query(api.pantry.list, {})).toHaveLength(0);
+  });
+});
+
+describe("recipesToUse (BL-0029)", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  function stubService(handler: () => unknown) {
+    vi.stubEnv("RECIPE_SERVICE_URL", "http://recipe-service");
+    vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
+    const calls: { url: string; body: unknown }[] = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
+      return new Response(JSON.stringify(handler()), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  it("asks recipe-service for recipes using the expiring items", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService(() => [
+      {
+        id: "r1",
+        userId: "u",
+        title: "Creamed Spinach",
+        ingredients: [],
+        matchedItems: ["spinach"],
+      },
+    ]);
+
+    const got = await t
+      .withIdentity(identity)
+      .action(api.pantry.recipesToUse, { items: ["spinach"] });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("http://recipe-service/recipes/using");
+    expect(calls[0].body).toEqual({ items: ["spinach"] });
+    expect(got).toEqual([{ id: "r1", title: "Creamed Spinach", matchedItems: ["spinach"] }]);
+  });
+
+  it("does not call recipe-service when there is nothing expiring", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService(() => []);
+
+    const got = await t.withIdentity(identity).action(api.pantry.recipesToUse, { items: [] });
+
+    expect(got).toEqual([]);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("requires authentication", async () => {
+    const t = convexTest(schema, modules);
+    stubService(() => []);
+    await expect(t.action(api.pantry.recipesToUse, { items: ["spinach"] })).rejects.toThrow(
+      /Not authenticated/,
+    );
   });
 });

@@ -9,6 +9,7 @@ import { GettingStarted } from "./home/GettingStarted";
 import { NextAction } from "./home/NextAction";
 import { QuickActions } from "./home/QuickActions";
 import { WeekStrip } from "./home/WeekStrip";
+import { UseItUp } from "./UseItUp";
 
 // Home is read-and-route (BL-0017): it shows where the weekly loop stands and offers
 // exactly one next action. All state derives from the plan and the list — see
@@ -39,6 +40,11 @@ export function Home() {
       </div>
 
       <NextAction state={state} onBuildList={buildList} pending={gen.pending} error={gen.error} />
+
+      {/* Sits directly under the single next action and renders nothing when
+          nothing is expiring, so it never competes with the weekly loop — it
+          only interrupts when there is genuinely food about to be wasted. */}
+      <UseItUp />
 
       <WeekStrip basket={basket ?? []} />
 

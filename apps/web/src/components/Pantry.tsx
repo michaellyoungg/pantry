@@ -2,6 +2,7 @@ import { api } from "@pantry/convex/api";
 import { removePantryItemOptimistic, setPantryStateOptimistic } from "@pantry/core/convex";
 import { useAsyncAction } from "@pantry/core/react";
 import { useMutation, useQuery } from "convex/react";
+import { formatUseBy, isOverdue } from "../lib/expiry";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -23,6 +24,7 @@ export function Pantry() {
   const setState = useMutation(api.pantry.setState).withOptimisticUpdate(setPantryStateOptimistic);
   const remove = useMutation(api.pantry.remove).withOptimisticUpdate(removePantryItemOptimistic);
   const { run, error } = useAsyncAction();
+  const now = Date.now();
 
   // Rows arrive sorted by aisle from Convex; group consecutive runs (same
   // approach as GroceryList).
@@ -51,6 +53,20 @@ export function Pantry() {
               {group.items.map((item) => (
                 <li key={item._id} className="flex items-center gap-2 text-sm">
                   <span className="flex-1 text-text">{item.display}</span>
+                  {/* Relative and tilde-marked on purpose: this date came from a
+                      shelf-life table when the item entered the pantry, not off a
+                      carton, and an absolute date would imply a precision we
+                      don't have. Items we don't recognize get no date at all. */}
+                  {item.useBy !== undefined && (
+                    <span
+                      title="Estimated from typical shelf life, not a printed date"
+                      className={`text-xs ${
+                        isOverdue(item.useBy, now) ? "text-red-600" : "text-muted"
+                      }`}
+                    >
+                      {formatUseBy(item.useBy, now)}
+                    </span>
+                  )}
                   <button
                     type="button"
                     aria-label={`${item.display} is: ${item.state}. Change.`}

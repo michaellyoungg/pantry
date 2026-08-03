@@ -1,20 +1,44 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
+import { withSpan } from "./lib/otel";
+import { recipeServiceFetch } from "./recipes";
 
 export const pantryStateValidator = v.union(v.literal("have"), v.literal("low"), v.literal("out"));
 
 // --- helpers, shared with groceryList.toggleItem (not client-callable) ---
 
+export const DAY_MS = 86_400_000;
+
+/**
+ * Approximate "use by" for an item entering the pantry now (BL-0029).
+ * Returns undefined when the shelf life is unknown — an item recipe-service
+ * doesn't recognize gets no date at all, because a guessed date is worse than
+ * an absent one and would put junk into the "use this week" batch.
+ */
+export function useByFrom(shelfLifeDays: number | undefined, now: number): number | undefined {
+  if (shelfLifeDays === undefined || shelfLifeDays <= 0) return undefined;
+  return now + shelfLifeDays * DAY_MS;
+}
+
 /**
  * Record that the user owns `canonicalItem`. Idempotent: re-checking an item
  * refreshes it rather than duplicating. Never downgrades a hand-curated row to
  * `source: "auto"` — provenance, once manual, stays manual.
+ *
+ * Checking a line off is the purchase signal, so it also restarts the shelf-life
+ * clock: buying spinach again pushes its `useBy` out, on a new row or an old one.
  */
 export async function upsertFromCheckoff(
   ctx: MutationCtx,
-  args: { userId: string; canonicalItem: string; display: string; aisle: string },
+  args: {
+    userId: string;
+    canonicalItem: string;
+    display: string;
+    aisle: string;
+    shelfLifeDays?: number;
+  },
 ): Promise<void> {
   const existing = await ctx.db
     .query("pantryItems")
@@ -22,6 +46,9 @@ export async function upsertFromCheckoff(
       q.eq("userId", args.userId).eq("canonicalItem", args.canonicalItem),
     )
     .unique();
+
+  const now = Date.now();
+  const useBy = useByFrom(args.shelfLifeDays, now);
 
   if (existing === null) {
     await ctx.db.insert("pantryItems", {
@@ -31,11 +58,14 @@ export async function upsertFromCheckoff(
       aisle: args.aisle,
       state: "have",
       source: "auto",
-      updatedAt: Date.now(),
+      updatedAt: now,
+      useBy,
     });
     return;
   }
-  await ctx.db.patch(existing._id, { state: "have", updatedAt: Date.now() });
+  // A patch with `useBy: undefined` clears a stale date rather than leaving a
+  // date the current shelf-life data no longer supports.
+  await ctx.db.patch(existing._id, { state: "have", updatedAt: now, useBy });
 }
 
 /**
@@ -107,6 +137,39 @@ export const setState = mutation({
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
     await ctx.db.patch(id, { state, updatedAt: Date.now() });
+  },
+});
+
+/** What the "use these up → cook this" card needs. Deliberately not the whole recipe. */
+export interface RecipeToUse {
+  id: string;
+  title: string;
+  matchedItems: string[];
+}
+
+/**
+ * Recipes that use the items about to expire — the action half of the batched
+ * nudge (BL-0029). An expiry alert with nothing to do about it is the per-item
+ * nag the design rules out, so this is what makes the card worth showing.
+ *
+ * An action, not a query, because only actions can reach recipe-service; the
+ * ingredient→canonical matching has to happen there, where the normalization
+ * table lives.
+ */
+export const recipesToUse = action({
+  args: { items: v.array(v.string()), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { items, traceCtx }): Promise<RecipeToUse[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    if (items.length === 0) return [];
+    return withSpan("pantry.recipesToUse", traceCtx, async (traceparent) => {
+      const matches = await recipeServiceFetch<
+        { id: string; title: string; matchedItems: string[] }[]
+      >(userId, "POST", "/recipes/using", { items }, traceparent);
+      // Narrowed to what the card renders: the full recipe bodies would be a
+      // large payload for a prompt that only ever shows a title.
+      return matches.map((m) => ({ id: m.id, title: m.title, matchedItems: m.matchedItems }));
+    });
   },
 });
 
