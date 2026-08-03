@@ -33,7 +33,13 @@ function task(over: Partial<PrepTask> = {}): PrepTask {
 }
 
 function meal(over: Partial<PrepMeal> = {}): PrepMeal {
-  return { recipeId: "r1", title: "Roast turkey", cookDate: "2026-08-06", tasks: [task()], ...over };
+  return {
+    recipeId: "r1",
+    title: "Roast turkey",
+    cookDate: "2026-08-06",
+    tasks: [task()],
+    ...over,
+  };
 }
 
 function reply(meals: PrepMeal[]): PrepTasksResponse {
@@ -112,24 +118,30 @@ describe("BeforeYouCook", () => {
     });
   });
 
-  // A ticked task stays visible so the list does not shift under the cursor,
-  // but once everything is done the card stops competing with Home's one next
-  // action.
-  it("hides itself once every due task is ticked", async () => {
-    states.rows = [
-      { taskKey: "thaw_frozen_protein:turkey", cookDate: "2026-08-06", done: true },
-    ];
+  // Hiding the card the instant the last box is ticked would take the undo away
+  // with it — and the list is what the user just interacted with. It stays,
+  // reporting closure, and disappears tomorrow when nothing is due any more.
+  it("stays visible with everything ticked, so a mis-tick can be undone", async () => {
+    states.rows = [{ taskKey: "thaw_frozen_protein:turkey", cookDate: "2026-08-06", done: true }];
     actionMock.mockResolvedValue(reply([meal()]));
-    const { container } = render(<BeforeYouCook />);
+    render(<BeforeYouCook />);
 
-    await waitFor(() => expect(actionMock).toHaveBeenCalled());
-    expect(container.innerHTML).toBe("");
+    await screen.findByText(/Prep for today is done/);
+    const box = (await screen.findByRole("checkbox", {
+      name: "Move the turkey to the fridge to thaw for Roast turkey",
+    })) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+
+    fireEvent.click(box);
+    expect(mutationMock).toHaveBeenCalledWith({
+      taskKey: "thaw_frozen_protein:turkey",
+      cookDate: "2026-08-06",
+      done: false,
+    });
   });
 
   it("a tick for a different week does not check this week's box", async () => {
-    states.rows = [
-      { taskKey: "thaw_frozen_protein:turkey", cookDate: "2026-08-13", done: true },
-    ];
+    states.rows = [{ taskKey: "thaw_frozen_protein:turkey", cookDate: "2026-08-13", done: true }];
     actionMock.mockResolvedValue(reply([meal()]));
     render(<BeforeYouCook />);
 

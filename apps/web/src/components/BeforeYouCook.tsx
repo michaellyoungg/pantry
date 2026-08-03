@@ -20,11 +20,14 @@ export function BeforeYouCook() {
   const act = useAsyncAction();
 
   const due = dueByToday(meals, today);
-  // Tasks already ticked stay on the list rather than vanishing under the
-  // cursor — but they do not, on their own, justify showing the card.
   const outstanding = due.filter((d) => !done.has(stateKey(d.task.key, d.cookDate)));
 
-  if (loading || due.length === 0 || outstanding.length === 0) return null;
+  // Nothing due means no card at all — no empty state and no zero badge, the
+  // same rule UseItUp follows. But a card whose tasks are all TICKED still
+  // renders: hiding it the instant the last box is checked would take the undo
+  // away with it, and the list is what the user just interacted with. It goes
+  // away on its own tomorrow, when the tasks stop being due.
+  if (loading || due.length === 0) return null;
 
   return (
     <section
@@ -32,7 +35,11 @@ export function BeforeYouCook() {
       className="rounded-xl border border-primary/40 bg-primary/5 p-5 shadow-sm"
     >
       <h2 className="text-lg font-semibold text-text">
-        {outstanding.length === 1 ? "1 thing to do before you cook" : `${outstanding.length} things to do before you cook`}
+        {outstanding.length === 0
+          ? "Prep for today is done"
+          : outstanding.length === 1
+            ? "1 thing to do before you cook"
+            : `${outstanding.length} things to do before you cook`}
       </h2>
 
       <ul className="mt-3 flex flex-col gap-2">

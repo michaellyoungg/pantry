@@ -6,6 +6,7 @@ import {
   formatDueOn,
   hasLeadTime,
   PREP_WINDOW_LABELS,
+  prepPlanSignature,
   stateKey,
   toISODate,
   weekStartISO,
@@ -99,9 +100,12 @@ describe("hasLeadTime", () => {
     expect(hasLeadTime(task({ window: "at_start" }))).toBe(false);
   });
 
-  it.each(["three_days_before", "night_before", "hour_before"] as const)("includes %s", (window) => {
-    expect(hasLeadTime(task({ window }))).toBe(true);
-  });
+  it.each(["three_days_before", "night_before", "hour_before"] as const)(
+    "includes %s",
+    (window) => {
+      expect(hasLeadTime(task({ window }))).toBe(true);
+    },
+  );
 });
 
 describe("doneSet", () => {
@@ -143,5 +147,42 @@ describe("PREP_WINDOW_LABELS", () => {
     ] as const) {
       expect(PREP_WINDOW_LABELS[window]).toBeTruthy();
     }
+  });
+});
+
+describe("prepPlanSignature", () => {
+  // Without this the surfaces derive once on mount and then lie: scheduling a
+  // frozen roast would show no lead time until a reload, which is exactly the
+  // moment the user needed telling.
+  it("changes when a meal is scheduled", () => {
+    const before = prepPlanSignature([{ recipeId: "r1" }]);
+    const after = prepPlanSignature([{ recipeId: "r1", weekday: 3 }]);
+    expect(before).not.toBe(after);
+  });
+
+  it("changes when a meal moves to another day", () => {
+    expect(prepPlanSignature([{ recipeId: "r1", weekday: 3 }])).not.toBe(
+      prepPlanSignature([{ recipeId: "r1", weekday: 4 }]),
+    );
+  });
+
+  it("changes when a meal becomes leftovers, which are not derived", () => {
+    expect(prepPlanSignature([{ recipeId: "r1", weekday: 3 }])).not.toBe(
+      prepPlanSignature([{ recipeId: "r1", weekday: 3, type: "leftover" }]),
+    );
+  });
+
+  // A double batch thaws the same chicken — re-deriving for it would be a
+  // network round trip that cannot change the answer.
+  it("is stable across re-renders and row order", () => {
+    const a = prepPlanSignature([
+      { recipeId: "r1", weekday: 3 },
+      { recipeId: "r2", weekday: 0 },
+    ]);
+    const b = prepPlanSignature([
+      { recipeId: "r2", weekday: 0 },
+      { recipeId: "r1", weekday: 3 },
+    ]);
+    expect(a).toBe(b);
   });
 });
