@@ -1,7 +1,7 @@
 ---
 id: BL-0026
 title: Platform-portable UI primitives (confirm dialog, auth submission)
-status: proposed
+status: in-progress
 area: web
 effort: S
 related_specs: [2026-07-18-mobile-client-design.md]
