@@ -80,7 +80,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0040](BL-0040-nutrition-aware-recommendations.md) | Nutrition-aware recommendations — targets as a scoring dimension | proposed | recommendations | M |
 | [BL-0041](BL-0041-equipment-catalog-recipe-tagging.md) | Equipment catalog + recipe equipment/method tagging (with import detection) | done | recipes | M |
 | [BL-0042](BL-0042-prep-rule-engine.md) | Prep rule engine — derived lead-time tasks (thaw, soften, preheat) on Home | proposed | recipes | L |
-| [BL-0043](BL-0043-equipment-inventory-discovery.md) | Equipment inventory — "can I make this?" + new-device recipe discovery | proposed | recipes | M |
+| [BL-0043](BL-0043-equipment-inventory-discovery.md) | Equipment inventory — "can I make this?" + new-device recipe discovery | in-progress | recipes | M |
 | [BL-0044](BL-0044-prep-sources-llm-manual.md) | Prep task sources — LLM-derived and hand-authored, merged with rule output | proposed | recipes | M |
 | [BL-0045](BL-0045-generated-backlog-index.md) | Generate the backlog index from item frontmatter (kill the merge-conflict hotspot) | done | infra | S |
 | [BL-0046](BL-0046-kroger-real-store-prices.md) | Real store prices (opt-in) — Kroger Products API behind a feature flag | proposed | pricing | M |
