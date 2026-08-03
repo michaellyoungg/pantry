@@ -13,7 +13,14 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { useConfirm } from "./ui/useConfirm";
 
-export function RecipeList({ refreshKey }: { refreshKey: number }) {
+export function RecipeList({
+  refreshKey,
+  openRecipeId,
+}: {
+  refreshKey: number;
+  /** Start this recipe expanded — how `/recipes?recipe=<id>` lands on one. */
+  openRecipeId?: string;
+}) {
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [showNutrition, setShowNutrition] = useState<string | null>(null);
   const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
@@ -158,7 +165,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 </Button>
               </span>
             </div>
-            <RecipeDetails recipe={r} />
+            <RecipeDetails recipe={r} open={r.id === openRecipeId} />
             {/* Estimated on demand: it is a per-recipe network round trip, so it
                 loads when asked for rather than for every row in the list. */}
             {showNutrition === r.id && <RecipeNutrition recipeId={r.id} />}

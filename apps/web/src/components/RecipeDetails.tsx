@@ -9,12 +9,16 @@ function ingredientLine(ing: Ingredient): string {
 // RecipeDetails is the read-only view of a saved recipe: its ingredients and,
 // when present, its ordered method steps. Rendered as a native <details> so the
 // list stays compact until the user expands a recipe.
-export function RecipeDetails({ recipe }: { recipe: Recipe }) {
+//
+// `open` starts it expanded, which is how a link into the list (the grocery
+// list's provenance sheet) lands on the recipe it named rather than on a closed
+// row the user then has to find and click.
+export function RecipeDetails({ recipe, open = false }: { recipe: Recipe; open?: boolean }) {
   const steps = recipe.steps ?? [];
   if (recipe.ingredients.length === 0 && steps.length === 0) return null;
 
   return (
-    <details className="text-sm text-muted">
+    <details open={open} className="text-sm text-muted">
       <summary className="cursor-pointer select-none hover:text-text">View recipe</summary>
       <div className="mt-2 flex flex-col gap-3 pl-1">
         {recipe.ingredients.length > 0 && (
