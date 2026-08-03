@@ -23,13 +23,19 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
-  const line = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
+  const line = page
+    .getByRole("listitem")
+    .filter({ hasText: /garlic/i })
+    .first();
   await expect(line).toBeVisible();
   await line.getByRole("checkbox").check();
 
   // The pantry now holds garlic. Mark it to use up.
   await navigateTo(page, "Pantry");
-  const pantryRow = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
+  const pantryRow = page
+    .getByRole("listitem")
+    .filter({ hasText: /garlic/i })
+    .first();
   await expect(pantryRow).toBeVisible();
   await pantryRow.getByRole("button", { name: /Mark .* to use up/ }).click();
 
@@ -37,9 +43,9 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   // sharing the ingredient is what should surface — assert on the reason text,
   // which proves scoring actually ran rather than a list being echoed back.
   await page.getByRole("button", { name: "What can I make?" }).click();
-  await expect(page.getByText(/Uses up:|Uses \d+ things? you have|You have everything/)).toBeVisible(
-    { timeout: 15_000 },
-  );
+  await expect(
+    page.getByText(/Uses up:|Uses \d+ things? you have|You have everything/),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("never suggests a recipe containing an avoided ingredient", async ({ page }) => {
@@ -65,7 +71,10 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
-  const garlicLine = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
+  const garlicLine = page
+    .getByRole("listitem")
+    .filter({ hasText: /garlic/i })
+    .first();
   await expect(garlicLine).toBeVisible();
   await garlicLine.getByRole("checkbox").check();
 
