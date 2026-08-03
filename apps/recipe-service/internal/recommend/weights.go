@@ -9,6 +9,7 @@ type Weights struct {
 	MissingNonStaple float64
 	Affinity         float64
 	RecentlyPlanned  float64
+	NutritionFit     float64
 }
 
 // DefaultPantryWeights favours clearing flagged use-it-up items over raw
@@ -26,4 +27,9 @@ var DefaultPantryWeights = Weights{
 	MissingNonStaple: 1.0,
 	Affinity:         1.0,
 	RecentlyPlanned:  1.0,
+	// NutritionFit sits level with Coverage and below UseItUpHits on purpose.
+	// This is the "cook what I have" intent: a goal the user set should reorder
+	// the suggestions, not overrule what is about to go off in their fridge.
+	// Hard constraints are unaffected by this number — they filter.
+	NutritionFit: 2.0,
 }
