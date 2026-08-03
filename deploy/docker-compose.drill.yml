@@ -1,0 +1,38 @@
+# Scratch stack for the restore drill (BL-0008) — see scripts/convex-restore-drill.sh.
+#
+# The drill destroys its stack with `down -v`, so it must not be able to touch
+# the developer stack's data. This override exists to make that structurally
+# impossible rather than merely intended:
+#
+#   * Named volumes instead of the base file's ./.data bind mounts. Named
+#     volumes are namespaced by compose project, so `-p pantry-drill down -v`
+#     removes only the drill's copies and cannot reach ./.data at all.
+#   * Shifted host ports (33xx/68xx) so the drill can run while the normal
+#     stack is up, and so a mistargeted CLI command fails to connect instead of
+#     quietly writing to the real deployment.
+#
+# Always used with an explicit `-p` project name; the drill script refuses to
+# run under the default `pantry` project.
+services:
+  postgres:
+    ports: !override
+      - "5533:5432"
+    volumes: !override
+      - drill-postgres:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+
+  convex-backend:
+    ports: !override
+      - "3310:3210"
+      - "3311:3211"
+    volumes: !override
+      - drill-convex:/convex/data
+    environment:
+      # Must match the shifted host ports: the backend hands these origins out
+      # to clients (storage URLs, action callbacks).
+      - CONVEX_CLOUD_ORIGIN=http://127.0.0.1:3310
+      - CONVEX_SITE_ORIGIN=http://127.0.0.1:3311
+
+volumes:
+  drill-postgres:
+  drill-convex:

@@ -62,6 +62,15 @@ services:
       - "3210:3210"
       - "3211:3211"
     volumes:
+      # SQLite lives here by default (db.sqlite3), alongside file storage and
+      # the generated instance credentials. The latter two stay here even with
+      # Postgres backing, so this volume is always load-bearing.
+      #
+      # For the Postgres-backed configuration we intend to run in production,
+      # layer deploy/docker-compose.convex-postgres.yml on top — it is an
+      # override rather than the default so that pulling it cannot silently
+      # re-point an existing stack at an empty database. Backups, the restore
+      # drill and the upgrade procedure: docs/self-hosted-convex-ops.md.
       - ./.data/convex:/convex/data
     # Observability (BL-0027): Convex action spans are opt-in. The backend reads
     # OTEL_EXPORTER_OTLP_ENDPOINT from its deployment env (set via `convex env
