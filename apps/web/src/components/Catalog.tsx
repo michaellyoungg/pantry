@@ -1,4 +1,5 @@
 import { api } from "@pantry/convex/api";
+import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
 import type { EquipmentFit } from "@pantry/types";
@@ -7,6 +8,7 @@ import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { FIT_BADGES, hiddenSummary, missingLabel, tallyFits } from "../lib/equipmentFit";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
+import { useHouseholdSize } from "../lib/useHouseholdSize";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -17,6 +19,7 @@ export function Catalog() {
   const listCatalog = useTracedAction(api.recipes.listCatalog, "recipes.listCatalog");
   const makeability = useTracedAction(api.equipment.makeability, "equipment.makeability");
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
+  const householdSize = useHouseholdSize();
   // Convex actions require an args object; useTracedAction injects traceCtx into it.
   // Wrap in useCallback so useAsyncData's effect (keyed on fn) doesn't refire every render.
   const load = useCallback(() => listCatalog({}), [listCatalog]);
@@ -97,7 +100,15 @@ export function Catalog() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
+                  onClick={() =>
+                    run(() =>
+                      addToBasket({
+                        recipeId: r.id,
+                        title: r.title,
+                        servingsMultiplier: defaultServingsMultiplier(householdSize, r.servings),
+                      }),
+                    )
+                  }
                 >
                   Add to basket
                 </Button>

@@ -30,7 +30,7 @@ export function removeFromBasketOptimistic(
 
 export function addToBasketOptimistic(
   localStore: OptimisticLocalStore,
-  args: { recipeId: string; title: string },
+  args: { recipeId: string; title: string; servingsMultiplier?: number },
 ): void {
   const cur = localStore.getQuery(api.basket.list, {});
   if (cur === undefined) return;
@@ -45,6 +45,10 @@ export function addToBasketOptimistic(
       userId: "",
       recipeId: args.recipeId,
       title: args.title,
+      // The household default the caller derived, so the placeholder scales the
+      // same way the confirmed row will — otherwise the plan's nutrition and
+      // cost previews flicker between two different sizes of the same meal.
+      servingsMultiplier: args.servingsMultiplier,
     },
   ]);
 }

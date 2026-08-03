@@ -91,3 +91,79 @@ describe("preferences", () => {
     );
   });
 });
+
+// The one preference the planner reads (BL-0018). It gets its own mutation
+// because `set` cannot express clearing and does not do arithmetic validation.
+describe("household size (BL-0018)", () => {
+  it("is unset until the user says otherwise", async () => {
+    const t = convexTest(schema, modules);
+    const prefs = await t.withIdentity(identity).query(api.preferences.get, {});
+    expect(prefs.householdSize).toBeUndefined();
+  });
+
+  it("round-trips what the user set", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 4 });
+
+    expect((await asUser.query(api.preferences.get, {})).householdSize).toBe(4);
+  });
+
+  it("updates the existing row rather than opening a second one", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 2 });
+    await asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 5 });
+
+    expect((await asUser.query(api.preferences.get, {})).householdSize).toBe(5);
+    const rows = await t.run(async (ctx) => ctx.db.query("preferences").collect());
+    expect(rows).toHaveLength(1);
+  });
+
+  it("clears the preference when given nothing", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 4 });
+
+    await asUser.mutation(api.preferences.setHouseholdSize, {});
+
+    expect((await asUser.query(api.preferences.get, {})).householdSize).toBeUndefined();
+  });
+
+  it("leaves the recommendation preferences alone", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.preferences.set, { avoidItems: ["peanut"] });
+
+    await asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 3 });
+
+    const prefs = await asUser.query(api.preferences.get, {});
+    expect(prefs.avoidItems).toEqual(["peanut"]);
+    expect(prefs.householdSize).toBe(3);
+  });
+
+  it("refuses a household that isn't a whole number of people", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await expect(
+      asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 2.5 }),
+    ).rejects.toThrow();
+    await expect(
+      asUser.mutation(api.preferences.setHouseholdSize, { householdSize: 0 }),
+    ).rejects.toThrow();
+  });
+
+  it("keeps one user's household out of another's", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity(identity).mutation(api.preferences.setHouseholdSize, { householdSize: 6 });
+
+    const other = await t
+      .withIdentity({ subject: "user-b|session" })
+      .query(api.preferences.get, {});
+
+    expect(other.householdSize).toBeUndefined();
+  });
+});

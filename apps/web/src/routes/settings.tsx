@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { HouseholdSize } from "../components/HouseholdSize";
 import { NutritionGoals } from "../components/NutritionGoals";
 import { Preferences } from "../components/Preferences";
 import { Card } from "../components/ui/Card";
@@ -17,6 +18,10 @@ function SettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-semibold text-text">Settings</h2>
+
+      {/* First because it is the one setting that changes what the app does on
+          the very next tap: the planner seeds each recipe's servings from it. */}
+      <HouseholdSize />
 
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted">

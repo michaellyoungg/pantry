@@ -89,3 +89,53 @@ export const set = mutation({
     else await ctx.db.patch(existing._id, next);
   },
 });
+
+// Somewhere between "just me" and a very large table. The ceiling isn't a guess
+// at family sizes so much as a typo guard: 40 batches of everything is never
+// what someone meant to ask the grocery list for.
+const MAX_HOUSEHOLD_SIZE = 20;
+
+/**
+ * Household size, written on its own (BL-0018).
+ *
+ * Separate from `set` above for two reasons. `set` deliberately preserves
+ * fields the caller omits, so it has no way to express "clear this" — and
+ * "I'd rather not say" has to stay reachable once a size has been set, since it
+ * is what puts every recipe back on a single batch. And a household size is the
+ * one preference here that is arithmetic rather than a list of words: it
+ * divides into every scaled grocery quantity, so a fractional or zero value has
+ * to be refused at the edge rather than quietly multiplied through.
+ */
+export const setHouseholdSize = mutation({
+  args: { householdSize: v.optional(v.number()) },
+  handler: async (ctx, { householdSize }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    if (householdSize !== undefined) {
+      if (!Number.isInteger(householdSize) || householdSize < 1) {
+        throw new Error("householdSize must be a whole number of people, at least 1");
+      }
+      if (householdSize > MAX_HOUSEHOLD_SIZE) {
+        throw new Error(`householdSize must be at most ${MAX_HOUSEHOLD_SIZE}`);
+      }
+    }
+    const existing = await ctx.db
+      .query("preferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { householdSize, updatedAt: Date.now() });
+      return;
+    }
+    // First thing this user has ever set. The list fields are non-optional on
+    // the table, so a row has to be born complete rather than half-formed.
+    await ctx.db.insert("preferences", {
+      userId,
+      avoidItems: [],
+      likedItems: [],
+      dislikedItems: [],
+      householdSize,
+      updatedAt: Date.now(),
+    });
+  },
+});

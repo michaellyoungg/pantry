@@ -6,6 +6,7 @@ vi.mock("@pantry/convex/api", () => ({
     recipes: { listCatalog: "recipes.listCatalog", listEquipment: "recipes.listEquipment" },
     equipment: { makeability: "equipment.makeability" },
     basket: { add: "basket.add" },
+    preferences: { get: "preferences.get" },
   },
 }));
 
@@ -13,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="/recipes/kitchen">{children}</a>,
 }));
 
-const { listCatalog, makeability, listEquipment, addMock } = vi.hoisted(() => {
+const { listCatalog, makeability, listEquipment, addMock, household } = vi.hoisted(() => {
   const addMock = vi.fn(() => Promise.resolve()) as unknown as {
     (...a: unknown[]): Promise<unknown>;
     withOptimisticUpdate: (u: unknown) => typeof addMock;
@@ -24,6 +25,7 @@ const { listCatalog, makeability, listEquipment, addMock } = vi.hoisted(() => {
     makeability: vi.fn(),
     listEquipment: vi.fn(),
     addMock,
+    household: { prefs: { householdSize: undefined } as { householdSize?: number } },
   };
 });
 
@@ -35,6 +37,7 @@ vi.mock("convex/react", () => ({
       "recipes.listEquipment": listEquipment,
     })[ref],
   useMutation: () => addMock,
+  useQuery: () => household.prefs,
 }));
 
 import { Catalog } from "./Catalog";
@@ -164,5 +167,43 @@ describe("Catalog equipment fit", () => {
     await screen.findByText("Roast");
     expect(screen.getByText("Brisket")).toBeTruthy();
     expect(screen.queryByLabelText(/only show recipes i can make/i)).toBeNull();
+  });
+});
+
+describe("Catalog seeds the servings dial from household size (BL-0018)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    makeability.mockResolvedValue(noFits);
+    listEquipment.mockResolvedValue([]);
+    household.prefs = { householdSize: undefined };
+  });
+
+  it("halves a catalog recipe that feeds twice the household", async () => {
+    household.prefs = { householdSize: 2 };
+    listCatalog.mockResolvedValue([{ ...CAT, servings: 4 }]);
+
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(addMock).toHaveBeenCalledWith(
+        expect.objectContaining({ recipeId: CAT.id, servingsMultiplier: 0.5 }),
+      ),
+    );
+  });
+
+  it("sends no multiplier when there is nothing to derive one from", async () => {
+    listCatalog.mockResolvedValue([CAT]);
+
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(addMock).toHaveBeenCalledWith(
+        expect.objectContaining({ servingsMultiplier: undefined }),
+      ),
+    );
   });
 });

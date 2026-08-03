@@ -22,6 +22,11 @@ export default defineSchema({
     dietLabels: v.optional(v.array(v.string())),
     cuisines: v.optional(v.array(v.string())),
     maxMinutes: v.optional(v.number()),
+    // How many people this household cooks for. Reserved by BL-0005 and made
+    // real by BL-0018: it seeds the planner's servings dial, where a recipe's
+    // default multiplier is household ÷ its yield, so the common case needs no
+    // tapping. Optional because it is genuinely unknown until asked — a guessed
+    // household would scale every grocery quantity wrong, silently.
     householdSize: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
@@ -83,6 +88,13 @@ export default defineSchema({
     // line has no recipe backing it, so it can never appear in an aggregated
     // result and would otherwise vanish the moment the plan changed.
     manual: v.optional(v.boolean()),
+    // The plan no longer produces this line, but the shopper had already
+    // checked it off (BL-0018, UX-plan decision #2: "flag removed"). Deleting
+    // it would silently erase a tick — and, since check-off is also the
+    // pantry's inflow signal, leave a pantry row with nothing explaining it.
+    // Only ever set on checked lines: an untouched line carries no user state,
+    // so the plan losing it is simply the list following the plan.
+    removed: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
   // What hardware the user owns (BL-0043). One row per owned equipment slug;

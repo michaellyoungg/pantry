@@ -162,3 +162,60 @@ describe("basket cooked flag (BL-0028)", () => {
     expect(rows[0].cookedAt).toBeUndefined();
   });
 });
+
+describe("basket.add servings default (BL-0018)", () => {
+  it("stores the multiplier the client derived from household size", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.add, {
+      recipeId: "r1",
+      title: "Chili",
+      servingsMultiplier: 2,
+    });
+
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBe(2);
+  });
+
+  it("leaves the dial unset when no default was derived", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.add, { recipeId: "r1", title: "Chili" });
+
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBeUndefined();
+  });
+
+  it("does not overwrite a dial the user has already moved", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await asUser.mutation(api.basket.add, { recipeId: "r1", title: "Chili" });
+    await asUser.mutation(api.basket.setServings, { recipeId: "r1", servingsMultiplier: 3 });
+
+    // Re-adding is idempotent, and "add" is not the user asking to re-default.
+    await asUser.mutation(api.basket.add, {
+      recipeId: "r1",
+      title: "Chili",
+      servingsMultiplier: 1,
+    });
+
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBe(3);
+  });
+
+  it("refuses a multiplier below the planner's floor", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.add, {
+      recipeId: "r1",
+      title: "Chili",
+      servingsMultiplier: 0,
+    });
+
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.servingsMultiplier).toBe(0.25);
+  });
+});

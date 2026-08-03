@@ -26,3 +26,22 @@ export function groupByAisle<T extends AisleLine>(lines: readonly T[]): AisleGro
 export function titleCase(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
+
+/** A line the plan has dropped after the shopper already checked it off. */
+export type RemovableLine = { removed?: boolean };
+
+/**
+ * Splits a generated list into what is still being shopped for and what the
+ * plan has since dropped (BL-0018). The two halves are rendered apart rather
+ * than interleaved: a flagged line is history — already in the cart, no longer
+ * called for — and mixing it into the aisle walk would read as something still
+ * to buy. Order within each half is the server's aisle order, untouched.
+ */
+export function partitionRemoved<T extends RemovableLine>(
+  lines: readonly T[],
+): { active: T[]; removed: T[] } {
+  const active: T[] = [];
+  const removed: T[] = [];
+  for (const line of lines) (line.removed ? removed : active).push(line);
+  return { active, removed };
+}

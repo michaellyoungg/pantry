@@ -3,6 +3,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 
+// The floor the servings dial clamps to, mirroring MIN_SERVINGS_MULTIPLIER in
+// @pantry/core. Duplicated rather than imported: the clamp has to hold for
+// every caller, including ones that never run the client's domain layer, so the
+// server cannot depend on the client having applied it.
+const MIN_SERVINGS_MULTIPLIER = 0.25;
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -15,9 +21,18 @@ export const list = query({
   },
 });
 
+// servingsMultiplier is the household default the client derived for this
+// recipe (household size ÷ the recipe's yield — see defaultServingsMultiplier
+// in @pantry/core). It arrives from the client rather than being computed here
+// because a mutation cannot fetch, and the recipe's yield lives in
+// recipe-service; the client already has the recipe in hand at this point.
+//
+// Only ever applied on insert. Adding an already-basketed recipe stays the
+// idempotent no-op it was: re-adding is not the user asking to throw away a
+// dial they deliberately moved.
 export const add = mutation({
-  args: { recipeId: v.string(), title: v.string() },
-  handler: async (ctx, { recipeId, title }) => {
+  args: { recipeId: v.string(), title: v.string(), servingsMultiplier: v.optional(v.number()) },
+  handler: async (ctx, { recipeId, title, servingsMultiplier }) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const existing = await ctx.db
@@ -25,7 +40,15 @@ export const add = mutation({
       .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
       .unique();
     if (existing) return existing._id;
-    return await ctx.db.insert("basket", { userId, recipeId, title });
+    return await ctx.db.insert("basket", {
+      userId,
+      recipeId,
+      title,
+      servingsMultiplier:
+        servingsMultiplier === undefined
+          ? undefined
+          : Math.max(MIN_SERVINGS_MULTIPLIER, servingsMultiplier),
+    });
   },
 });
 
@@ -102,7 +125,7 @@ export const setServings = mutation({
       .unique();
     if (existing) {
       await ctx.db.patch(existing._id, {
-        servingsMultiplier: Math.max(0.25, servingsMultiplier),
+        servingsMultiplier: Math.max(MIN_SERVINGS_MULTIPLIER, servingsMultiplier),
       });
     }
   },
