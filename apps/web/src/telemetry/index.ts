@@ -26,11 +26,17 @@ export function initTelemetry(): void {
   if (!url) return;
   started = true;
 
-  const provider = new WebTracerProvider({
-    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "web" }),
-    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: `${url}/v1/traces` }))],
-  });
-  provider.register({ propagator: new W3CTraceContextPropagator() });
+  // Telemetry must never break app boot — even on the enabled path, a provider
+  // construction failure is swallowed rather than propagated into main.tsx.
+  try {
+    const provider = new WebTracerProvider({
+      resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "web" }),
+      spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: `${url}/v1/traces` }))],
+    });
+    provider.register({ propagator: new W3CTraceContextPropagator() });
+  } catch (e) {
+    console.error("telemetry init failed; continuing without it", e);
+  }
 }
 
 // The W3C `traceparent` for the currently-active span, or undefined when no
