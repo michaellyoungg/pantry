@@ -8,12 +8,14 @@ import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
+import { RecipeNutrition } from "./RecipeNutrition";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { useConfirm } from "./ui/useConfirm";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
+  const [showNutrition, setShowNutrition] = useState<string | null>(null);
   const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
   const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
   const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
@@ -136,6 +138,14 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-expanded={showNutrition === r.id}
+                  onClick={() => setShowNutrition(showNutrition === r.id ? null : r.id)}
+                >
+                  Nutrition
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
                     clearError();
                     setEditing(r);
@@ -149,6 +159,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
               </span>
             </div>
             <RecipeDetails recipe={r} />
+            {/* Estimated on demand: it is a per-recipe network round trip, so it
+                loads when asked for rather than for every row in the list. */}
+            {showNutrition === r.id && <RecipeNutrition recipeId={r.id} />}
           </li>
         ))}
       </ul>

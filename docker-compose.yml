@@ -28,6 +28,10 @@ services:
       # Optional: enables the Claude fallback for URL import (BL-0001). Unset =
       # JSON-LD-only import; the ":-" default keeps compose happy when it is absent.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Optional: enables live USDA FoodData Central lookups for nutrition
+      # (BL-0036). Unset = the checked-in snapshot alone, which still resolves
+      # common ingredients and reports coverage honestly for the rest.
+      FDC_API_KEY: ${FDC_API_KEY:-}
       # Unset by default: telemetry is a no-op without it, so the plain
       # `docker compose up` stack and CI never try to reach a collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}

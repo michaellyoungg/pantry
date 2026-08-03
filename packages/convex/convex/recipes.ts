@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { GroceryLine, Ingredient, Recipe } from "@pantry/types";
+import type { GroceryLine, Ingredient, NutritionEstimate, Recipe } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
@@ -214,6 +214,28 @@ export const listCatalog = action({
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.listCatalog", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog", undefined, traceparent),
+    );
+  },
+});
+
+// Estimated nutrition for one recipe (BL-0036). recipe-service computes this on
+// read rather than storing it on the recipe, so it cannot go stale when a recipe
+// is edited or a food mapping is corrected. The estimate always carries a
+// coverage report; the UI is responsible for not presenting a low-coverage
+// figure as a complete one.
+export const nutrition = action({
+  args: { id: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { id, traceCtx }): Promise<NutritionEstimate> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return withSpan("recipes.nutrition", traceCtx, (traceparent) =>
+      recipeServiceFetch<NutritionEstimate>(
+        userId,
+        "GET",
+        `/recipes/${id}/nutrition`,
+        undefined,
+        traceparent,
+      ),
     );
   },
 });
