@@ -14,7 +14,8 @@ import {
 } from "@pantry/core";
 import { removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction } from "@pantry/core/react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -55,7 +56,7 @@ export function WeekPlan() {
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );
-  const generate = useAction(api.recipes.generateGroceryList);
+  const generate = useTracedAction(api.recipes.generateGroceryList, "recipes.generateGroceryList");
   const gen = useAsyncAction();
   const act = useAsyncAction();
 

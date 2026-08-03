@@ -14,7 +14,12 @@ describe("useRecipeDraft", () => {
   it("becomes submittable once a title is typed", () => {
     const { result } = renderHook(() => useRecipeDraft());
     act(() => result.current.setTitle("Toast"));
-    expect(result.current.submission).toEqual({ title: "Toast", ingredients: [], steps: [] });
+    expect(result.current.submission).toEqual({
+      title: "Toast",
+      servings: "",
+      ingredients: [],
+      steps: [],
+    });
   });
 
   it("exposes the trimmed URL to import", () => {
@@ -34,6 +39,7 @@ describe("useRecipeDraft", () => {
     expect(result.current.draft.title).toBe("Garlic Bread");
     expect(result.current.submission).toEqual({
       title: "Garlic Bread",
+      servings: "",
       ingredients: [{ quantity: 2, unit: "clove", item: "garlic" }],
       steps: [],
     });
@@ -43,6 +49,12 @@ describe("useRecipeDraft", () => {
     const { result } = renderHook(() => useRecipeDraft());
     act(() => result.current.setSteps(["Chop", "Fry"]));
     expect(result.current.draft.steps).toEqual(["Chop", "Fry"]);
+  });
+
+  it("holds the raw servings text", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => result.current.setServings("6"));
+    expect(result.current.draft.servings).toBe("6");
   });
 
   it("adds and patches ingredient rows", () => {
@@ -63,6 +75,7 @@ describe("useRecipeDraft", () => {
     expect(result.current.draft).toEqual({
       title: "",
       url: "",
+      servings: "",
       steps: [],
       ingredients: [{ quantity: 1, unit: "", item: "" }],
     });

@@ -7,6 +7,12 @@ import type { Ingredient } from "@pantry/types";
 
 export type RecipeDraft = {
   title: string;
+  /**
+   * The yield field as typed, not as stored: blank means "unknown" and junk
+   * stays junk until the client parses it. Keeping it raw is what lets this
+   * package stay ignorant of a client's input widget and of the wire format.
+   */
+  servings: string;
   ingredients: Ingredient[];
   /** Ordered instruction lines (the method); empty for an ingredients-only recipe. */
   steps: string[];
@@ -15,10 +21,21 @@ export type RecipeDraft = {
 };
 
 /** What the parser hands back for review — a subset of `Recipe`. */
-export type ImportedRecipe = { title: string; ingredients: Ingredient[]; steps?: string[] };
+export type ImportedRecipe = {
+  title: string;
+  ingredients: Ingredient[];
+  steps?: string[];
+  /** Already rendered for the field; blank when the import found no yield. */
+  servings?: string;
+};
 
-/** The payload a draft saves as. */
-export type RecipeSubmission = { title: string; ingredients: Ingredient[]; steps: string[] };
+/** The payload a draft saves as; `servings` is still the raw field text. */
+export type RecipeSubmission = {
+  title: string;
+  servings: string;
+  ingredients: Ingredient[];
+  steps: string[];
+};
 
 /** The row the editor always shows at least one of, so there's a place to type. */
 export function emptyIngredient(): Ingredient {
@@ -26,7 +43,7 @@ export function emptyIngredient(): Ingredient {
 }
 
 export function emptyDraft(): RecipeDraft {
-  return { title: "", ingredients: [emptyIngredient()], steps: [], url: "" };
+  return { title: "", servings: "", ingredients: [emptyIngredient()], steps: [], url: "" };
 }
 
 /**
@@ -38,6 +55,7 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
   return {
     ...draft,
     title: imported.title,
+    servings: imported.servings ?? "",
     ingredients: imported.ingredients.length ? imported.ingredients : [emptyIngredient()],
     steps: imported.steps ?? [],
   };
@@ -45,6 +63,10 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
 
 export function withSteps(draft: RecipeDraft, steps: string[]): RecipeDraft {
   return { ...draft, steps };
+}
+
+export function withServings(draft: RecipeDraft, servings: string): RecipeDraft {
+  return { ...draft, servings };
 }
 
 export function withIngredientPatch(
@@ -72,6 +94,7 @@ export function draftSubmission(draft: RecipeDraft): RecipeSubmission | null {
   if (!title) return null;
   return {
     title,
+    servings: draft.servings,
     ingredients: draft.ingredients.filter((ing) => ing.item.trim() !== ""),
     steps: draft.steps.map((step) => step.trim()).filter((step) => step !== ""),
   };

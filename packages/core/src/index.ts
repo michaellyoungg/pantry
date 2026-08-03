@@ -33,6 +33,7 @@ export {
   withExtraIngredient,
   withImportedRecipe,
   withIngredientPatch,
+  withServings,
   withSteps,
 } from "./recipeDraft";
 export { DAY_FULL, DAYS } from "./week";

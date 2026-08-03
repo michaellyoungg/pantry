@@ -9,6 +9,7 @@ import {
   withExtraIngredient,
   withImportedRecipe,
   withIngredientPatch,
+  withServings,
   withSteps,
 } from "../recipeDraft";
 
@@ -29,6 +30,10 @@ export function useRecipeDraft() {
   );
   const addIngredient = useCallback(() => setDraft((d) => withExtraIngredient(d)), []);
   const setSteps = useCallback((steps: string[]) => setDraft((d) => withSteps(d, steps)), []);
+  const setServings = useCallback(
+    (servings: string) => setDraft((d) => withServings(d, servings)),
+    [],
+  );
   const applyImported = useCallback(
     (imported: ImportedRecipe) => setDraft((d) => withImportedRecipe(d, imported)),
     [],
@@ -45,6 +50,7 @@ export function useRecipeDraft() {
     updateIngredient,
     addIngredient,
     setSteps,
+    setServings,
     applyImported,
     reset,
     /** The payload to save, or `null` while the draft isn't submittable. */

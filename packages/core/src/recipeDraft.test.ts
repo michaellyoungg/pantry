@@ -7,6 +7,7 @@ import {
   withExtraIngredient,
   withImportedRecipe,
   withIngredientPatch,
+  withServings,
   withSteps,
 } from "./recipeDraft";
 
@@ -17,6 +18,7 @@ describe("emptyDraft", () => {
     expect(draft.url).toBe("");
     expect(draft.ingredients).toEqual([emptyIngredient()]);
     expect(draft.steps).toEqual([]);
+    expect(draft.servings).toBe("");
   });
 
   it("hands out a fresh object each call", () => {
@@ -42,6 +44,13 @@ describe("withImportedRecipe", () => {
         .steps,
     ).toEqual(["Mix", "Bake"]);
     expect(withImportedRecipe(emptyDraft(), { title: "X", ingredients: [] }).steps).toEqual([]);
+  });
+
+  it("adopts an imported servings string, and blanks it when the import had none", () => {
+    expect(
+      withImportedRecipe(emptyDraft(), { title: "X", ingredients: [], servings: "4" }).servings,
+    ).toBe("4");
+    expect(withImportedRecipe(emptyDraft(), { title: "X", ingredients: [] }).servings).toBe("");
   });
 
   it("keeps one blank row when the import yielded no ingredients", () => {
@@ -92,6 +101,13 @@ describe("withSteps", () => {
   });
 });
 
+describe("withServings", () => {
+  it("replaces the raw yield text without interpreting it", () => {
+    // Parsing belongs to the client — the draft holds exactly what was typed.
+    expect(withServings(emptyDraft(), "  not a number ").servings).toBe("  not a number ");
+  });
+});
+
 describe("draftSubmission", () => {
   it("is null while the title is blank or whitespace", () => {
     expect(draftSubmission(emptyDraft())).toBeNull();
@@ -102,6 +118,7 @@ describe("draftSubmission", () => {
     const submission = draftSubmission({
       title: "  Toast  ",
       url: "",
+      servings: "4",
       steps: ["  Toast the bread  ", "   ", ""],
       ingredients: [
         { quantity: 2, unit: "slice", item: "bread" },
@@ -111,6 +128,7 @@ describe("draftSubmission", () => {
     });
     expect(submission).toEqual({
       title: "Toast",
+      servings: "4",
       ingredients: [{ quantity: 2, unit: "slice", item: "bread" }],
       steps: ["Toast the bread"],
     });

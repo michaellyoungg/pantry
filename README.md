@@ -144,6 +144,20 @@ convex env set OTEL_EXPORTER_OTLP_ENDPOINT http://alloy:4318
 
 Like every layer, Convex tracing is a no-op when that variable is unset.
 
+The web app (`apps/web`) uses the OpenTelemetry web SDK: a user action mints a
+browser root span, whose `traceparent` is threaded into the Convex action call as
+`traceCtx`, so the whole browser→Convex→Go path is one trace. A React error
+boundary records uncaught render errors as spans. Enable it with a
+browser-visible var pointing at the **host-published** Alloy port (the browser
+can't resolve the `alloy` docker name):
+
+```bash
+VITE_OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm --filter @pantry/web dev
+```
+
+Unset, the web SDK is a no-op — no provider, no network — so tests and e2e are
+unaffected.
+
 Telemetry is a **complete no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset**, so
 CI and the plain compose stack are unaffected. Log lines carry `trace_id` and
 `span_id`, so you can pivot from any log line to its trace and back.

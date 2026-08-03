@@ -1,8 +1,10 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
 import type { Recipe } from "@pantry/types";
-import { useAction } from "convex/react";
+import { formatServings, parseServings } from "../lib/servings";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -10,11 +12,14 @@ import { Input } from "./ui/Input";
 
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   // The import-review draft and its transitions live in @pantry/core (BL-0024);
-  // this component only renders them.
+  // this component only renders them. `servings` stays the raw field text in the
+  // draft and is parsed on the way out, so the draft needs no notion of the
+  // input widget or of the wire format.
   const {
     draft,
     setTitle,
     setUrl,
+    setServings,
     updateIngredient,
     addIngredient,
     setSteps,
@@ -23,8 +28,8 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     submission,
     importUrl,
   } = useRecipeDraft();
-  const createRecipe = useAction(api.recipes.create);
-  const importFromUrl = useAction(api.recipes.importFromUrl);
+  const createRecipe = useTracedAction(api.recipes.create, "recipes.create");
+  const importFromUrl = useTracedAction(api.recipes.importFromUrl, "recipes.importFromUrl");
   const { run, error, pending } = useAsyncAction();
   const importAction = useAsyncAction();
 
@@ -33,13 +38,22 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     const preview = (await importAction.run(() => importFromUrl({ url: importUrl }))) as
       | Recipe
       | undefined;
-    if (preview) applyImported(preview);
+    // The import fills servings in when the page's recipeYield reads as a
+    // serving count; otherwise it stays blank for the user to supply.
+    if (preview) applyImported({ ...preview, servings: formatServings(preview.servings) });
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!submission) return;
-    const created = await run(() => createRecipe(submission));
+    const created = await run(() =>
+      createRecipe({
+        title: submission.title,
+        servings: parseServings(submission.servings),
+        ingredients: submission.ingredients,
+        steps: submission.steps,
+      }),
+    );
     if (created) {
       reset();
       onCreated();
@@ -62,6 +76,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       <ErrorText message={importAction.error} />
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Input placeholder="Title" value={draft.title} onChange={(e) => setTitle(e.target.value)} />
+        <ServingsField value={draft.servings} onChange={setServings} />
         <div className="flex flex-col gap-2">
           {draft.ingredients.map((ing, i) => (
             <div key={i} className="flex gap-2">
