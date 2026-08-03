@@ -2,7 +2,9 @@ import { api } from "@pantry/convex/api";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
 import type { Recipe } from "@pantry/types";
 import { formatServings, parseServings } from "../lib/servings";
+import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
+import { EquipmentEditor } from "./EquipmentEditor";
 import { ErrorText } from "./ErrorText";
 import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
@@ -23,11 +25,14 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     updateIngredient,
     addIngredient,
     setSteps,
+    setEquipment,
+    setMethods,
     applyImported,
     reset,
     submission,
     importUrl,
   } = useRecipeDraft();
+  const { catalog } = useEquipmentCatalog();
   const createRecipe = useTracedAction(api.recipes.create, "recipes.create");
   const importFromUrl = useTracedAction(api.recipes.importFromUrl, "recipes.importFromUrl");
   const { run, error, pending } = useAsyncAction();
@@ -39,7 +44,9 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       | Recipe
       | undefined;
     // The import fills servings in when the page's recipeYield reads as a
-    // serving count; otherwise it stays blank for the user to supply.
+    // serving count; otherwise it stays blank for the user to supply. Equipment
+    // and methods arrive already guessed from the step text; the editor below is
+    // where a wrong guess gets corrected before saving.
     if (preview) applyImported({ ...preview, servings: formatServings(preview.servings) });
   }
 
@@ -52,6 +59,8 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         servings: parseServings(submission.servings),
         ingredients: submission.ingredients,
         steps: submission.steps,
+        equipment: submission.equipment,
+        methods: submission.methods,
       }),
     );
     if (created) {
@@ -105,6 +114,13 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
           + ingredient
         </Button>
         <StepsEditor steps={draft.steps} onChange={setSteps} />
+        <EquipmentEditor
+          catalog={catalog}
+          equipment={draft.equipment}
+          methods={draft.methods}
+          onEquipmentChange={setEquipment}
+          onMethodsChange={setMethods}
+        />
         <Button type="submit" disabled={pending} className="self-end">
           {pending ? "Saving…" : "Create recipe"}
         </Button>

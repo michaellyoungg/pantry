@@ -10,18 +10,36 @@ export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
 export {
-  COVERAGE_THRESHOLD,
+  formatNutrientAmount,
+  HEADLINE_NUTRIENTS,
+  NUTRITION_COVERAGE_THRESHOLD,
+  type NutrientMeta,
+  type NutrientRow,
+  nutrientMeta,
+  nutrientRows,
+  unresolvedItems,
+} from "./nutrition";
+export {
+  type DayNutritionSummary,
+  type NutritionGaps,
+  type NutritionSummary,
+  type PlanDayNutrition,
+  type PlanNutrition,
+  planNutritionSignature,
+  rollUpWeekNutrition,
+  summarizeNutrition,
+  type WeekNutritionRollup,
+} from "./nutritionRollup";
+export {
   EQUALITY_BAND,
   evaluateTargets,
-  NUTRIENT_CATALOG,
-  type NutrientMeta,
   type NutritionVector,
-  nutrientMeta,
 } from "./nutritionTargets";
 export {
   canGenerateList,
   decreaseServings,
   increaseServings,
+  isCooked,
   isLeftover,
   MIN_SERVINGS_MULTIPLIER,
   type PlannedDay,

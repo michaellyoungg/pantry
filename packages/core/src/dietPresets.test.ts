@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
-import { evaluateTargets, nutrientMeta } from "./nutritionTargets";
+import { nutrientMeta } from "./nutrition";
+import { evaluateTargets } from "./nutritionTargets";
 
 describe("diet presets are data", () => {
   it("ships the presets the design names", () => {

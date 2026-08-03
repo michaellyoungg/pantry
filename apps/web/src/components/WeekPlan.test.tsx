@@ -24,6 +24,10 @@ vi.mock("convex/react", () => ({
   },
 }));
 
+// The nutrition rollup (BL-0037) is a Convex action of its own and has its own
+// test; stubbed here so its load doesn't land on this file's shared action spy.
+vi.mock("./PlanNutrition", () => ({ PlanNutrition: () => null }));
+
 import { WeekPlan } from "./WeekPlan";
 
 const row = (over: Record<string, unknown>) => ({
@@ -105,5 +109,40 @@ describe("WeekPlan servings & leftovers (increment 2)", () => {
     render(<WeekPlan />);
     fireEvent.click(screen.getByRole("button", { name: /mark Toast as leftover/i }));
     expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1", type: "leftover" });
+  });
+});
+
+// The "cooked" affordance (BL-0028) — the planner end of the pantry's outflow
+// signal. The mutation mock is shared and markCooked/unmarkCooked take identical
+// args, so these tests pin what the UI offers and that it fires; which of the two
+// runs is a one-line ternary, and the semantics are covered in basket.test.ts.
+describe("WeekPlan cooked affordance (BL-0028)", () => {
+  it("offers to mark a scheduled meal cooked and fires the mutation", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0 })];
+    render(<WeekPlan />);
+
+    const btn = screen.getByRole("button", { name: "Mark Toast as cooked" });
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(btn);
+
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1" });
+  });
+
+  it("shows a cooked meal as done and offers to undo it", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0, cookedAt: 1 })];
+    render(<WeekPlan />);
+
+    const btn = screen.getByRole("button", { name: "Mark Toast as not cooked" });
+    expect(btn.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(btn);
+
+    expect(mutationMock).toHaveBeenCalledWith({ recipeId: "r1" });
+  });
+
+  it("calls it 'eaten' for a leftover, which consumes nothing new", () => {
+    state.items = [row({ recipeId: "r1", title: "Toast", weekday: 0, type: "leftover" })];
+    render(<WeekPlan />);
+
+    expect(screen.getByRole("button", { name: "Mark Toast as eaten" })).toBeTruthy();
   });
 });

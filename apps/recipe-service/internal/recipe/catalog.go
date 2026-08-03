@@ -17,6 +17,10 @@ type catalogEntry struct {
 	Title       string       `json:"title"`
 	Ingredients []Ingredient `json:"ingredients"`
 	Steps       []string     `json:"steps"`
+	// Equipment and Methods are curated per entry (BL-0041) rather than
+	// detected: catalog recipes are hand-written, so the tags can be right.
+	Equipment []RecipeEquipment `json:"equipment"`
+	Methods   []string          `json:"methods"`
 }
 
 // LoadCatalog parses the embedded catalog dataset into system-owned recipes,
@@ -41,6 +45,9 @@ func LoadCatalog() ([]Recipe, error) {
 		if seen[e.ID] {
 			return nil, fmt.Errorf("catalog entry %q: duplicate id", e.ID)
 		}
+		if err := ValidateTags(e.Equipment, e.Methods); err != nil {
+			return nil, fmt.Errorf("catalog entry %q: %w", e.ID, err)
+		}
 		seen[e.ID] = true
 		out = append(out, Recipe{
 			ID:          e.ID,
@@ -48,6 +55,8 @@ func LoadCatalog() ([]Recipe, error) {
 			Title:       e.Title,
 			Ingredients: e.Ingredients,
 			Steps:       e.Steps,
+			Equipment:   normEquipment(e.Equipment),
+			Methods:     normMethods(e.Methods),
 		})
 	}
 	return out, nil

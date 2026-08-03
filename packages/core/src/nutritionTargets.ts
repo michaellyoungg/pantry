@@ -7,6 +7,7 @@ import type {
   NutritionTargetStatus,
   NutritionUnknownReason,
 } from "@pantry/types";
+import { NUTRITION_COVERAGE_THRESHOLD, nutrientMeta } from "./nutrition";
 
 /**
  * Evaluating nutrition goals (BL-0038).
@@ -20,48 +21,6 @@ import type {
  * Pure by construction: it depends on nothing but its arguments, which is why it
  * lives in the headless layer and is shared by every client.
  */
-
-/** A nutrient this UI can set a goal on and label. */
-export interface NutrientMeta {
-  id: string;
-  label: string;
-  unit: string;
-}
-
-/**
- * The nutrients we surface, in display order: energy, macros, and the few the
- * stated scenarios need. Ids are FDC nutrient numbers — we do not invent a
- * parallel taxonomy — and the estimate itself carries whatever FDC returned, so
- * surfacing another nutrient is one entry here and nothing else.
- */
-export const NUTRIENT_CATALOG: readonly NutrientMeta[] = [
-  { id: "1008", label: "Calories", unit: "kcal" },
-  { id: "1003", label: "Protein", unit: "g" },
-  { id: "1005", label: "Carbs", unit: "g" },
-  { id: "1004", label: "Fat", unit: "g" },
-  { id: "1258", label: "Saturated fat", unit: "g" },
-  { id: "1079", label: "Fiber", unit: "g" },
-  { id: "1093", label: "Sodium", unit: "mg" },
-  { id: "1253", label: "Cholesterol", unit: "mg" },
-];
-
-const BY_ID = new Map(NUTRIENT_CATALOG.map((n) => [n.id, n]));
-
-/** Label and unit for a nutrient id, or undefined if we do not surface it. */
-export function nutrientMeta(nutrientId: string): NutrientMeta | undefined {
-  return BY_ID.get(nutrientId);
-}
-
-/**
- * Below this share of resolved mass we refuse to answer.
- *
- * The threshold is the whole safety story. An estimate covering 40% of a
- * recipe's mass reports the other 60% as zero, and zero passes every cap: the
- * user would be told their low-cholesterol day is fine *because* we failed to
- * identify the food. Suppressing the verdict is the only honest option, and it
- * is why `unknown` is a first-class status rather than an error case.
- */
-export const COVERAGE_THRESHOLD = 0.8;
 
 /**
  * How close an `==` target has to be to count as met, as a fraction of the
@@ -130,7 +89,7 @@ function evaluateOne(target: NutritionTarget, vector: NutritionVector): Nutritio
   // measurement to judge — an empty plate is not evidence of a met goal.
   if (coverage.totalCount === 0) return unknown(target, "no-estimate", null);
 
-  if (coverage.resolvedMassFraction < COVERAGE_THRESHOLD) {
+  if (coverage.resolvedMassFraction < NUTRITION_COVERAGE_THRESHOLD) {
     return unknown(target, "low-coverage", coverage.resolvedMassFraction);
   }
 

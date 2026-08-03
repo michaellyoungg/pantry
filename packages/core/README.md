@@ -10,7 +10,7 @@ can reuse it instead of reimplementing it.
 
 | Import | Contains | May depend on |
 | --- | --- | --- |
-| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting | nothing but `@pantry/types` |
+| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
 

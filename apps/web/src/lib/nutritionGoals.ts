@@ -1,10 +1,9 @@
-import { nutrientMeta } from "@pantry/core";
+import { formatNutrientAmount, nutrientMeta } from "@pantry/core";
 import type {
   NutritionTarget,
   NutritionTargetEvaluation,
   NutritionTargetStatus,
 } from "@pantry/types";
-import { formatAmount } from "./nutrition";
 
 /**
  * Turning goal evaluations into something a screen can show (BL-0038).
@@ -83,7 +82,11 @@ export function goalChips(evaluations: readonly NutritionTargetEvaluation[]): Go
     detail:
       e.status === "unknown" || e.actual === null
         ? unknownDetail(e)
-        : formatAmount({ nutrientId: e.target.nutrientId, amount: e.actual, unit: e.unit ?? "" }),
+        : formatNutrientAmount({
+            nutrientId: e.target.nutrientId,
+            amount: e.actual,
+            unit: e.unit ?? "",
+          }),
     status: e.status,
     tone: toneFor(e.status, e.target.operator),
   }));

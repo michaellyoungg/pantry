@@ -1,5 +1,5 @@
 import { api } from "@pantry/convex/api";
-import { DAY_FULL, evaluateTargets } from "@pantry/core";
+import { DAY_FULL, evaluateTargets, type PlanDayNutrition } from "@pantry/core";
 import type { NutritionEstimate } from "@pantry/types";
 import { useQuery } from "convex/react";
 import { GoalStatus } from "./GoalStatus";
@@ -18,18 +18,11 @@ import { GoalStatus } from "./GoalStatus";
  * day we knew least about.
  */
 
-/** One day's rollup, structurally what the rollup action returns. */
-export interface PlanGoalDay {
-  /** 0=Mon … 6=Sun, matching the basket's weekday. */
-  weekday: number;
-  estimate: NutritionEstimate;
-}
-
 export function PlanGoals({
   days,
   week,
 }: {
-  days: readonly PlanGoalDay[];
+  days: readonly PlanDayNutrition[];
   /** The week estimated in one pass; null when the rollup could not produce one. */
   week: NutritionEstimate | null;
 }) {

@@ -1,7 +1,7 @@
 ---
 id: BL-0038
 title: Nutrition targets — declarative goals, evaluation, and diet presets
-status: in-progress
+status: done
 area: nutrition
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md]

@@ -1,13 +1,7 @@
 import type { NutritionTarget, NutritionTargetPeriod } from "@pantry/types";
 import { describe, expect, it } from "vitest";
-import {
-  COVERAGE_THRESHOLD,
-  EQUALITY_BAND,
-  evaluateTargets,
-  NUTRIENT_CATALOG,
-  type NutritionVector,
-  nutrientMeta,
-} from "./nutritionTargets";
+import { HEADLINE_NUTRIENTS, NUTRITION_COVERAGE_THRESHOLD, nutrientMeta } from "./nutrition";
+import { EQUALITY_BAND, evaluateTargets, type NutritionVector } from "./nutritionTargets";
 
 const PROTEIN = "1003";
 const CHOLESTEROL = "1253";
@@ -170,7 +164,7 @@ describe("evaluateTargets — unknown never reads as reassurance", () => {
     const t = target({ nutrientId: CHOLESTEROL, operator: "<=", value: 200 });
     const atThreshold = vector(
       { [CHOLESTEROL]: 140 },
-      { resolvedMassFraction: COVERAGE_THRESHOLD },
+      { resolvedMassFraction: NUTRITION_COVERAGE_THRESHOLD },
     );
     expect(evaluateTargets([t], atThreshold, "day")[0].status).toBe("met");
   });
@@ -241,7 +235,7 @@ describe("evaluateTargets — reported detail", () => {
   });
 });
 
-describe("nutrient catalog", () => {
+describe("shared nutrient vocabulary", () => {
   it("resolves a known nutrient's label and unit", () => {
     expect(nutrientMeta("1003")).toEqual({ id: "1003", label: "Protein", unit: "g" });
   });
@@ -251,7 +245,7 @@ describe("nutrient catalog", () => {
   });
 
   it("covers every nutrient the stated scenarios need", () => {
-    const ids = NUTRIENT_CATALOG.map((n) => n.id);
+    const ids = HEADLINE_NUTRIENTS.map((n) => n.id);
     // energy, protein, fat, carbs, saturated fat, fiber, sodium, cholesterol
     expect(ids).toEqual(
       expect.arrayContaining(["1008", "1003", "1004", "1005", "1258", "1079", "1093", "1253"]),
@@ -259,7 +253,7 @@ describe("nutrient catalog", () => {
   });
 
   it("uses unique ids", () => {
-    const ids = NUTRIENT_CATALOG.map((n) => n.id);
+    const ids = HEADLINE_NUTRIENTS.map((n) => n.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -1,5 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { GroceryLine, Ingredient, NutritionEstimate, Recipe } from "@pantry/types";
+import type {
+  CookingMethod,
+  EquipmentDef,
+  GroceryLine,
+  Ingredient,
+  NutritionEstimate,
+  Recipe,
+} from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
@@ -12,10 +19,47 @@ const ingredientValidator = v.object({
   note: v.optional(v.string()),
 });
 
+// Equipment tags reference recipe-service's curated catalog by slug; the
+// service validates the id and rejects anything outside it (400), so Convex
+// does not duplicate the catalog just to re-check it.
+const recipeEquipmentValidator = v.object({
+  id: v.string(),
+  required: v.boolean(),
+});
+
+// The closed method enum, so a bad literal is rejected at the Convex boundary
+// rather than deep in the Go service. Declared here rather than imported as a
+// value: @pantry/types ships as dist only, and the Convex bundler resolves it
+// without a build step only while every import from it is `import type`. The
+// _cookingMethodInSync guard below makes this list provably identical to the
+// CookingMethod union, so the duplication cannot drift silently.
+const COOKING_METHODS = [
+  "bake",
+  "roast",
+  "grill",
+  "smoke",
+  "sous_vide",
+  "slow_cook",
+  "pressure_cook",
+  "fry",
+  "saute",
+  "boil",
+  "marinate",
+  "no_cook",
+] as const;
+
+const cookingMethodValidator = v.union(...COOKING_METHODS.map((m) => v.literal(m)));
+
 type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Fails to compile if ingredientValidator and @pantry/types Ingredient drift,
 // mirroring the guard on groceryList.ts's groceryLineValidator.
 export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingredient> = true;
+// Same guard for the method enum: fails to compile if the local COOKING_METHODS
+// list stops covering @pantry/types' CookingMethod union exactly.
+export const _cookingMethodInSync: Equals<
+  Infer<typeof cookingMethodValidator>,
+  CookingMethod
+> = true;
 
 // Calls recipe-service as Convex: proves identity with the shared secret and
 // forwards the authenticated user id. Never reachable from the browser.
@@ -91,9 +135,14 @@ export const create = action({
     servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
+    equipment: v.optional(v.array(recipeEquipmentValidator)),
+    methods: v.optional(v.array(cookingMethodValidator)),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { title, servings, ingredients, steps, traceCtx }): Promise<Recipe> => {
+  handler: async (
+    ctx,
+    { title, servings, ingredients, steps, equipment, methods, traceCtx },
+  ): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.create", traceCtx, (traceparent) =>
@@ -101,7 +150,14 @@ export const create = action({
         userId,
         "POST",
         "/recipes",
-        { title, servings, ingredients, steps: steps ?? [] },
+        {
+          title,
+          servings,
+          ingredients,
+          steps: steps ?? [],
+          equipment: equipment ?? [],
+          methods: methods ?? [],
+        },
         traceparent,
       ),
     );
@@ -166,9 +222,14 @@ export const update = action({
     servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
+    equipment: v.optional(v.array(recipeEquipmentValidator)),
+    methods: v.optional(v.array(cookingMethodValidator)),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { id, title, servings, ingredients, steps, traceCtx }): Promise<Recipe> => {
+  handler: async (
+    ctx,
+    { id, title, servings, ingredients, steps, equipment, methods, traceCtx },
+  ): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
@@ -176,7 +237,14 @@ export const update = action({
         userId,
         "PUT",
         `/recipes/${id}`,
-        { title, servings, ingredients, steps: steps ?? [] },
+        {
+          title,
+          servings,
+          ingredients,
+          steps: steps ?? [],
+          equipment: equipment ?? [],
+          methods: methods ?? [],
+        },
         traceparent,
       ),
     );
@@ -214,6 +282,21 @@ export const listCatalog = action({
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.listCatalog", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog", undefined, traceparent),
+    );
+  },
+});
+
+// Serves the curated equipment catalog (BL-0041) so the recipe form can offer a
+// picker and recipe detail can render equipment names. It is reference data, the
+// same for every caller, but still goes through the service boundary rather than
+// being duplicated in the web bundle.
+export const listEquipment = action({
+  args: { traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { traceCtx }): Promise<EquipmentDef[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return withSpan("recipes.listEquipment", traceCtx, (traceparent) =>
+      recipeServiceFetch<EquipmentDef[]>(userId, "GET", "/equipment", undefined, traceparent),
     );
   },
 });

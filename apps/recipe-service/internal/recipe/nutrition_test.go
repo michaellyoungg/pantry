@@ -49,7 +49,7 @@ func TestGetRecipeNutrition(t *testing.T) {
 		{Quantity: 1, Unit: "cup", Item: "flour"},
 		{Quantity: 2, Unit: "", Item: "eggs"},
 		{Quantity: 1, Unit: "pinch", Item: "salt"},
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestGetRecipeNutritionPerServing(t *testing.T) {
 	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", &servings, []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
 		{Quantity: 2, Unit: "", Item: "eggs"},
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestGetRecipeNutritionIsUserScoped(t *testing.T) {
 	store := NewMemoryStore()
 	rec, err := store.CreateRecipe(context.Background(), "u1", "Private", nil, []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestGetRecipeNutritionRequiresTheServiceSecret(t *testing.T) {
 // looks like the recipe is missing.
 func TestGetRecipeNutritionUnconfigured(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, nil, nil)
+	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

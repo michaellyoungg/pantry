@@ -1,5 +1,5 @@
 import { api } from "@pantry/convex/api";
-import { DIET_PRESETS, NUTRIENT_CATALOG, nutrientMeta } from "@pantry/core";
+import { DIET_PRESETS, HEADLINE_NUTRIENTS, nutrientMeta } from "@pantry/core";
 import { useAsyncAction } from "@pantry/core/react";
 import type { NutritionTarget, NutritionTargetPeriod } from "@pantry/types";
 import { useMutation, useQuery } from "convex/react";
@@ -47,7 +47,7 @@ export function NutritionGoals() {
   const applyPreset = useMutation(api.nutritionTargets.applyPreset);
   const { run, error, pending } = useAsyncAction();
 
-  const [nutrientId, setNutrientId] = useState(NUTRIENT_CATALOG[0].id);
+  const [nutrientId, setNutrientId] = useState(HEADLINE_NUTRIENTS[0].id);
   const [operator, setOperator] = useState<NutritionTarget["operator"]>(">=");
   const [value, setValue] = useState("");
   const [period, setPeriod] = useState<NutritionTargetPeriod>("day");
@@ -136,7 +136,7 @@ export function NutritionGoals() {
               value={nutrientId}
               onChange={(e) => setNutrientId(e.target.value)}
             >
-              {NUTRIENT_CATALOG.map((n) => (
+              {HEADLINE_NUTRIENTS.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.label}
                 </option>

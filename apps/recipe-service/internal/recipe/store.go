@@ -25,12 +25,12 @@ func copyServings(n *int) *int {
 // "unknown"; update replaces it wholesale like the rest of the recipe, so a nil
 // there clears a previously known yield.
 type Store interface {
-	CreateRecipe(ctx context.Context, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error)
+	CreateRecipe(ctx context.Context, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
 	GetRecipe(ctx context.Context, id, userID string) (Recipe, error)
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
 	GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error)
 	DeleteRecipe(ctx context.Context, id, userID string) error
-	UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error)
+	UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
 	UpsertRecipe(ctx context.Context, rec Recipe) error
 }
 
@@ -61,7 +61,7 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{byID: map[string]Recipe{}}
 }
 
-func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error) {
+func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.seq++
@@ -72,6 +72,8 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, serv
 		Servings:    copyServings(servings),
 		Ingredients: normIngredients(ings),
 		Steps:       normSteps(steps),
+		Equipment:   normEquipment(equip),
+		Methods:     normMethods(methods),
 		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
 	s.byID[rec.ID] = rec
@@ -117,7 +119,7 @@ func (s *MemoryStore) DeleteRecipe(_ context.Context, id, userID string) error {
 	return nil
 }
 
-func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error) {
+func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec, ok := s.byID[id]
@@ -128,6 +130,8 @@ func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, 
 	rec.Servings = copyServings(servings)
 	rec.Ingredients = normIngredients(ings)
 	rec.Steps = normSteps(steps)
+	rec.Equipment = normEquipment(equip)
+	rec.Methods = normMethods(methods)
 	s.byID[id] = rec
 	return rec, nil
 }
@@ -153,6 +157,8 @@ func (s *MemoryStore) UpsertRecipe(_ context.Context, rec Recipe) error {
 	rec.Servings = copyServings(rec.Servings)
 	rec.Ingredients = normIngredients(rec.Ingredients)
 	rec.Steps = normSteps(rec.Steps)
+	rec.Equipment = normEquipment(rec.Equipment)
+	rec.Methods = normMethods(rec.Methods)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if existing, ok := s.byID[rec.ID]; ok {
