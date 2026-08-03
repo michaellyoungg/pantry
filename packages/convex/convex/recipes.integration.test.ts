@@ -50,6 +50,7 @@ describe("recipes <-> recipe-service contract", () => {
         { quantity: 2, unit: "slices", item: "bread" },
         { quantity: 1, unit: "tbsp", item: "butter", note: "softened" },
       ],
+      steps: ["Toast the bread.", "Spread the butter."],
     });
     created.push(recipe.id);
 
@@ -57,6 +58,7 @@ describe("recipes <-> recipe-service contract", () => {
     expect(recipe.title).toBe("Integration Toast");
     expect(recipe.ingredients).toHaveLength(2);
     expect(recipe.ingredients[1]).toMatchObject({ item: "butter", note: "softened" });
+    expect(recipe.steps).toEqual(["Toast the bread.", "Spread the butter."]);
 
     const list = await t.action(api.recipes.list, {});
     expect(list.some((r) => r.id === recipe.id)).toBe(true);
@@ -74,11 +76,63 @@ describe("recipes <-> recipe-service contract", () => {
       id: recipe.id,
       title: "After",
       ingredients: [{ quantity: 2, unit: "cups", item: "sugar" }],
+      steps: ["Cream the sugar."],
     });
 
     expect(updated.id).toBe(recipe.id);
     expect(updated.title).toBe("After");
     expect(updated.ingredients).toEqual([{ quantity: 2, unit: "cups", item: "sugar" }]);
+    expect(updated.steps).toEqual(["Cream the sugar."]);
+  });
+
+  // BL-0035: servings crosses Convex -> recipe-service -> store as a nullable
+  // field. Absent must come back absent, not zero.
+  it("create round-trips servings and omits it when unknown", async () => {
+    const t = client();
+    const withYield = await t.action(api.recipes.create, {
+      title: "Chili",
+      servings: 6,
+      ingredients: [{ quantity: 1, unit: "lb", item: "beef" }],
+    });
+    created.push(withYield.id);
+    expect(withYield.servings).toBe(6);
+
+    const unknown = await t.action(api.recipes.create, {
+      title: "Toast",
+      ingredients: [{ quantity: 1, unit: "slice", item: "bread" }],
+    });
+    created.push(unknown.id);
+    expect(unknown.servings).toBeUndefined();
+
+    const list = await t.action(api.recipes.list, {});
+    expect(list.find((r) => r.id === withYield.id)?.servings).toBe(6);
+    expect(list.find((r) => r.id === unknown.id)?.servings).toBeUndefined();
+  });
+
+  it("update replaces servings, and clears it when omitted", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Chili",
+      servings: 6,
+      ingredients: [],
+    });
+    created.push(recipe.id);
+
+    const rescaled = await t.action(api.recipes.update, {
+      id: recipe.id,
+      title: "Chili",
+      servings: 8,
+      ingredients: [],
+    });
+    expect(rescaled.servings).toBe(8);
+
+    // Update replaces the whole recipe, so omitting servings clears the yield.
+    const cleared = await t.action(api.recipes.update, {
+      id: recipe.id,
+      title: "Chili",
+      ingredients: [],
+    });
+    expect(cleared.servings).toBeUndefined();
   });
 
   it("remove deletes the recipe so it no longer lists", async () => {

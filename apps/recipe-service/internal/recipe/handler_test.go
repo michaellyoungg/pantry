@@ -122,7 +122,7 @@ func TestGetRecipe_NotFound(t *testing.T) {
 
 func TestListRecipes_ReturnsOwnerRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
-	_, _ = store.CreateRecipe(context.Background(), "user-a", "A", nil)
+	_, _ = store.CreateRecipe(context.Background(), "user-a", "A", nil, nil, nil)
 	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes", nil)
 	defer resp.Body.Close()
 	var got []Recipe
@@ -148,13 +148,49 @@ func TestCreateRecipe_NoIngredientsSerializesAsEmptyArray(t *testing.T) {
 	if strings.Contains(string(body), `"ingredients":null`) {
 		t.Fatalf("body must not contain null ingredients, got: %s", body)
 	}
+	// Steps follow the same [] (never null) contract as ingredients.
+	if !strings.Contains(string(body), `"steps":[]`) {
+		t.Fatalf("body should contain \"steps\":[], got: %s", body)
+	}
+	if strings.Contains(string(body), `"steps":null`) {
+		t.Fatalf("body must not contain null steps, got: %s", body)
+	}
+}
+
+func TestCreateRecipe_PersistsAndReturnsSteps(t *testing.T) {
+	srv, _ := newTestServer(t)
+	body := `{"title":"Toast","ingredients":[{"quantity":1,"unit":"slice","item":"bread"}],` +
+		`"steps":["Toast the bread.","Butter it."]}`
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	var created Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(created.Steps) != 2 || created.Steps[0] != "Toast the bread." {
+		t.Fatalf("create response steps = %+v, want the two posted steps", created.Steps)
+	}
+
+	// Steps survive a GET round-trip in order.
+	get := doAuth(t, http.MethodGet, srv.URL+"/recipes/"+created.ID, nil)
+	defer get.Body.Close()
+	var got Recipe
+	if err := json.NewDecoder(get.Body).Decode(&got); err != nil {
+		t.Fatalf("decode get: %v", err)
+	}
+	if len(got.Steps) != 2 || got.Steps[1] != "Butter it." {
+		t.Fatalf("get steps = %+v, want [Toast, Butter]", got.Steps)
+	}
 }
 
 func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	a, _ := store.CreateRecipe(ctx, "user-a", "A", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
-	b, _ := store.CreateRecipe(ctx, "user-a", "B", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
+	a, _ := store.CreateRecipe(ctx, "user-a", "A", nil, []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil)
+	b, _ := store.CreateRecipe(ctx, "user-a", "B", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil)
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": a.ID, "multiplier": 1},
@@ -181,8 +217,8 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	own, _ := store.CreateRecipe(ctx, "user-a", "Own", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
-	cat, _ := store.CreateRecipe(ctx, CatalogUserID, "Catalog", []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
+	own, _ := store.CreateRecipe(ctx, "user-a", "Own", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil)
+	cat, _ := store.CreateRecipe(ctx, CatalogUserID, "Catalog", nil, []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil)
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": own.ID, "multiplier": 1},
@@ -207,8 +243,8 @@ func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 func TestGroceryList_ExcludesOtherUsersRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	mine, _ := store.CreateRecipe(ctx, "user-a", "Mine", []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}})
-	theirs, _ := store.CreateRecipe(ctx, "user-b", "Theirs", []Ingredient{{Quantity: 5, Unit: "cloves", Item: "garlic"}})
+	mine, _ := store.CreateRecipe(ctx, "user-a", "Mine", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil)
+	theirs, _ := store.CreateRecipe(ctx, "user-b", "Theirs", nil, []Ingredient{{Quantity: 5, Unit: "cloves", Item: "garlic"}}, nil)
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": mine.ID, "multiplier": 1},
@@ -227,8 +263,8 @@ func TestGroceryList_ExcludesOtherUsersRecipes(t *testing.T) {
 
 func TestGroceryList_ScalesByMultiplier(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Garlic",
-		[]Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}})
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Garlic", nil,
+		[]Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil)
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": rec.ID, "multiplier": 2},
@@ -249,7 +285,7 @@ func TestGroceryList_ScalesByMultiplier(t *testing.T) {
 
 func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil)
 
 	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
 	defer resp.Body.Close()
@@ -275,9 +311,9 @@ func TestDeleteRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil)
 
-	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}]}`)
+	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}],"steps":["Soak.","Fry."]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -294,6 +330,9 @@ func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	}
 	if got.Title != "French Toast" || len(got.Ingredients) != 1 || got.Ingredients[0].Item != "brioche" {
 		t.Fatalf("body = %+v, want updated title+ingredient", got)
+	}
+	if len(got.Steps) != 2 || got.Steps[0] != "Soak." || got.Steps[1] != "Fry." {
+		t.Fatalf("body steps = %+v, want [Soak. Fry.]", got.Steps)
 	}
 	if got.ID != rec.ID {
 		t.Fatalf("ID = %q, want %q", got.ID, rec.ID)
@@ -317,7 +356,7 @@ func TestUpdateRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil)
 	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
@@ -337,7 +376,7 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 // list must be empty.
 func TestRecipes_CrossUserReturns404(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, err := store.CreateRecipe(context.Background(), "user-a", "Toast", nil)
+	rec, err := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -403,7 +442,7 @@ func TestListCatalog_ReturnsCatalogOwnedRecipesOnly(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	// A regular user's recipe must NOT leak into the catalog.
-	_, _ = store.CreateRecipe(ctx, "user-a", "Mine", nil)
+	_, _ = store.CreateRecipe(ctx, "user-a", "Mine", nil, nil, nil)
 
 	resp := doAuth(t, http.MethodGet, srv.URL+"/catalog", nil)
 	defer resp.Body.Close()
@@ -429,5 +468,75 @@ func TestListCatalog_EmptySerializesAsEmptyArray(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if strings.TrimSpace(string(body)) != "[]" {
 		t.Fatalf("body = %q, want []", body)
+	}
+}
+
+func TestCreateRecipe_PersistsServings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	body := `{"title":"Chili","servings":6,"ingredients":[]}`
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	var got Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Servings == nil || *got.Servings != 6 {
+		t.Fatalf("servings = %v, want 6", got.Servings)
+	}
+}
+
+// Omitting servings is the normal case for manual entry, and it must not fail.
+func TestCreateRecipe_OmittedServingsIsUnknown(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp := doAuth(t, http.MethodPost, srv.URL+"/recipes",
+		bytes.NewBufferString(`{"title":"Toast","ingredients":[]}`))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	var got Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Servings != nil {
+		t.Fatalf("servings = %d, want nil", *got.Servings)
+	}
+}
+
+// A stored 0 would divide by zero in every per-serving figure downstream.
+func TestCreateRecipe_RejectsNonPositiveServings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	for _, body := range []string{
+		`{"title":"Chili","servings":0,"ingredients":[]}`,
+		`{"title":"Chili","servings":-3,"ingredients":[]}`,
+		`{"title":"Chili","servings":100000,"ingredients":[]}`,
+	} {
+		resp := doAuth(t, http.MethodPost, srv.URL+"/recipes", bytes.NewBufferString(body))
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400 for %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	}
+}
+
+func TestUpdateRecipe_ReplacesServings(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Chili", intPtr(6), nil, nil)
+
+	body := bytes.NewBufferString(`{"title":"Chili","servings":8,"ingredients":[]}`)
+	resp := doAuth(t, http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got Recipe
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Servings == nil || *got.Servings != 8 {
+		t.Fatalf("servings = %v, want 8", got.Servings)
 	}
 }

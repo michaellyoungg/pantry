@@ -21,7 +21,7 @@ func newTestPostgres(t *testing.T) *PostgresStore {
 	}
 	t.Cleanup(s.Close)
 	// Clean slate.
-	if _, err := s.pool.Exec(context.Background(), "TRUNCATE ingredients, recipes RESTART IDENTITY CASCADE"); err != nil {
+	if _, err := s.pool.Exec(context.Background(), "TRUNCATE ingredients, recipe_steps, recipes RESTART IDENTITY CASCADE"); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	return s
@@ -31,10 +31,10 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
+	created, err := s.CreateRecipe(ctx, "user-a", "Toast", nil, []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
 		{Quantity: 1, Unit: "tbsp", Item: "butter", Note: "softened"},
-	})
+	}, []string{"Toast the bread.", "Spread the butter."})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -45,6 +45,9 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 	}
 	if got.Title != "Toast" || len(got.Ingredients) != 2 || got.Ingredients[1].Note != "softened" {
 		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+	if len(got.Steps) != 2 || got.Steps[0] != "Toast the bread." || got.Steps[1] != "Spread the butter." {
+		t.Fatalf("steps round-trip mismatch: %+v", got.Steps)
 	}
 
 	list, err := s.ListRecipes(ctx, "user-a")
@@ -63,8 +66,8 @@ func TestPostgres_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestPostgres_GetRecipesByIDsPreservesRequestOrder(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil)
-	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil, nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil, nil)
 
 	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
@@ -79,9 +82,9 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
+	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", nil, []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
-	})
+	}, []string{"Toast the bread."})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -93,13 +96,19 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 		t.Fatalf("after delete GetRecipe err = %v, want ErrNotFound", err)
 	}
 
-	// ingredients are gone via ON DELETE CASCADE
+	// ingredients and steps are gone via ON DELETE CASCADE
 	var n int
 	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM ingredients WHERE recipe_id = $1", rec.ID).Scan(&n); err != nil {
 		t.Fatalf("count ingredients: %v", err)
 	}
 	if n != 0 {
 		t.Fatalf("ingredient rows after delete = %d, want 0", n)
+	}
+	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM recipe_steps WHERE recipe_id = $1", rec.ID).Scan(&n); err != nil {
+		t.Fatalf("count steps: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("step rows after delete = %d, want 0", n)
 	}
 
 	if err := s.DeleteRecipe(ctx, "nope", "user-a"); !errors.Is(err, ErrNotFound) {
@@ -111,17 +120,17 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
+	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", nil, []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
-	})
+	}, []string{"Toast it."})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
+	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", nil, []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
-	})
+	}, []string{"Soak the brioche.", "Fry both sides."})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -132,7 +141,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 		t.Fatalf("meta changed: %+v vs %+v", got, rec)
 	}
 
-	// exactly the new ingredient rows persist (old ones replaced)
+	// exactly the new ingredient and step rows persist (old ones replaced)
 	reread, err := s.GetRecipe(ctx, rec.ID, "user-a")
 	if err != nil {
 		t.Fatalf("get: %v", err)
@@ -140,8 +149,11 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 	if len(reread.Ingredients) != 2 || reread.Ingredients[0].Item != "brioche" || reread.Ingredients[1].Item != "egg" {
 		t.Fatalf("reread ingredients = %+v, want [brioche egg]", reread.Ingredients)
 	}
+	if len(reread.Steps) != 2 || reread.Steps[0] != "Soak the brioche." || reread.Steps[1] != "Fry both sides." {
+		t.Fatalf("reread steps = %+v, want [soak fry]", reread.Steps)
+	}
 
-	if _, err := s.UpdateRecipe(ctx, "nope", "user-a", "X", nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, "nope", "user-a", "X", nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("update missing err = %v, want ErrNotFound", err)
 	}
 }
@@ -149,7 +161,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 func TestPostgres_GetRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil)
 
 	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("owner get: %v", err)
@@ -162,7 +174,7 @@ func TestPostgres_GetRecipe_ScopedToOwner(t *testing.T) {
 func TestPostgres_DeleteRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
@@ -179,9 +191,9 @@ func TestPostgres_DeleteRecipe_ScopedToOwner(t *testing.T) {
 func TestPostgres_UpdateRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil)
 
-	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 	// title must be unchanged for the owner
@@ -201,6 +213,7 @@ func TestPostgres_UpsertReplacesAndPreservesCreatedAt(t *testing.T) {
 	rec := Recipe{
 		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
 		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+		Steps:       []string{"Mince the garlic."},
 	}
 	if err := s.UpsertRecipe(ctx, rec); err != nil {
 		t.Fatalf("insert: %v", err)
@@ -209,12 +222,16 @@ func TestPostgres_UpsertReplacesAndPreservesCreatedAt(t *testing.T) {
 
 	rec.Title = "Cat X v2"
 	rec.Ingredients = []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}, {Quantity: 1, Unit: "loaf", Item: "bread"}}
+	rec.Steps = []string{"Slice the bread.", "Add garlic."}
 	if err := s.UpsertRecipe(ctx, rec); err != nil {
 		t.Fatalf("replace: %v", err)
 	}
 	got, _ := s.GetRecipe(ctx, rec.ID, CatalogUserID)
 	if got.Title != "Cat X v2" || len(got.Ingredients) != 2 {
 		t.Fatalf("replace mismatch: %+v", got)
+	}
+	if len(got.Steps) != 2 || got.Steps[0] != "Slice the bread." {
+		t.Fatalf("steps replace mismatch: %+v", got.Steps)
 	}
 	if !got.CreatedAt.Equal(first.CreatedAt) {
 		t.Fatalf("CreatedAt changed: %v vs %v", got.CreatedAt, first.CreatedAt)
@@ -223,5 +240,86 @@ func TestPostgres_UpsertReplacesAndPreservesCreatedAt(t *testing.T) {
 	list, _ := s.ListRecipes(ctx, CatalogUserID)
 	if len(list) != 1 {
 		t.Fatalf("catalog list = %d, want 1", len(list))
+	}
+}
+
+func TestPostgres_ServingsRoundTripAndClear(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	created, err := s.CreateRecipe(ctx, "user-a", "Chili", intPtr(6), nil, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.Servings == nil || *created.Servings != 6 {
+		t.Fatalf("created servings = %v, want 6", created.Servings)
+	}
+	got, err := s.GetRecipe(ctx, created.ID, "user-a")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Servings == nil || *got.Servings != 6 {
+		t.Fatalf("stored servings = %v, want 6", got.Servings)
+	}
+
+	listed, err := s.ListRecipes(ctx, "user-a")
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("list: %v (%d rows)", err, len(listed))
+	}
+	if listed[0].Servings == nil || *listed[0].Servings != 6 {
+		t.Fatalf("listed servings = %v, want 6", listed[0].Servings)
+	}
+
+	// Update replaces the recipe wholesale, so nil clears the stored yield.
+	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", "Chili", nil, nil, nil)
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Servings != nil {
+		t.Fatalf("servings = %d, want nil after clearing", *updated.Servings)
+	}
+}
+
+// A NULL servings column must scan back as nil, not 0 — the whole point of the
+// nullable column is that "unknown" is distinguishable from a real count.
+func TestPostgres_NullServingsScansAsNil(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	created, err := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := s.GetRecipe(ctx, created.ID, "user-a")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Servings != nil {
+		t.Fatalf("servings = %d, want nil", *got.Servings)
+	}
+}
+
+func TestPostgres_UpsertRecipePersistsServings(t *testing.T) {
+	ctx := context.Background()
+	s := newTestPostgres(t)
+
+	if err := s.UpsertRecipe(ctx, Recipe{ID: "cat-1", UserID: CatalogUserID, Title: "Chili", Servings: intPtr(6)}); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	got, err := s.GetRecipe(ctx, "cat-1", CatalogUserID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Servings == nil || *got.Servings != 6 {
+		t.Fatalf("servings = %v, want 6", got.Servings)
+	}
+
+	// Re-seeding the catalog must carry the new yield through, not keep the old.
+	if err := s.UpsertRecipe(ctx, Recipe{ID: "cat-1", UserID: CatalogUserID, Title: "Chili", Servings: intPtr(8)}); err != nil {
+		t.Fatalf("re-upsert: %v", err)
+	}
+	got, _ = s.GetRecipe(ctx, "cat-1", CatalogUserID)
+	if got.Servings == nil || *got.Servings != 8 {
+		t.Fatalf("servings = %v, want 8 after re-upsert", got.Servings)
 	}
 }

@@ -68,3 +68,34 @@ func TestExtractJSONLD_UnescapesEntities(t *testing.T) {
 		t.Errorf("steps = %v, want [%q]", got.Steps, "Season & bake.")
 	}
 }
+
+// recipeYield is the field BL-0035 rides in on. It is absent from pageWithGraph,
+// which doubles as the "no yield" case.
+const pageWithYield = `<html><head>
+<script type="application/ld+json">
+{"@type":"Recipe","name":"Chili","recipeYield":"6 servings",
+ "recipeIngredient":["1 lb beef"]}
+</script></head></html>`
+
+func TestExtractJSONLD_ExtractsRecipeYield(t *testing.T) {
+	got, ok := extractJSONLD([]byte(pageWithYield))
+	if !ok {
+		t.Fatal("expected a Recipe node to be found")
+	}
+	if got.Servings == nil {
+		t.Fatal("servings = nil, want 6")
+	}
+	if *got.Servings != 6 {
+		t.Errorf("servings = %d, want 6", *got.Servings)
+	}
+}
+
+func TestExtractJSONLD_NoYieldLeavesServingsUnknown(t *testing.T) {
+	got, ok := extractJSONLD([]byte(pageWithGraph))
+	if !ok {
+		t.Fatal("expected a Recipe node to be found")
+	}
+	if got.Servings != nil {
+		t.Errorf("servings = %d, want nil for a page with no recipeYield", *got.Servings)
+	}
+}
