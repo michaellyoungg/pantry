@@ -1,19 +1,17 @@
 import { api } from "@pantry/convex/api";
-import { useMutation, useQuery } from "convex/react";
-import { formatQuantity } from "../lib/formatQuantity";
+import { formatQuantity, groupByAisle, titleCase } from "@pantry/core";
 import {
   clearGroceryListOptimistic,
   needItAnywayOptimistic,
   toggleItemOptimistic,
-} from "../lib/optimistic";
-import { useAsyncAction } from "../lib/useAsyncAction";
+} from "@pantry/core/convex";
+import { useAsyncAction } from "@pantry/core/react";
+import { useMutation, useQuery } from "convex/react";
 import { ErrorText } from "./ErrorText";
 import { PricingSummary } from "./PricingSummary";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { useConfirm } from "./ui/useConfirm";
-
-const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export function GroceryList() {
   const lines = useQuery(api.groceryList.getGroceryList) ?? [];
@@ -38,13 +36,7 @@ export function GroceryList() {
     run(() => clearList({}));
   }
 
-  // Lines arrive pre-sorted by aisle from recipe-service; group consecutive runs.
-  const groups: { aisle: string; lines: typeof lines }[] = [];
-  for (const line of lines) {
-    const last = groups[groups.length - 1];
-    if (last && last.aisle === line.aisle) last.lines.push(line);
-    else groups.push({ aisle: line.aisle, lines: [line] });
-  }
+  const groups = groupByAisle(lines);
 
   return (
     <Card title="Grocery list">

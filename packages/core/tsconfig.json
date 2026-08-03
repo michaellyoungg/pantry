@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    // No "DOM" and no ambient @types: the package compiles with nothing but the
+    // language + its explicit imports. src/convex re-introduces DOM types
+    // transitively (the Convex client declarations reference the DOM lib), so
+    // the actual guarantee is enforced by tsconfig.dom-free.json.
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

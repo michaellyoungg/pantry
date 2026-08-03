@@ -1,0 +1,13 @@
+{
+  // Tests only. They render hooks through @testing-library/react, so they need
+  // DOM lib types that the shipped code deliberately does without.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "include": ["src", "vitest.config.ts"],
+  "exclude": []
+}

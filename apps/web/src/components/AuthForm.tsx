@@ -1,6 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useAsyncAction } from "@pantry/core/react";
 import { useState } from "react";
-import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
