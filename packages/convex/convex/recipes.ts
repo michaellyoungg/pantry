@@ -86,6 +86,28 @@ export const list = action({
   },
 });
 
+// Referential integrity (BL-0013). Recipes live in recipe-service; the basket
+// (which doubles as the week plan) lives in Convex and holds recipeId strings
+// no database can enforce a foreign key on. Reconciling here — rather than only
+// in the browser after the call returns — means the guarantee holds for EVERY
+// caller: a second tab, a future mobile client, an e2e script, or a web client
+// that navigates away mid-flight.
+//
+// Deliberately best-effort: the recipe-service delete has already committed by
+// the time we get here, so a failing basket write must NOT turn a successful
+// delete into a thrown action. That would roll the UI back into claiming the
+// recipe still exists — exactly the cross-store inconsistency BL-0015 fixed.
+// A surviving basket row degrades gracefully: grocery-list aggregation already
+// skips unresolvable recipe ids (and logs them), and the web client runs the
+// same cleanup again as a second chance.
+async function reconcileBasket(op: string, run: () => Promise<unknown>): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    console.error(`recipes.${op}: basket reconciliation failed`, err);
+  }
+}
+
 export const remove = action({
   args: { id: v.string(), traceCtx: v.optional(v.string()) },
   handler: async (ctx, { id, traceCtx }): Promise<null> => {
@@ -94,6 +116,9 @@ export const remove = action({
     await withSpan("recipes.remove", traceCtx, (traceparent) =>
       recipeServiceFetch<void>(userId, "DELETE", `/recipes/${id}`, undefined, traceparent),
     );
+    // The recipe is gone; drop any basket/week-plan row still pointing at it.
+    // Idempotent no-op when the recipe was never basketed.
+    await reconcileBasket("remove", () => ctx.runMutation(api.basket.remove, { recipeId: id }));
     return null;
   },
 });
@@ -113,7 +138,7 @@ export const update = action({
   handler: async (ctx, { id, title, servings, ingredients, steps, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return withSpan("recipes.update", traceCtx, (traceparent) =>
+    const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe>(
         userId,
         "PUT",
@@ -122,6 +147,13 @@ export const update = action({
         traceparent,
       ),
     );
+    // The basket denormalizes the title for display, so a rename has to reach
+    // it or the week plan keeps showing the old name. Same best-effort contract
+    // as remove(): never fail an update that already committed.
+    await reconcileBasket("update", () =>
+      ctx.runMutation(api.basket.updateTitle, { recipeId: id, title }),
+    );
+    return updated;
   },
 });
 
