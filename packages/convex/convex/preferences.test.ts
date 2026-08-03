@@ -66,13 +66,22 @@ describe("preferences", () => {
     await client.mutation(api.preferences.set, {
       avoidItems: ["peanut"],
       likedItems: ["garlic"],
+      dislikedItems: ["cilantro"],
+      dietLabels: ["vegetarian"],
+      maxMinutes: 30,
     });
-    await client.mutation(api.preferences.set, { dislikedItems: ["cilantro"] });
+    // Second call supplies ONE field and omits the rest. Every omitted field
+    // below is therefore exercising the `args.X ?? existing?.X` fallback — a
+    // regression that dropped it would blank them here.
+    await client.mutation(api.preferences.set, { cuisines: ["thai"] });
 
     const prefs = await client.query(api.preferences.get, {});
     expect(prefs.avoidItems).toEqual(["peanut"]);
     expect(prefs.likedItems).toEqual(["garlic"]);
     expect(prefs.dislikedItems).toEqual(["cilantro"]);
+    expect(prefs.dietLabels).toEqual(["vegetarian"]);
+    expect(prefs.maxMinutes).toBe(30);
+    expect(prefs.cuisines).toEqual(["thai"]);
   });
 
   it("rejects unauthenticated writes", async () => {
