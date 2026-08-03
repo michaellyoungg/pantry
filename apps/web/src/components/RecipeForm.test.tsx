@@ -62,3 +62,76 @@ describe("RecipeForm import", () => {
     );
   });
 });
+
+describe("RecipeForm servings", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sends the servings the user entered", async () => {
+    render(<RecipeForm onCreated={() => {}} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Title"), { target: { value: "Chili" } });
+    fireEvent.change(screen.getByLabelText(/servings/i), { target: { value: "6" } });
+    fireEvent.click(screen.getByRole("button", { name: /create recipe/i }));
+
+    await waitFor(() =>
+      expect(createMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Chili", servings: 6 }),
+      ),
+    );
+  });
+
+  // Leaving the field blank is the normal case for manual entry; it must send
+  // undefined ("unknown"), never 0.
+  it("sends undefined when servings is left blank", async () => {
+    render(<RecipeForm onCreated={() => {}} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Title"), { target: { value: "Toast" } });
+    fireEvent.click(screen.getByRole("button", { name: /create recipe/i }));
+
+    await waitFor(() =>
+      expect(createMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Toast", servings: undefined }),
+      ),
+    );
+  });
+
+  it("fills servings from an imported recipeYield", async () => {
+    importMock.mockResolvedValue({
+      id: "",
+      userId: "u1",
+      title: "Chili",
+      servings: 6,
+      ingredients: [{ quantity: 1, unit: "lb", item: "beef" }],
+      createdAt: "",
+    });
+
+    render(<RecipeForm onCreated={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/paste a recipe url/i), {
+      target: { value: "https://example.com/chili" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^import$/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/servings/i)).toHaveProperty("value", "6"));
+  });
+
+  // A page whose recipeYield is not a serving count ("24 cookies") imports with
+  // servings absent; the field must stay blank rather than showing a guess.
+  it("leaves servings blank when the import supplies none", async () => {
+    importMock.mockResolvedValue({
+      id: "",
+      userId: "u1",
+      title: "Cookies",
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+      createdAt: "",
+    });
+
+    render(<RecipeForm onCreated={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/paste a recipe url/i), {
+      target: { value: "https://example.com/cookies" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^import$/i }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("Cookies")).toBeTruthy());
+    expect(screen.getByLabelText(/servings/i)).toHaveProperty("value", "");
+  });
+});

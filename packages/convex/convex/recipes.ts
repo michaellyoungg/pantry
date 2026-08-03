@@ -48,14 +48,18 @@ async function recipeServiceFetch<T>(
   return (await res.json()) as T;
 }
 
+// servings is optional end to end: omitting it means "yield unknown" (BL-0035),
+// which is the normal case for manual entry and for every recipe that predates
+// the field. recipe-service validates the range.
 export const create = action({
   args: {
     title: v.string(),
+    servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { title, ingredients, steps, traceCtx }): Promise<Recipe> => {
+  handler: async (ctx, { title, servings, ingredients, steps, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.create", traceCtx, (traceparent) =>
@@ -63,7 +67,7 @@ export const create = action({
         userId,
         "POST",
         "/recipes",
-        { title, ingredients, steps: steps ?? [] },
+        { title, servings, ingredients, steps: steps ?? [] },
         traceparent,
       ),
     );
@@ -118,15 +122,19 @@ export const remove = action({
   },
 });
 
+// Update replaces the whole recipe, so omitting servings clears a previously
+// known yield rather than leaving it in place — callers must send the current
+// value to keep it.
 export const update = action({
   args: {
     id: v.string(),
     title: v.string(),
+    servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { id, title, ingredients, steps, traceCtx }): Promise<Recipe> => {
+  handler: async (ctx, { id, title, servings, ingredients, steps, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
@@ -134,7 +142,7 @@ export const update = action({
         userId,
         "PUT",
         `/recipes/${id}`,
-        { title, ingredients, steps: steps ?? [] },
+        { title, servings, ingredients, steps: steps ?? [] },
         traceparent,
       ),
     );

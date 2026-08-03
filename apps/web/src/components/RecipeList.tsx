@@ -70,11 +70,18 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     reload();
   }
 
-  async function onSaveEdit(title: string, ingredients: Ingredient[], steps: string[]) {
+  async function onSaveEdit(
+    title: string,
+    servings: number | undefined,
+    ingredients: Ingredient[],
+    steps: string[],
+  ) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      await updateRecipe({ id, title, ingredients, steps });
+      // update replaces the whole recipe, so servings must be sent every time —
+      // omitting it clears the stored yield.
+      await updateRecipe({ id, title, servings, ingredients, steps });
       return true;
     });
     if (!saved) return;
