@@ -1,7 +1,7 @@
 ---
 id: BL-0041
 title: Equipment catalog + recipe equipment/method tagging (with import detection)
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-08-03-cooking-guidance-design.md]

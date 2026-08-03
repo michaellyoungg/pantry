@@ -31,6 +31,9 @@ importers:
       '@pantry/convex':
         specifier: workspace:^
         version: link:../../packages/convex
+      '@pantry/design-tokens':
+        specifier: workspace:^
+        version: link:../../packages/design-tokens
       '@pantry/types':
         specifier: workspace:^
         version: link:../../packages/types
@@ -126,6 +129,12 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@edge-runtime/vm@5.0.0)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.27.0)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/design-tokens:
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   packages/types:
     devDependencies:
