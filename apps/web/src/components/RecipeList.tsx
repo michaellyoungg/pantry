@@ -10,6 +10,7 @@ import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { useConfirm } from "./ui/useConfirm";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
@@ -26,6 +27,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const load = useCallback(() => listRecipes({}), [listRecipes]);
   const { data, loading, error: loadError, reload } = useAsyncData(load, [refreshKey]);
   const { run, error, clearError, showError } = useAsyncAction();
+  const { confirm, confirmDialog } = useConfirm();
   const recipes = data ?? [];
 
   // The recipe-service op is the source of truth. The Convex basket cleanup that
@@ -33,7 +35,12 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   // a basket failure roll the UI back into an inconsistent state — always reload
   // so the list reflects reality, and surface a targeted note instead.
   async function onDelete(r: Recipe) {
-    if (!window.confirm(`Delete "${r.title}"?`)) return;
+    const confirmed = await confirm({
+      title: `Delete "${r.title}"?`,
+      confirmLabel: "Delete recipe",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const deleted = await run(async () => {
       await deleteRecipe({ id: r.id });
       return true;
@@ -125,6 +132,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
       {editing && (
         <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
       )}
+      {confirmDialog}
     </Card>
   );
 }
