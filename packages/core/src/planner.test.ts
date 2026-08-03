@@ -3,6 +3,7 @@ import {
   canGenerateList,
   decreaseServings,
   increaseServings,
+  isCooked,
   isLeftover,
   MIN_SERVINGS_MULTIPLIER,
   type PlannedItem,
@@ -100,5 +101,12 @@ describe("canGenerateList", () => {
   it("is false only for an empty basket", () => {
     expect(canGenerateList([])).toBe(false);
     expect(canGenerateList([item({ _id: "a" })])).toBe(true);
+  });
+});
+
+describe("isCooked", () => {
+  it("is the presence of a cookedAt timestamp", () => {
+    expect(isCooked({ _id: "b1", recipeId: "r1", title: "Toast" })).toBe(false);
+    expect(isCooked({ _id: "b1", recipeId: "r1", title: "Toast", cookedAt: 0 })).toBe(true);
   });
 });
