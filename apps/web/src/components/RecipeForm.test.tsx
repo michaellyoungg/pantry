@@ -28,6 +28,7 @@ describe("RecipeForm import", () => {
       userId: "u1",
       title: "Garlic Bread",
       ingredients: [{ quantity: 2, unit: "clove", item: "garlic", note: "minced" }],
+      steps: ["Mince the garlic.", "Toast the bread."],
       createdAt: "",
     });
 
@@ -47,5 +48,17 @@ describe("RecipeForm import", () => {
     await waitFor(() => expect(screen.getByDisplayValue("Garlic Bread")).toBeTruthy());
     // Ingredient item is populated too.
     expect(screen.getByDisplayValue("garlic")).toBeTruthy();
+    // Imported steps populate the steps editor and are saved on create.
+    expect(screen.getByDisplayValue("Mince the garlic.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Toast the bread.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /create recipe/i }));
+    await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Garlic Bread",
+        steps: ["Mince the garlic.", "Toast the bread."],
+      }),
+    );
   });
 });

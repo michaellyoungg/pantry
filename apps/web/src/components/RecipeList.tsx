@@ -6,9 +6,11 @@ import { addToBasketOptimistic, removeFromBasketOptimistic } from "../lib/optimi
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
+import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { useConfirm } from "./ui/useConfirm";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
@@ -25,6 +27,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const load = useCallback(() => listRecipes({}), [listRecipes]);
   const { data, loading, error: loadError, reload } = useAsyncData(load, [refreshKey]);
   const { run, error, clearError, showError } = useAsyncAction();
+  const { confirm, confirmDialog } = useConfirm();
   const recipes = data ?? [];
 
   // De-dup (BL-0013): duplicate titles stay LEGAL. Importing the same page
@@ -46,7 +49,12 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   // a basket failure roll the UI back into an inconsistent state — always reload
   // so the list reflects reality, and surface a targeted note instead.
   async function onDelete(r: Recipe) {
-    if (!window.confirm(`Delete "${r.title}"?`)) return;
+    const confirmed = await confirm({
+      title: `Delete "${r.title}"?`,
+      confirmLabel: "Delete recipe",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const deleted = await run(async () => {
       await deleteRecipe({ id: r.id });
       return true;
@@ -62,11 +70,11 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     reload();
   }
 
-  async function onSaveEdit(title: string, ingredients: Ingredient[]) {
+  async function onSaveEdit(title: string, ingredients: Ingredient[], steps: string[]) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      await updateRecipe({ id, title, ingredients });
+      await updateRecipe({ id, title, ingredients, steps });
       return true;
     });
     if (!saved) return;
@@ -97,40 +105,43 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
       )}
       <ul className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
-          <li key={r.id} className="flex items-center justify-between gap-2 py-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-medium text-text">{r.title}</span>
-              {duplicateTitles.has(r.title.trim().toLowerCase()) && (
-                <span
-                  className="shrink-0 rounded-full bg-border px-2 py-0.5 text-xs text-muted"
-                  title="Another recipe has this title — edit or delete one to clean up"
+          <li key={r.id} className="flex flex-col gap-1.5 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-medium text-text">{r.title}</span>
+                {duplicateTitles.has(r.title.trim().toLowerCase()) && (
+                  <span
+                    className="shrink-0 rounded-full bg-border px-2 py-0.5 text-xs text-muted"
+                    title="Another recipe has this title — edit or delete one to clean up"
+                  >
+                    Duplicate
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
                 >
-                  Duplicate
-                </span>
-              )}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
-              >
-                Add to basket
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  clearError();
-                  setEditing(r);
-                }}
-              >
-                Edit
-              </Button>
-              <Button variant="danger" size="sm" onClick={() => onDelete(r)}>
-                Delete
-              </Button>
-            </span>
+                  Add to basket
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    clearError();
+                    setEditing(r);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => onDelete(r)}>
+                  Delete
+                </Button>
+              </span>
+            </div>
+            <RecipeDetails recipe={r} />
           </li>
         ))}
       </ul>
@@ -138,6 +149,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
       {editing && (
         <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
       )}
+      {confirmDialog}
     </Card>
   );
 }

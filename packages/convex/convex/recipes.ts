@@ -52,13 +52,20 @@ export const create = action({
   args: {
     title: v.string(),
     ingredients: v.array(ingredientValidator),
+    steps: v.optional(v.array(v.string())),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { title, ingredients, traceCtx }): Promise<Recipe> => {
+  handler: async (ctx, { title, ingredients, steps, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.create", traceCtx, (traceparent) =>
-      recipeServiceFetch<Recipe>(userId, "POST", "/recipes", { title, ingredients }, traceparent),
+      recipeServiceFetch<Recipe>(
+        userId,
+        "POST",
+        "/recipes",
+        { title, ingredients, steps: steps ?? [] },
+        traceparent,
+      ),
     );
   },
 });
@@ -116,9 +123,10 @@ export const update = action({
     id: v.string(),
     title: v.string(),
     ingredients: v.array(ingredientValidator),
+    steps: v.optional(v.array(v.string())),
     traceCtx: v.optional(v.string()),
   },
-  handler: async (ctx, { id, title, ingredients, traceCtx }): Promise<Recipe> => {
+  handler: async (ctx, { id, title, ingredients, steps, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
@@ -126,7 +134,7 @@ export const update = action({
         userId,
         "PUT",
         `/recipes/${id}`,
-        { title, ingredients },
+        { title, ingredients, steps: steps ?? [] },
         traceparent,
       ),
     );
