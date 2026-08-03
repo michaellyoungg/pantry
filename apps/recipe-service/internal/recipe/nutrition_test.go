@@ -45,11 +45,11 @@ func getNutrition(t *testing.T, srv *httptest.Server, id, userID string) (*http.
 
 func TestGetRecipeNutrition(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", []Ingredient{
+	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
 		{Quantity: 2, Unit: "", Item: "eggs"},
 		{Quantity: 1, Unit: "pinch", Item: "salt"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,13 +78,46 @@ func TestGetRecipeNutrition(t *testing.T) {
 		t.Errorf("the pinch of salt = %+v, want unresolved with a reason", est.Ingredients[2])
 	}
 
-	// Recipe has no yield until BL-0035, so per-serving must be absent rather
-	// than derived from a guess.
+	// This recipe has no yield, so per-serving must be absent rather than
+	// derived from a guess.
 	if est.PerServing != nil {
-		t.Errorf("PerServing = %+v, want nil until a servings count exists", est.PerServing)
+		t.Errorf("PerServing = %+v, want nil when the yield is unknown", est.PerServing)
 	}
 	if est.Servings != 0 {
 		t.Errorf("Servings = %v, want 0 (unknown)", est.Servings)
+	}
+}
+
+// With a yield on the recipe (BL-0035), the endpoint divides.
+func TestGetRecipeNutritionPerServing(t *testing.T) {
+	store := NewMemoryStore()
+	servings := 4
+	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", &servings, []Ingredient{
+		{Quantity: 1, Unit: "cup", Item: "flour"},
+		{Quantity: 2, Unit: "", Item: "eggs"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(nutritionRouter(t, store))
+	defer srv.Close()
+
+	resp, est := getNutrition(t, srv, rec.ID, "u1")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if est.Servings != 4 {
+		t.Errorf("Servings = %v, want 4", est.Servings)
+	}
+	if est.PerServing == nil {
+		t.Fatalf("PerServing is nil despite a known yield")
+	}
+	// 598 kcal over 4 servings.
+	if got := est.PerServing["1008"].Amount; got != 149.5 {
+		t.Errorf("per-serving energy = %v, want 149.5", got)
+	}
+	if got := est.Nutrients["1008"].Amount; got != 598 {
+		t.Errorf("totals = %v, want the whole-recipe 598 regardless of the yield", got)
 	}
 }
 
@@ -122,9 +155,9 @@ func TestGetRecipeNutritionNotFound(t *testing.T) {
 // A recipe belonging to someone else must not leak through the catalog fallback.
 func TestGetRecipeNutritionIsUserScoped(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Private", []Ingredient{
+	rec, err := store.CreateRecipe(context.Background(), "u1", "Private", nil, []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +191,7 @@ func TestGetRecipeNutritionRequiresTheServiceSecret(t *testing.T) {
 // looks like the recipe is missing.
 func TestGetRecipeNutritionUnconfigured(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil)
+	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

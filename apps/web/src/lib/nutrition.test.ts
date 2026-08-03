@@ -52,11 +52,42 @@ describe("nutritionDisplay", () => {
     if (display.kind !== "estimate") return;
 
     expect(display.coveragePercent).toBe(100);
+    expect(display.servings).toBe(0);
     expect(display.rows).toEqual([
-      { id: "1008", label: "Calories", value: "455 kcal" },
-      { id: "1003", label: "Protein", value: "12.9 g" },
-      { id: "1093", label: "Sodium", value: "3 mg" },
+      { id: "1008", label: "Calories", total: "455 kcal", perServing: undefined },
+      { id: "1003", label: "Protein", total: "12.9 g", perServing: undefined },
+      { id: "1093", label: "Sodium", total: "3 mg", perServing: undefined },
     ]);
+  });
+
+  // BL-0035 made the yield optional, so both shapes have to render honestly.
+  it("carries per-serving amounts alongside the totals when the yield is known", () => {
+    const display = nutritionDisplay(
+      estimate({
+        servings: 4,
+        perServing: {
+          "1008": { nutrientId: "1008", amount: 113.75, unit: "kcal" },
+          "1003": { nutrientId: "1003", amount: 3.228, unit: "g" },
+          "1093": { nutrientId: "1093", amount: 0.625, unit: "mg" },
+        },
+      }),
+    );
+    if (display.kind !== "estimate") throw new Error(`expected an estimate, got ${display.kind}`);
+    expect(display.servings).toBe(4);
+    expect(display.rows[0]).toEqual({
+      id: "1008",
+      label: "Calories",
+      total: "455 kcal",
+      perServing: "114 kcal",
+    });
+  });
+
+  // A servings count with no perServing map means the server declined to divide;
+  // trusting the count alone would render a per-serving heading over totals.
+  it("ignores a servings count the estimate did not actually divide by", () => {
+    const display = nutritionDisplay(estimate({ servings: 4 }));
+    if (display.kind !== "estimate") throw new Error(`expected an estimate, got ${display.kind}`);
+    expect(display.servings).toBe(0);
   });
 
   it("orders rows for display, not by the order the estimate happened to carry", () => {

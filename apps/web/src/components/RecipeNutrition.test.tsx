@@ -34,14 +34,32 @@ describe("RecipeNutrition", () => {
     actionMock.mockReset();
   });
 
-  it("shows the totals, labelled as an estimate", async () => {
+  it("shows whole-recipe totals when the recipe has no yield", async () => {
     actionMock.mockResolvedValue(estimate());
     render(<RecipeNutrition recipeId="r1" />);
 
     expect(await screen.findByText("950 kcal")).toBeTruthy();
     expect(screen.getByText("30.5 g")).toBeTruthy();
-    expect(screen.getByText(/Estimated/)).toBeTruthy();
+    expect(screen.getByText(/Estimated · whole recipe/)).toBeTruthy();
     expect(actionMock).toHaveBeenCalledWith({ id: "r1" });
+  });
+
+  // With a yield (BL-0035) the per-serving figure leads and the total follows.
+  it("leads with per-serving amounts when the recipe has a yield", async () => {
+    actionMock.mockResolvedValue(
+      estimate({
+        servings: 4,
+        perServing: {
+          "1008": { nutrientId: "1008", amount: 237.5, unit: "kcal" },
+          "1003": { nutrientId: "1003", amount: 7.625, unit: "g" },
+        },
+      }),
+    );
+    render(<RecipeNutrition recipeId="r1" />);
+
+    expect(await screen.findByText("238 kcal")).toBeTruthy();
+    expect(screen.getByText(/Estimated · per serving of 4/)).toBeTruthy();
+    expect(screen.getByText("(950 kcal total)")).toBeTruthy();
   });
 
   // The contract that matters: a low-coverage recipe must not show a number.

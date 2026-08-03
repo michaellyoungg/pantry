@@ -230,10 +230,30 @@ describe("recipes <-> recipe-service contract", () => {
     expect(salt).toMatchObject({ item: "salt", resolved: false, grams: null });
     expect(salt.reason).toBeTruthy();
 
-    // Recipe carries no yield yet (BL-0035), so per-serving must be absent
+    // This recipe was created without a yield, so per-serving must be absent
     // rather than derived from a guessed serving count.
     expect(estimate.perServing).toBeUndefined();
     expect(estimate.servings).toBe(0);
+  });
+
+  it("nutrition divides by the recipe's yield when it has one", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Integration Pancakes (serves 4)",
+      servings: 4,
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+    });
+    created.push(recipe.id);
+
+    const estimate = await t.action(api.recipes.nutrition, { id: recipe.id });
+
+    expect(estimate.servings).toBe(4);
+    expect(estimate.perServing).toBeDefined();
+    // Totals are unaffected by the division.
+    expect(estimate.perServing?.["1008"].amount).toBeCloseTo(
+      estimate.nutrients["1008"].amount / 4,
+      2,
+    );
   });
 
   it("nutrition 404s for a recipe the caller cannot see", async () => {

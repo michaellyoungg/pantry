@@ -53,10 +53,15 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
     );
   }
 
+  // Per serving is the number a cook actually wants, so it leads when the recipe
+  // has a yield. Without one (BL-0035 leaves servings optional) the whole-recipe
+  // total is the only honest figure and stands alone.
+  const perServing = display.servings > 0;
+
   return (
     <div className="py-2">
       <p className="mb-2 text-xs uppercase tracking-wide text-muted">
-        Estimated · whole recipe
+        {perServing ? `Estimated · per serving of ${display.servings}` : "Estimated · whole recipe"}
         {display.coveragePercent < 100 &&
           ` · ${display.coveragePercent}% of ingredients accounted for`}
       </p>
@@ -64,7 +69,12 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
         {display.rows.map((row) => (
           <div key={row.id} className="flex flex-col">
             <dt className="text-xs text-muted">{row.label}</dt>
-            <dd className="text-sm font-medium text-text">{row.value}</dd>
+            <dd className="text-sm font-medium text-text">
+              {perServing && row.perServing ? row.perServing : row.total}
+              {perServing && row.perServing && (
+                <span className="ml-1 font-normal text-xs text-muted">({row.total} total)</span>
+              )}
+            </dd>
           </div>
         ))}
       </dl>
@@ -73,11 +83,6 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
           <MissingNote items={display.missing} />
         </div>
       )}
-      {/*
-        Per-serving figures need a yield on the recipe, which arrives with
-        BL-0035. Until then the honest thing is whole-recipe totals — dividing by
-        a guessed serving count would be confidently wrong.
-      */}
     </div>
   );
 }

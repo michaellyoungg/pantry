@@ -31,7 +31,10 @@ const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
 interface NutritionRow {
   id: string;
   label: string;
-  value: string;
+  /** The whole-recipe amount. */
+  total: string;
+  /** The per-serving amount, absent when the recipe carries no yield. */
+  perServing?: string;
 }
 
 export type NutritionDisplay =
@@ -39,7 +42,14 @@ export type NutritionDisplay =
   | { kind: "empty" }
   /** Too little of the recipe resolved to show a number honestly. */
   | { kind: "unavailable"; missing: string[]; coveragePercent: number }
-  | { kind: "estimate"; rows: NutritionRow[]; coveragePercent: number; missing: string[] };
+  | {
+      kind: "estimate";
+      rows: NutritionRow[];
+      coveragePercent: number;
+      missing: string[];
+      /** 0 when the recipe's yield is unknown; rows then carry totals only. */
+      servings: number;
+    };
 
 /** Ingredients that did not make it into the estimate, in recipe order. */
 export function unresolvedItems(estimate: NutritionEstimate): string[] {
@@ -69,11 +79,17 @@ export function nutritionDisplay(estimate: NutritionEstimate): NutritionDisplay 
     return { kind: "unavailable", missing, coveragePercent };
   }
 
+  // A yield of 0 means unknown (BL-0035): the server omits perServing entirely
+  // rather than dividing by a guess, and so do we.
+  const servings = estimate.perServing ? estimate.servings : 0;
+
   const rows = HEADLINE_NUTRIENTS.flatMap(({ id, label }) => {
     const amount = estimate.nutrients[id];
-    return amount ? [{ id, label, value: formatAmount(amount) }] : [];
+    if (!amount) return [];
+    const each = estimate.perServing?.[id];
+    return [{ id, label, total: formatAmount(amount), perServing: each && formatAmount(each) }];
   });
   if (rows.length === 0) return { kind: "unavailable", missing, coveragePercent };
 
-  return { kind: "estimate", rows, coveragePercent, missing };
+  return { kind: "estimate", rows, coveragePercent, missing, servings };
 }

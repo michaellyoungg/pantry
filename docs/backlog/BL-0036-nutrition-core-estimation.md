@@ -1,7 +1,7 @@
 ---
 id: BL-0036
 title: Nutrition core — USDA FDC provider, gram resolution, per-recipe estimation
-status: in-progress
+status: done
 area: nutrition
 effort: L
 related_specs: [2026-08-03-nutrition-system-design.md]
@@ -75,3 +75,23 @@ never to an error.
 - **Blocking on BL-0031** (normalization dictionary coverage). Better coverage
   helps, but unknown items still pass through to FDC search, so this ships
   useful without it and improves as the dictionary grows.
+
+## Delivered
+
+`internal/nutrition` (Provider / Resolver / Compute), the four Postgres tables,
+`GET /recipes/{id}/nutrition`, and an estimated-nutrition panel on the recipe
+list that suppresses the figures below 80% mass coverage and names what it could
+not account for.
+
+Two notes for whoever picks up BL-0037+:
+
+- **Per-serving is implemented but not yet fed.** `Compute` takes a `servings`
+  argument and divides correctly (it is unit-tested), but `Recipe` had no yield
+  when this landed, so the handler passes 0 and `perServing` is omitted. When
+  **BL-0035** lands, the only change needed is `servingsUnknown` →
+  `rec.Servings` in `internal/recipe/nutrition.go`.
+- **The FDC key is optional and unset.** Without `FDC_API_KEY` the service
+  serves `internal/nutrition/snapshot.json`, a hand-assembled seed of ~21 common
+  ingredients with synthetic negative `fdcId`s. `CachingProvider.Refresh`
+  upgrades a seeded row to live FDC data once a key is configured, and never
+  overwrites a row marked `reviewed`.

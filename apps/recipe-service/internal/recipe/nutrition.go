@@ -62,12 +62,15 @@ func (h *handlers) recipeNutrition(w http.ResponseWriter, r *http.Request) {
 		lines = append(lines, nutrition.Line{Quantity: ing.Quantity, Unit: ing.Unit, Item: ing.Item})
 	}
 
-	// Recipe carries no yield yet (BL-0035). 0 means "unknown", which makes
-	// Compute return whole-recipe totals and omit perServing rather than divide
-	// by a guess. When BL-0035 lands this becomes rec.Servings.
-	const servingsUnknown = 0
+	// A nil yield (BL-0035) means "unknown". Passing 0 makes Compute return
+	// whole-recipe totals and omit perServing entirely, rather than divide by a
+	// guessed serving count.
+	servings := 0.0
+	if rec.Servings != nil {
+		servings = float64(*rec.Servings)
+	}
 
-	writeJSON(w, http.StatusOK, h.nutrition.Estimate(r.Context(), lines, servingsUnknown))
+	writeJSON(w, http.StatusOK, h.nutrition.Estimate(r.Context(), lines, servings))
 }
 
 // recipeForRead resolves a recipe the caller is allowed to read: their own, or
