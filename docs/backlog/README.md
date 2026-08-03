@@ -44,7 +44,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0010](BL-0010-wire-go-into-turborepo.md) | Wire the Go recipe-service into the Turborepo task graph | done | infra | S |
 | [BL-0011](BL-0011-convex-browser-safe-types.md) | Browser-safe @pantry/convex type entry (remove node-types leak) | done | infra | M |
 | [BL-0012](BL-0012-web-ui-interaction-polish.md) | Web UI interaction polish (optimistic updates + error surfacing) | done | web | M |
-| [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | in-progress | recipes | M |
+| [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | done | recipes | M |
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | done | infra | M |
 | [BL-0015](BL-0015-cross-store-delete-consistency.md) | Cross-store delete/basket partial-failure consistency | done | web | S |
 | [BL-0016](BL-0016-app-ia-responsive-nav.md) | App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs) | done | web | M |
