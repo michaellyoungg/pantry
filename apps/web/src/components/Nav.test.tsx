@@ -26,6 +26,7 @@ async function renderNavAt(path: string) {
     "/recipes/catalog",
     "/list",
     "/pantry",
+    "/history",
     "/settings",
   ].map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }));
   const router = createRouter({
@@ -44,7 +45,8 @@ describe("Nav", () => {
       const link = within(sidebar).getByRole("link", { name: item.label });
       expect(link.getAttribute("href")).toBe(item.to);
     }
-    expect(NAV_ITEMS).toHaveLength(6);
+    // Home · Plan · Recipes · List · Pantry · History (BL-0039) · Settings (BL-0038).
+    expect(NAV_ITEMS).toHaveLength(7);
   });
 
   it("marks only the Home link active on '/'", async () => {

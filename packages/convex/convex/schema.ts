@@ -99,4 +99,38 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_item", ["userId", "canonicalItem"]),
+
+  // Eating history (BL-0039). One row per recipe per calendar day.
+  //
+  // `source` is taken from the plan: a meal the user marked cooked (BL-0028's
+  // `basket.cookedAt`) records as `cooked`, one merely scheduled as `planned`.
+  // The upgrade is the same row and one field — no migration, no second table.
+  // `manual` is reserved for a future food diary and is never written from the
+  // plan.
+  nutritionLog: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD, the user's local calendar day
+    recipeId: v.string(),
+    // Denormalized so history stays readable after a recipe is deleted.
+    title: v.optional(v.string()),
+    // How many whole recipe yields were eaten; scales `snapshot.nutrients`.
+    servings: v.number(),
+    source: v.union(v.literal("planned"), v.literal("cooked"), v.literal("manual")),
+    // The nutrient vector denormalized at log time — `NutritionLogSnapshot`.
+    //
+    // This is the point of the table. FDC data is refreshed and ingredient→food
+    // mappings get corrected; recomputing history from current data would
+    // silently rewrite what the user ate last month. History reads the snapshot
+    // and never re-estimates. It carries its own coverage because otherwise a
+    // day we could not identify is indistinguishable from a day of zeroes.
+    //
+    // `v.any()` rather than a validator: the nutrient map is deliberately open
+    // (see the nutrition design), and pinning its shape here would make adding a
+    // nutrient a schema migration.
+    snapshot: v.any(),
+    loggedAt: v.number(),
+  })
+    .index("by_user_date", ["userId", "date"])
+    // One row per (user, day, recipe) — the key "mark cooked" will patch.
+    .index("by_user_date_recipe", ["userId", "date", "recipeId"]),
 });
