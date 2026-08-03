@@ -35,9 +35,13 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 			Title:    c.Title,
 			Source:   c.Source,
 			Score:    combine(pantryFeatures(m, view, w)),
-			Reasons:  pantryReasons(m),
-			Have:     m.have,
-			Missing:  m.missing,
+			// Every slice here MUST be non-nil: encoding/json renders a nil
+			// slice as `null`, and the web client's non-nullable TS types
+			// (e.g. `r.missing.length`) then throw on a fully-covered recipe
+			// — the primary success path, not an edge case.
+			Reasons: nonNilStrings(pantryReasons(m)),
+			Have:    nonNilStrings(m.have),
+			Missing: nonNilMissing(m.missing),
 		})
 	}
 
@@ -73,6 +77,24 @@ func containsAvoided(c Candidate, avoid map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+// nonNilStrings guarantees a slice that marshals to `[]`, never `null`. A nil
+// and an empty slice are indistinguishable in Go but not in the JSON they
+// produce, and the web client depends on the array form.
+func nonNilStrings(xs []string) []string {
+	if xs == nil {
+		return []string{}
+	}
+	return xs
+}
+
+// nonNilMissing is nonNilStrings for MissingItem — see its doc comment.
+func nonNilMissing(xs []MissingItem) []MissingItem {
+	if xs == nil {
+		return []MissingItem{}
+	}
+	return xs
 }
 
 func toSet(xs []string) map[string]bool {

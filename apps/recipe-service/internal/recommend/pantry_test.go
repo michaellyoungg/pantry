@@ -1,6 +1,10 @@
 package recommend
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func cand(id, title string, items ...string) Candidate {
 	ings := make([]CandidateIngredient, 0, len(items))
@@ -146,6 +150,34 @@ func TestRankPantryIsDeterministicOnTies(t *testing.T) {
 		eq(t, ids(RankPantry(uc, candidates)), first)
 	}
 	eq(t, first, []string{"apple", "zebra"})
+}
+
+// A fully-covered recipe leaves Missing (and, by the same construction path,
+// Have/Reasons) an untouched nil slice. encoding/json renders a nil slice as
+// `null`, and the web client's non-nullable `RecommendationMissingItem[]`
+// type does `r.missing.length` with no guard — a `null` there throws and,
+// per BL-0005, takes down the whole app via the router's ErrorBoundary. This
+// asserts on the encoded JSON bytes, not the struct: a nil slice and an empty
+// slice are indistinguishable via len()/range, so a struct-level assertion
+// would not have caught this.
+func TestRankPantryMissingSerializesAsEmptyArrayNotNull(t *testing.T) {
+	uc := UserContext{Pantry: have("rice", "garlic")}
+	got := RankPantry(uc, []Candidate{cand("full", "Full", "rice", "garlic")})
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+
+	encoded, err := json.Marshal(got[0])
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+
+	if strings.Contains(string(encoded), `"missing":null`) {
+		t.Fatalf("missing serialized as null, want []: %s", encoded)
+	}
+	if !strings.Contains(string(encoded), `"missing":[]`) {
+		t.Fatalf("missing did not serialize as [], got: %s", encoded)
+	}
 }
 
 func TestRankPantryHonoursLimit(t *testing.T) {

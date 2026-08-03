@@ -1,3 +1,4 @@
+import type { RecommendationMissingItem } from "@pantry/types";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UseItUpSuggestions } from "./UseItUpSuggestions";
@@ -57,6 +58,30 @@ describe("UseItUpSuggestions", () => {
     expect(await screen.findByText(/service down/)).toBeTruthy();
     // The page survives the failure: the search control is still usable.
     expect(screen.getByRole("button", { name: "What can I make?" })).toBeTruthy();
+  });
+
+  // Regression for BL-0005: a nil Go slice encodes to `null`, not `[]`, even
+  // though the TS type declares `missing` as always an array. That crashed
+  // the whole app (main.tsx's ErrorBoundary swallows the entire router) on
+  // any fully-covered recipe. This is defence in depth for any other
+  // producer that ships the same bug — the render must degrade, not throw.
+  it("renders instead of throwing when a producer sends missing: null", async () => {
+    recommend.mockResolvedValue([
+      {
+        recipeId: "full",
+        title: "Fully Covered",
+        source: "catalog",
+        score: 1,
+        reasons: ["You have everything"],
+        have: ["rice", "garlic"],
+        missing: null as unknown as RecommendationMissingItem[],
+      },
+    ]);
+
+    render(<UseItUpSuggestions />);
+    fireEvent.click(screen.getByRole("button", { name: "What can I make?" }));
+
+    expect(await screen.findByText("Fully Covered")).toBeTruthy();
   });
 
   it("adds a suggestion to the plan", async () => {

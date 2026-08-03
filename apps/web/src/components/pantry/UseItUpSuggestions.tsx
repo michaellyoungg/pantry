@@ -50,7 +50,11 @@ export function UseItUpSuggestions() {
                 {r.reasons.length > 0 && (
                   <p className="text-xs text-muted">{r.reasons.slice(0, 3).join(" · ")}</p>
                 )}
-                {r.missing.length > 0 && (
+                {/* Defence in depth: a producer bug can serialize `missing` as
+                    null (a nil Go slice encodes that way) even though the type
+                    says it never can. Guard here so a bad payload degrades to
+                    "no missing line" instead of crashing the whole app. */}
+                {(r.missing?.length ?? 0) > 0 && (
                   <p className="text-xs text-muted">
                     Need: {r.missing.map((m) => m.display).join(", ")}
                   </p>
