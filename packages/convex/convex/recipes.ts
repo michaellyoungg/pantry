@@ -4,6 +4,7 @@ import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { withSpan } from "./lib/otel";
+import { lookupShelfLife } from "./lib/recipeService";
 
 const ingredientValidator = v.object({
   quantity: v.number(),
@@ -162,7 +163,17 @@ export const generateGroceryList = action({
         traceparent,
       );
 
-      await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
+      // Resolve approximate shelf life for the list's canonical items (BL-0029).
+      // It has to happen here, in an action: check-off is a mutation and
+      // mutations cannot do network I/O, so the number must already be on the
+      // line by the time the box is ticked.
+      const shelfLife = await lookupShelfLife(
+        userId,
+        [...new Set(lines.map((l) => l.canonicalItem).filter(Boolean))],
+        traceparent,
+      );
+
+      await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines, shelfLife });
       return { count: lines.length };
     });
   },

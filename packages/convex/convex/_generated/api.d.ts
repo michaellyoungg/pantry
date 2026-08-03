@@ -12,6 +12,8 @@ import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
 import type * as groceryList from "../groceryList.js";
 import type * as http from "../http.js";
+import type * as lib_otel from "../lib/otel.js";
+import type * as lib_recipeService from "../lib/recipeService.js";
 import type * as pantry from "../pantry.js";
 import type * as recipes from "../recipes.js";
 
@@ -26,6 +28,8 @@ declare const fullApi: ApiFromModules<{
   basket: typeof basket;
   groceryList: typeof groceryList;
   http: typeof http;
+  "lib/otel": typeof lib_otel;
+  "lib/recipeService": typeof lib_recipeService;
   pantry: typeof pantry;
   recipes: typeof recipes;
 }>;

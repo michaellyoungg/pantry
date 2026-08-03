@@ -295,3 +295,94 @@ describe("don't-rebuy (BL-0021)", () => {
     expect(rows[0].alreadyHave).toBe(false);
   });
 });
+
+describe("shelf life & use-by (BL-0029)", () => {
+  const DAY = 86_400_000;
+
+  it("persists shelfLifeDays from the lookup onto inserted lines", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Spinach", canonicalItem: "spinach", unit: "g", quantity: 200, aisle: "produce" },
+        { item: "Sriracha", canonicalItem: "sriracha", unit: "", quantity: 1, aisle: "other" },
+      ],
+      shelfLife: { spinach: 5 },
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const byItem = Object.fromEntries(rows.map((r) => [r.item, r]));
+    expect(byItem.Spinach.shelfLifeDays).toBe(5);
+    expect(byItem.Sriracha.shelfLifeDays).toBeUndefined();
+  });
+
+  it("stamps an approximate useBy on the pantry row when a line is checked off", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Spinach", canonicalItem: "spinach", unit: "g", quantity: 200, aisle: "produce" },
+      ],
+      shelfLife: { spinach: 5 },
+    });
+    const asUser = t.withIdentity(identity);
+    const [line] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    const before = Date.now();
+    await asUser.mutation(api.groceryList.toggleItem, { id: line._id, checked: true });
+
+    const [row] = await asUser.query(api.pantry.list, {});
+    expect(row.useBy).toBeGreaterThanOrEqual(before + 5 * DAY);
+    expect(row.useBy).toBeLessThanOrEqual(Date.now() + 5 * DAY);
+  });
+
+  it("leaves useBy unset for an item with no known shelf life", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Sriracha", canonicalItem: "sriracha", unit: "", quantity: 1, aisle: "other" },
+      ],
+    });
+    const asUser = t.withIdentity(identity);
+    const [line] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.toggleItem, { id: line._id, checked: true });
+
+    const [row] = await asUser.query(api.pantry.list, {});
+    expect(row.canonicalItem).toBe("sriracha");
+    expect(row.useBy).toBeUndefined();
+  });
+
+  it("restarts the clock when the item is bought again", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) =>
+      ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem: "spinach",
+        display: "Spinach",
+        aisle: "produce",
+        state: "out" as const,
+        source: "auto" as const,
+        updatedAt: 0,
+        useBy: 1000, // long past
+      }),
+    );
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Spinach", canonicalItem: "spinach", unit: "g", quantity: 200, aisle: "produce" },
+      ],
+      shelfLife: { spinach: 5 },
+    });
+    const asUser = t.withIdentity(identity);
+    const [line] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.toggleItem, { id: line._id, checked: true });
+
+    const [row] = await asUser.query(api.pantry.list, {});
+    expect(row.state).toBe("have");
+    expect(row.useBy).toBeGreaterThan(Date.now());
+  });
+});
