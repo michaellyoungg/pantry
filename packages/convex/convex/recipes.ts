@@ -3,6 +3,7 @@ import type { GroceryLine, Ingredient, Recipe } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
+import { withSpan } from "./lib/otel";
 
 const ingredientValidator = v.object({
   quantity: v.number(),
@@ -18,11 +19,14 @@ export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingred
 
 // Calls recipe-service as Convex: proves identity with the shared secret and
 // forwards the authenticated user id. Never reachable from the browser.
+// When a `traceparent` is supplied it rides along so the Go span (BL-0027)
+// nests under the Convex span.
 async function recipeServiceFetch<T>(
   userId: string,
   method: string,
   path: string,
   body?: unknown,
+  traceparent?: string,
 ): Promise<T> {
   const baseUrl = process.env.RECIPE_SERVICE_URL;
   if (!baseUrl) throw new Error("RECIPE_SERVICE_URL is not set on the deployment");
@@ -35,6 +39,7 @@ async function recipeServiceFetch<T>(
       "content-type": "application/json",
       "X-Service-Secret": secret,
       "X-User-Id": userId,
+      ...(traceparent ? { traceparent } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -44,39 +49,62 @@ async function recipeServiceFetch<T>(
 }
 
 export const create = action({
-  args: { title: v.string(), ingredients: v.array(ingredientValidator) },
-  handler: async (ctx, { title, ingredients }): Promise<Recipe> => {
+  args: {
+    title: v.string(),
+    ingredients: v.array(ingredientValidator),
+    traceCtx: v.optional(v.string()),
+  },
+  handler: async (ctx, { title, ingredients, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes", { title, ingredients });
+    return withSpan("recipes.create", traceCtx, (traceparent) =>
+      recipeServiceFetch<Recipe>(userId, "POST", "/recipes", { title, ingredients }, traceparent),
+    );
   },
 });
 
 export const list = action({
-  args: {},
-  handler: async (ctx): Promise<Recipe[]> => {
+  args: { traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { traceCtx }): Promise<Recipe[]> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe[]>(userId, "GET", "/recipes");
+    return withSpan("recipes.list", traceCtx, (traceparent) =>
+      recipeServiceFetch<Recipe[]>(userId, "GET", "/recipes", undefined, traceparent),
+    );
   },
 });
 
 export const remove = action({
-  args: { id: v.string() },
-  handler: async (ctx, { id }): Promise<null> => {
+  args: { id: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { id, traceCtx }): Promise<null> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    await recipeServiceFetch<void>(userId, "DELETE", `/recipes/${id}`);
+    await withSpan("recipes.remove", traceCtx, (traceparent) =>
+      recipeServiceFetch<void>(userId, "DELETE", `/recipes/${id}`, undefined, traceparent),
+    );
     return null;
   },
 });
 
 export const update = action({
-  args: { id: v.string(), title: v.string(), ingredients: v.array(ingredientValidator) },
-  handler: async (ctx, { id, title, ingredients }): Promise<Recipe> => {
+  args: {
+    id: v.string(),
+    title: v.string(),
+    ingredients: v.array(ingredientValidator),
+    traceCtx: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, title, ingredients, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe>(userId, "PUT", `/recipes/${id}`, { title, ingredients });
+    return withSpan("recipes.update", traceCtx, (traceparent) =>
+      recipeServiceFetch<Recipe>(
+        userId,
+        "PUT",
+        `/recipes/${id}`,
+        { title, ingredients },
+        traceparent,
+      ),
+    );
   },
 });
 
@@ -84,11 +112,13 @@ export const update = action({
 // returns a PREVIEW recipe (no id, not persisted). The web app drops it into the
 // recipe form; the user reviews and saves via the normal create action.
 export const importFromUrl = action({
-  args: { url: v.string() },
-  handler: async (ctx, { url }): Promise<Recipe> => {
+  args: { url: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { url, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes/import", { url });
+    return withSpan("recipes.importFromUrl", traceCtx, (traceparent) =>
+      recipeServiceFetch<Recipe>(userId, "POST", "/recipes/import", { url }, traceparent),
+    );
   },
 });
 
@@ -96,36 +126,44 @@ export const importFromUrl = action({
 // scopes /catalog to the catalog owner server-side; the caller's identity is
 // only used to satisfy the service auth boundary.
 export const listCatalog = action({
-  args: {},
-  handler: async (ctx): Promise<Recipe[]> => {
+  args: { traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { traceCtx }): Promise<Recipe[]> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog");
+    return withSpan("recipes.listCatalog", traceCtx, (traceparent) =>
+      recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog", undefined, traceparent),
+    );
   },
 });
 
 // Reads the basket, asks recipe-service to aggregate those recipes into a
 // grocery list, and persists the result as the reactive grocery list.
 export const generateGroceryList = action({
-  args: {},
-  handler: async (ctx): Promise<{ count: number }> => {
+  args: { traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { traceCtx }): Promise<{ count: number }> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    const basket = await ctx.runQuery(api.basket.list, {});
-    // Leftovers occupy a day but never contribute to the list; every other
-    // basketed recipe contributes at its servings multiplier (default 1).
-    const items = basket
-      .filter((b: { type?: string }) => b.type !== "leftover")
-      .map((b: { recipeId: string; servingsMultiplier?: number }) => ({
-        recipeId: b.recipeId,
-        multiplier: b.servingsMultiplier ?? 1,
-      }));
+    return withSpan("recipes.generateGroceryList", traceCtx, async (traceparent) => {
+      const basket = await ctx.runQuery(api.basket.list, {});
+      // Leftovers occupy a day but never contribute to the list; every other
+      // basketed recipe contributes at its servings multiplier (default 1).
+      const items = basket
+        .filter((b: { type?: string }) => b.type !== "leftover")
+        .map((b: { recipeId: string; servingsMultiplier?: number }) => ({
+          recipeId: b.recipeId,
+          multiplier: b.servingsMultiplier ?? 1,
+        }));
 
-    const lines = await recipeServiceFetch<GroceryLine[]>(userId, "POST", "/grocery-list", {
-      items,
+      const lines = await recipeServiceFetch<GroceryLine[]>(
+        userId,
+        "POST",
+        "/grocery-list",
+        { items },
+        traceparent,
+      );
+
+      await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
+      return { count: lines.length };
     });
-
-    await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
-    return { count: lines.length };
   },
 });

@@ -1,5 +1,6 @@
 import { api } from "@pantry/convex/api";
 import { useAction, useMutation } from "convex/react";
+import { useCallback } from "react";
 import { addToBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
@@ -10,7 +11,10 @@ import { Card } from "./ui/Card";
 export function Catalog() {
   const listCatalog = useAction(api.recipes.listCatalog);
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
-  const { data, loading, error: loadError, reload } = useAsyncData(listCatalog);
+  // Convex actions require an args object; pass an empty traceCtx-less one. Wrap in
+  // useCallback so useAsyncData's effect (keyed on fn) doesn't refire every render.
+  const load = useCallback(() => listCatalog({}), [listCatalog]);
+  const { data, loading, error: loadError, reload } = useAsyncData(load);
   const { run, error } = useAsyncAction();
   const recipes = data ?? [];
 

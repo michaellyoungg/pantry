@@ -112,6 +112,17 @@ describe("recipes <-> recipe-service contract", () => {
     expect(Array.isArray(catalog)).toBe(true);
   });
 
+  it("accepts an optional traceCtx without affecting the result (telemetry off)", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Traceparent Toast",
+      ingredients: [{ quantity: 1, unit: "slice", item: "bread" }],
+      traceCtx: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+    });
+    created.push(recipe.id);
+    expect(recipe.id).toBeTruthy();
+  });
+
   it("generateGroceryList aggregates basketed recipes via recipe-service", async () => {
     const t = client();
     const a = await t.action(api.recipes.create, {
