@@ -60,3 +60,27 @@ describe("RecipeList cross-store delete consistency", () => {
     expect(listRecipes.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("RecipeList read-side states", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  it("shows a loading state before recipes resolve (not the empty state)", () => {
+    listRecipes.mockReturnValue(new Promise(() => {}));
+    render(<RecipeList refreshKey={0} />);
+    expect(screen.getByText(/loading recipes/i)).toBeTruthy();
+    expect(screen.queryByText(/no recipes yet/i)).toBeNull();
+  });
+
+  it("shows an error with retry (not the empty state) when the load fails", async () => {
+    listRecipes.mockRejectedValueOnce(new Error("recipes down")).mockResolvedValue([RECIPE]);
+    render(<RecipeList refreshKey={0} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/recipes down/i);
+    expect(screen.queryByText(/no recipes yet/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await screen.findByText("Garlic Bread");
+  });
+});

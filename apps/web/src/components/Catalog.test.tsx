@@ -8,10 +8,14 @@ vi.mock("@pantry/convex/api", () => ({
   },
 }));
 
-const { listCatalog, addMock } = vi.hoisted(() => ({
-  listCatalog: vi.fn(),
-  addMock: vi.fn(() => Promise.resolve()),
-}));
+const { listCatalog, addMock } = vi.hoisted(() => {
+  const addMock = vi.fn(() => Promise.resolve()) as unknown as {
+    (...a: unknown[]): Promise<unknown>;
+    withOptimisticUpdate: (u: unknown) => typeof addMock;
+  };
+  addMock.withOptimisticUpdate = () => addMock;
+  return { listCatalog: vi.fn(), addMock };
+});
 
 vi.mock("convex/react", () => ({
   useAction: () => listCatalog,
@@ -46,5 +50,22 @@ describe("Catalog", () => {
     listCatalog.mockResolvedValue([]);
     render(<Catalog />);
     await screen.findByText(/no catalog recipes/i);
+  });
+
+  it("shows a loading state before the fetch resolves (not the empty state)", () => {
+    listCatalog.mockReturnValue(new Promise(() => {})); // never resolves
+    render(<Catalog />);
+    expect(screen.getByText(/loading catalog/i)).toBeTruthy();
+    expect(screen.queryByText(/no catalog recipes/i)).toBeNull();
+  });
+
+  it("shows an error with retry (not the empty state) when the fetch fails", async () => {
+    listCatalog.mockRejectedValueOnce(new Error("backend down")).mockResolvedValue([CAT]);
+    render(<Catalog />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/backend down/i);
+    expect(screen.queryByText(/no catalog recipes/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await screen.findByText("Garlic Bread");
   });
 });
