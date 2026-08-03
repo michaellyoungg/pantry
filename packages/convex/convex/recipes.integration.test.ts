@@ -50,6 +50,7 @@ describe("recipes <-> recipe-service contract", () => {
         { quantity: 2, unit: "slices", item: "bread" },
         { quantity: 1, unit: "tbsp", item: "butter", note: "softened" },
       ],
+      steps: ["Toast the bread.", "Spread the butter."],
     });
     created.push(recipe.id);
 
@@ -57,6 +58,7 @@ describe("recipes <-> recipe-service contract", () => {
     expect(recipe.title).toBe("Integration Toast");
     expect(recipe.ingredients).toHaveLength(2);
     expect(recipe.ingredients[1]).toMatchObject({ item: "butter", note: "softened" });
+    expect(recipe.steps).toEqual(["Toast the bread.", "Spread the butter."]);
 
     const list = await t.action(api.recipes.list, {});
     expect(list.some((r) => r.id === recipe.id)).toBe(true);
@@ -74,11 +76,13 @@ describe("recipes <-> recipe-service contract", () => {
       id: recipe.id,
       title: "After",
       ingredients: [{ quantity: 2, unit: "cups", item: "sugar" }],
+      steps: ["Cream the sugar."],
     });
 
     expect(updated.id).toBe(recipe.id);
     expect(updated.title).toBe("After");
     expect(updated.ingredients).toEqual([{ quantity: 2, unit: "cups", item: "sugar" }]);
+    expect(updated.steps).toEqual(["Cream the sugar."]);
   });
 
   it("remove deletes the recipe so it no longer lists", async () => {
