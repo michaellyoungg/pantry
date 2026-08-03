@@ -45,8 +45,13 @@ export const mergeGroceryList = internalMutation({
   args: {
     userId: v.string(),
     lines: v.array(groceryLineValidator),
+    // canonicalItem -> approximate shelf life in days (BL-0029), resolved by
+    // recipe-service during generation. A separate argument rather than a wider
+    // line shape: `groceryLineValidator` is pinned to the @pantry/types contract
+    // by the guard above, and this is Convex-internal data, not part of it.
+    shelfLife: v.optional(v.record(v.string(), v.number())),
   },
-  handler: async (ctx, { userId, lines }) => {
+  handler: async (ctx, { userId, lines, shelfLife }) => {
     const existing = await ctx.db
       .query("groceryList")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -73,11 +78,13 @@ export const mergeGroceryList = internalMutation({
     for (const line of lines) {
       const k = keyOf(line);
       const row = byKey.get(k);
+      const shelfLifeDays = shelfLife?.[line.canonicalItem];
       if (row && !seen.has(k)) {
         // keep `checked` and any needItAnyway override; heal canonicalItem
         await ctx.db.patch(row._id, {
           quantity: line.quantity,
           canonicalItem: line.canonicalItem,
+          shelfLifeDays,
         });
       } else {
         await ctx.db.insert("groceryList", {
@@ -89,6 +96,7 @@ export const mergeGroceryList = internalMutation({
           aisle: line.aisle,
           checked: false,
           alreadyHave: owned.has(line.canonicalItem),
+          shelfLifeDays,
         });
       }
       seen.add(k);
@@ -121,6 +129,7 @@ export const toggleItem = mutation({
         canonicalItem: row.canonicalItem,
         display: row.item,
         aisle: row.aisle,
+        shelfLifeDays: row.shelfLifeDays,
       });
     } else {
       await removeAutoRow(ctx, { userId, canonicalItem: row.canonicalItem });

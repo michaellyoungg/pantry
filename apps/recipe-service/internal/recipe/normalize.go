@@ -21,13 +21,33 @@ type unitDef struct {
 type itemDef struct {
 	Display string `json:"display"`
 	Aisle   string `json:"aisle"`
+	// ShelfLifeDays overrides the aisle default. 0 means "use the aisle
+	// default", not "expires today".
+	ShelfLifeDays int `json:"shelfLifeDays,omitempty"`
 }
 
 type normalizationData struct {
-	Units      map[string]unitDef `json:"units"`
-	Synonyms   map[string]string  `json:"synonyms"`
-	Items      map[string]itemDef `json:"items"`
-	AisleOrder []string           `json:"aisleOrder"`
+	Units    map[string]unitDef `json:"units"`
+	Synonyms map[string]string  `json:"synonyms"`
+	Items    map[string]itemDef `json:"items"`
+	// AisleShelfLife is the per-aisle fallback for items with no explicit
+	// shelf life. "other" is deliberately absent: an item we failed to
+	// recognize is one whose shelf life we genuinely do not know, and
+	// inventing a number for it is a guess dressed up as data (BL-0029).
+	AisleShelfLife map[string]int `json:"aisleShelfLife"`
+	AisleOrder     []string       `json:"aisleOrder"`
+}
+
+// ItemDetails is everything the normalizer knows about one ingredient. It is
+// the wire shape of POST /normalization/lookup, which is how Convex reads shelf
+// life without keeping a second copy of the table.
+type ItemDetails struct {
+	CanonicalItem string `json:"canonicalItem"`
+	Display       string `json:"display"`
+	Aisle         string `json:"aisle"`
+	// ShelfLifeDays is omitted rather than zeroed when unknown, so callers can
+	// tell "we don't know" apart from "it expires today".
+	ShelfLifeDays int `json:"shelfLifeDays,omitempty"`
 }
 
 // displayUnit is one rung of a dimension's friendly-display ladder.
@@ -82,14 +102,62 @@ func mustLoadNormalizer() *Normalizer {
 // and a grocery aisle. Unknown items pass through: display keeps the first-seen
 // original (trimmed) casing and the aisle is "other".
 func (n *Normalizer) CanonicalItem(raw string) (canonical, display, aisle string) {
+	d := n.Details(raw)
+	return d.CanonicalItem, d.Display, d.Aisle
+}
+
+// Details is CanonicalItem plus shelf life. Resolution order is
+// per-item -> aisle default -> none.
+func (n *Normalizer) Details(raw string) ItemDetails {
 	norm := strings.ToLower(strings.TrimSpace(raw))
 	if syn, ok := n.data.Synonyms[norm]; ok {
 		norm = syn
 	}
 	if it, ok := n.data.Items[norm]; ok {
-		return norm, it.Display, it.Aisle
+		return n.detailsFor(norm, it)
 	}
-	return norm, strings.TrimSpace(raw), "other"
+	// Guarded plural folding. Real ingredient text is overwhelmingly plural
+	// ("2 tomatoes", "3 eggs") while the table is keyed on singulars, so a
+	// literal-only lookup would drop most perishables into "other". A fold is
+	// accepted ONLY when the singular is itself a known item or synonym, which
+	// is what keeps "asparagus" from being butchered into "asparagu".
+	for _, cand := range singularCandidates(norm) {
+		if syn, ok := n.data.Synonyms[cand]; ok {
+			cand = syn
+		}
+		if it, ok := n.data.Items[cand]; ok {
+			return n.detailsFor(cand, it)
+		}
+	}
+	return ItemDetails{CanonicalItem: norm, Display: strings.TrimSpace(raw), Aisle: "other"}
+}
+
+func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
+	shelf := it.ShelfLifeDays
+	if shelf == 0 {
+		shelf = n.data.AisleShelfLife[it.Aisle] // 0 when the aisle has no default
+	}
+	return ItemDetails{
+		CanonicalItem: canonical,
+		Display:       it.Display,
+		Aisle:         it.Aisle,
+		ShelfLifeDays: shelf,
+	}
+}
+
+// singularCandidates returns plural-to-singular guesses, most specific first.
+// They are only ever accepted if the table already knows them, so an over-eager
+// rule here cannot invent a canonical key.
+func singularCandidates(s string) []string {
+	switch {
+	case strings.HasSuffix(s, "ies") && len(s) > 3:
+		return []string{s[:len(s)-3] + "y", s[:len(s)-1]}
+	case strings.HasSuffix(s, "es") && len(s) > 2:
+		return []string{s[:len(s)-2], s[:len(s)-1]}
+	case strings.HasSuffix(s, "s") && !strings.HasSuffix(s, "ss") && len(s) > 1:
+		return []string{s[:len(s)-1]}
+	}
+	return nil
 }
 
 // Unit reports the dimension and base-unit factor for a convertible unit.
