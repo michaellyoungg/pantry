@@ -1,5 +1,5 @@
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { COOKING_METHOD_LABELS } from "../lib/cookingMethods";
 import { equipmentName } from "../lib/useEquipmentCatalog";
 import { RecipePrep } from "./RecipePrep";
@@ -17,16 +17,31 @@ function ingredientLine(ing: Ingredient): string {
 export function RecipeDetails({
   recipe,
   catalog = [],
+  // Aliased so the prop stays `open` for callers while the live expansion
+  // state below can own that name internally.
+  open: defaultOpen = false,
 }: {
   recipe: Recipe;
   /** Equipment catalog, for resolving tag slugs to names. */
   catalog?: EquipmentDef[];
+  /**
+   * Start expanded. This is how a link into the list (the grocery list's
+   * provenance sheet) lands on the recipe it named rather than on a closed row
+   * the user then has to find and click.
+   */
+  open?: boolean;
 }) {
-  // Prep derivation is a network round trip per recipe, so it is deferred until
-  // the row is actually expanded. A native <details> keeps its children mounted
-  // while collapsed, which would otherwise fire one request for every recipe in
-  // the list on first render.
-  const [open, setOpen] = useState(false);
+  // Whether the row is actually expanded right now, seeded from defaultOpen.
+  // Tracked in state — not just handed to <details open> — because prep
+  // derivation is a network round trip per recipe and is deferred until the row
+  // is open. A native <details> keeps its children mounted while collapsed,
+  // which would otherwise fire one request for every recipe in the list on
+  // first render.
+  const [open, setOpen] = useState(defaultOpen);
+  // The prop can flip on an ALREADY MOUNTED row: opening the provenance sheet
+  // for a second recipe re-points `openRecipeId` without remounting the list, so
+  // seeding state once would leave that row stubbornly closed (BL-0019).
+  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   const steps = recipe.steps ?? [];
   const equipment = recipe.equipment ?? [];
   const methods = recipe.methods ?? [];
@@ -41,6 +56,7 @@ export function RecipeDetails({
 
   return (
     <details
+      open={open}
       className="text-sm text-muted"
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >

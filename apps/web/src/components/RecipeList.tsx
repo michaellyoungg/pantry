@@ -1,10 +1,12 @@
 import { api } from "@pantry/convex/api";
+import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
 import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
+import { useHouseholdSize } from "../lib/useHouseholdSize";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -14,13 +16,21 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { useConfirm } from "./ui/useConfirm";
 
-export function RecipeList({ refreshKey }: { refreshKey: number }) {
+export function RecipeList({
+  refreshKey,
+  openRecipeId,
+}: {
+  refreshKey: number;
+  /** Start this recipe expanded — how `/recipes?recipe=<id>` lands on one. */
+  openRecipeId?: string;
+}) {
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [showNutrition, setShowNutrition] = useState<string | null>(null);
   const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
   const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
   const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
+  const householdSize = useHouseholdSize();
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );
@@ -137,7 +147,15 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
+                  onClick={() =>
+                    run(() =>
+                      addToBasket({
+                        recipeId: r.id,
+                        title: r.title,
+                        servingsMultiplier: defaultServingsMultiplier(householdSize, r.servings),
+                      }),
+                    )
+                  }
                 >
                   Add to basket
                 </Button>
@@ -164,7 +182,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 </Button>
               </span>
             </div>
-            <RecipeDetails recipe={r} catalog={catalog} />
+            <RecipeDetails recipe={r} catalog={catalog} open={r.id === openRecipeId} />
             {/* Estimated on demand: it is a per-recipe network round trip, so it
                 loads when asked for rather than for every row in the list. */}
             {showNutrition === r.id && <RecipeNutrition recipeId={r.id} />}

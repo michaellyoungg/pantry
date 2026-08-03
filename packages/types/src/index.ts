@@ -76,6 +76,60 @@ export interface Recipe {
   createdAt: string; // ISO-8601
 }
 
+/**
+ * Whether a recipe's hardware requirements are met by an equipment inventory
+ * (BL-0043).
+ *
+ * `unknown` is the important one: a recipe carrying no equipment tags has never
+ * been assessed, and presenting that as `makeable` would turn missing data into
+ * a green light. UI must render it as "we don't know", never as a yes.
+ */
+export type EquipmentFitStatus = "makeable" | "blocked" | "unknown";
+
+/**
+ * How one recipe fares against an inventory, without the recipe body — the
+ * compact shape the catalog joins onto recipes it already has.
+ */
+export interface EquipmentFit {
+  status: EquipmentFitStatus;
+  /** Required equipment slugs the user lacks. Empty unless status is "blocked". */
+  missing: string[];
+  /** Which newly acquired devices this recipe needed. Only set by a discovery query. */
+  unlockedBy: string[];
+}
+
+/** A recipe plus its fit — the shape POST /equipment/match returns. */
+export type EquipmentMatch = Recipe & EquipmentFit;
+
+/**
+ * Bucket sizes over every recipe considered — including recipes the narrowed
+ * list omits, so "N we can't assess" keeps an honest denominator.
+ */
+export interface EquipmentCounts {
+  makeable: number;
+  blocked: number;
+  unknown: number;
+}
+
+export interface EquipmentMatchResult {
+  recipes: EquipmentMatch[];
+  counts: EquipmentCounts;
+}
+
+/**
+ * One recipe's contribution to an aggregated grocery line.
+ *
+ * `quantity` is in the *parent line's* unit, not the unit the recipe wrote, so
+ * the contributions add up to the line total — that additivity is the question
+ * the provenance sheet answers ("why is this ¾ cup?"). The unit is therefore
+ * not repeated here.
+ */
+export interface GroceryLineSource {
+  recipeId: string;
+  title: string;
+  quantity: number;
+}
+
 export interface GroceryLine {
   item: string;
   /** Normalized ingredient key ("green onion"); the identity the pantry joins on. */
@@ -83,6 +137,11 @@ export interface GroceryLine {
   unit: string;
   quantity: number;
   aisle: string;
+  /**
+   * The recipes this line was aggregated from, in first-seen order. Absent for
+   * manually added lines and for lines generated before BL-0019.
+   */
+  sources?: GroceryLineSource[];
 }
 
 export interface CreateRecipeRequest {
@@ -226,6 +285,91 @@ export interface CostEstimate {
   unpricedCount: number;
   lines: PricedLine[];
   basis: PriceBasis;
+}
+
+/** One pantry row as the recommender sees it. Mirrors Go recommend.PantryItem. */
+export interface PantryContextItem {
+  canonicalItem: string;
+  state: "have" | "low" | "out";
+  useItUp?: boolean;
+}
+
+/** Ingredient-grounded preferences. `avoidItems` is a hard filter, not a weight. */
+export interface RecommendationPreferences {
+  avoidItems: string[];
+  likedItems: string[];
+  dislikedItems: string[];
+}
+
+/** Mirrors Go recommend.UserContext. */
+export interface RecommendationRequest {
+  pantry: PantryContextItem[];
+  preferences: RecommendationPreferences;
+  affinities?: Record<string, number>;
+  savedRecipeIds?: string[];
+  excludeRecipeIds?: string[];
+  limit?: number;
+}
+
+export interface RecommendationMissingItem {
+  canonicalItem: string;
+  display: string;
+}
+
+/** Mirrors Go recommend.Result. */
+export interface Recommendation {
+  recipeId: string;
+  title: string;
+  /** "generated" is reserved for a future LLM candidate provider (BL-0034). */
+  source: "catalog" | "user" | "generated";
+  score: number;
+  reasons: string[];
+  have: string[];
+  missing: RecommendationMissingItem[];
+}
+
+export interface RecommendationResponse {
+  results: Recommendation[];
+}
+
+/**
+ * Nutrition habit review (BL-0039).
+ *
+ * `nutritionLog` records what a user ate, one row per recipe per day. Rows are
+ * written from the plan as `planned`; when BL-0028 lands, "mark cooked" upgrades
+ * the same row to `cooked`. `manual` is reserved for a future food diary.
+ */
+export type NutritionLogSource = "planned" | "cooked" | "manual";
+
+/**
+ * The nutrient vector denormalized at log time — the whole point of the log.
+ *
+ * FDC data is refreshed and ingredient→food mappings get corrected. Recomputing
+ * history from current data would silently rewrite what the user ate last month,
+ * so history reads this snapshot and never re-estimates.
+ *
+ * `nutrients` is the estimate for **one whole recipe yield**; the amount eaten is
+ * that vector scaled by the row's `servings` multiplier. Keeping the snapshot
+ * unscaled is what lets BL-0028 upgrade a row to `cooked` with a different
+ * quantity by changing one number instead of re-estimating.
+ */
+export interface NutritionLogSnapshot {
+  nutrients: Record<string, NutrientAmount>;
+  /** Coverage at log time. Without it, an unknown day is indistinguishable from a zero day. */
+  coverage: NutritionCoverage;
+  estimatedAt: string; // ISO-8601
+}
+
+/** One logged meal, as the review surface consumes it. */
+export interface NutritionLogEntry {
+  date: string; // YYYY-MM-DD
+  recipeId: string;
+  /** Denormalized for display; the log must stay readable if the recipe is deleted. */
+  title?: string;
+  /** How many whole recipe yields were eaten. Scales `snapshot.nutrients`. */
+  servings: number;
+  source: NutritionLogSource;
+  snapshot: NutritionLogSnapshot;
 }
 
 /**

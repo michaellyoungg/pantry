@@ -1,10 +1,11 @@
 ---
 id: BL-0018
 title: Meal planner — basket becomes a dinner-first week plan
-status: in-progress
+status: done
 area: meal-planning
 effort: L
-related_specs: [2026-07-12-full-app-ux-plan.md]
+related_specs:
+  [2026-07-12-full-app-ux-plan.md, 2026-08-03-planner-regeneration-design.md]
 created: 2026-07-12
 ---
 
@@ -47,7 +48,23 @@ must be deliberately low-effort.
   / `basket.unschedule` mutations, and a responsive `WeekPlan` (`/plan`) —
   7-column grid on desktop / stacked agenda on phone, an unscheduled rail with a
   day picker, and the existing "Generate grocery list".
-- **Deferred (next increments):** `servingsMultiplier` flowing into aggregation
-  (needs recipe-service quantity scaling), `type: leftover`, non-dinner slots,
-  and the **non-destructive diff-merge regeneration** (UX-plan decision #2 —
-  flagged *confirm before building*; today's generate still replaces the list).
+- **2026-07-13 — Increment 2, first pass (shipped, PR #39):** `servingsMultiplier`
+  flowing into a new `AggregateScaled` in the Go aggregator, `type: leftover`
+  (occupies a day, contributes no grocery lines), and `replaceGroceryList` →
+  `mergeGroceryList`, which preserves `checked` on surviving lines and inserts
+  new ones.
+- **2026-08-03 — Increment 2, completion:** the two pieces of the specified
+  behaviour the first pass left open. Regeneration now applies all **three**
+  rules of UX-plan decision #2 — a line the plan drops is *flagged* `removed`
+  rather than deleted when it was already checked off, shown in its own "No
+  longer in your plan" section with a dismiss action, and excluded from Home's
+  counts and the price estimate. And the servings dial gets its **household
+  default**: a new `preferences.householdSize` (set on `/settings`) seeds each
+  recipe's multiplier as household ÷ the recipe's yield, snapped to the
+  stepper's grid, applied on add only. Design:
+  `docs/superpowers/specs/2026-08-03-planner-regeneration-design.md`.
+- **Deliberately not built** (candidates for follow-up items, not gaps in this
+  one): a **week identity** (UX-plan decision #1 — the model is a bare weekday
+  index, so "next week" has nowhere to live), **drag-and-drop** (explicitly a
+  vision fast-follow), and **non-dinner slot UI** (the `slot` field exists and
+  accepts any value; only dinner is surfaced, which is the dinner-first call).

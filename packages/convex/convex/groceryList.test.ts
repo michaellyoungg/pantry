@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -182,6 +182,83 @@ describe("mergeGroceryList (increment 2)", () => {
       quantity: 2,
       aisle: "dairy",
     });
+  });
+});
+
+describe("removed lines (BL-0018 diff-merge rule 3)", () => {
+  const checkedMilk = {
+    userId: USER_ID,
+    item: "Milk",
+    canonicalItem: "milk",
+    unit: "cup",
+    quantity: 1,
+    aisle: "dairy",
+    checked: true,
+  };
+  const bread = {
+    item: "Bread",
+    canonicalItem: "bread",
+    unit: "loaf",
+    quantity: 1,
+    aisle: "bakery",
+  };
+
+  it("flags a checked line the plan no longer wants instead of deleting it", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", checkedMilk));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [bread] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const milk = rows.find((r) => r.item === "Milk");
+    expect(milk).toBeDefined();
+    expect(milk?.checked).toBe(true);
+    expect(milk?.removed).toBe(true);
+  });
+
+  it("clears the flag when the line returns to the plan, keeping the tick", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, removed: true }));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [{ item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 3, aisle: "dairy" }],
+    });
+
+    const [milk] = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(milk.removed).toBeUndefined();
+    expect(milk.checked).toBe(true);
+    expect(milk.quantity).toBe(3);
+  });
+
+  it("still deletes an untouched line the plan no longer wants", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, checked: false }));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [bread] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item)).toEqual(["Bread"]);
+  });
+
+  it("lets the shopper dismiss a flagged line", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, removed: true }));
+    const asUser = t.withIdentity(identity);
+    const [milk] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.removeItem, { id: milk._id });
+
+    expect(await asUser.query(api.groceryList.getGroceryList, {})).toHaveLength(0);
+  });
+
+  it("still refuses to remove a generated line that is still in the plan", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", checkedMilk));
+    const asUser = t.withIdentity(identity);
+    const [milk] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await expect(asUser.mutation(api.groceryList.removeItem, { id: milk._id })).rejects.toThrow();
   });
 });
 
@@ -384,5 +461,335 @@ describe("shelf life & use-by (BL-0029)", () => {
     const [row] = await asUser.query(api.pantry.list, {});
     expect(row.state).toBe("have");
     expect(row.useBy).toBeGreaterThan(Date.now());
+  });
+});
+
+// Provenance (BL-0019): the aggregator now says which recipes each line came
+// from, and that has to survive the non-destructive merge, not just the insert.
+describe("grocery line provenance", () => {
+  const line = {
+    item: "Garlic",
+    canonicalItem: "garlic",
+    unit: "cloves",
+    quantity: 3,
+    aisle: "produce",
+    sources: [
+      { recipeId: "r1", title: "Chili", quantity: 2 },
+      { recipeId: "r2", title: "Aioli", quantity: 1 },
+    ],
+  };
+
+  it("persists contributing recipes on a newly generated line", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows[0].sources).toEqual(line.sources);
+  });
+
+  it("refreshes provenance when a line is re-generated", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+    // The plan changed: Aioli is gone, so the line is smaller and traces to one
+    // recipe. A stale second source would send the shopper to a recipe they are
+    // no longer cooking.
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [{ ...line, quantity: 2, sources: [{ recipeId: "r1", title: "Chili", quantity: 2 }] }],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sources).toEqual([{ recipeId: "r1", title: "Chili", quantity: 2 }]);
+  });
+});
+
+describe("manual grocery lines", () => {
+  async function addManual(t: ReturnType<typeof convexTest>, over: Record<string, unknown> = {}) {
+    await t.mutation(internal.groceryList.insertManualLine, {
+      userId: USER_ID,
+      item: "Foil",
+      canonicalItem: "foil",
+      unit: "",
+      quantity: 1,
+      aisle: "other",
+      ...over,
+    });
+  }
+
+  it("inserts a manual line flagged as manual and unchecked", async () => {
+    const t = convexTest(schema, modules);
+    await addManual(t);
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows[0]).toMatchObject({ item: "Foil", aisle: "other", checked: false, manual: true });
+  });
+
+  it("adds to the existing line instead of opening a second one", async () => {
+    const t = convexTest(schema, modules);
+    await addManual(t, { quantity: 1 });
+    await addManual(t, { quantity: 2 });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quantity).toBe(3);
+  });
+
+  it("un-checks a line that is re-added, because you want more of it", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await addManual(t);
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    await asUser.mutation(api.groceryList.toggleItem, { id: rows[0]._id, checked: true });
+
+    await addManual(t);
+
+    const after = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(after[0].checked).toBe(false);
+    expect(after[0].quantity).toBe(2);
+  });
+
+  it("survives a re-generation that does not mention it", async () => {
+    const t = convexTest(schema, modules);
+    await addManual(t);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Garlic", canonicalItem: "garlic", unit: "cloves", quantity: 3, aisle: "produce" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item).sort()).toEqual(["Foil", "Garlic"]);
+  });
+
+  it("still deletes generated lines the new plan dropped", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Garlic", canonicalItem: "garlic", unit: "cloves", quantity: 3, aisle: "produce" },
+      ],
+    });
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(0);
+  });
+
+  it("drops provenance from a manual line whose recipe left the plan", async () => {
+    const t = convexTest(schema, modules);
+    // Typed by hand, then a recipe wanted the same thing: the line keeps both
+    // its manual protection and the recipe's provenance.
+    await addManual(t, {
+      item: "Garlic",
+      canonicalItem: "garlic",
+      unit: "cloves",
+      aisle: "produce",
+    });
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        {
+          item: "Garlic",
+          canonicalItem: "garlic",
+          unit: "cloves",
+          quantity: 3,
+          aisle: "produce",
+          sources: [{ recipeId: "r1", title: "Chili", quantity: 3 }],
+        },
+      ],
+    });
+    let rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows[0].sources).toHaveLength(1);
+    expect(rows[0].manual).toBe(true);
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [] });
+
+    rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sources).toBeUndefined();
+  });
+
+  it("removes a manual line", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await addManual(t);
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.removeItem, { id: rows[0]._id });
+
+    expect(await asUser.query(api.groceryList.getGroceryList, {})).toHaveLength(0);
+  });
+
+  it("refuses to remove a generated line, which would just come back", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Garlic", canonicalItem: "garlic", unit: "cloves", quantity: 3, aisle: "produce" },
+      ],
+    });
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await expect(asUser.mutation(api.groceryList.removeItem, { id: rows[0]._id })).rejects.toThrow(
+      /manually added/,
+    );
+  });
+});
+
+describe("recent item suggestions", () => {
+  it("offers the most recently touched pantry items, newest first", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem: "butter",
+        display: "Butter",
+        aisle: "dairy",
+        state: "have",
+        source: "auto",
+        updatedAt: 100,
+      });
+      await ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem: "milk",
+        display: "Milk",
+        aisle: "dairy",
+        state: "have",
+        source: "auto",
+        updatedAt: 200,
+      });
+    });
+
+    const recent = await t.withIdentity(identity).query(api.groceryList.recentItems, {});
+    expect(recent.map((r) => r.display)).toEqual(["Milk", "Butter"]);
+  });
+
+  it("does not suggest something already on the list", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem: "milk",
+        display: "Milk",
+        aisle: "dairy",
+        state: "have",
+        source: "auto",
+        updatedAt: 200,
+      });
+    });
+    await t.mutation(internal.groceryList.insertManualLine, {
+      userId: USER_ID,
+      item: "Milk",
+      canonicalItem: "milk",
+      unit: "",
+      quantity: 1,
+      aisle: "dairy",
+    });
+
+    const recent = await t.withIdentity(identity).query(api.groceryList.recentItems, {});
+    expect(recent).toEqual([]);
+  });
+
+  it("keeps another household's pantry out of the suggestions", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pantryItems", {
+        userId: "user-b",
+        canonicalItem: "milk",
+        display: "Milk",
+        aisle: "dairy",
+        state: "have",
+        source: "auto",
+        updatedAt: 200,
+      });
+    });
+
+    expect(await t.withIdentity(identity).query(api.groceryList.recentItems, {})).toEqual([]);
+  });
+});
+
+// addManualItem is an action because categorisation needs recipe-service's
+// normalization table, and mutations cannot fetch. These pin the wiring with a
+// stubbed service; the live contract is covered by the integration suite.
+describe("addManualItem", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  function stubNormalization(items: unknown[]) {
+    vi.stubEnv("RECIPE_SERVICE_URL", "http://recipe-service");
+    vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
+    const bodies: unknown[] = [];
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ items }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return bodies;
+  }
+
+  it("files a typed item into the aisle recipe-service resolves for it", async () => {
+    const t = convexTest(schema, modules);
+    const bodies = stubNormalization([
+      { canonicalItem: "green onion", display: "Green onion", aisle: "produce", shelfLifeDays: 7 },
+    ]);
+
+    await t
+      .withIdentity(identity)
+      .action(api.groceryList.addManualItem, { item: "scallions", quantity: 2, unit: "bunch" });
+
+    expect(bodies[0]).toEqual({ items: ["scallions"] });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows[0]).toMatchObject({
+      item: "Green onion",
+      canonicalItem: "green onion",
+      aisle: "produce",
+      unit: "bunch",
+      quantity: 2,
+      manual: true,
+      // Carried so check-off can stamp a use-by without a second round trip.
+      shelfLifeDays: 7,
+    });
+  });
+
+  it("still adds an item the normalizer returns nothing for", async () => {
+    const t = convexTest(schema, modules);
+    stubNormalization([]);
+
+    await t
+      .withIdentity(identity)
+      .action(api.groceryList.addManualItem, { item: "Sriracha", quantity: 1, unit: "" });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows[0]).toMatchObject({ item: "Sriracha", canonicalItem: "sriracha", aisle: "other" });
+  });
+
+  it("rejects a blank item without calling the service", async () => {
+    const t = convexTest(schema, modules);
+    const bodies = stubNormalization([]);
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .action(api.groceryList.addManualItem, { item: "   ", quantity: 1, unit: "" }),
+    ).rejects.toThrow(/required/);
+    expect(bodies).toEqual([]);
+  });
+
+  it("refuses to add for a signed-out caller", async () => {
+    const t = convexTest(schema, modules);
+    stubNormalization([]);
+
+    await expect(
+      t.action(api.groceryList.addManualItem, { item: "Foil", quantity: 1, unit: "" }),
+    ).rejects.toThrow(/Not authenticated/);
   });
 });

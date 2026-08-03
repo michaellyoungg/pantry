@@ -86,3 +86,40 @@ describe("countMeals", () => {
     expect(countMeals([meal("a"), meal("b", { type: "meal" })])).toBe(2);
   });
 });
+
+describe("lines the plan has dropped (BL-0018)", () => {
+  const removedLine = (id: string): GroceryRow => ({
+    _id: id,
+    item: `item-${id}`,
+    checked: true,
+    removed: true,
+  });
+
+  it("does not count a flagged line among the things left to buy", () => {
+    // The shopper already has it in the cart and the plan no longer wants it;
+    // counting it would overstate both the list and the shopping progress.
+    const list = [line("1", false), removedLine("2")];
+    expect(deriveHomeState([meal("a")], list)).toEqual({
+      kind: "shopping",
+      total: 1,
+      checked: 0,
+      remaining: 1,
+    });
+  });
+
+  it("is shopped when every line that still counts is checked", () => {
+    const list = [line("1", true), removedLine("2")];
+    expect(deriveHomeState([meal("a")], list)).toEqual({
+      kind: "shopped",
+      total: 1,
+      mealCount: 1,
+    });
+  });
+
+  it("offers the next plan when nothing but flagged lines remain", () => {
+    expect(deriveHomeState([meal("a")], [removedLine("1")])).toEqual({
+      kind: "planned",
+      mealCount: 1,
+    });
+  });
+});

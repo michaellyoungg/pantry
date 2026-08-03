@@ -55,4 +55,22 @@ type GroceryLine struct {
 	Unit          string  `json:"unit"`
 	Quantity      float64 `json:"quantity"`
 	Aisle         string  `json:"aisle"`
+	// Sources are the recipes this line was aggregated from, in first-seen
+	// order. Nil when nothing traceable contributed (see GroceryLineSource).
+	Sources []GroceryLineSource `json:"sources,omitempty"`
+}
+
+// GroceryLineSource is one recipe's contribution to an aggregated grocery line:
+// which recipe, and how much of the line's total came from it.
+//
+// Quantity is expressed in the *line's* unit, not the unit the recipe wrote, so
+// the contributions visibly add up to the number the shopper is looking at
+// ("why is this 3/4 cup?" -> "1/4 from Cookies, 1/2 from Toast"). That is the
+// question the provenance sheet exists to answer, so additivity beats fidelity
+// to the original wording. The unit is therefore not repeated here — it is
+// always the parent line's.
+type GroceryLineSource struct {
+	RecipeID string  `json:"recipeId"`
+	Title    string  `json:"title"`
+	Quantity float64 `json:"quantity"`
 }

@@ -10,15 +10,19 @@
 
 import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
+import type * as equipment from "../equipment.js";
 import type * as groceryList from "../groceryList.js";
 import type * as http from "../http.js";
 import type * as lib_otel from "../lib/otel.js";
 import type * as nutrition from "../nutrition.js";
+import type * as nutritionLog from "../nutritionLog.js";
 import type * as nutritionTargets from "../nutritionTargets.js";
 import type * as pantry from "../pantry.js";
+import type * as preferences from "../preferences.js";
 import type * as prepTasks from "../prepTasks.js";
 import type * as pricing from "../pricing.js";
 import type * as recipes from "../recipes.js";
+import type * as recommendations from "../recommendations.js";
 
 import type {
   ApiFromModules,
@@ -29,15 +33,19 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   basket: typeof basket;
+  equipment: typeof equipment;
   groceryList: typeof groceryList;
   http: typeof http;
   "lib/otel": typeof lib_otel;
   nutrition: typeof nutrition;
+  nutritionLog: typeof nutritionLog;
   nutritionTargets: typeof nutritionTargets;
   pantry: typeof pantry;
+  preferences: typeof preferences;
   prepTasks: typeof prepTasks;
   pricing: typeof pricing;
   recipes: typeof recipes;
+  recommendations: typeof recommendations;
 }>;
 
 /**

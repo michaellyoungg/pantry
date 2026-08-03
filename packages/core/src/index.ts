@@ -6,9 +6,27 @@
 // hooks live in `@pantry/core/react`; Convex-aware helpers in
 // `@pantry/core/convex`.
 
+export {
+  addDays,
+  type DateRange,
+  dateForWeekday,
+  datesInRange,
+  parseISODate,
+  startOfWeek,
+  toISODate,
+  windowEndingOn,
+} from "./calendar";
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
-export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
+export {
+  type AisleGroup,
+  type AisleLine,
+  groupByAisle,
+  partitionRemoved,
+  type RemovableLine,
+  titleCase,
+} from "./grocery";
+export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export {
   formatNutrientAmount,
   HEADLINE_NUTRIENTS,
@@ -19,6 +37,22 @@ export {
   nutrientRows,
   unresolvedItems,
 } from "./nutrition";
+export {
+  type DayExclusionReason,
+  type DayPoint,
+  type DaySummary,
+  exclusionLabel,
+  type GoalMetRate,
+  goalMetRates,
+  type HabitReview,
+  type HabitReviewOptions,
+  type HabitSignal,
+  habitReview,
+  habitSignal,
+  MIN_DAY_COVERAGE,
+  type NutrientTrend,
+  type TrendDirection,
+} from "./nutritionHistory";
 export {
   type DayNutritionSummary,
   type NutritionGaps,
@@ -38,6 +72,7 @@ export {
 export {
   canGenerateList,
   decreaseServings,
+  defaultServingsMultiplier,
   increaseServings,
   isCooked,
   isLeftover,

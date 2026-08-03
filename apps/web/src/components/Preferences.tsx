@@ -1,0 +1,164 @@
+import { api } from "@pantry/convex/api";
+import { useAsyncAction } from "@pantry/core/react";
+import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import { ErrorText } from "./ErrorText";
+import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
+import { Input } from "./ui/Input";
+
+// The single source of truth for diet seeds. Selecting a diet PRE-FILLS the
+// avoid list so the user can see and edit exactly what gets excluded.
+//
+// This is deliberate: filtering by INFERRING which ingredients are meat would
+// produce false negatives under partial dictionary coverage — a beef recipe
+// shown to someone who declared vegetarian — which destroys trust in the whole
+// feature. Nothing is ever excluded invisibly.
+//
+// It lives here and nowhere else: the Convex `set` mutation stores whatever
+// avoid list it is handed and never consults this table.
+//
+// Every entry below MUST be a real canonical item key from
+// apps/recipe-service/internal/recipe/normalization.json — matching is exact
+// on that key (see preferences.ts), so a plausible-looking but non-canonical
+// entry (e.g. "beef" instead of "ground beef") silently filters nothing.
+// Preferences.dietSeeds.test.ts asserts every entry here still exists in that
+// file, so the two cannot drift without a failing test.
+const MEAT = [
+  "chicken",
+  "chicken breast",
+  "chicken thigh",
+  "ground beef",
+  "ground turkey",
+  "ground pork",
+  "ground lamb",
+  "steak",
+  "pork chop",
+  "pork tenderloin",
+  "bacon",
+  "sausage",
+  "ham",
+  "prosciutto",
+];
+const SEAFOOD = ["salmon", "shrimp", "cod", "tilapia"];
+const ANIMAL_PRODUCTS = [
+  "milk",
+  "butter",
+  "egg",
+  "heavy cream",
+  "half and half",
+  "buttermilk",
+  "sour cream",
+  "yogurt",
+  "greek yogurt",
+  "cream cheese",
+  "cottage cheese",
+  "cheddar cheese",
+  "parmesan",
+  "mozzarella",
+  "feta",
+  "ricotta",
+  "honey",
+];
+
+export const DIET_SEEDS: Record<string, string[]> = {
+  vegetarian: [...MEAT, ...SEAFOOD],
+  vegan: [...MEAT, ...SEAFOOD, ...ANIMAL_PRODUCTS],
+  pescatarian: [...MEAT],
+};
+
+export function Preferences() {
+  const prefs = useQuery(api.preferences.get);
+  const setPreferences = useMutation(api.preferences.set);
+  const { run, error } = useAsyncAction();
+  const [draft, setDraft] = useState("");
+
+  const avoidItems = prefs?.avoidItems ?? [];
+  // The query has not resolved yet. Writing now would save a list built from
+  // the `[]` fallback above, silently dropping every already-stored avoid
+  // entry — so every control that saves must stay disabled until we know
+  // what is actually there.
+  const loading = prefs === undefined;
+
+  const save = (next: string[]) =>
+    run(() => setPreferences({ avoidItems: Array.from(new Set(next)) }));
+
+  const add = () => {
+    const value = draft.trim().toLowerCase();
+    if (!value) return;
+    setDraft("");
+    save([...avoidItems, value]);
+  };
+
+  return (
+    <Card title="Preferences">
+      <div className="flex flex-col gap-4">
+        <div>
+          <h3 className="text-sm font-semibold text-text">Ingredients to avoid</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            Recipes with a matching ingredient are <strong>removed</strong>, not just ranked lower.
+            This matches specific ingredient names only — related products (e.g. "peanut" won't
+            catch "peanut butter") need their own entry.
+          </p>
+
+          <div className="mt-2 flex gap-2">
+            <Input
+              placeholder="Ingredient to avoid"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+            />
+            <Button variant="secondary" size="sm" onClick={add} disabled={loading}>
+              Add
+            </Button>
+          </div>
+
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {avoidItems.map((item) => (
+              <li
+                key={item}
+                className="flex items-center gap-1 rounded-full bg-border px-2 py-0.5 text-xs text-text"
+              >
+                <span>{item}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${item}`}
+                  className="text-muted hover:text-text"
+                  onClick={() => save(avoidItems.filter((i) => i !== item))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-text">Diet</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            Picking one fills in the avoid list above, which you can then edit.
+          </p>
+          <div className="mt-2 flex gap-2">
+            {Object.keys(DIET_SEEDS).map((diet) => (
+              <Button
+                key={diet}
+                variant="secondary"
+                size="sm"
+                disabled={loading}
+                onClick={() => save([...avoidItems, ...DIET_SEEDS[diet]])}
+              >
+                {diet}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <ErrorText message={error} />
+    </Card>
+  );
+}

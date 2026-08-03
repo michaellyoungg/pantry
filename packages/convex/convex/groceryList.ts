@@ -1,8 +1,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { GroceryLine } from "@pantry/types";
 import { type Infer, v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import { removeAutoRow, upsertFromCheckoff } from "./pantry";
+import { type NormalizedItem, recipeServiceFetch } from "./recipes";
+
+// How many "recent" chips the manual-add field offers. Enough to be useful on a
+// phone without turning the add field into a second list to read.
+const RECENT_SUGGESTION_LIMIT = 8;
 
 // Single runtime source for the grocery-line shape on the Convex side. Its
 // inferred type is pinned to the @pantry/types contract by the guard below, so
@@ -13,6 +19,12 @@ export const groceryLineValidator = v.object({
   unit: v.string(),
   quantity: v.number(),
   aisle: v.string(),
+  // Which recipes the line was aggregated from (BL-0019). Optional on the wire
+  // because a line can legitimately have no traceable source — see
+  // GroceryLineSource in @pantry/types.
+  sources: v.optional(
+    v.array(v.object({ recipeId: v.string(), title: v.string(), quantity: v.number() })),
+  ),
 });
 
 type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -37,10 +49,15 @@ export const getGroceryList = query({
 
 // Called only from the generateGroceryList action, which passes the
 // authenticated userId it already resolved. Internal → not client-callable.
-// Non-destructive merge: lines matching an existing row by item+unit+aisle keep
-// their `checked` state (only the quantity is refreshed); new lines are
-// inserted unchecked; existing rows absent from the new list are deleted. This
-// preserves in-store check-off progress across re-generation (BL-0018 inc 2).
+// Non-destructive merge — the three rules of UX-plan decision #2 (BL-0018):
+//   1. preserve  — a line still in the plan keeps its `checked` state (and any
+//                  needItAnyway override); only the quantity is refreshed
+//   2. merge     — a line the plan newly wants is inserted, unchecked
+//   3. flag      — a line the plan no longer wants is *flagged* `removed` if it
+//                  was already checked off, and deleted only if it wasn't
+//
+// Regeneration is therefore always safe to press: nothing a shopper has done
+// can be undone by it. Manual lines sit outside all three rules — see below.
 export const mergeGroceryList = internalMutation({
   args: {
     userId: v.string(),
@@ -81,10 +98,18 @@ export const mergeGroceryList = internalMutation({
       const shelfLifeDays = shelfLife?.[line.canonicalItem];
       if (row && !seen.has(k)) {
         // keep `checked` and any needItAnyway override; heal canonicalItem
+        // `manual` is deliberately left as-is: if the user typed this line in
+        // and the plan later grew a recipe wanting the same thing, they still
+        // asked for it, so it stays protected from the sweep below.
         await ctx.db.patch(row._id, {
           quantity: line.quantity,
           canonicalItem: line.canonicalItem,
           shelfLifeDays,
+          sources: line.sources,
+          // Back in the plan, so it is no longer a leftover of an older one.
+          // Clearing rather than ignoring matters: a flagged line whose recipe
+          // returns must go back to being an ordinary line, tick intact.
+          removed: undefined,
         });
       } else {
         await ctx.db.insert("groceryList", {
@@ -97,12 +122,31 @@ export const mergeGroceryList = internalMutation({
           checked: false,
           alreadyHave: owned.has(line.canonicalItem),
           shelfLifeDays,
+          sources: line.sources,
         });
       }
       seen.add(k);
     }
     for (const row of existing) {
-      if (!seen.has(keyOf(row))) await ctx.db.delete(row._id);
+      if (seen.has(keyOf(row))) continue;
+      // A manual line has no recipe behind it, so it can never appear in an
+      // aggregated result — deleting it here would silently erase what the user
+      // typed every time the plan changed. Keep it, but drop provenance it may
+      // have picked up from a recipe that has since left the plan.
+      if (row.manual) {
+        if (row.sources !== undefined) await ctx.db.patch(row._id, { sources: undefined });
+        continue;
+      }
+      // The third diff-merge rule: flag, don't destroy. Someone mid-shop who
+      // has already put this in the cart must not have it vanish because the
+      // plan changed on another device — they need to see that it is no longer
+      // needed and decide for themselves. An unchecked line has no such
+      // decision attached, so it still just goes.
+      if (row.checked) {
+        if (!row.removed) await ctx.db.patch(row._id, { removed: true, sources: undefined });
+        continue;
+      }
+      await ctx.db.delete(row._id);
     }
   },
 });
@@ -161,5 +205,137 @@ export const needItAnyway = mutation({
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
     await ctx.db.patch(id, { alreadyHave: false });
+  },
+});
+
+// A line the user typed in themselves. Categorising it is the whole trick: the
+// canonical item + aisle come from recipe-service's normalization table, which
+// is also what the aggregator uses, so a manual "scallions" lands in the same
+// aisle — and joins the same pantry row — as a recipe's "green onion".
+//
+// This has to be an action: mutations cannot do network I/O, and the
+// normalization table deliberately lives in one place (recipe-service) rather
+// than being duplicated into Convex where it would drift.
+export const addManualItem = action({
+  args: {
+    item: v.string(),
+    quantity: v.number(),
+    unit: v.string(),
+  },
+  handler: async (ctx, { item, quantity, unit }): Promise<null> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const text = item.trim();
+    if (text === "") throw new Error("Item is required");
+
+    // Unknown items still normalize — they pass through lowercased and land in
+    // the catch-all aisle — so a miss here means the service call itself failed.
+    const res = await recipeServiceFetch<{ items: NormalizedItem[] }>(
+      userId,
+      "POST",
+      "/normalization/lookup",
+      { items: [text] },
+    );
+    const details = res.items?.[0];
+
+    await ctx.runMutation(internal.groceryList.insertManualLine, {
+      userId,
+      item: details?.display ?? text,
+      canonicalItem: details?.canonicalItem ?? text.toLowerCase(),
+      aisle: details?.aisle ?? "other",
+      shelfLifeDays: details?.shelfLifeDays,
+      quantity: quantity > 0 ? quantity : 1,
+      unit: unit.trim(),
+    });
+    return null;
+  },
+});
+
+// Called only from addManualItem, which has already resolved the aisle.
+// Adding something already on the list adds to that line rather than opening a
+// second one — the list's whole promise is one line per thing to buy.
+export const insertManualLine = internalMutation({
+  args: {
+    userId: v.string(),
+    item: v.string(),
+    canonicalItem: v.string(),
+    unit: v.string(),
+    quantity: v.number(),
+    aisle: v.string(),
+    shelfLifeDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, ...line } = args;
+    const existing = await ctx.db
+      .query("groceryList")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const match = existing.find(
+      (row) => row.item === line.item && row.unit === line.unit && row.aisle === line.aisle,
+    );
+    if (match) {
+      await ctx.db.patch(match._id, {
+        quantity: match.quantity + line.quantity,
+        // Re-adding something you already checked off means you want more of it,
+        // so the line comes back to the "still to buy" half of the list.
+        checked: false,
+        manual: true,
+      });
+      return;
+    }
+    await ctx.db.insert("groceryList", { userId, ...line, checked: false, manual: true });
+  },
+});
+
+// Removing a line the user added by hand, or dismissing one the plan has
+// dropped. Still deliberately not offered for a generated line that is *in* the
+// plan: that one comes back on the next generation, so "remove" would be a lie
+// — un-checking it is the planner's job, not the list's. A `removed` line is
+// the opposite case: no recipe will ever bring it back, so the shopper is the
+// only one who can clear it.
+export const removeItem = mutation({
+  args: { id: v.id("groceryList") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const row = await ctx.db.get(id);
+    if (row === null || row.userId !== userId) throw new Error("Not found");
+    if (!row.manual && !row.removed) {
+      throw new Error("Only manually added or removed lines can be removed");
+    }
+    await ctx.db.delete(id);
+  },
+});
+
+// Suggestions for the manual-add field. The pantry is already a record of what
+// this household buys (check-off writes to it), so "recent" needs no new table
+// and no history of its own — it is the same normalized item identity the rest
+// of the loop uses. Items already on the list are filtered out: suggesting
+// something you are about to buy anyway is noise.
+export const recentItems = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const onList = new Set(
+      (
+        await ctx.db
+          .query("groceryList")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect()
+      )
+        .map((row) => row.canonicalItem)
+        .filter((c): c is string => c !== undefined),
+    );
+    return (
+      await ctx.db
+        .query("pantryItems")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect()
+    )
+      .filter((row) => !onList.has(row.canonicalItem))
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, RECENT_SUGGESTION_LIMIT)
+      .map((row) => ({ canonicalItem: row.canonicalItem, display: row.display }));
   },
 });

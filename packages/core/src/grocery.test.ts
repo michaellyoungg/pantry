@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByAisle, titleCase } from "./grocery";
+import { groupByAisle, partitionRemoved, titleCase } from "./grocery";
 
 const line = (aisle: string, item: string) => ({ aisle, item });
 
@@ -42,5 +42,31 @@ describe("titleCase", () => {
 
   it("does not lowercase the rest", () => {
     expect(titleCase("dairy & eggs")).toBe("Dairy & eggs");
+  });
+});
+
+describe("partitionRemoved", () => {
+  type Line = { item: string; removed?: boolean };
+  const milk: Line = { item: "milk" };
+  const kale: Line = { item: "kale", removed: true };
+
+  it("splits the shopping list from the lines the plan dropped", () => {
+    const { active, removed } = partitionRemoved([milk, kale]);
+    expect(active).toEqual([milk]);
+    expect(removed).toEqual([kale]);
+  });
+
+  it("keeps server order within each half", () => {
+    const bread: Line = { item: "bread" };
+    const eggs: Line = { item: "eggs", removed: true };
+    const { active, removed } = partitionRemoved([kale, milk, eggs, bread]);
+    expect(active.map((l) => l.item)).toEqual(["milk", "bread"]);
+    expect(removed.map((l) => l.item)).toEqual(["kale", "eggs"]);
+  });
+
+  it("treats an explicit false the same as an absent flag", () => {
+    const { active, removed } = partitionRemoved<Line>([{ item: "milk", removed: false }]);
+    expect(active).toHaveLength(1);
+    expect(removed).toHaveLength(0);
   });
 });

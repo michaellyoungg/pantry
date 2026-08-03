@@ -85,3 +85,29 @@ export function toggledType(item: PlannedItem): "meal" | "leftover" {
 export function canGenerateList(items: readonly PlannedItem[]): boolean {
   return items.length > 0;
 }
+
+/**
+ * The servings dial a recipe should start on for this household (BL-0018), or
+ * `undefined` when there is no basis to derive one.
+ *
+ * The multiplier scales ingredient quantities, so "default from household size"
+ * is a ratio, not the household size itself: a 4-serving recipe for a household
+ * of 4 is one batch, not four. Both inputs are routinely unknown — household
+ * size is optional, and BL-0035 made a recipe's yield nullable precisely
+ * because most recipes don't state one. Returning `undefined` there rather than
+ * 1 keeps "nobody scaled this" distinct from "this was scaled to 1", and it is
+ * already how the planner spells a single batch: an unset dial reads as 1.
+ *
+ * The result is snapped to the grid the stepper moves on, so the number the
+ * planner shows is one the − / + buttons can actually return to.
+ */
+export function defaultServingsMultiplier(
+  householdSize: number | undefined,
+  recipeServings: number | undefined,
+): number | undefined {
+  if (!householdSize || !recipeServings || householdSize <= 0 || recipeServings <= 0) {
+    return undefined;
+  }
+  const snapped = Math.round(householdSize / recipeServings / SERVINGS_STEP) * SERVINGS_STEP;
+  return Math.max(MIN_SERVINGS_MULTIPLIER, snapped);
+}

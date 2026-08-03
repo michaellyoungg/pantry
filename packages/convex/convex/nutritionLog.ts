@@ -1,0 +1,295 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import type { NutritionEstimate, NutritionLogEntry, NutritionLogSnapshot } from "@pantry/types";
+import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import { action, internalMutation, query } from "./_generated/server";
+import { withSpan } from "./lib/otel";
+import { recipeServiceFetch } from "./recipes";
+
+/**
+ * Eating history (BL-0039).
+ *
+ * The obstacle this table works around: the plan says what was scheduled and the
+ * grocery list says what was bought, and neither is consumption. History is
+ * therefore seeded from the plan, with each row marked `planned` or `cooked`
+ * according to BL-0028's `basket.cookedAt` — the same row either way.
+ *
+ * Because a window can hold both, every surface reading this table has to say
+ * which signal it is showing rather than calling all of it "what you ate" — see
+ * `habitSignal` in `@pantry/core`.
+ */
+
+/**
+ * `weekday` (0=Mon…6=Sun) as a calendar date within the week starting `weekStart`.
+ *
+ * Deliberately not imported from `@pantry/core`: that package already depends on
+ * `@pantry/convex`, so reaching back the other way would close a workspace
+ * cycle. The web client uses the `@pantry/core` implementation and this one
+ * agrees with it — both are plain calendar arithmetic, never `toISOString()`,
+ * which would file an evening meal under the following day west of UTC.
+ */
+function dateForWeekday(weekStart: string, weekday: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart))
+    throw new Error(`not a YYYY-MM-DD date: ${weekStart}`);
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new Error(`weekday must be an integer 0..6, got ${weekday}`);
+  }
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const date = new Date(y, m - 1, d + weekday);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+const snapshotValidator = v.object({
+  nutrients: v.record(
+    v.string(),
+    v.object({ nutrientId: v.string(), amount: v.number(), unit: v.string() }),
+  ),
+  coverage: v.object({
+    resolvedMassFraction: v.number(),
+    resolvedCount: v.number(),
+    totalCount: v.number(),
+  }),
+  estimatedAt: v.string(),
+});
+
+const plannedEntryValidator = v.object({
+  date: v.string(),
+  recipeId: v.string(),
+  title: v.string(),
+  servings: v.number(),
+  // "cooked" once the user marked the meal cooked on the plan; "planned"
+  // otherwise. `manual` never originates here — the plan cannot assert a meal
+  // the user logged by hand.
+  source: v.union(v.literal("planned"), v.literal("cooked")),
+  snapshot: snapshotValidator,
+});
+
+/**
+ * The log rows for a date window, oldest first.
+ *
+ * Returns the stored snapshot verbatim. Re-estimating on read would defeat the
+ * entire point of storing it: a food mapping corrected this morning must not
+ * change what the user ate in June.
+ */
+export const listRange = query({
+  args: { from: v.string(), to: v.string() },
+  handler: async (ctx, { from, to }): Promise<NutritionLogEntry[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const rows = await ctx.db
+      .query("nutritionLog")
+      .withIndex("by_user_date", (q) => q.eq("userId", userId).gte("date", from).lte("date", to))
+      .collect();
+    return rows.map((row) => ({
+      date: row.date,
+      recipeId: row.recipeId,
+      title: row.title,
+      servings: row.servings,
+      source: row.source,
+      snapshot: row.snapshot as NutritionLogSnapshot,
+    }));
+  },
+});
+
+/**
+ * Makes one week's rows match the plan, in one transaction.
+ *
+ * `source` comes from the basket row's `cookedAt` (BL-0028): a meal the user
+ * marked cooked is recorded as `cooked`, everything else as `planned`. That is
+ * the whole upgrade path — the same row, one field, no migration and no second
+ * table.
+ *
+ * Three rules do the work:
+ *
+ * - **A row present in the plan mirrors the plan**, in both directions. Marking
+ *   cooked promotes it; BL-0028's `unmarkCooked` ("I didn't cook this") demotes
+ *   it again, because leaving it as `cooked` would keep asserting a meal the
+ *   user has explicitly retracted.
+ * - **A cooked row's snapshot is frozen.** Once a meal is history, re-estimating
+ *   it on a later sync would rewrite what the user ate with today's food data,
+ *   which is the exact failure `snapshot` exists to prevent. Only rows still in
+ *   the `planned` state — still a forecast — get re-snapshotted.
+ * - **Rows the plan no longer mentions are dropped only if `planned`.** A
+ *   `cooked` or `manual` row is asserted history: the plan moving on is not the
+ *   user retracting a meal, so it survives.
+ *
+ * `manual` rows are never touched at all — a hand-logged meal is not the plan's
+ * to edit.
+ */
+export const syncPlannedWeek = internalMutation({
+  args: {
+    userId: v.string(),
+    from: v.string(),
+    to: v.string(),
+    entries: v.array(plannedEntryValidator),
+    loggedAt: v.number(),
+  },
+  handler: async (ctx, { userId, from, to, entries, loggedAt }) => {
+    const existing = await ctx.db
+      .query("nutritionLog")
+      .withIndex("by_user_date", (q) => q.eq("userId", userId).gte("date", from).lte("date", to))
+      .collect();
+
+    // NUL joins the composite key because it cannot occur in a date or a recipe
+    // id, so no pair of real values can collide. Written as the escape `\0`
+    // rather than the raw byte: a literal NUL makes git classify this file as
+    // binary, which costs every future diff, blame and merge on it.
+    const keep = new Set(entries.map((e) => `${e.date}\0${e.recipeId}`));
+    let removed = 0;
+    for (const row of existing) {
+      if (row.source !== "planned") continue;
+      if (keep.has(`${row.date}\0${row.recipeId}`)) continue;
+      await ctx.db.delete(row._id);
+      removed += 1;
+    }
+
+    let written = 0;
+    let preserved = 0;
+    for (const entry of entries) {
+      const row = await ctx.db
+        .query("nutritionLog")
+        .withIndex("by_user_date_recipe", (q) =>
+          q.eq("userId", userId).eq("date", entry.date).eq("recipeId", entry.recipeId),
+        )
+        .unique();
+
+      if (row?.source === "manual") {
+        // A meal the user logged by hand. Their own account outranks the plan's.
+        preserved += 1;
+        continue;
+      }
+      if (row?.source === "cooked" && entry.source === "cooked") {
+        // Already history. Re-snapshotting would rewrite what was eaten with
+        // today's food data — the one thing this table exists to prevent.
+        preserved += 1;
+        continue;
+      }
+      if (row) {
+        await ctx.db.patch(row._id, {
+          title: entry.title,
+          servings: entry.servings,
+          source: entry.source,
+          snapshot: entry.snapshot,
+          loggedAt,
+        });
+      } else {
+        await ctx.db.insert("nutritionLog", {
+          userId,
+          date: entry.date,
+          recipeId: entry.recipeId,
+          title: entry.title,
+          servings: entry.servings,
+          source: entry.source,
+          snapshot: entry.snapshot,
+          loggedAt,
+        });
+      }
+      written += 1;
+    }
+
+    return { written, removed, preserved };
+  },
+});
+
+/** The estimate, reduced to the vector worth keeping forever. */
+function toSnapshot(estimate: NutritionEstimate): NutritionLogSnapshot {
+  return {
+    // Whole-recipe totals for one yield. Unscaled on purpose: the row's
+    // `servings` carries the quantity, so BL-0028 can correct how much was
+    // actually cooked by changing one number instead of re-estimating.
+    nutrients: estimate.nutrients,
+    // Without coverage, a day we could not identify is indistinguishable from a
+    // day of zeroes, and the review would under-report exactly when it is least
+    // able to tell.
+    coverage: estimate.coverage,
+    estimatedAt: estimate.estimatedAt,
+  };
+}
+
+/**
+ * Snapshots the current week plan into history.
+ *
+ * An action because estimating nutrition is a network call and Convex mutations
+ * cannot make them. One recipe failing to estimate — deleted, or recipe-service
+ * down mid-run — skips that meal with a reason rather than losing the rest of
+ * the week.
+ *
+ * Each meal is recorded as `cooked` or `planned` according to the basket row's
+ * `cookedAt` (BL-0028), so a week the user actually cooked reads as consumption
+ * and a week they merely scheduled does not overclaim.
+ */
+export const recordPlannedWeek = action({
+  args: { weekStart: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    { weekStart, traceCtx },
+  ): Promise<{
+    written: number;
+    removed: number;
+    preserved: number;
+    skipped: Array<{ recipeId: string; title: string; reason: string }>;
+  }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    return withSpan("nutritionLog.recordPlannedWeek", traceCtx, async (traceparent) => {
+      const from = dateForWeekday(weekStart, 0);
+      const to = dateForWeekday(weekStart, 6);
+      const basket = await ctx.runQuery(api.basket.list, {});
+
+      const entries: Array<{
+        date: string;
+        recipeId: string;
+        title: string;
+        servings: number;
+        source: "planned" | "cooked";
+        snapshot: NutritionLogSnapshot;
+      }> = [];
+      const skipped: Array<{ recipeId: string; title: string; reason: string }> = [];
+
+      for (const item of basket) {
+        // Unscheduled recipes sit in the plan rail without a day, so there is no
+        // date to file them under and no claim that they were eaten.
+        if (item.weekday === undefined) continue;
+        // Leftovers are excluded from the grocery list because they are already
+        // bought — but they are still eaten, so they count here.
+        try {
+          const estimate = await recipeServiceFetch<NutritionEstimate>(
+            userId,
+            "GET",
+            `/recipes/${item.recipeId}/nutrition`,
+            undefined,
+            traceparent,
+          );
+          entries.push({
+            date: dateForWeekday(weekStart, item.weekday),
+            recipeId: item.recipeId,
+            title: item.title,
+            servings: item.servingsMultiplier ?? 1,
+            // BL-0028 stamps `cookedAt` when the user marks a meal cooked. Its
+            // presence is the whole state, so the log inherits it directly
+            // rather than needing an event of its own.
+            source: item.cookedAt === undefined ? "planned" : "cooked",
+            snapshot: toSnapshot(estimate),
+          });
+        } catch (error) {
+          skipped.push({
+            recipeId: item.recipeId,
+            title: item.title,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      const result = await ctx.runMutation(internal.nutritionLog.syncPlannedWeek, {
+        userId,
+        from,
+        to,
+        entries,
+        loggedAt: Date.now(),
+      });
+      return { ...result, skipped };
+    });
+  },
+});

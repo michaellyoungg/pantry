@@ -1,7 +1,7 @@
 ---
 id: BL-0043
 title: Equipment inventory — "can I make this?" + new-device recipe discovery
-status: in-progress
+status: done
 area: recipes
 effort: M
 related_specs: [2026-08-03-cooking-guidance-design.md]

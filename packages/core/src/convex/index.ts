@@ -8,6 +8,7 @@ export {
   needItAnywayOptimistic,
   removeFromBasketOptimistic,
   removePantryItemOptimistic,
+  setEquipmentOwnedOptimistic,
   setPantryStateOptimistic,
   toggleItemOptimistic,
 } from "./optimistic";
