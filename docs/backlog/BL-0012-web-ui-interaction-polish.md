@@ -1,7 +1,7 @@
 ---
 id: BL-0012
 title: Web UI interaction polish (optimistic updates + error surfacing)
-status: proposed
+status: in-progress
 area: web
 effort: M
 related_specs: [2026-06-29-web-app.md]
