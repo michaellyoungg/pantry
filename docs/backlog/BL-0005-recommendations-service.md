@@ -1,7 +1,7 @@
 ---
 id: BL-0005
 title: Recommendations / preference-lookup service
-status: proposed
+status: in-progress
 area: recommendations
 effort: L
 related_specs: [2026-06-29-recipe-to-grocery-list-design.md]
