@@ -1,7 +1,7 @@
 ---
 id: BL-0048
 title: Convex admin-key rotation procedure (verified, not assumed)
-status: proposed
+status: in-progress
 area: infra
 effort: S
 related_specs: []
