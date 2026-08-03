@@ -16,7 +16,7 @@ export function Catalog() {
 
   return (
     <Card title="Catalog">
-      {loading && <p className="text-sm text-muted">Loading catalog…</p>}
+      {loading && recipes.length === 0 && <p className="text-sm text-muted">Loading catalog…</p>}
       {loadError && (
         <div className="flex items-center gap-2">
           <ErrorText message={loadError} />

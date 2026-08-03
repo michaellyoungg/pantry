@@ -66,7 +66,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
 
   return (
     <Card title="Recipes">
-      {loading && <p className="text-sm text-muted">Loading recipes…</p>}
+      {loading && recipes.length === 0 && <p className="text-sm text-muted">Loading recipes…</p>}
       {loadError && (
         <div className="flex items-center gap-2">
           <ErrorText message={loadError} />
