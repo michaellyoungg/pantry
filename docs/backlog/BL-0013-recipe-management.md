@@ -1,7 +1,7 @@
 ---
 id: BL-0013
 title: Recipe management — de-dup + delete
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-06-29-web-app.md]
