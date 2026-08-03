@@ -14,6 +14,9 @@ type jsonLDRecipe struct {
 	Title           string
 	IngredientLines []string
 	Steps           []string
+	// Servings is nil when the page carries no recipeYield, or one we cannot
+	// read as a serving count. See parseRecipeYield.
+	Servings *int
 }
 
 // extractJSONLD scans a page for schema.org Recipe JSON-LD and returns the first
@@ -74,6 +77,7 @@ func buildRecipe(m map[string]any) jsonLDRecipe {
 		}
 	}
 	rec.Steps = extractSteps(m["recipeInstructions"])
+	rec.Servings = parseRecipeYield(m["recipeYield"])
 	return rec
 }
 

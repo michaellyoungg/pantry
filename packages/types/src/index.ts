@@ -9,6 +9,15 @@ export interface Recipe {
   id: string;
   userId: string;
   title: string;
+  /**
+   * How many people the recipe feeds. Absent means the yield is unknown —
+   * existing recipes and manual entry without a yield both leave it unset, so
+   * consumers must omit per-serving figures rather than assume a default.
+   *
+   * This is an absolute count. It is not the planner's `servingsMultiplier`,
+   * which is a scale factor ("cook 1.5x this recipe") on a basket entry.
+   */
+  servings?: number;
   ingredients: Ingredient[];
   /** Ordered instruction lines (the method). Empty for ingredients-only recipes. */
   steps: string[];
@@ -26,6 +35,8 @@ export interface GroceryLine {
 
 export interface CreateRecipeRequest {
   title: string;
+  /** Omit when unknown; recipe-service rejects a value outside 1..100. */
+  servings?: number;
   ingredients: Ingredient[];
   steps?: string[];
 }

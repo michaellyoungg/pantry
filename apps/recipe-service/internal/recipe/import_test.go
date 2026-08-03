@@ -83,3 +83,34 @@ func TestHTMLToText_StripsTagsAndScripts(t *testing.T) {
 		t.Fatalf("htmlToText = %q, want %q", got, "Hello world")
 	}
 }
+
+func TestImporter_JSONLDPathCarriesServings(t *testing.T) {
+	imp := NewImporter(fakeFetcher{body: []byte(pageWithYield)}, nil)
+	rec, err := imp.Import(context.Background(), "u1", "https://example.com/r")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Servings == nil {
+		t.Fatal("preview servings = nil, want 6")
+	}
+	if *rec.Servings != 6 {
+		t.Errorf("preview servings = %d, want 6", *rec.Servings)
+	}
+}
+
+// The LLM fallback has no yield to offer, so servings stays unknown rather than
+// being invented — consumers omit per-serving figures instead of guessing.
+func TestImporter_LLMFallbackLeavesServingsUnknown(t *testing.T) {
+	ex := fakeExtractor{rec: ExtractedRecipe{
+		Title:       "Soup",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cup", Item: "broth"}},
+	}}
+	imp := NewImporter(fakeFetcher{body: []byte("<html>no json-ld here</html>")}, ex)
+	rec, err := imp.Import(context.Background(), "u1", "https://example.com/r")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Servings != nil {
+		t.Errorf("servings = %d, want nil", *rec.Servings)
+	}
+}

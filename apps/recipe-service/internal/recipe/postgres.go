@@ -42,7 +42,7 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 
 func (s *PostgresStore) Close() { s.pool.Close() }
 
-func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, ings []Ingredient, steps []string) (Recipe, error) {
+func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error) {
 	ings = normIngredients(ings)
 	steps = normSteps(steps)
 	id := newID()
@@ -55,8 +55,8 @@ func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, 
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO recipes (id, user_id, title, created_at) VALUES ($1,$2,$3,$4)`,
-		id, userID, title, createdAt); err != nil {
+		`INSERT INTO recipes (id, user_id, title, servings, created_at) VALUES ($1,$2,$3,$4,$5)`,
+		id, userID, title, servings, createdAt); err != nil {
 		return Recipe{}, err
 	}
 	if err := insertChildren(ctx, tx, id, ings, steps); err != nil {
@@ -65,14 +65,22 @@ func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, 
 	if err := tx.Commit(ctx); err != nil {
 		return Recipe{}, err
 	}
-	return Recipe{ID: id, UserID: userID, Title: title, Ingredients: ings, Steps: steps, CreatedAt: createdAt}, nil
+	return Recipe{
+		ID:          id,
+		UserID:      userID,
+		Title:       title,
+		Servings:    copyServings(servings),
+		Ingredients: ings,
+		Steps:       steps,
+		CreatedAt:   createdAt,
+	}, nil
 }
 
 func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recipe, error) {
 	rec := Recipe{}
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, user_id, title, created_at FROM recipes WHERE id = $1 AND user_id = $2`, id, userID).
-		Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.CreatedAt)
+		`SELECT id, user_id, title, servings, created_at FROM recipes WHERE id = $1 AND user_id = $2`, id, userID).
+		Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.Servings, &rec.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Recipe{}, ErrNotFound
 	}
@@ -94,7 +102,7 @@ func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recip
 
 func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recipe, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, user_id, title, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
+		`SELECT id, user_id, title, servings, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +136,7 @@ func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, userID string, ids 
 	return out, nil
 }
 
-func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title string, ings []Ingredient, steps []string) (Recipe, error) {
+func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string) (Recipe, error) {
 	ings = normIngredients(ings)
 	steps = normSteps(steps)
 	tx, err := s.pool.Begin(ctx)
@@ -137,7 +145,9 @@ func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title stri
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx, `UPDATE recipes SET title = $1 WHERE id = $2 AND user_id = $3`, title, id, userID)
+	tag, err := tx.Exec(ctx,
+		`UPDATE recipes SET title = $1, servings = $2 WHERE id = $3 AND user_id = $4`,
+		title, servings, id, userID)
 	if err != nil {
 		return Recipe{}, err
 	}
@@ -174,9 +184,10 @@ func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO recipes (id, user_id, title, created_at) VALUES ($1,$2,$3,$4)
-		 ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, title = EXCLUDED.title`,
-		rec.ID, rec.UserID, rec.Title, createdAt); err != nil {
+		`INSERT INTO recipes (id, user_id, title, servings, created_at) VALUES ($1,$2,$3,$4,$5)
+		 ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, title = EXCLUDED.title,
+		                                servings = EXCLUDED.servings`,
+		rec.ID, rec.UserID, rec.Title, rec.Servings, createdAt); err != nil {
 		return err
 	}
 	if err := replaceChildren(ctx, tx, rec.ID, ings, steps); err != nil {
@@ -222,7 +233,7 @@ func (s *PostgresStore) scanRecipesWithIngredients(ctx context.Context, rows pgx
 	out := []Recipe{}
 	for rows.Next() {
 		rec := Recipe{}
-		if err := rows.Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.CreatedAt); err != nil {
+		if err := rows.Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.Servings, &rec.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, rec)
