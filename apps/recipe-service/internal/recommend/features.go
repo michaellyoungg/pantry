@@ -5,7 +5,6 @@ package recommend
 type pantryView struct {
 	owned   map[string]bool // state "have" or "low"
 	useItUp map[string]bool // owned AND flagged to use up
-	flagged int             // how many items are flagged overall
 }
 
 func newPantryView(items []PantryItem) pantryView {
@@ -18,7 +17,6 @@ func newPantryView(items []PantryItem) pantryView {
 		v.owned[it.CanonicalItem] = true
 		if it.UseItUp {
 			v.useItUp[it.CanonicalItem] = true
-			v.flagged++
 		}
 	}
 	return v
@@ -62,9 +60,10 @@ func matchCandidate(c Candidate, v pantryView) match {
 const useItUpSaturation = 3
 
 func pantryFeatures(m match, v pantryView, w Weights) []feature {
+	flagged := len(v.useItUp)
 	var useItUpValue float64
-	if v.flagged > 0 {
-		denom := min(v.flagged, useItUpSaturation)
+	if flagged > 0 {
+		denom := min(flagged, useItUpSaturation)
 		useItUpValue = float64(len(m.useItUpHit)) / float64(denom)
 		if useItUpValue > 1 {
 			useItUpValue = 1
@@ -81,7 +80,7 @@ func pantryFeatures(m match, v pantryView, w Weights) []feature {
 			name:      "useItUpHits",
 			value:     useItUpValue,
 			weight:    w.UseItUpHits,
-			available: v.flagged > 0,
+			available: flagged > 0,
 			// Unavailable when the user has flagged nothing — there is no signal
 			// to read, so it must not count as a zero against every candidate.
 		},

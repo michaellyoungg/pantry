@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { Recommendation, RecommendationResponse } from "@pantry/types";
+import type { Recommendation, RecommendationRequest, RecommendationResponse } from "@pantry/types";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
 
@@ -31,7 +31,7 @@ export const pantry = action({
       ctx.runQuery(api.basket.list, {}),
     ]);
 
-    const body = {
+    const body: RecommendationRequest = {
       pantry: pantryRows.map((row) => ({
         canonicalItem: row.canonicalItem,
         state: row.state,
