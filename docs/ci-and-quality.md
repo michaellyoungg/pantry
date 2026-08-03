@@ -10,7 +10,7 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | Biome (lint + format + import order) · TypeScript typecheck · Vitest with coverage · build · Knip (dead code / unused deps) |
+| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage · build · Knip (dead code / unused deps) |
 | **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
@@ -36,7 +36,14 @@ pnpm test            # Vitest + go test
 pnpm test:coverage   # Vitest with coverage thresholds enforced
 pnpm knip            # unused files / exports / dependencies
 pnpm check           # lint + typecheck + test in one shot
+pnpm backlog:index   # regenerate the docs/backlog/README.md index table
 ```
+
+The backlog index table is generated from each item's frontmatter
+(`scripts/backlog-index.mjs`) so parallel agents stop conflicting on one
+hand-maintained table. CI runs `pnpm backlog:index:check`, which regenerates
+in-memory and fails if the committed table is stale — run `pnpm backlog:index`
+and commit the result.
 
 Two heavier suites are **not** part of the per-PR gate and run on demand:
 

@@ -65,7 +65,7 @@ the environment-specific bullets was actionable against the compose stack, and
   `INSTANCE_SECRET`; the dashboard runs locally on demand against the remote
   backend instead. Rotation is the one thing that could not be verified without
   disturbing a live deployment — split out as
-  [BL-0045](BL-0045-convex-admin-key-rotation.md) rather than assumed.
+  [BL-0048](BL-0048-convex-admin-key-rotation.md) rather than assumed.
 
 **Found while drilling:** the backend does not retry its first database
 connection, and the base `pg_isready` healthcheck reports ready during Postgres's
