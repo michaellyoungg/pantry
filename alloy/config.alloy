@@ -1,0 +1,58 @@
+// OTLP in from three runtimes: the Go recipe-service (gRPC), the browser and
+// Convex actions (HTTP). CORS is declared here because the browser posts
+// directly to this endpoint — the LGTM container should never be exposed to it.
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+    cors {
+      allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+      allowed_headers = ["*"]
+    }
+  }
+
+  output {
+    traces = [otelcol.processor.attributes.scrub.input]
+    logs   = [otelcol.processor.attributes.scrub.input]
+  }
+}
+
+// PII scrubbing lives in the pipeline, not in application code, so it cannot be
+// forgotten at an individual call site.
+otelcol.processor.attributes "scrub" {
+  action {
+    key    = "user.email"
+    action = "delete"
+  }
+
+  action {
+    key    = "user.id"
+    action = "hash"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+    logs   = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.lgtm.input]
+    logs   = [otelcol.exporter.otlp.lgtm.input]
+  }
+}
+
+// The one line that changes when production lands (BL-0006). Nothing in
+// application code ever names Grafana.
+otelcol.exporter.otlp "lgtm" {
+  client {
+    endpoint = "otel-lgtm:4317"
+    tls {
+      insecure = true
+    }
+  }
+}

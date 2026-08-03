@@ -28,6 +28,10 @@ services:
       # Optional: enables the Claude fallback for URL import (BL-0001). Unset =
       # JSON-LD-only import; the ":-" default keeps compose happy when it is absent.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Unset by default: telemetry is a no-op without it, so the plain
+      # `docker compose up` stack and CI never try to reach a collector.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: recipe-service
     ports:
       - "8090:8090"
     depends_on:
@@ -84,3 +88,30 @@ services:
     depends_on:
       convex-backend:
         condition: service_healthy
+
+  # Observability (BL-0027). Opt in with: docker compose --profile obs up
+  # Pinned by digest per BL-0008. To bump: pull :latest and re-read the digest.
+  alloy:
+    image: grafana/alloy@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC  (recipe-service)
+      - "4318:4318"   # OTLP HTTP  (browser, Convex)
+      - "12345:12345" # Alloy pipeline UI
+    depends_on:
+      - otel-lgtm
+    profiles: [obs]
+
+  otel-lgtm:
+    image: grafana/otel-lgtm@sha256:46ca028e294bd728e8e930a28e887f640a8f2a9533cc283f79bcc6ab73d2ffd8
+    ports:
+      # 3001 on the host: 3000 is a common dev-server default and this is the
+      # container we least want to fight over a port with.
+      - "3001:3000"
+    profiles: [obs]

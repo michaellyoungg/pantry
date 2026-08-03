@@ -113,3 +113,21 @@ self-isolating. It is **deliberately not part of `pnpm test`** (which stays
 unit-only and fast) or the per-PR CI gate — it needs Docker, Go, and a browser.
 Set `E2E_KEEP_STACK=1` to leave the stack up for debugging; pass extra flags
 through to Playwright, e.g. `pnpm test:e2e --headed`.
+
+## Observability
+
+Traces and structured logs go to a local Grafana stack (BL-0027). It is opt-in —
+the default `docker compose up` runs without it.
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318 docker compose --profile obs up
+```
+
+| URL | What |
+|---|---|
+| http://localhost:3001 | Grafana — Explore → Tempo for traces, Loki for logs |
+| http://localhost:12345 | Alloy pipeline UI — check here first when telemetry is missing |
+
+Telemetry is a **complete no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset**, so
+CI and the plain compose stack are unaffected. Log lines carry `trace_id` and
+`span_id`, so you can pivot from any log line to its trace and back.

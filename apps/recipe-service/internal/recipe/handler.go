@@ -3,9 +3,14 @@ package recipe
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // maxBodyBytes caps request payloads to bound memory use and slow-body abuse.
@@ -15,21 +20,39 @@ func NewRouter(store Store, secret string) http.Handler {
 	return NewRouterWithImporter(store, secret, nil)
 }
 
+// traced renames the active server span to the matched route pattern. otelhttp
+// wraps the router before ServeMux has matched anything, so r.Pattern — which
+// the mux fills in during routing — is only available here, inside the handler.
+// Naming spans from the raw path instead would put recipe ids into span names
+// and blow up cardinality in Tempo.
+func traced(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if span := trace.SpanFromContext(r.Context()); span.IsRecording() && r.Pattern != "" {
+			span.SetName(r.Pattern)
+			span.SetAttributes(semconv.HTTPRoute(r.Pattern))
+		}
+		fn(w, r)
+	}
+}
+
 // NewRouterWithImporter is NewRouter plus URL import. imp may be nil, in which
 // case POST /recipes/import responds 503 (import not configured).
 func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handler {
 	h := &handlers{store: store, importer: imp}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", h.healthz)
-	mux.HandleFunc("POST /recipes", h.createRecipe)
-	mux.HandleFunc("GET /recipes", h.listRecipes)
-	mux.HandleFunc("GET /recipes/{id}", h.getRecipe)
-	mux.HandleFunc("GET /catalog", h.listCatalog)
-	mux.HandleFunc("DELETE /recipes/{id}", h.deleteRecipe)
-	mux.HandleFunc("PUT /recipes/{id}", h.updateRecipe)
-	mux.HandleFunc("POST /recipes/import", h.importRecipe)
-	mux.HandleFunc("POST /grocery-list", h.groceryList)
-	return requireService(secret, mux)
+	mux.HandleFunc("GET /healthz", traced(h.healthz))
+	mux.HandleFunc("POST /recipes", traced(h.createRecipe))
+	mux.HandleFunc("GET /recipes", traced(h.listRecipes))
+	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
+	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
+	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
+	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
+	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
+	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
+
+	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
+	// an auth failure is precisely when you want to see the request.
+	return otelhttp.NewHandler(requireService(secret, mux), "recipe-service")
 }
 
 type handlers struct {
@@ -50,12 +73,12 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
-		writeError(w, http.StatusBadRequest, "title is required")
+		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
 	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not create recipe")
+		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, rec)
@@ -64,7 +87,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listRecipes(w http.ResponseWriter, r *http.Request) {
 	recs, err := h.store.ListRecipes(r.Context(), userIDFrom(r.Context()))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not list recipes")
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
@@ -73,7 +96,7 @@ func (h *handlers) listRecipes(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 	recs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not list catalog")
+		writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
@@ -82,11 +105,11 @@ func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
 	rec, err := h.store.GetRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
-		writeError(w, http.StatusNotFound, "recipe not found")
+		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not get recipe")
+		writeErr(w, r, http.StatusInternalServerError, "could not get recipe", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, rec)
@@ -95,11 +118,11 @@ func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 	err := h.store.DeleteRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()))
 	if errors.Is(err, ErrNotFound) {
-		writeError(w, http.StatusNotFound, "recipe not found")
+		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not delete recipe")
+		writeErr(w, r, http.StatusInternalServerError, "could not delete recipe", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -114,16 +137,16 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
-		writeError(w, http.StatusBadRequest, "title is required")
+		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
 	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients)
 	if errors.Is(err, ErrNotFound) {
-		writeError(w, http.StatusNotFound, "recipe not found")
+		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not update recipe")
+		writeErr(w, r, http.StatusInternalServerError, "could not update recipe", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, rec)
@@ -131,7 +154,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) importRecipe(w http.ResponseWriter, r *http.Request) {
 	if h.importer == nil {
-		writeError(w, http.StatusServiceUnavailable, "import is not configured")
+		writeError(w, r, http.StatusServiceUnavailable, "import is not configured")
 		return
 	}
 	var req struct {
@@ -141,19 +164,19 @@ func (h *handlers) importRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.URL) == "" {
-		writeError(w, http.StatusBadRequest, "url is required")
+		writeError(w, r, http.StatusBadRequest, "url is required")
 		return
 	}
 	rec, err := h.importer.Import(r.Context(), userIDFrom(r.Context()), req.URL)
 	switch {
 	case errors.Is(err, ErrImportBadURL):
-		writeError(w, http.StatusBadRequest, "invalid or disallowed url")
+		writeError(w, r, http.StatusBadRequest, "invalid or disallowed url")
 	case errors.Is(err, ErrImportFetch):
-		writeError(w, http.StatusBadGateway, "could not fetch the url")
+		writeErr(w, r, http.StatusBadGateway, "could not fetch the url", err)
 	case errors.Is(err, ErrImportUnparseable):
-		writeError(w, http.StatusUnprocessableEntity, "could not extract a recipe from this page; enter it manually")
+		writeErr(w, r, http.StatusUnprocessableEntity, "could not extract a recipe from this page; enter it manually", err)
 	case err != nil:
-		writeError(w, http.StatusInternalServerError, "could not import recipe")
+		writeErr(w, r, http.StatusInternalServerError, "could not import recipe", err)
 	default:
 		writeJSON(w, http.StatusOK, rec)
 	}
@@ -180,7 +203,7 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	}
 	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), ids)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not load recipes")
+		writeErr(w, r, http.StatusInternalServerError, "could not load recipes", err)
 		return
 	}
 	byID := make(map[string]Recipe, len(recs))
@@ -203,7 +226,7 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	if len(missing) > 0 {
 		catRecs, err := h.store.GetRecipesByIDs(r.Context(), CatalogUserID, missing)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "could not load catalog recipes")
+			writeErr(w, r, http.StatusInternalServerError, "could not load catalog recipes", err)
 			return
 		}
 		for _, rec := range catRecs {
@@ -223,7 +246,8 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	// An unresolvable id is not fatal (a basket can outlive a deleted recipe),
 	// but silently dropping it is how an empty list hides a real bug.
 	if len(skipped) > 0 {
-		log.Printf("grocery-list: skipped %d unresolvable recipe id(s): %v", len(skipped), skipped)
+		slog.WarnContext(r.Context(), "grocery-list: skipped unresolvable recipe ids",
+			"count", len(skipped), "ids", skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
 }
@@ -235,10 +259,10 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			writeError(w, r, http.StatusRequestEntityTooLarge, "request body too large")
 			return false
 		}
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, r, http.StatusBadRequest, "invalid JSON body")
 		return false
 	}
 	return true
@@ -250,6 +274,35 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
+// writeError responds with a JSON error and records it. 5xx marks the span as
+// failed so Tempo surfaces it; 4xx logs at warn level because it is usually a
+// client mistake, not our bug.
+func writeError(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	writeErr(w, r, status, msg, nil)
+}
+
+// writeErr is writeError plus the underlying cause. Use it wherever an error
+// value is in scope — before BL-0027 those causes were discarded entirely.
+func writeErr(w http.ResponseWriter, r *http.Request, status int, msg string, cause error) {
+	ctx := r.Context()
+
+	attrs := []any{"status", status, "path", r.URL.Path, "method", r.Method}
+	if cause != nil {
+		attrs = append(attrs, "err", cause)
+	}
+
+	if status >= http.StatusInternalServerError {
+		span := trace.SpanFromContext(ctx)
+		span.SetStatus(codes.Error, msg)
+		if cause != nil {
+			span.RecordError(cause)
+		} else {
+			span.RecordError(errors.New(msg))
+		}
+		slog.ErrorContext(ctx, msg, attrs...)
+	} else {
+		slog.WarnContext(ctx, msg, attrs...)
+	}
+
 	writeJSON(w, status, map[string]string{"error": msg})
 }
