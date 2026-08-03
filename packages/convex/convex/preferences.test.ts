@@ -58,4 +58,27 @@ describe("preferences", () => {
     const t = convexTest(schema, modules);
     await expect(t.query(api.preferences.get, {})).rejects.toThrow("Not authenticated");
   });
+
+  it("preserves fields the caller did not supply", async () => {
+    const t = convexTest(schema, modules);
+    const client = t.withIdentity(identity);
+
+    await client.mutation(api.preferences.set, {
+      avoidItems: ["peanut"],
+      likedItems: ["garlic"],
+    });
+    await client.mutation(api.preferences.set, { dislikedItems: ["cilantro"] });
+
+    const prefs = await client.query(api.preferences.get, {});
+    expect(prefs.avoidItems).toEqual(["peanut"]);
+    expect(prefs.likedItems).toEqual(["garlic"]);
+    expect(prefs.dislikedItems).toEqual(["cilantro"]);
+  });
+
+  it("rejects unauthenticated writes", async () => {
+    const t = convexTest(schema, modules);
+    await expect(t.mutation(api.preferences.set, { avoidItems: ["peanut"] })).rejects.toThrow(
+      "Not authenticated",
+    );
+  });
 });
