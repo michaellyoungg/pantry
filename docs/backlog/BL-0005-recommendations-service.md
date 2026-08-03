@@ -89,10 +89,14 @@ Two implementation notes worth recording, because both differ from the design do
   and report unavailable, contributing to neither the numerator nor the
   denominator of the score.
 
-**Not yet verified:** the Playwright e2e spec (`apps/web/e2e/recommendations.spec.ts`)
-is written and committed but has never had a green run — a git worktree gets its
-own docker compose project, so `e2e.sh` stands up a second stack that collides on
-port 8090 with the shared one. Run it from the main checkout, or let CI.
+**e2e:** the Playwright spec (`apps/web/e2e/recommendations.spec.ts`) could not be
+run locally — a git worktree gets its own docker compose project, so `e2e.sh`
+stands up a second stack that collides on port 8090 with the shared one — so CI
+was its first real run, and it failed. The use-up test assumed the suggestion
+would come from the seeded catalog, but `scripts/e2e.sh` never runs `cmd/seed`,
+so the catalog is empty for the whole suite and the assertion could never have
+passed. Both specs now build their own candidate recipe; the underlying coverage
+gap is [BL-0051](BL-0051-e2e-seeds-the-catalog.md).
 
 **Increment 2 — next.** `/recommendations/discover`, the `recommendationEvents`
 log, and derived ingredient affinities.

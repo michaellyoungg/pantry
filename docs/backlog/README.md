@@ -88,3 +88,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | done | infra | S |
 | [BL-0049](BL-0049-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | proposed | recommendations | M |
 | [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | proposed | pantry | M |
+| [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | proposed | infra | S |
