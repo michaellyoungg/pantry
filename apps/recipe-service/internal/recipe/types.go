@@ -20,7 +20,14 @@ type Recipe struct {
 	Ingredients []Ingredient `json:"ingredients"`
 	// Steps are the ordered instruction lines (the method). May be empty; recipes
 	// imported before steps were persisted, or entered ingredients-only, have none.
-	Steps     []string  `json:"steps"`
+	Steps []string `json:"steps"`
+	// Equipment references the curated catalog by slug (BL-0041). May be empty:
+	// recipes entered by hand and imports whose steps mention no known hardware
+	// carry no tags.
+	Equipment []RecipeEquipment `json:"equipment"`
+	// Methods are members of the closed cooking-method enum. Closed because
+	// BL-0042's prep rules key on them.
+	Methods   []string  `json:"methods"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

@@ -28,6 +28,7 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	var title string
 	var ings []Ingredient
 	var steps []string
+	var ldMethods []string
 
 	if ld, ok := extractJSONLD(html); ok && len(ld.IngredientLines) > 0 {
 		title = ld.Title
@@ -35,6 +36,7 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 			ings = append(ings, parseIngredientLine(line))
 		}
 		steps = ld.Steps
+		ldMethods = ld.CookingMethods
 	} else if imp.extractor != nil {
 		ex, err := imp.extractor.Extract(ctx, htmlToText(html))
 		if err != nil {
@@ -48,5 +50,20 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	if strings.TrimSpace(title) == "" || len(ings) == 0 {
 		return Recipe{}, ErrImportUnparseable
 	}
-	return Recipe{UserID: userID, Title: strings.TrimSpace(title), Ingredients: ings, Steps: steps}, nil
+
+	// Deterministic equipment/method tagging (BL-0041): schema.org cookingMethod
+	// mapped onto the closed enum, plus an alias scan over the step text. The
+	// title is deliberately not scanned — "grilled cheese" is not a grill recipe.
+	// An LLM tagger is BL-0044's job and is not wired here.
+	equip, methods := equipmentCatalog.DetectTags(steps)
+	methods = normMethods(append(equipmentCatalog.MethodsFromJSONLD(ldMethods), methods...))
+
+	return Recipe{
+		UserID:      userID,
+		Title:       strings.TrimSpace(title),
+		Ingredients: ings,
+		Steps:       steps,
+		Equipment:   equip,
+		Methods:     methods,
+	}, nil
 }

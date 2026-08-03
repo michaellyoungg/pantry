@@ -21,7 +21,7 @@ func newTestPostgres(t *testing.T) *PostgresStore {
 	}
 	t.Cleanup(s.Close)
 	// Clean slate.
-	if _, err := s.pool.Exec(context.Background(), "TRUNCATE ingredients, recipe_steps, recipes RESTART IDENTITY CASCADE"); err != nil {
+	if _, err := s.pool.Exec(context.Background(), "TRUNCATE ingredients, recipe_steps, recipe_equipment, recipe_methods, recipes RESTART IDENTITY CASCADE"); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	return s
@@ -34,7 +34,7 @@ func TestPostgres_CreateGetListRoundTrip(t *testing.T) {
 	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
 		{Quantity: 1, Unit: "tbsp", Item: "butter", Note: "softened"},
-	}, []string{"Toast the bread.", "Spread the butter."})
+	}, []string{"Toast the bread.", "Spread the butter."}, nil, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -66,8 +66,8 @@ func TestPostgres_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestPostgres_GetRecipesByIDsPreservesRequestOrder(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil)
-	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil, nil, nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil, nil, nil)
 
 	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
@@ -84,7 +84,7 @@ func TestPostgres_DeleteCascadesIngredients(t *testing.T) {
 
 	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
-	}, []string{"Toast the bread."})
+	}, []string{"Toast the bread."}, nil, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 
 	rec, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
-	}, []string{"Toast it."})
+	}, []string{"Toast it."}, nil, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
-	}, []string{"Soak the brioche.", "Fry both sides."})
+	}, []string{"Soak the brioche.", "Fry both sides."}, nil, nil)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 		t.Fatalf("reread steps = %+v, want [soak fry]", reread.Steps)
 	}
 
-	if _, err := s.UpdateRecipe(ctx, "nope", "user-a", "X", nil, nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, "nope", "user-a", "X", nil, nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("update missing err = %v, want ErrNotFound", err)
 	}
 }
@@ -161,7 +161,7 @@ func TestPostgres_UpdateReplacesIngredients(t *testing.T) {
 func TestPostgres_GetRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
 	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("owner get: %v", err)
@@ -174,7 +174,7 @@ func TestPostgres_GetRecipe_ScopedToOwner(t *testing.T) {
 func TestPostgres_DeleteRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
@@ -191,9 +191,9 @@ func TestPostgres_DeleteRecipe_ScopedToOwner(t *testing.T) {
 func TestPostgres_UpdateRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
-	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 	// title must be unchanged for the owner

@@ -12,7 +12,7 @@ func TestMemoryStore_CreateAndGet(t *testing.T) {
 
 	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
-	}, []string{"Toast the bread.", "Butter it."})
+	}, []string{"Toast the bread.", "Butter it."}, nil, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -45,8 +45,8 @@ func TestMemoryStore_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil)
-	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil, nil, nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil, nil, nil)
 
 	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *test
 func TestMemoryStore_DeleteRemovesRecipe(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -85,12 +85,12 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 	s := NewMemoryStore()
 	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
-	}, []string{"Toast it."})
+	}, []string{"Toast it."}, nil, nil)
 
 	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
-	}, []string{"Soak the brioche.", "Fry both sides."})
+	}, []string{"Soak the brioche.", "Fry both sides."}, nil, nil)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 }
 
 func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
-	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil, nil)
+	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil, nil, nil, nil)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
@@ -123,7 +123,7 @@ func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
 	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("owner get: %v", err)
@@ -136,7 +136,7 @@ func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
@@ -149,9 +149,9 @@ func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_UpdateRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
 
-	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 }
