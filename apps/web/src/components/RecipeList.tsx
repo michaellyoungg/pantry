@@ -1,10 +1,11 @@
 import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
@@ -14,9 +15,9 @@ import { useConfirm } from "./ui/useConfirm";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
-  const listRecipes = useAction(api.recipes.list);
-  const deleteRecipe = useAction(api.recipes.remove);
-  const updateRecipe = useAction(api.recipes.update);
+  const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
+  const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
+  const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
