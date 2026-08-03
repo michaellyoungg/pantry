@@ -123,7 +123,7 @@ Deliberate choices:
 
 ### 4. The nudge: batched, actionable, one surface
 
-`useItUp()` (`apps/web/src/lib/expiry.ts`) is a pure function over pantry rows:
+`expiringSoon()` (`apps/web/src/lib/expiry.ts`) is a pure function over pantry rows:
 it keeps rows with a `useBy`, in state `have` or `low`, expiring within 7 days
 (including already-past), sorted soonest-first. Pure so it is unit-testable
 without React or Convex, and shared by both surfaces that render it.

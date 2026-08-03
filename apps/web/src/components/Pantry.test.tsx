@@ -88,3 +88,24 @@ describe("Pantry", () => {
     expect(screen.getByText(/check items off your grocery list/i)).toBeTruthy();
   });
 });
+
+describe("Pantry approximate use-by (BL-0029)", () => {
+  it("shows a relative, tilde-marked date so it can't be read as a printed label", () => {
+    // 5.5 days out, so the floor-to-whole-days phrasing can't race the clock.
+    state.rows = [{ ...rows[0], useBy: Date.now() + 5.5 * 86_400_000 }];
+    render(<Pantry />);
+    expect(screen.getByText("~5 days")).toBeTruthy();
+  });
+
+  it("shows nothing for an item with no known shelf life", () => {
+    state.rows = [{ ...rows[0], useBy: undefined }];
+    render(<Pantry />);
+    expect(screen.queryByText(/^~/)).toBeNull();
+  });
+
+  it("labels the date as approximate for assistive tech", () => {
+    state.rows = [{ ...rows[0], useBy: Date.now() + 5.5 * 86_400_000 }];
+    render(<Pantry />);
+    expect(screen.getByText("~5 days").getAttribute("title")).toMatch(/estimate/i);
+  });
+});
