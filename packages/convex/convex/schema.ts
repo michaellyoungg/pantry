@@ -78,6 +78,25 @@ export default defineSchema({
     active: v.boolean(),
   }).index("by_user", ["userId"]),
 
+  // Prep task check-off (BL-0042). Mirrors groceryList.checked: the tasks
+  // themselves are derived on demand by recipe-service and never stored here,
+  // because a stored copy would freeze the rule set that produced it — the
+  // whole point of rules-as-data is that improving one improves every recipe
+  // that already exists. What IS user state is the tick, so that is all that
+  // lives here.
+  //
+  // Keyed on (taskKey, cookDate), not on a recipe id: taskKey is stable across
+  // re-derivation and recipe edits, and the same task for next week's dinner is
+  // a genuinely different tick from this week's.
+  prepTaskState: defineTable({
+    userId: v.string(),
+    taskKey: v.string(),
+    cookDate: v.string(), // ISO date of the meal this prep is for
+    done: v.boolean(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_task", ["userId", "taskKey", "cookDate"]),
+
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
   // quantity — numeric inventory drifts from reality within days. Keyed on the
   // normalized ingredient so "Green onion" and "green onions" are one row.

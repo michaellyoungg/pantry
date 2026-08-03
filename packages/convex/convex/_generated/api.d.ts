@@ -16,6 +16,7 @@ import type * as lib_otel from "../lib/otel.js";
 import type * as nutrition from "../nutrition.js";
 import type * as nutritionTargets from "../nutritionTargets.js";
 import type * as pantry from "../pantry.js";
+import type * as prepTasks from "../prepTasks.js";
 import type * as pricing from "../pricing.js";
 import type * as recipes from "../recipes.js";
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   nutrition: typeof nutrition;
   nutritionTargets: typeof nutritionTargets;
   pantry: typeof pantry;
+  prepTasks: typeof prepTasks;
   pricing: typeof pricing;
   recipes: typeof recipes;
 }>;
