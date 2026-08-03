@@ -1,7 +1,7 @@
 ---
 id: BL-0045
 title: Generate the backlog index from item frontmatter (kill the merge-conflict hotspot)
-status: in-progress
+status: done
 area: infra
 effort: S
 related_specs: []
