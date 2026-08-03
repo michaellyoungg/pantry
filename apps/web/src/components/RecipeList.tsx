@@ -3,7 +3,7 @@ import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
 import type { Ingredient, Recipe } from "@pantry/types";
 import { useMutation } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -29,6 +29,20 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const { run, error, clearError, showError } = useAsyncAction();
   const { confirm, confirmDialog } = useConfirm();
   const recipes = data ?? [];
+
+  // De-dup (BL-0013): duplicate titles stay LEGAL. Importing the same page
+  // twice, or keeping two takes on "Chili", is normal and blocking the write
+  // would be worse than the mess. So the fix is visibility, not a constraint —
+  // flag the collisions and let the user prune them with Edit/Delete.
+  // Normalized on trim + case so "Garlic Bread" and "garlic bread " collide.
+  const duplicateTitles = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of recipes) {
+      const key = r.title.trim().toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set([...counts].filter(([, n]) => n > 1).map(([key]) => key));
+  }, [recipes]);
 
   // The recipe-service op is the source of truth. The Convex basket cleanup that
   // follows is best-effort: once the recipe is deleted/updated we must never let
@@ -100,7 +114,17 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
         {recipes.map((r) => (
           <li key={r.id} className="flex flex-col gap-1.5 py-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-text">{r.title}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-medium text-text">{r.title}</span>
+                {duplicateTitles.has(r.title.trim().toLowerCase()) && (
+                  <span
+                    className="shrink-0 rounded-full bg-border px-2 py-0.5 text-xs text-muted"
+                    title="Another recipe has this title — edit or delete one to clean up"
+                  >
+                    Duplicate
+                  </span>
+                )}
+              </span>
               <span className="flex items-center gap-1.5">
                 <Button
                   variant="secondary"

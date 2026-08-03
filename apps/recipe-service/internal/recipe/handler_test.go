@@ -471,6 +471,61 @@ func TestListCatalog_EmptySerializesAsEmptyArray(t *testing.T) {
 	}
 }
 
+// Catalog recipes are owned by the sentinel CatalogUserID but are visible to,
+// and basketable by, every user (see TestGroceryList_IncludesCatalogRecipes).
+// That asymmetry is exactly where a delete affordance goes wrong: a user must
+// never be able to delete or rename a shared catalog recipe out from under
+// everyone else. The user-scoped WHERE clause already enforces it; these pin
+// the behaviour so a future "resolve against the catalog too" convenience —
+// the fix that was needed for aggregation — is never copied onto the write
+// paths, where it would be destructive.
+func TestDeleteRecipe_CannotDeleteCatalogRecipe(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	if err := store.UpsertRecipe(ctx, Recipe{
+		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+	}); err != nil {
+		t.Fatalf("seed catalog: %v", err)
+	}
+
+	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/cat-x", nil)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("DELETE /recipes/cat-x as a regular user = %d, want 404", resp.StatusCode)
+	}
+
+	if _, err := store.GetRecipe(ctx, "cat-x", CatalogUserID); err != nil {
+		t.Fatalf("catalog recipe must survive a user delete: %v", err)
+	}
+}
+
+func TestUpdateRecipe_CannotRenameCatalogRecipe(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	if err := store.UpsertRecipe(ctx, Recipe{
+		ID: "cat-x", UserID: CatalogUserID, Title: "Cat X",
+		Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}},
+	}); err != nil {
+		t.Fatalf("seed catalog: %v", err)
+	}
+
+	body := strings.NewReader(`{"title":"Hijacked","ingredients":[]}`)
+	resp := doAuth(t, http.MethodPut, srv.URL+"/recipes/cat-x", body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("PUT /recipes/cat-x as a regular user = %d, want 404", resp.StatusCode)
+	}
+
+	rec, err := store.GetRecipe(ctx, "cat-x", CatalogUserID)
+	if err != nil {
+		t.Fatalf("catalog recipe must survive a user update: %v", err)
+	}
+	if rec.Title != "Cat X" || len(rec.Ingredients) != 1 {
+		t.Fatalf("catalog recipe was mutated by a non-owner: %+v", rec)
+	}
+}
+
 func TestCreateRecipe_PersistsServings(t *testing.T) {
 	srv, _ := newTestServer(t)
 	body := `{"title":"Chili","servings":6,"ingredients":[]}`
