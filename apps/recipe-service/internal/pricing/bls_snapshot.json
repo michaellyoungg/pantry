@@ -1,0 +1,338 @@
+{
+  "source": "U.S. Bureau of Labor Statistics, CPI Average Price Data (AP)",
+  "sourceUrl": "https://www.bls.gov/cpi/data.htm",
+  "area": "U.S. city average",
+  "observationMonth": "2026-06",
+  "fetchedAt": "2026-08-03",
+  "series": {
+    "APU0000701111": {
+      "title": "Flour, white, all purpose, per lb. (453.6 gm)",
+      "value": 0.544,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000701312": {
+      "title": "Rice, white, long grain, uncooked, per lb. (453.6 gm)",
+      "value": 1.089,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000701322": {
+      "title": "Spaghetti and macaroni, per lb. (453.6 gm)",
+      "value": 1.367,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000702111": {
+      "title": "Bread, white, pan, per lb. (453.6 gm)",
+      "value": 1.814,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000702212": {
+      "title": "Bread, whole wheat, pan, per lb. (453.6 gm)",
+      "value": 2.814,
+      "month": "2026-05",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000702421": {
+      "title": "Cookies, chocolate chip, per lb. (453.6 gm)",
+      "value": 4.964,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703111": {
+      "title": "Ground chuck, 100% beef, per lb. (453.6 gm)",
+      "value": 6.975,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703112": {
+      "title": "Ground beef, 100% beef, per lb. (453.6 gm)",
+      "value": 6.825,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703113": {
+      "title": "Ground beef, lean and extra lean, per lb. (453.6 gm)",
+      "value": 8.651,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703213": {
+      "title": "Chuck roast, USDA Choice, boneless, per lb. (453.6 gm)",
+      "value": 9.55,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703311": {
+      "title": "Round roast, USDA Choice, boneless, per lb. (453.6 gm)",
+      "value": 8.962,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703432": {
+      "title": "Beef for stew, boneless, per lb. (453.6 gm)",
+      "value": 9.304,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000703613": {
+      "title": "Steak, sirloin, USDA Choice, boneless, per lb. (453.6 gm)",
+      "value": 14.451,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000704111": {
+      "title": "Bacon, sliced, per lb. (453.6 gm)",
+      "value": 6.561,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000704211": {
+      "title": "Chops, center cut, bone-in, per lb. (453.6 gm)",
+      "value": 4.905,
+      "month": "2026-05",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000704312": {
+      "title": "Ham, boneless, excluding canned, per lb. (453.6 gm)",
+      "value": 5.508,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000706111": {
+      "title": "Chicken, fresh, whole, per lb. (453.6 gm)",
+      "value": 2.044,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000706212": {
+      "title": "Chicken legs, bone-in, per lb. (453.6 gm)",
+      "value": 1.688,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000708111": {
+      "title": "Eggs, grade A, large, per doz.",
+      "value": 2.141,
+      "month": "2026-06",
+      "dimension": "count",
+      "packSize": 12
+    },
+    "APU0000709112": {
+      "title": "Milk, fresh, whole, fortified, per gal. (3.8 lit)",
+      "value": 4.317,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 3785.41
+    },
+    "APU0000710211": {
+      "title": "American processed cheese, per lb. (453.6 gm)",
+      "value": 4.626,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000710212": {
+      "title": "Cheddar cheese, natural, per lb. (453.6 gm)",
+      "value": 5.96,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000710411": {
+      "title": "Ice cream, prepackaged, bulk, regular, per 1/2 gal. (1.9 lit)",
+      "value": 5.953,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 1892.705
+    },
+    "APU0000711211": {
+      "title": "Bananas, per lb. (453.6 gm)",
+      "value": 0.645,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000711311": {
+      "title": "Oranges, Navel, per lb. (453.6 gm)",
+      "value": 1.54,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000711411": {
+      "title": "Grapefruit, per lb. (453.6 gm)",
+      "value": 1.634,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000711412": {
+      "title": "Lemons, per lb. (453.6 gm)",
+      "value": 2.109,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000711415": {
+      "title": "Strawberries, dry pint, per 12 oz. (340.2 gm)",
+      "value": 2.516,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 340.2
+    },
+    "APU0000712112": {
+      "title": "Potatoes, white, per lb. (453.6 gm)",
+      "value": 0.923,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000712211": {
+      "title": "Lettuce, iceberg, per lb. (453.6 gm)",
+      "value": 2.012,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000712311": {
+      "title": "Tomatoes, field grown, per lb. (453.6 gm)",
+      "value": 2.154,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000713111": {
+      "title": "Orange juice, frozen concentrate, 12 oz. can, per 16 oz. (473.2 ml)",
+      "value": 4.874,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 473.2
+    },
+    "APU0000714221": {
+      "title": "Corn, canned, any style, all sizes, per lb. (453.6 gm)",
+      "value": 1.286,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000714233": {
+      "title": "Beans, dried, any type, all sizes, per lb. (453.6 gm)",
+      "value": 1.626,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000715211": {
+      "title": "Sugar, white, all sizes, per lb. (453.6 gm)",
+      "value": 1.018,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000717311": {
+      "title": "Coffee, 100%, ground roast, all sizes, per lb. (453.6 gm)",
+      "value": 9.457,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000718311": {
+      "title": "Potato chips, per 16 oz.",
+      "value": 6.632,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000720111": {
+      "title": "Malt beverages, all types, all sizes, any origin, per 16 oz. (473.2 ml)",
+      "value": 1.882,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 473.2
+    },
+    "APU0000720311": {
+      "title": "Wine, red and white table, all sizes, any origin, per 1 liter (33.8 oz)",
+      "value": 13.804,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 1000
+    },
+    "APU0000FC2101": {
+      "title": "All Uncooked Beef Roasts, per lb. (453.6 gm)",
+      "value": 9.434,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000FC3101": {
+      "title": "All Uncooked Beef Steaks, per lb. (453.6 gm)",
+      "value": 12.879,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000FF1101": {
+      "title": "Chicken breast, boneless, per lb. (453.6 gm)",
+      "value": 4.181,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000FJ1101": {
+      "title": "Milk, fresh, low-fat, reduced fat, skim, per gal. (3.8 lit)",
+      "value": 3.75,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 3785.41
+    },
+    "APU0000FJ4101": {
+      "title": "Yogurt, per 8 oz. (226.8 gm)",
+      "value": 1.587,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 226.8
+    },
+    "APU0000FL2101": {
+      "title": "Lettuce, romaine, per lb. (453.6 gm)",
+      "value": 4.021,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    },
+    "APU0000FN1101": {
+      "title": "All soft drinks, per 2 liters (67.6 oz)",
+      "value": 2.196,
+      "month": "2026-06",
+      "dimension": "volume",
+      "packSize": 2000
+    },
+    "APU0000FS1101": {
+      "title": "Butter, stick, per lb. (453.6 gm)",
+      "value": 3.816,
+      "month": "2026-06",
+      "dimension": "mass",
+      "packSize": 453.592
+    }
+  }
+}

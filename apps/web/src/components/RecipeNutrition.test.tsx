@@ -6,6 +6,8 @@ const { actionMock } = vi.hoisted(() => ({
   actionMock: vi.fn(),
 }));
 
+// useTracedAction wraps convex/react's useAction (BL-0027); mocking at that
+// boundary keeps the test about the panel, not about tracing.
 vi.mock("convex/react", () => ({
   useAction: () => actionMock,
 }));

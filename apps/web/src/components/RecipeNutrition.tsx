@@ -1,8 +1,8 @@
 import { api } from "@pantry/convex/api";
-import { useAction } from "convex/react";
 import { useCallback } from "react";
 import { nutritionDisplay } from "../lib/nutrition";
 import { useAsyncData } from "../lib/useAsyncData";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 
@@ -16,7 +16,7 @@ import { Button } from "./ui/Button";
  * and the missing ingredients are named instead.
  */
 export function RecipeNutrition({ recipeId }: { recipeId: string }) {
-  const getNutrition = useAction(api.recipes.nutrition);
+  const getNutrition = useTracedAction(api.recipes.nutrition, "recipes.nutrition");
   const load = useCallback(() => getNutrition({ id: recipeId }), [getNutrition, recipeId]);
   const { data, loading, error, reload } = useAsyncData(load, [recipeId]);
 

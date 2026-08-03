@@ -1,0 +1,14 @@
+# Swap in an unpinned upgrade candidate (BL-0008) — see scripts/convex-upgrade-rehearsal.sh.
+#
+# Layered LAST, on top of the drill override, so the scratch stack runs the
+# image we are considering bumping to instead of the digest pinned in
+# docker-compose.yml. Never layer this onto the developer or production stack:
+# the whole point is that the candidate is unproven until the rehearsal passes.
+#
+# `:?` rather than a default, deliberately — this file has no business having an
+# opinion about which image is a candidate, and a silent default would let a
+# rehearsal "pass" against the image it was supposed to be testing an
+# alternative to.
+services:
+  convex-backend:
+    image: ${CONVEX_CANDIDATE_IMAGE:?set CONVEX_CANDIDATE_IMAGE to the image being rehearsed}

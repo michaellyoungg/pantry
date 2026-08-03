@@ -51,3 +51,6 @@ npm-debug.log*
 
 # Turbo cache
 .turbo/
+
+# Convex snapshot backups (scripts/convex-backup.sh)
+.backups/

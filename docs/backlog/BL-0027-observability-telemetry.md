@@ -1,7 +1,7 @@
 ---
 id: BL-0027
 title: Observability & telemetry (OpenTelemetry + Grafana LGTM)
-status: in-progress
+status: done
 area: infra
 effort: L
 related_specs: [2026-07-19-observability-telemetry-design.md]
@@ -38,8 +38,9 @@ Ships as three PRs under this one item:
    args on `recipes.ts` actions; `traceparent` injection in `recipeServiceFetch`.
    Actions only — Convex queries/mutations cannot perform network I/O, so they
    cannot emit spans. — landed on this branch.
-3. **Web** — OTel web SDK init, React error boundary, trace id threading into
-   Convex action calls.
+3. ✅ (landed) **Web** — OTel web SDK init, React error boundary, trace id
+   threading into Convex action calls (via `useTracedAction`). — landed on this
+   branch.
 
 Hard requirement: instrumentation must be a **no-op when
 `OTEL_EXPORTER_OTLP_ENDPOINT` is unset**, so existing `integration` and `e2e` CI

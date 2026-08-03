@@ -140,6 +140,41 @@ convex env set OTEL_EXPORTER_OTLP_ENDPOINT http://alloy:4318
 
 Like every layer, Convex tracing is a no-op when that variable is unset.
 
+The web app (`apps/web`) uses the OpenTelemetry web SDK: a user action mints a
+browser root span, whose `traceparent` is threaded into the Convex action call as
+`traceCtx`, so the whole browser→Convex→Go path is one trace. A React error
+boundary records uncaught render errors as spans. Enable it with a
+browser-visible var pointing at the **host-published** Alloy port (the browser
+can't resolve the `alloy` docker name):
+
+```bash
+VITE_OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm --filter @pantry/web dev
+```
+
+Unset, the web SDK is a no-op — no provider, no network — so tests and e2e are
+unaffected.
+
 Telemetry is a **complete no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset**, so
 CI and the plain compose stack are unaffected. Log lines carry `trace_id` and
 `span_id`, so you can pivot from any log line to its trace and back.
+
+## Operating self-hosted Convex
+
+Self-hosting means we own the operations Convex Cloud would run for us. The
+runbook is [`docs/self-hosted-convex-ops.md`](docs/self-hosted-convex-ops.md):
+Postgres backing, what a backup does and does not cover, how a restore actually
+goes, the image-upgrade procedure, and the dashboard access model.
+
+```bash
+docker compose -f docker-compose.yml \
+               -f deploy/docker-compose.convex-postgres.yml up -d  # Postgres-backed
+
+scripts/convex-backup.sh          # snapshot (data + file storage) -> .backups/
+scripts/convex-restore.sh <zip> --yes
+scripts/convex-restore-drill.sh   # back up, DESTROY, restore, verify — on a scratch stack
+```
+
+The drill is the point. It runs under its own compose project with its own named
+volumes and shifted ports, so it cannot touch your `./.data` — it is safe to run
+while the normal stack is up, and a restore procedure nobody has run is a
+hypothesis.
