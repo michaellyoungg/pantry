@@ -1,15 +1,16 @@
 import { api } from "@pantry/convex/api";
 import type { Recipe } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
 export function Catalog() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const listCatalog = useAction(api.recipes.listCatalog);
+  const listCatalog = useTracedAction(api.recipes.listCatalog, "recipes.listCatalog");
   const addToBasket = useMutation(api.basket.add);
   const { run, error } = useAsyncAction();
 

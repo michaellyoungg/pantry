@@ -1,9 +1,10 @@
 import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { Button } from "./ui/Button";
@@ -12,9 +13,9 @@ import { Card } from "./ui/Card";
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [editing, setEditing] = useState<Recipe | null>(null);
-  const listRecipes = useAction(api.recipes.list);
-  const deleteRecipe = useAction(api.recipes.remove);
-  const updateRecipe = useAction(api.recipes.update);
+  const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
+  const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
+  const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
   const addToBasket = useMutation(api.basket.add);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,

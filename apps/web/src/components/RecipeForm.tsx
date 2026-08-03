@@ -1,8 +1,8 @@
 import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
-import { useAction } from "convex/react";
 import { useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -14,8 +14,8 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
   const [url, setUrl] = useState("");
-  const createRecipe = useAction(api.recipes.create);
-  const importFromUrl = useAction(api.recipes.importFromUrl);
+  const createRecipe = useTracedAction(api.recipes.create, "recipes.create");
+  const importFromUrl = useTracedAction(api.recipes.importFromUrl, "recipes.importFromUrl");
   const { run, error, pending } = useAsyncAction();
   const importAction = useAsyncAction();
 
