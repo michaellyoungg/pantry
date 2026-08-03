@@ -8,6 +8,7 @@
 
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
+export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export {
   canGenerateList,
   decreaseServings,
