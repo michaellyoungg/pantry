@@ -53,22 +53,20 @@ export function ConfirmDialog({
   }, []);
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the key handler is the
-    // dialog's own Escape-to-dismiss; focus lives inside it while it is open.
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          onResolve(false);
-        }
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={message ? messageId : undefined}
+        // Escape dismisses, as a modal should. Focus starts (and stays) inside
+        // the dialog, so the keypress bubbles to here.
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onResolve(false);
+          }
+        }}
         className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 text-text shadow-lg"
       >
         <h2 id={titleId} className="text-lg font-semibold">
@@ -80,8 +78,7 @@ export function ConfirmDialog({
           </p>
         )}
         <div className="mt-4 flex items-center justify-end gap-2">
-          {/* biome-ignore lint/a11y/noAutofocus: focus belongs in a modal the
-              moment it opens, and the safe action is the one to land on. */}
+          {/* Focus belongs in the modal the moment it opens, on the safe action. */}
           <Button variant="ghost" autoFocus onClick={() => onResolve(false)}>
             {cancelLabel}
           </Button>

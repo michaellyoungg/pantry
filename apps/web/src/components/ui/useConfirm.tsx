@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type ConfirmOptions, ConfirmDialog } from "./ConfirmDialog";
+import { ConfirmDialog, type ConfirmOptions } from "./ConfirmDialog";
 
 export type { ConfirmOptions };
 
