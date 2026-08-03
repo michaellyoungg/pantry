@@ -30,14 +30,19 @@ func (s *PostgresStore) Pool() *pgxpool.Pool { return s.pool }
 // response describes, not a reason to fail the request.
 type NutritionEstimator interface {
 	Estimate(ctx context.Context, lines []nutrition.Line, servings float64) nutrition.Estimate
+	// EstimateGroups is the plan rollup (BL-0037): many recipes, one combined
+	// estimate, plus each recipe's own coverage so a client can name the dish it
+	// could not account for.
+	EstimateGroups(ctx context.Context, groups []nutrition.Group) (nutrition.Estimate, []nutrition.GroupCoverage)
 }
 
 // RouterOption configures optional router surfaces. It is variadic on
 // NewRouterWithImporter so adding one does not churn every caller.
 type RouterOption func(*handlers)
 
-// WithNutrition enables GET /recipes/{id}/nutrition. Without it the route
-// answers 503, matching how import behaves when it is not configured.
+// WithNutrition enables GET /recipes/{id}/nutrition and POST
+// /nutrition/estimate. Without it those routes answer 503, matching how import
+// behaves when it is not configured.
 func WithNutrition(est NutritionEstimator) RouterOption {
 	return func(h *handlers) { h.nutrition = est }
 }
