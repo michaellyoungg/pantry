@@ -10,13 +10,27 @@ import (
 
 var ErrNotFound = errors.New("recipe not found")
 
+// copyServings defensively copies a nullable serving count. MemoryStore hands
+// recipes back by value, so without this the caller and the store would share
+// one *int and a write through either would alias the other.
+func copyServings(n *int) *int {
+	if n == nil {
+		return nil
+	}
+	v := *n
+	return &v
+}
+
+// Store persists recipes. On the two mutating methods, servings is nil for
+// "unknown"; update replaces it wholesale like the rest of the recipe, so a nil
+// there clears a previously known yield.
 type Store interface {
-	CreateRecipe(ctx context.Context, userID, title string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
+	CreateRecipe(ctx context.Context, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
 	GetRecipe(ctx context.Context, id, userID string) (Recipe, error)
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
 	GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error)
 	DeleteRecipe(ctx context.Context, id, userID string) error
-	UpdateRecipe(ctx context.Context, id, userID, title string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
+	UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
 	UpsertRecipe(ctx context.Context, rec Recipe) error
 }
 
@@ -47,7 +61,7 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{byID: map[string]Recipe{}}
 }
 
-func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
+func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.seq++
@@ -55,6 +69,7 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, ings
 		ID:          fmt.Sprintf("r%d", s.seq),
 		UserID:      userID,
 		Title:       title,
+		Servings:    copyServings(servings),
 		Ingredients: normIngredients(ings),
 		Steps:       normSteps(steps),
 		Equipment:   normEquipment(equip),
@@ -104,7 +119,7 @@ func (s *MemoryStore) DeleteRecipe(_ context.Context, id, userID string) error {
 	return nil
 }
 
-func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
+func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec, ok := s.byID[id]
@@ -112,6 +127,7 @@ func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, 
 		return Recipe{}, ErrNotFound
 	}
 	rec.Title = title
+	rec.Servings = copyServings(servings)
 	rec.Ingredients = normIngredients(ings)
 	rec.Steps = normSteps(steps)
 	rec.Equipment = normEquipment(equip)
@@ -138,6 +154,7 @@ func (s *MemoryStore) UpsertRecipe(_ context.Context, rec Recipe) error {
 	if rec.ID == "" {
 		return errors.New("upsert: recipe id is required")
 	}
+	rec.Servings = copyServings(rec.Servings)
 	rec.Ingredients = normIngredients(rec.Ingredients)
 	rec.Steps = normSteps(rec.Steps)
 	rec.Equipment = normEquipment(rec.Equipment)

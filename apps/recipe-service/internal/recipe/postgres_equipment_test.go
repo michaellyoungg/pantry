@@ -31,7 +31,7 @@ func TestPostgres_TagsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Pulled Pork", nil, []string{"Into the crock pot."},
+	created, err := s.CreateRecipe(ctx, "user-a", "Pulled Pork", nil, nil, []string{"Into the crock pot."},
 		[]RecipeEquipment{{ID: "tongs", Required: false}, {ID: "slow_cooker", Required: true}},
 		[]string{"slow_cook"})
 	if err != nil {
@@ -66,13 +66,13 @@ func TestPostgres_UpdateReplacesTags(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil,
+	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil, nil,
 		[]RecipeEquipment{{ID: "oven", Required: true}, {ID: "roasting_pan", Required: true}},
 		[]string{"roast", "bake"})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", "Smoked", nil, nil,
+	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", "Smoked", nil, nil, nil,
 		[]RecipeEquipment{{ID: "smoker", Required: true}}, []string{"smoke"})
 	if err != nil {
 		t.Fatalf("update: %v", err)
@@ -89,7 +89,7 @@ func TestPostgres_DeleteCascadesTags(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil,
+	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil, nil,
 		[]RecipeEquipment{{ID: "oven", Required: true}}, []string{"roast"})
 	if err != nil {
 		t.Fatalf("create: %v", err)

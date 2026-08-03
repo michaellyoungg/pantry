@@ -88,7 +88,7 @@ type failingStore struct {
 	Store
 }
 
-func (failingStore) CreateRecipe(context.Context, string, string, []Ingredient, []string, []RecipeEquipment, []string) (Recipe, error) {
+func (failingStore) CreateRecipe(context.Context, string, string, *int, []Ingredient, []string, []RecipeEquipment, []string) (Recipe, error) {
 	return Recipe{}, errors.New("boom")
 }
 

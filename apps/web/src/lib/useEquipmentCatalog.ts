@@ -1,7 +1,7 @@
 import { api } from "@pantry/convex/api";
 import type { EquipmentDef } from "@pantry/types";
-import { useAction } from "convex/react";
 import { useCallback } from "react";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { useAsyncData } from "./useAsyncData";
 
 /**
@@ -14,7 +14,7 @@ export function useEquipmentCatalog(): {
   loading: boolean;
   error: string | null;
 } {
-  const listEquipment = useAction(api.recipes.listEquipment);
+  const listEquipment = useTracedAction(api.recipes.listEquipment, "recipes.listEquipment");
   const load = useCallback(() => listEquipment({}), [listEquipment]);
   const { data, loading, error } = useAsyncData(load);
   return { catalog: data ?? [], loading, error };

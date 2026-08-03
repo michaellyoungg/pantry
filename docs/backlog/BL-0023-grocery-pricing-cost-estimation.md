@@ -1,10 +1,10 @@
 ---
 id: BL-0023
 title: Grocery pricing — cost estimation, then sale-aware meal recommendations
-status: in-progress
+status: done
 area: pricing
 effort: L
-related_specs: [2026-07-12-full-app-ux-plan.md]
+related_specs: [2026-07-12-full-app-ux-plan.md, 2026-08-03-grocery-pricing-design.md]
 created: 2026-07-12
 ---
 
@@ -88,3 +88,15 @@ into planner/recommendation scoring.
 - **Bolt a `price` field onto the grocery list** — couples an evolving,
   externally-sourced concern with its own refresh/legal constraints to the list
   UI; keep it a separate element per the multi-service intent.
+
+## Status
+
+**Increment 1 is done** — see
+[`2026-08-03-grocery-pricing-design.md`](../superpowers/specs/2026-08-03-grocery-pricing-design.md).
+Shipped: `internal/pricing` (47 real BLS series, checked-in snapshot,
+longest-phrase-wins bucket mapping), `cmd/pricing-refresh`,
+`POST /pricing/estimate`, Convex `estimateGroceryList` / `estimateRecipe`, and
+the estimated-bill line on the grocery list.
+
+Increments 2 (Kroger real store prices) and 3 (sale-aware recommendations)
+remain open and are unstarted.

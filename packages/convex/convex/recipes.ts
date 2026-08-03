@@ -40,7 +40,7 @@ export const _cookingMethodInSync: Equals<
 // forwards the authenticated user id. Never reachable from the browser.
 // When a `traceparent` is supplied it rides along so the Go span (BL-0027)
 // nests under the Convex span.
-async function recipeServiceFetch<T>(
+export async function recipeServiceFetch<T>(
   userId: string,
   method: string,
   path: string,
@@ -67,9 +67,13 @@ async function recipeServiceFetch<T>(
   return (await res.json()) as T;
 }
 
+// servings is optional end to end: omitting it means "yield unknown" (BL-0035),
+// which is the normal case for manual entry and for every recipe that predates
+// the field. recipe-service validates the range.
 export const create = action({
   args: {
     title: v.string(),
+    servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
     equipment: v.optional(v.array(recipeEquipmentValidator)),
@@ -78,7 +82,7 @@ export const create = action({
   },
   handler: async (
     ctx,
-    { title, ingredients, steps, equipment, methods, traceCtx },
+    { title, servings, ingredients, steps, equipment, methods, traceCtx },
   ): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
@@ -89,6 +93,7 @@ export const create = action({
         "/recipes",
         {
           title,
+          servings,
           ingredients,
           steps: steps ?? [],
           equipment: equipment ?? [],
@@ -111,6 +116,28 @@ export const list = action({
   },
 });
 
+// Referential integrity (BL-0013). Recipes live in recipe-service; the basket
+// (which doubles as the week plan) lives in Convex and holds recipeId strings
+// no database can enforce a foreign key on. Reconciling here — rather than only
+// in the browser after the call returns — means the guarantee holds for EVERY
+// caller: a second tab, a future mobile client, an e2e script, or a web client
+// that navigates away mid-flight.
+//
+// Deliberately best-effort: the recipe-service delete has already committed by
+// the time we get here, so a failing basket write must NOT turn a successful
+// delete into a thrown action. That would roll the UI back into claiming the
+// recipe still exists — exactly the cross-store inconsistency BL-0015 fixed.
+// A surviving basket row degrades gracefully: grocery-list aggregation already
+// skips unresolvable recipe ids (and logs them), and the web client runs the
+// same cleanup again as a second chance.
+async function reconcileBasket(op: string, run: () => Promise<unknown>): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    console.error(`recipes.${op}: basket reconciliation failed`, err);
+  }
+}
+
 export const remove = action({
   args: { id: v.string(), traceCtx: v.optional(v.string()) },
   handler: async (ctx, { id, traceCtx }): Promise<null> => {
@@ -119,14 +146,21 @@ export const remove = action({
     await withSpan("recipes.remove", traceCtx, (traceparent) =>
       recipeServiceFetch<void>(userId, "DELETE", `/recipes/${id}`, undefined, traceparent),
     );
+    // The recipe is gone; drop any basket/week-plan row still pointing at it.
+    // Idempotent no-op when the recipe was never basketed.
+    await reconcileBasket("remove", () => ctx.runMutation(api.basket.remove, { recipeId: id }));
     return null;
   },
 });
 
+// Update replaces the whole recipe, so omitting servings clears a previously
+// known yield rather than leaving it in place — callers must send the current
+// value to keep it.
 export const update = action({
   args: {
     id: v.string(),
     title: v.string(),
+    servings: v.optional(v.number()),
     ingredients: v.array(ingredientValidator),
     steps: v.optional(v.array(v.string())),
     equipment: v.optional(v.array(recipeEquipmentValidator)),
@@ -135,17 +169,18 @@ export const update = action({
   },
   handler: async (
     ctx,
-    { id, title, ingredients, steps, equipment, methods, traceCtx },
+    { id, title, servings, ingredients, steps, equipment, methods, traceCtx },
   ): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    return withSpan("recipes.update", traceCtx, (traceparent) =>
+    const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe>(
         userId,
         "PUT",
         `/recipes/${id}`,
         {
           title,
+          servings,
           ingredients,
           steps: steps ?? [],
           equipment: equipment ?? [],
@@ -154,6 +189,13 @@ export const update = action({
         traceparent,
       ),
     );
+    // The basket denormalizes the title for display, so a rename has to reach
+    // it or the week plan keeps showing the old name. Same best-effort contract
+    // as remove(): never fail an update that already committed.
+    await reconcileBasket("update", () =>
+      ctx.runMutation(api.basket.updateTitle, { recipeId: id, title }),
+    );
+    return updated;
   },
 });
 

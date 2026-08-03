@@ -1,0 +1,367 @@
+{
+  "_comment": [
+    "Maps coarse BLS Average Price series onto normalized ingredient text.",
+    "BLS publishes ~56 active US-city-average food series, so many ingredients",
+    "necessarily share one bucket. Resolution is longest-matching-phrase-wins",
+    "over whole, singularized words; `exclude` disqualifies a bucket outright.",
+    "Series ids are validated against bls_snapshot.json by TestMappingSeriesExist.",
+    "`dimension` is NOT declared here — it comes from the series' pack unit."
+  ],
+  "buckets": {
+    "bacon": {
+      "seriesId": "APU0000704111",
+      "label": "Bacon, sliced",
+      "match": ["bacon"],
+      "exclude": ["turkey bacon", "bacon fat", "bacon grease"]
+    },
+    "bananas": {
+      "seriesId": "APU0000711211",
+      "label": "Bananas",
+      "match": ["banana"]
+    },
+    "beans-dried": {
+      "seriesId": "APU0000714233",
+      "label": "Beans, dried",
+      "gramsPerMl": 0.75,
+      "match": [
+        "bean",
+        "dried bean",
+        "black bean",
+        "pinto bean",
+        "kidney bean",
+        "navy bean",
+        "cannellini bean",
+        "white bean",
+        "chickpea",
+        "garbanzo bean"
+      ],
+      "exclude": ["green bean", "vanilla bean", "coffee bean", "bean sprout", "refried bean"]
+    },
+    "beef-roast": {
+      "seriesId": "APU0000FC2101",
+      "label": "Beef roast, uncooked",
+      "match": ["beef roast", "roast beef"]
+    },
+    "beef-steak": {
+      "seriesId": "APU0000FC3101",
+      "label": "Beef steak, uncooked",
+      "match": ["steak", "beef steak"],
+      "exclude": ["steak sauce", "salisbury steak"]
+    },
+    "beef-stew": {
+      "seriesId": "APU0000703432",
+      "label": "Beef for stew, boneless",
+      "match": ["stew beef", "stewing beef", "beef for stew", "beef stew meat"]
+    },
+    "beer": {
+      "seriesId": "APU0000720111",
+      "label": "Malt beverages",
+      "match": ["beer", "malt beverage", "lager", "ale"]
+    },
+    "bread-white": {
+      "seriesId": "APU0000702111",
+      "label": "Bread, white",
+      "match": ["bread", "white bread"],
+      "exclude": [
+        "whole wheat bread",
+        "wheat bread",
+        "bread crumb",
+        "breadcrumb",
+        "pita bread",
+        "flat bread",
+        "bread flour"
+      ]
+    },
+    "bread-wheat": {
+      "seriesId": "APU0000702212",
+      "label": "Bread, whole wheat",
+      "match": ["whole wheat bread", "wheat bread"]
+    },
+    "butter": {
+      "seriesId": "APU0000FS1101",
+      "label": "Butter, stick",
+      "gramsPerMl": 0.911,
+      "match": ["butter"],
+      "exclude": [
+        "peanut butter",
+        "almond butter",
+        "cashew butter",
+        "apple butter",
+        "cocoa butter",
+        "butter lettuce",
+        "butternut"
+      ]
+    },
+    "cheese-american": {
+      "seriesId": "APU0000710211",
+      "label": "American processed cheese",
+      "match": ["american cheese", "processed cheese"]
+    },
+    "cheese-cheddar": {
+      "seriesId": "APU0000710212",
+      "label": "Cheddar cheese, natural",
+      "match": ["cheddar", "cheddar cheese", "cheese"],
+      "exclude": ["cream cheese", "cottage cheese", "cheese sauce"]
+    },
+    "chicken-breast": {
+      "seriesId": "APU0000FF1101",
+      "label": "Chicken breast, boneless",
+      "match": ["chicken breast", "boneless skinless chicken breast"],
+      "exclude": ["broth", "stock", "bouillon"]
+    },
+    "chicken-legs": {
+      "seriesId": "APU0000706212",
+      "label": "Chicken legs, bone-in",
+      "match": ["chicken leg", "chicken thigh", "chicken drumstick", "chicken wing"],
+      "exclude": ["broth", "stock", "bouillon"]
+    },
+    "chicken-whole": {
+      "seriesId": "APU0000706111",
+      "label": "Chicken, whole",
+      "match": ["chicken", "whole chicken"],
+      "exclude": [
+        "chicken broth",
+        "chicken stock",
+        "chicken bouillon",
+        "chicken base",
+        "chicken soup"
+      ]
+    },
+    "chuck-roast": {
+      "seriesId": "APU0000703213",
+      "label": "Chuck roast, boneless",
+      "match": ["chuck roast"]
+    },
+    "coffee": {
+      "seriesId": "APU0000717311",
+      "label": "Coffee, ground roast",
+      "match": ["coffee", "ground coffee", "coffee bean"],
+      "exclude": ["instant coffee", "coffee liqueur"]
+    },
+    "cookies-chocolate-chip": {
+      "seriesId": "APU0000702421",
+      "label": "Cookies, chocolate chip",
+      "match": ["chocolate chip cookie"]
+    },
+    "corn-canned": {
+      "seriesId": "APU0000714221",
+      "label": "Corn, canned",
+      "match": ["corn", "canned corn", "sweet corn"],
+      "exclude": [
+        "corn starch",
+        "cornstarch",
+        "corn syrup",
+        "corn flour",
+        "corn meal",
+        "cornmeal",
+        "corn oil",
+        "corn tortilla",
+        "corn chip"
+      ]
+    },
+    "eggs": {
+      "seriesId": "APU0000708111",
+      "label": "Eggs, grade A large",
+      "gramsEach": 50,
+      "match": ["egg", "large egg"],
+      "exclude": ["egg noodle", "egg white", "egg yolk", "egg wash", "egg roll"]
+    },
+    "flour": {
+      "seriesId": "APU0000701111",
+      "label": "Flour, white all purpose",
+      "gramsPerMl": 0.53,
+      "match": ["flour", "all purpose flour", "white flour"],
+      "exclude": ["almond flour", "coconut flour", "corn flour", "rice flour", "bread flour"]
+    },
+    "grapefruit": {
+      "seriesId": "APU0000711411",
+      "label": "Grapefruit",
+      "match": ["grapefruit"]
+    },
+    "ground-beef": {
+      "seriesId": "APU0000703112",
+      "label": "Ground beef, 100% beef",
+      "match": ["ground beef", "minced beef", "hamburger meat"]
+    },
+    "ground-beef-lean": {
+      "seriesId": "APU0000703113",
+      "label": "Ground beef, lean",
+      "match": ["lean ground beef", "extra lean ground beef"]
+    },
+    "ground-chuck": {
+      "seriesId": "APU0000703111",
+      "label": "Ground chuck",
+      "match": ["ground chuck"]
+    },
+    "ham": {
+      "seriesId": "APU0000704312",
+      "label": "Ham, boneless",
+      "match": ["ham"],
+      "exclude": ["ham hock"]
+    },
+    "ice-cream": {
+      "seriesId": "APU0000710411",
+      "label": "Ice cream",
+      "match": ["ice cream"]
+    },
+    "lemons": {
+      "seriesId": "APU0000711412",
+      "label": "Lemons",
+      "match": ["lemon"],
+      "exclude": ["lemon juice", "lemon zest", "lemon extract", "lemon pepper"]
+    },
+    "lettuce-iceberg": {
+      "seriesId": "APU0000712211",
+      "label": "Lettuce, iceberg",
+      "match": ["iceberg lettuce"]
+    },
+    "lettuce-romaine": {
+      "seriesId": "APU0000FL2101",
+      "label": "Lettuce, romaine",
+      "match": ["lettuce", "romaine", "romaine lettuce"],
+      "exclude": ["iceberg lettuce", "butter lettuce"]
+    },
+    "milk-lowfat": {
+      "seriesId": "APU0000FJ1101",
+      "label": "Milk, low-fat / skim",
+      "match": ["skim milk", "low fat milk", "reduced fat milk", "nonfat milk", "2% milk"]
+    },
+    "milk-whole": {
+      "seriesId": "APU0000709112",
+      "label": "Milk, whole",
+      "match": ["milk", "whole milk"],
+      "exclude": [
+        "almond milk",
+        "soy milk",
+        "oat milk",
+        "coconut milk",
+        "rice milk",
+        "cashew milk",
+        "condensed milk",
+        "evaporated milk",
+        "milk powder",
+        "powdered milk",
+        "milk chocolate"
+      ]
+    },
+    "orange-juice": {
+      "seriesId": "APU0000713111",
+      "label": "Orange juice, frozen concentrate",
+      "match": ["orange juice"]
+    },
+    "oranges": {
+      "seriesId": "APU0000711311",
+      "label": "Oranges, navel",
+      "match": ["orange", "navel orange"],
+      "exclude": ["orange juice", "orange zest", "orange extract", "blood orange"]
+    },
+    "pasta": {
+      "seriesId": "APU0000701322",
+      "label": "Spaghetti and macaroni",
+      "match": [
+        "pasta",
+        "spaghetti",
+        "macaroni",
+        "penne",
+        "linguine",
+        "fettuccine",
+        "rigatoni",
+        "ziti",
+        "noodle",
+        "egg noodle"
+      ],
+      "exclude": ["rice noodle", "soba noodle", "udon noodle"]
+    },
+    "pork-chops": {
+      "seriesId": "APU0000704211",
+      "label": "Pork chops, center cut",
+      "match": ["pork chop"]
+    },
+    "potato-chips": {
+      "seriesId": "APU0000718311",
+      "label": "Potato chips",
+      "match": ["potato chip"]
+    },
+    "potatoes": {
+      "seriesId": "APU0000712112",
+      "label": "Potatoes, white",
+      "match": ["potato", "white potato", "russet potato", "yukon gold potato"],
+      "exclude": ["sweet potato", "potato chip", "potato starch", "mashed potato"]
+    },
+    "rice": {
+      "seriesId": "APU0000701312",
+      "label": "Rice, white long grain",
+      "gramsPerMl": 0.85,
+      "match": ["rice", "white rice", "long grain rice", "jasmine rice", "basmati rice"],
+      "exclude": [
+        "rice vinegar",
+        "rice wine",
+        "rice noodle",
+        "rice paper",
+        "wild rice",
+        "rice flour",
+        "rice milk"
+      ]
+    },
+    "round-roast": {
+      "seriesId": "APU0000703311",
+      "label": "Round roast, boneless",
+      "match": ["round roast"]
+    },
+    "sirloin-steak": {
+      "seriesId": "APU0000703613",
+      "label": "Steak, sirloin boneless",
+      "match": ["sirloin", "sirloin steak"]
+    },
+    "soft-drinks": {
+      "seriesId": "APU0000FN1101",
+      "label": "Soft drinks",
+      "match": ["soda", "soft drink", "cola"],
+      "exclude": ["baking soda", "club soda", "soda water"]
+    },
+    "strawberries": {
+      "seriesId": "APU0000711415",
+      "label": "Strawberries",
+      "match": ["strawberry"]
+    },
+    "sugar": {
+      "seriesId": "APU0000715211",
+      "label": "Sugar, white",
+      "gramsPerMl": 0.85,
+      "match": ["sugar", "white sugar", "granulated sugar"],
+      "exclude": [
+        "brown sugar",
+        "powdered sugar",
+        "confectioner sugar",
+        "sugar snap pea",
+        "coconut sugar"
+      ]
+    },
+    "tomatoes": {
+      "seriesId": "APU0000712311",
+      "label": "Tomatoes, field grown",
+      "match": ["tomato", "cherry tomato", "grape tomato", "roma tomato"],
+      "exclude": [
+        "tomato paste",
+        "tomato sauce",
+        "tomato puree",
+        "canned tomato",
+        "crushed tomato",
+        "diced tomato",
+        "sun dried tomato",
+        "tomato juice"
+      ]
+    },
+    "wine": {
+      "seriesId": "APU0000720311",
+      "label": "Wine, table",
+      "match": ["wine", "red wine", "white wine"],
+      "exclude": ["rice wine", "wine vinegar", "cooking wine"]
+    },
+    "yogurt": {
+      "seriesId": "APU0000FJ4101",
+      "label": "Yogurt",
+      "match": ["yogurt", "greek yogurt"]
+    }
+  }
+}

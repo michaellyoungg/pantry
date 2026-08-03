@@ -12,7 +12,9 @@ import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
 import type * as groceryList from "../groceryList.js";
 import type * as http from "../http.js";
+import type * as lib_otel from "../lib/otel.js";
 import type * as pantry from "../pantry.js";
+import type * as pricing from "../pricing.js";
 import type * as recipes from "../recipes.js";
 
 import type {
@@ -26,7 +28,9 @@ declare const fullApi: ApiFromModules<{
   basket: typeof basket;
   groceryList: typeof groceryList;
   http: typeof http;
+  "lib/otel": typeof lib_otel;
   pantry: typeof pantry;
+  pricing: typeof pricing;
   recipes: typeof recipes;
 }>;
 

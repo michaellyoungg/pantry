@@ -29,9 +29,12 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	var ings []Ingredient
 	var steps []string
 	var ldMethods []string
+	// Only JSON-LD supplies a yield today; the LLM fallback leaves it unknown.
+	var servings *int
 
 	if ld, ok := extractJSONLD(html); ok && len(ld.IngredientLines) > 0 {
 		title = ld.Title
+		servings = ld.Servings
 		for _, line := range ld.IngredientLines {
 			ings = append(ings, parseIngredientLine(line))
 		}
@@ -61,6 +64,7 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	return Recipe{
 		UserID:      userID,
 		Title:       strings.TrimSpace(title),
+		Servings:    servings,
 		Ingredients: ings,
 		Steps:       steps,
 		Equipment:   equip,

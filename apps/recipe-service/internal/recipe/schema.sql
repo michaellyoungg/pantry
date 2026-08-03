@@ -2,8 +2,15 @@ CREATE TABLE IF NOT EXISTS recipes (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     title       TEXT NOT NULL,
+    -- Nullable: NULL means "yield unknown", not "zero". See BL-0035.
+    servings    INT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- This file is the whole schema and is re-applied on every service start, so
+-- columns added after a deployment exists need an idempotent ALTER alongside
+-- their CREATE TABLE entry above. There is no migrations tool here yet.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS servings INT;
 
 CREATE TABLE IF NOT EXISTS ingredients (
     id          BIGSERIAL PRIMARY KEY,

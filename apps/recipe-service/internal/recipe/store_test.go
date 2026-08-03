@@ -10,7 +10,7 @@ func TestMemoryStore_CreateAndGet(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
+	created, err := s.CreateRecipe(ctx, "user-a", "Toast", nil, []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "bread"},
 	}, []string{"Toast the bread.", "Butter it."}, nil, nil)
 	if err != nil {
@@ -45,8 +45,8 @@ func TestMemoryStore_GetMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil, nil, nil)
-	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil, nil, nil)
+	a, _ := s.CreateRecipe(ctx, "user-a", "A", nil, nil, nil, nil, nil)
+	b, _ := s.CreateRecipe(ctx, "user-a", "B", nil, nil, nil, nil, nil)
 
 	got, err := s.GetRecipesByIDs(ctx, "user-a", []string{b.ID, "missing", a.ID})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestMemoryStore_GetRecipesByIDsPreservesRequestOrderAndSkipsMissing(t *test
 func TestMemoryStore_DeleteRemovesRecipe(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -83,11 +83,11 @@ func TestMemoryStore_DeleteMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", []Ingredient{
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, []Ingredient{
 		{Quantity: 1, Unit: "slice", Item: "bread"},
 	}, []string{"Toast it."}, nil, nil)
 
-	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", []Ingredient{
+	got, err := s.UpdateRecipe(ctx, rec.ID, "user-a", "French Toast", nil, []Ingredient{
 		{Quantity: 2, Unit: "slices", Item: "brioche"},
 		{Quantity: 1, Unit: "", Item: "egg"},
 	}, []string{"Soak the brioche.", "Fry both sides."}, nil, nil)
@@ -114,7 +114,7 @@ func TestMemoryStore_UpdateReplacesFieldsAndPreservesMeta(t *testing.T) {
 }
 
 func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
-	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil, nil, nil, nil)
+	_, err := NewMemoryStore().UpdateRecipe(context.Background(), "nope", "user-a", "X", nil, nil, nil, nil, nil)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
@@ -123,7 +123,7 @@ func TestMemoryStore_UpdateMissingReturnsErrNotFound(t *testing.T) {
 func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil, nil)
 
 	if _, err := s.GetRecipe(ctx, rec.ID, "user-a"); err != nil {
 		t.Fatalf("owner get: %v", err)
@@ -136,7 +136,7 @@ func TestMemoryStore_GetRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil, nil)
 
 	if err := s.DeleteRecipe(ctx, rec.ID, "user-b"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner delete: want ErrNotFound, got %v", err)
@@ -149,9 +149,9 @@ func TestMemoryStore_DeleteRecipe_ScopedToOwner(t *testing.T) {
 func TestMemoryStore_UpdateRecipe_ScopedToOwner(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
-	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil)
+	rec, _ := s.CreateRecipe(ctx, "user-a", "Toast", nil, nil, nil, nil, nil)
 
-	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil, nil, nil); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateRecipe(ctx, rec.ID, "user-b", "Hax", nil, nil, nil, nil, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-owner update: want ErrNotFound, got %v", err)
 	}
 }
@@ -214,5 +214,61 @@ func TestMemoryStore_UpsertInsertsThenReplacesPreservingCreatedAt(t *testing.T) 
 func TestMemoryStore_UpsertRequiresID(t *testing.T) {
 	if err := NewMemoryStore().UpsertRecipe(context.Background(), Recipe{UserID: CatalogUserID, Title: "x"}); err == nil {
 		t.Fatal("expected an error when id is empty")
+	}
+}
+
+func TestMemoryStore_ServingsRoundTripAndClear(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	created, err := s.CreateRecipe(ctx, "user-a", "Chili", intPtr(6), nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.Servings == nil || *created.Servings != 6 {
+		t.Fatalf("created servings = %v, want 6", created.Servings)
+	}
+	got, err := s.GetRecipe(ctx, created.ID, "user-a")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Servings == nil || *got.Servings != 6 {
+		t.Fatalf("stored servings = %v, want 6", got.Servings)
+	}
+
+	// Update replaces the recipe wholesale, so a nil servings clears the yield.
+	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", "Chili", nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Servings != nil {
+		t.Fatalf("servings = %d, want nil after clearing", *updated.Servings)
+	}
+}
+
+// A recipe created without a yield keeps working — servings is nullable
+// precisely so existing recipes and manual entry need not supply one.
+func TestMemoryStore_ServingsDefaultsToUnknown(t *testing.T) {
+	rec, err := NewMemoryStore().CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if rec.Servings != nil {
+		t.Fatalf("servings = %d, want nil", *rec.Servings)
+	}
+}
+
+// The store must not alias the caller's *int, or a later write through the
+// caller's pointer would silently mutate the stored recipe.
+func TestMemoryStore_ServingsIsCopiedNotAliased(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+	servings := 4
+	created, _ := s.CreateRecipe(ctx, "user-a", "Chili", &servings, nil, nil, nil, nil)
+
+	servings = 99
+	got, _ := s.GetRecipe(ctx, created.ID, "user-a")
+	if got.Servings == nil || *got.Servings != 4 {
+		t.Fatalf("stored servings = %v, want 4 (caller's pointer must not alias)", got.Servings)
 	}
 }

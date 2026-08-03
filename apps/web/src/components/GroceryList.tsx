@@ -8,8 +8,10 @@ import {
 } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { PricingSummary } from "./PricingSummary";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { useConfirm } from "./ui/useConfirm";
 
 const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -23,9 +25,16 @@ export function GroceryList() {
     needItAnywayOptimistic,
   );
   const { run, error } = useAsyncAction();
+  const { confirm, confirmDialog } = useConfirm();
 
-  function onClear() {
-    if (!window.confirm("Clear the grocery list?")) return;
+  async function onClear() {
+    const cleared = await confirm({
+      title: "Clear the grocery list?",
+      message: "Every line goes, including the ones you have already checked off.",
+      confirmLabel: "Clear",
+      destructive: true,
+    });
+    if (!cleared) return;
     run(() => clearList({}));
   }
 
@@ -94,6 +103,7 @@ export function GroceryList() {
           </div>
         ))}
       </div>
+      <PricingSummary lines={lines} />
       {lines.length > 0 && (
         <div className="mt-3 flex justify-end">
           <Button variant="ghost" size="sm" onClick={onClear}>
@@ -102,6 +112,7 @@ export function GroceryList() {
         </div>
       )}
       <ErrorText message={error} />
+      {confirmDialog}
     </Card>
   );
 }
