@@ -1,7 +1,7 @@
 ---
 id: BL-0042
 title: Prep rule engine — derived lead-time tasks (thaw, soften, preheat) on Home
-status: proposed
+status: in-progress
 area: recipes
 effort: L
 related_specs: [2026-08-03-cooking-guidance-design.md]

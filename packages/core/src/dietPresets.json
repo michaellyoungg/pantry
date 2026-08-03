@@ -1,0 +1,44 @@
+[
+  {
+    "id": "high-protein",
+    "label": "High protein",
+    "description": "150 g of protein a day, with calories held steady.",
+    "targets": [
+      { "nutrientId": "1003", "operator": ">=", "value": 150, "period": "day" },
+      { "nutrientId": "1008", "operator": "<=", "value": 2200, "period": "day" }
+    ]
+  },
+  {
+    "id": "low-cholesterol",
+    "label": "Low cholesterol",
+    "description": "Under 200 mg of cholesterol a day, and saturated fat kept low.",
+    "targets": [
+      { "nutrientId": "1253", "operator": "<=", "value": 200, "period": "day" },
+      { "nutrientId": "1258", "operator": "<=", "value": 15, "period": "day" }
+    ]
+  },
+  {
+    "id": "low-carb",
+    "label": "Low carb",
+    "description": "Under 50 g of carbohydrate a day, with fibre kept up.",
+    "targets": [
+      { "nutrientId": "1005", "operator": "<=", "value": 50, "period": "day" },
+      { "nutrientId": "1079", "operator": ">=", "value": 25, "period": "day" }
+    ]
+  },
+  {
+    "id": "low-sodium",
+    "label": "Low sodium",
+    "description": "Under 1,500 mg of sodium a day.",
+    "targets": [{ "nutrientId": "1093", "operator": "<=", "value": 1500, "period": "day" }]
+  },
+  {
+    "id": "calorie-budget",
+    "label": "Calorie budget",
+    "description": "2,000 calories a day, 14,000 across the week.",
+    "targets": [
+      { "nutrientId": "1008", "operator": "<=", "value": 2000, "period": "day" },
+      { "nutrientId": "1008", "operator": "<=", "value": 14000, "period": "week" }
+    ]
+  }
+]

@@ -3,11 +3,16 @@ import type { NutritionEstimate, NutritionRecipeCoverage } from "@pantry/types";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { actionMock } = vi.hoisted(() => ({ actionMock: vi.fn() }));
+const { actionMock, goals } = vi.hoisted(() => ({
+  actionMock: vi.fn(),
+  goals: { rows: [] as Array<Record<string, unknown>> },
+}));
 
 // useTracedAction wraps convex/react's useAction (BL-0027); mocking at that
-// boundary keeps the test about the panel, not about tracing.
-vi.mock("convex/react", () => ({ useAction: () => actionMock }));
+// boundary keeps the test about the panel, not about tracing. useQuery feeds
+// the nutrition goals this card also renders (BL-0038) — empty by default, so
+// the cases below stay about the numbers.
+vi.mock("convex/react", () => ({ useAction: () => actionMock, useQuery: () => goals.rows }));
 
 import { PlanNutrition } from "./PlanNutrition";
 
@@ -44,6 +49,7 @@ describe("PlanNutrition", () => {
   // Vitest treat it as a teardown callback and *call* it after every test.
   beforeEach(() => {
     actionMock.mockReset();
+    goals.rows = [];
   });
 
   it("shows the daily average, the week total and each planned day", async () => {
@@ -200,5 +206,31 @@ describe("PlanNutrition", () => {
 
     rerender(<PlanNutrition items={[{ ...items[0], servingsMultiplier: 2 }]} />);
     await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(2));
+  });
+
+  // BL-0038 rides on this card because it consumes the very same rollup. One
+  // fetch, so the totals and the verdict about them can never disagree.
+  it("judges the user's goals against the rollup it already fetched", async () => {
+    goals.rows = [
+      {
+        _id: "t1",
+        _creationTime: 0,
+        userId: "u",
+        nutrientId: "1008",
+        operator: "<=",
+        value: 100,
+        period: "day",
+        active: true,
+      },
+    ];
+    actionMock.mockResolvedValue({
+      days: [{ weekday: 0, estimate: estimate() }],
+      week: estimate(),
+    });
+
+    render(<PlanNutrition items={items} />);
+    const chip = await screen.findByText(/Calories ≤ 100 kcal/);
+    expect(chip.closest("li")?.dataset.status).toBe("over");
+    expect(actionMock).toHaveBeenCalledTimes(1);
   });
 });

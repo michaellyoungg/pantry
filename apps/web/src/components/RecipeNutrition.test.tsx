@@ -8,8 +8,12 @@ const { actionMock } = vi.hoisted(() => ({
 
 // useTracedAction wraps convex/react's useAction (BL-0027); mocking at that
 // boundary keeps the test about the panel, not about tracing.
+// The panel also renders the per-meal goal verdict (BL-0038), which reads the
+// user's targets. No targets here, so it renders nothing and these cases stay
+// about the numbers; the verdict has its own tests in RecipeGoalFit.test.tsx.
 vi.mock("convex/react", () => ({
   useAction: () => actionMock,
+  useQuery: () => [],
 }));
 
 import { RecipeNutrition } from "./RecipeNutrition";
