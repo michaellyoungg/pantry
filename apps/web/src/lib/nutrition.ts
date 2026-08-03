@@ -1,3 +1,4 @@
+import { COVERAGE_THRESHOLD, NUTRIENT_CATALOG } from "@pantry/core";
 import type { NutrientAmount, NutritionEstimate } from "@pantry/types";
 
 /**
@@ -6,27 +7,19 @@ import type { NutrientAmount, NutritionEstimate } from "@pantry/types";
  *
  * The design is explicit that a bare number is never acceptable at low coverage:
  * an estimate that silently reports 60% of a recipe as though it were the whole
- * thing is worse than one that admits it does not know — especially once goal
- * tracking (BL-0038) consumes these numbers.
+ * thing is worse than one that admits it does not know. Goal evaluation
+ * (BL-0038) judges against the same constant from `@pantry/core`, so a recipe
+ * whose numbers this panel refuses to show can never be one a goal reports a
+ * verdict on.
  */
-export const COVERAGE_THRESHOLD = 0.8;
+export { COVERAGE_THRESHOLD };
 
 /**
  * The nutrients the first UI surfaces, in display order: energy, macros, and the
- * few the stated scenarios need. This list is presentation only — the estimate
- * itself carries whatever FDC returned, so surfacing another nutrient is a
- * one-line change here and nothing else.
+ * few the stated scenarios need. It is the same catalog goals are set against
+ * (`@pantry/core`), so a nutrient you can constrain is always one you can see.
  */
-const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "1008", label: "Calories" },
-  { id: "1003", label: "Protein" },
-  { id: "1005", label: "Carbs" },
-  { id: "1004", label: "Fat" },
-  { id: "1258", label: "Saturated fat" },
-  { id: "1079", label: "Fiber" },
-  { id: "1093", label: "Sodium" },
-  { id: "1253", label: "Cholesterol" },
-];
+const HEADLINE_NUTRIENTS = NUTRIENT_CATALOG;
 
 interface NutritionRow {
   id: string;
