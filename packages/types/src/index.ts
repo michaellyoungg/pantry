@@ -53,3 +53,54 @@ export interface GroceryListRequest {
 export interface ImportRecipeRequest {
   url: string;
 }
+
+/**
+ * One nutrient amount, keyed by FDC nutrient number ("1008" energy kcal, "1003"
+ * protein, "1253" cholesterol). We use FDC's numbering rather than inventing a
+ * parallel taxonomy.
+ */
+export interface NutrientAmount {
+  nutrientId: string;
+  amount: number;
+  unit: string;
+}
+
+/** How much of a recipe the estimate actually accounts for. Never optional. */
+export interface NutritionCoverage {
+  /** 0..1 of the recipe's mass that resolved to a food with nutrient data. */
+  resolvedMassFraction: number;
+  resolvedCount: number;
+  totalCount: number;
+}
+
+/** Per-ingredient provenance: what we made of each line, and why we failed. */
+export interface NutritionIngredient {
+  item: string;
+  /** null when the line's mass could not be determined. */
+  grams: number | null;
+  /** True only if the line contributed nutrients — mass known AND food matched. */
+  resolved: boolean;
+  /** Why the line is unresolved, e.g. `no gram weight for unit "pinch"`. */
+  reason?: string;
+  /** How the grams were derived: mass | portion | density | count. */
+  method?: string;
+  /** The FDC description matched, so a wrong fuzzy match is visible. */
+  matchedFood?: string;
+}
+
+/**
+ * An estimated nutrient vector for a recipe or a selection of recipes.
+ *
+ * `nutrients` is an open map on purpose — adding a nutrient must be a data
+ * change, never a wire-type change across three languages. Do not narrow it to
+ * a typed macro struct.
+ */
+export interface NutritionEstimate {
+  nutrients: Record<string, NutrientAmount>;
+  /** Absent when the recipe's yield is unknown; never divided by a guess. */
+  perServing?: Record<string, NutrientAmount>;
+  servings: number;
+  coverage: NutritionCoverage;
+  ingredients: NutritionIngredient[];
+  estimatedAt: string; // ISO-8601
+}
