@@ -34,6 +34,19 @@ export function clearGroceryListOptimistic(localStore: OptimisticLocalStore): vo
   localStore.setQuery(api.groceryList.getGroceryList, {}, []);
 }
 
+export function needItAnywayOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { id: Id<"groceryList"> },
+): void {
+  const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.groceryList.getGroceryList,
+    {},
+    cur.map((l) => (l._id === args.id ? { ...l, alreadyHave: false } : l)),
+  );
+}
+
 export function setPantryStateOptimistic(
   localStore: OptimisticLocalStore,
   args: { id: Id<"pantryItems">; state: "have" | "low" | "out" },

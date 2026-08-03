@@ -1,7 +1,11 @@
 import { api } from "@pantry/convex/api";
 import { useMutation, useQuery } from "convex/react";
 import { formatQuantity } from "../lib/formatQuantity";
-import { clearGroceryListOptimistic, toggleItemOptimistic } from "../lib/optimistic";
+import {
+  clearGroceryListOptimistic,
+  needItAnywayOptimistic,
+  toggleItemOptimistic,
+} from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -15,7 +19,9 @@ export function GroceryList() {
   const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
     clearGroceryListOptimistic,
   );
-  const needItAnyway = useMutation(api.groceryList.needItAnyway);
+  const needItAnyway = useMutation(api.groceryList.needItAnyway).withOptimisticUpdate(
+    needItAnywayOptimistic,
+  );
   const { run, error } = useAsyncAction();
 
   function onClear() {
