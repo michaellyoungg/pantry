@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 
 export const list = query({
@@ -126,6 +127,16 @@ export const markCooked = mutation({
       .unique();
     if (!existing || existing.cookedAt !== undefined) return;
     await ctx.db.patch(existing._id, { cookedAt: Date.now() });
+
+    // Leftovers are reheated, not cooked: they occupy a day but consume nothing
+    // new, which is the same rule that keeps them off the grocery list.
+    if (existing.type === "leftover") return;
+
+    // Scheduled rather than awaited — resolving the recipe's normalized
+    // ingredients needs recipe-service, and a mutation cannot fetch. The patch
+    // above and this schedule commit in one transaction, so the decrement is
+    // queued exactly once per cook: the guard and the trigger cannot disagree.
+    await ctx.scheduler.runAfter(0, internal.pantry.cookDecrement, { userId, recipeId });
   },
 });
 
