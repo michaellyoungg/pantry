@@ -21,7 +21,7 @@ export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingred
 // forwards the authenticated user id. Never reachable from the browser.
 // When a `traceparent` is supplied it rides along so the Go span (BL-0027)
 // nests under the Convex span.
-async function recipeServiceFetch<T>(
+export async function recipeServiceFetch<T>(
   userId: string,
   method: string,
   path: string,
