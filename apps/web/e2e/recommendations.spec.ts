@@ -1,5 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+
+/**
+ * The recommendations card, scoped by its heading.
+ *
+ * Scoping matters: /pantry also renders BL-0029's expiry-driven "use it up"
+ * card, which suggests recipes from a different endpoint. An unscoped locator
+ * would match either card, so a passing assertion would not prove which one
+ * produced the result (see BL-0050).
+ */
+function suggestions(page: Page) {
+  return page.locator("section").filter({ hasText: "Cook from what you have" });
+}
 
 test("suggests a recipe for a pantry item marked to use up", async ({ page }) => {
   await signUp(page);
@@ -7,17 +19,14 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   // Build a recipe, plan it, and shop it — checking the line off is what puts
   // the ingredient in the pantry (BL-0021 inflow).
   //
-  // The ingredient MUST be "garlic", not something arbitrary. This recipe ends
-  // up in the basket, so it is excluded from its own results; the suggestion has
-  // to come from the seeded catalog. Garlic appears in 4 of the 6 catalog
-  // recipes AND is a canonical item in normalization.json. Picking an ingredient
-  // absent from the catalog (rice, say) makes this test assert on a suggestion
-  // that can never exist.
-  const title = `Garlic Bowl ${uniqueSuffix()}`;
-  await createRecipeAndAddToBasket(page, title, { quantity: "2", unit: "cloves", item: "garlic" });
+  // The ingredient must be "garlic" because it is a canonical item in
+  // normalization.json; the pantry stores canonical keys, so an item the
+  // dictionary doesn't know would never match a candidate's ingredients.
+  const base = `Garlic Base ${uniqueSuffix()}`;
+  await createRecipeAndAddToBasket(page, base, { quantity: "2", unit: "cloves", item: "garlic" });
 
   await navigateTo(page, "Plan");
-  const planRow = page.getByRole("listitem").filter({ hasText: title });
+  const planRow = page.getByRole("listitem").filter({ hasText: base });
   await expect(planRow).toBeVisible();
   await planRow.getByRole("button", { name: "Monday" }).click();
   await page.getByRole("button", { name: "Generate grocery list" }).click();
@@ -30,6 +39,20 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await expect(line).toBeVisible();
   await line.getByRole("checkbox").check();
 
+  // A second recipe sharing the ingredient, never added to the basket so it
+  // stays an eligible candidate. It has to be a recipe of the user's own: the
+  // shared catalog would be the realistic source of a suggestion here, but
+  // scripts/e2e.sh never runs cmd/seed, so the catalog table is empty in this
+  // environment and a catalog-dependent assertion could never pass.
+  const title = `Garlic Toast ${uniqueSuffix()}`;
+  await navigateTo(page, "Recipes");
+  await page.getByPlaceholder("Title").fill(title);
+  await page.getByRole("spinbutton").first().fill("1");
+  await page.getByPlaceholder("unit").first().fill("clove");
+  await page.getByPlaceholder("item").first().fill("garlic");
+  await page.getByRole("button", { name: "Create recipe" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+
   // The pantry now holds garlic. Mark it to use up.
   await navigateTo(page, "Pantry");
   const pantryRow = page
@@ -39,13 +62,13 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await expect(pantryRow).toBeVisible();
   await pantryRow.getByRole("button", { name: /Mark .* to use up/ }).click();
 
-  // Ask for suggestions. The planned recipe is excluded, so a catalog recipe
-  // sharing the ingredient is what should surface — assert on the reason text,
-  // which proves scoring actually ran rather than a list being echoed back.
+  // Ask for suggestions. Assert on the "Uses up:" reason specifically, not just
+  // any reason: it is the one string only the useItUp feature can produce, so it
+  // proves the use-up flag actually drove the score rather than plain overlap.
   await page.getByRole("button", { name: "What can I make?" }).click();
-  await expect(
-    page.getByText(/Uses up:|Uses \d+ things? you have|You have everything/).first(),
-  ).toBeVisible({ timeout: 15_000 });
+  const row = suggestions(page).getByRole("listitem").filter({ hasText: title });
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await expect(row.getByText(/Uses up:/)).toBeVisible();
 });
 
 test("never suggests a recipe containing an avoided ingredient", async ({ page }) => {
@@ -93,10 +116,25 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByRole("button", { name: "Create recipe" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
 
-  // BASELINE: with no avoid list, the recipe surfaces.
+  // A control recipe with no peanut in it. The avoid list must not touch this
+  // one, which is what makes the negative assertion below meaningful: navigating
+  // back to /pantry remounts the card with no results, so `toHaveCount(0)` on
+  // its own would pass instantly — before the request even returns — and would
+  // prove nothing. Waiting for the control to reappear proves a real response
+  // was rendered, and only then is the peanut recipe's absence evidence.
+  const control = `Garlic Control ${uniqueSuffix()}`;
+  await page.getByPlaceholder("Title").fill(control);
+  await page.getByRole("spinbutton").first().fill("1");
+  await page.getByPlaceholder("unit").first().fill("clove");
+  await page.getByPlaceholder("item").first().fill("garlic");
+  await page.getByRole("button", { name: "Create recipe" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: control })).toBeVisible();
+
+  // BASELINE: with no avoid list, both recipes surface.
   await navigateTo(page, "Pantry");
   await page.getByRole("button", { name: "What can I make?" }).click();
-  await expect(page.getByText(title)).toBeVisible({ timeout: 15_000 });
+  await expect(suggestions(page).getByText(title)).toBeVisible({ timeout: 15_000 });
+  await expect(suggestions(page).getByText(control)).toBeVisible();
 
   // Now avoid peanut and confirm it disappears.
   await page.goto("/settings");
