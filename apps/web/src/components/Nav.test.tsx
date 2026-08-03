@@ -38,7 +38,8 @@ describe("Nav", () => {
       const link = within(sidebar).getByRole("link", { name: item.label });
       expect(link.getAttribute("href")).toBe(item.to);
     }
-    expect(NAV_ITEMS).toHaveLength(5);
+    // Home · Plan · Recipes · List · Pantry · History (BL-0039).
+    expect(NAV_ITEMS).toHaveLength(6);
   });
 
   it("marks only the Home link active on '/'", async () => {

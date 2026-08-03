@@ -17,7 +17,7 @@ export const COVERAGE_THRESHOLD = 0.8;
  * itself carries whatever FDC returned, so surfacing another nutrient is a
  * one-line change here and nothing else.
  */
-const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
+export const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "1008", label: "Calories" },
   { id: "1003", label: "Protein" },
   { id: "1005", label: "Carbs" },

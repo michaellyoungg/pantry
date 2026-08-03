@@ -1,7 +1,7 @@
 ---
 id: BL-0039
 title: Nutrition habit review — eating history and retrospective
-status: in-progress
+status: done
 area: nutrition
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md]
@@ -56,3 +56,23 @@ Depends on **BL-0037**; strengthened by **BL-0028**.
 - **Storing history in Postgres.** It is time-series-ish and would suit a
   relational store, but it is user data and wants reactivity; keeping it in
   Convex holds the declared split.
+
+## Delivered
+
+Shipped as `nutritionLog` (Convex), `habitReview` (`@pantry/core`), and the
+`/history` route. `snapshot` stores the vector for one whole recipe yield plus
+its coverage; the row's `servings` carries the quantity, so BL-0028's "mark
+cooked" upgrades a row with a single patch and no re-estimation. Plan syncs
+never overwrite or delete a `cooked` or `manual` row.
+
+## Follow-up: goal-met rate
+
+The goal-met rate in the proposal above is **not** in this increment.
+`nutritionTargets` belongs to BL-0038, which had not landed when this shipped,
+and defining a competing targets table would have cost more than it bought.
+
+Everything it needs is in place: `NutrientTrend.points` already carries one
+value per counted day, so the rate is the share of *included* days meeting each
+target. The one rule to preserve is that excluded days stay out of both the
+numerator and the denominator — counting a day of missing data as a missed goal
+is the same under-reporting failure this feature is built to avoid.
