@@ -6,8 +6,18 @@
 // hooks live in `@pantry/core/react`; Convex-aware helpers in
 // `@pantry/core/convex`.
 
+export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
+export {
+  COVERAGE_THRESHOLD,
+  EQUALITY_BAND,
+  evaluateTargets,
+  NUTRIENT_CATALOG,
+  type NutrientMeta,
+  type NutritionVector,
+  nutrientMeta,
+} from "./nutritionTargets";
 export {
   canGenerateList,
   decreaseServings,
