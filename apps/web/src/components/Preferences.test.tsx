@@ -1,5 +1,4 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Preferences } from "./Preferences";
 
@@ -15,32 +14,38 @@ vi.mock("@pantry/convex/api", () => ({ api: { preferences: { get: "get", set: "s
 describe("Preferences", () => {
   it("shows the current avoid list", () => {
     render(<Preferences />);
-    expect(screen.getByText("peanut")).toBeInTheDocument();
+    // getByText throws if the element is absent, so a truthy assertion is
+    // sufficient (this project's vitest setup does not load jest-dom matchers).
+    expect(screen.getByText("peanut")).toBeTruthy();
   });
 
   it("adds an ingredient to the avoid list", async () => {
-    const user = userEvent.setup();
     render(<Preferences />);
 
-    await user.type(screen.getByPlaceholderText("Ingredient to avoid"), "shellfish");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.change(screen.getByPlaceholderText("Ingredient to avoid"), {
+      target: { value: "shellfish" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(setPreferences).toHaveBeenCalledWith(
-      expect.objectContaining({ avoidItems: ["peanut", "shellfish"] }),
+    await waitFor(() =>
+      expect(setPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({ avoidItems: ["peanut", "shellfish"] }),
+      ),
     );
   });
 
   it("removes an ingredient from the avoid list", async () => {
-    const user = userEvent.setup();
     render(<Preferences />);
 
-    await user.click(screen.getByRole("button", { name: "Remove peanut" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove peanut" }));
 
-    expect(setPreferences).toHaveBeenCalledWith(expect.objectContaining({ avoidItems: [] }));
+    await waitFor(() =>
+      expect(setPreferences).toHaveBeenCalledWith(expect.objectContaining({ avoidItems: [] })),
+    );
   });
 
   it("explains that avoided ingredients are removed, not down-ranked", () => {
     render(<Preferences />);
-    expect(screen.getByText(/never suggested/i)).toBeInTheDocument();
+    expect(screen.getByText(/never suggested/i)).toBeTruthy();
   });
 });
