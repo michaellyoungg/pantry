@@ -65,14 +65,14 @@ its coverage; the row's `servings` carries the quantity, so BL-0028's "mark
 cooked" upgrades a row with a single patch and no re-estimation. Plan syncs
 never overwrite or delete a `cooked` or `manual` row.
 
-## Follow-up: goal-met rate
+## Goal-met rate
 
-The goal-met rate in the proposal above is **not** in this increment.
-`nutritionTargets` belongs to BL-0038, which had not landed when this shipped,
-and defining a competing targets table would have cost more than it bought.
+Delivered once BL-0038 landed: `goalMetRates` evaluates each day's summed vector
+against the user's `period: "day"` targets through BL-0038's own `evaluateTargets`,
+so history and the planner cannot disagree about what "met" means.
 
-Everything it needs is in place: `NutrientTrend.points` already carries one
-value per counted day, so the rate is the share of *included* days meeting each
-target. The one rule to preserve is that excluded days stay out of both the
-numerator and the denominator — counting a day of missing data as a missed goal
-is the same under-reporting failure this feature is built to avoid.
+The rule that matters is the denominator. A day we could not judge — nothing
+logged, coverage below the floor, or no figure for that nutrient — leaves *both*
+sides of the fraction. Counting unknown days as misses would report a data gap as
+a broken streak, which is the same under-reporting failure the trends are built
+to avoid.

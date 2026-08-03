@@ -34,6 +34,8 @@ export {
   type DayPoint,
   type DaySummary,
   exclusionLabel,
+  type GoalMetRate,
+  goalMetRates,
   type HabitReview,
   type HabitReviewOptions,
   type HabitSignal,

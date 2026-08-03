@@ -1,7 +1,8 @@
-import type { NutritionLogEntry, NutritionLogSource } from "@pantry/types";
+import type { NutritionLogEntry, NutritionLogSource, NutritionTarget } from "@pantry/types";
 import { describe, expect, it } from "vitest";
 import {
   exclusionLabel,
+  goalMetRates,
   habitReview,
   habitSignal,
   MIN_DAY_COVERAGE,
@@ -327,5 +328,120 @@ describe("exclusionLabel", () => {
     expect(exclusionLabel("no-entries")).toBe("nothing logged");
     expect(exclusionLabel("low-coverage")).toBe("too little of the meal identified");
     expect(exclusionLabel("nutrient-missing")).toBe("no figure for this nutrient");
+  });
+});
+
+describe("goalMetRates", () => {
+  const protein = (over: Partial<NutritionTarget> = {}): NutritionTarget => ({
+    nutrientId: PROTEIN,
+    operator: ">=",
+    value: 100,
+    period: "day",
+    active: true,
+    ...over,
+  });
+
+  it("counts the days a goal was met", () => {
+    const rates = goalMetRates(
+      [
+        entry({ date: "2026-08-03", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-04", kcal: 500, protein: 130 }),
+        entry({ date: "2026-08-05", kcal: 500, protein: 40 }),
+      ],
+      { window: WEEK, targets: [protein()] },
+    );
+
+    expect(rates[0]).toMatchObject({ evaluatedDays: 3, metDays: 2, unknownDays: 0 });
+    expect(rates[0].rate).toBeCloseTo(2 / 3);
+  });
+
+  it("leaves unlogged days out of the fraction entirely", () => {
+    // Four days of the window have nothing logged. They are neither hits nor
+    // misses — a denominator of 7 would report absence as failure.
+    const rates = goalMetRates(
+      [
+        entry({ date: "2026-08-03", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-04", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-05", kcal: 500, protein: 40 }),
+      ],
+      { window: WEEK, targets: [protein()] },
+    );
+
+    expect(rates[0].evaluatedDays).toBe(3);
+    expect(rates[0].rate).toBeCloseTo(2 / 3);
+  });
+
+  it("leaves a low-coverage day out of both sides, counting it as unknown", () => {
+    const rates = goalMetRates(
+      [
+        entry({ date: "2026-08-03", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-04", kcal: 500, protein: 10, coverage: 0.2 }),
+      ],
+      { window: WEEK, targets: [protein()] },
+    );
+
+    expect(rates[0]).toMatchObject({ evaluatedDays: 1, metDays: 1, unknownDays: 1 });
+    // Not 1/2 — the unidentifiable day is not a miss.
+    expect(rates[0].rate).toBe(1);
+  });
+
+  it("treats a day whose meal never reported the nutrient as unknown", () => {
+    const rates = goalMetRates(
+      [
+        entry({ date: "2026-08-03", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-04", kcal: 500, protein: 120 }),
+        entry({ date: "2026-08-04", kcal: 400, recipeId: "r2" }),
+      ],
+      { window: WEEK, targets: [protein()] },
+    );
+
+    expect(rates[0]).toMatchObject({ evaluatedDays: 1, unknownDays: 1 });
+  });
+
+  it("sums a day's meals and scales by servings before judging", () => {
+    // 60 g × 2 servings = 120 g, which clears a 100 g goal that one batch misses.
+    const rates = goalMetRates([entry({ date: "2026-08-03", protein: 60, servings: 2 })], {
+      window: WEEK,
+      targets: [protein()],
+    });
+    expect(rates[0]).toMatchObject({ metDays: 1, evaluatedDays: 1 });
+  });
+
+  it("reports null rather than 0% when no day could be judged", () => {
+    const rates = goalMetRates([], { window: WEEK, targets: [protein()] });
+    expect(rates[0]).toMatchObject({ evaluatedDays: 0, metDays: 0, rate: null });
+  });
+
+  it("honours a cap as readily as a floor", () => {
+    const rates = goalMetRates(
+      [entry({ date: "2026-08-03", kcal: 1500 }), entry({ date: "2026-08-04", kcal: 2500 })],
+      {
+        window: WEEK,
+        targets: [{ nutrientId: ENERGY, operator: "<=", value: 2000, period: "day", active: true }],
+      },
+    );
+    expect(rates[0]).toMatchObject({ evaluatedDays: 2, metDays: 1 });
+  });
+
+  it("ignores inactive targets and targets for other periods", () => {
+    const rates = goalMetRates([entry({ date: "2026-08-03", protein: 120 })], {
+      window: WEEK,
+      targets: [
+        protein({ active: false }),
+        protein({ period: "week" }),
+        protein({ period: "meal" }),
+        protein(),
+      ],
+    });
+    expect(rates).toHaveLength(1);
+    expect(rates[0].target.period).toBe("day");
+  });
+
+  it("ignores entries outside the window", () => {
+    const rates = goalMetRates(
+      [entry({ date: "2026-07-01", protein: 10 }), entry({ date: "2026-08-03", protein: 120 })],
+      { window: WEEK, targets: [protein()] },
+    );
+    expect(rates[0]).toMatchObject({ evaluatedDays: 1, metDays: 1 });
   });
 });

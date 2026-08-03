@@ -1,6 +1,12 @@
-import type { NutritionLogEntry, NutritionLogSource } from "@pantry/types";
+import type {
+  NutrientAmount,
+  NutritionLogEntry,
+  NutritionLogSource,
+  NutritionTarget,
+} from "@pantry/types";
 import { type DateRange, datesInRange } from "./calendar";
 import { NUTRITION_COVERAGE_THRESHOLD } from "./nutrition";
+import { evaluateTargets, type NutritionVector } from "./nutritionTargets";
 
 /**
  * Habit review — turning `nutritionLog` rows into a retrospective (BL-0039).
@@ -14,13 +20,10 @@ import { NUTRITION_COVERAGE_THRESHOLD } from "./nutrition";
  * the page, and it under-reports worst exactly when coverage is worst — which is
  * the moment a user is most likely to trust the number and act on it.
  *
- * **Not yet here: goal-met rate.** It needs the `nutritionTargets` table, which
- * is BL-0038's and had not landed when this shipped. Defining a second targets
- * table to unblock it would have been worse than waiting. The seam is already
- * open: `NutrientTrend.points` carries one value per *included* day, so the rate
- * is `points.filter(included && meets(target)).length / includedDays` — and
- * excluded days must stay out of both sides of that fraction, or a week of
- * missing data reads as a week of missed goals.
+ * The same rule governs `goalMetRates`, which judges BL-0038's targets against
+ * this history: a day we could not judge leaves *both* sides of the fraction. If
+ * unknown days counted as misses, a week of missing data would read as a week of
+ * broken discipline — a data gap dressed up as a personal failing.
  */
 
 /**
@@ -304,6 +307,101 @@ export function habitReview(
     includedDays: days.filter((d) => d.included).length,
     excludedDays: days.filter((d) => !d.included).length,
   };
+}
+
+/**
+ * How often a goal was actually met (BL-0038's targets × BL-0039's history).
+ *
+ * `evaluatedDays` is the denominator and it counts only days we could judge.
+ * A day whose food we could not identify is neither a hit nor a miss, and
+ * folding it into the denominator would report a data gap as a discipline
+ * problem — the same under-reporting failure the trends are built to avoid,
+ * wearing different clothes.
+ */
+export interface GoalMetRate {
+  target: NutritionTarget;
+  unit: string | null;
+  /** Days that produced a verdict. The denominator. */
+  evaluatedDays: number;
+  metDays: number;
+  /** Days we could not judge. Reported plainly, never counted as missed. */
+  unknownDays: number;
+  /** `metDays / evaluatedDays`, or null when no day could be judged. */
+  rate: number | null;
+}
+
+/**
+ * One day's summed vector, in the shape BL-0038's evaluator accepts.
+ *
+ * Returns null for a day with nothing logged: silence is not a plate of zeroes,
+ * and handing the evaluator an empty vector would report every cap as met.
+ */
+function dayVector(entries: NutritionLogEntry[]): NutritionVector | null {
+  if (entries.length === 0) return null;
+
+  const nutrients: Record<string, NutrientAmount> = {};
+  // Only nutrients every meal reported: one dinner with no cholesterol figure
+  // makes the day's cholesterol an undercount, and the evaluator must answer
+  // "unknown" rather than compare a short total against a cap.
+  const shared = Object.keys(entries[0].snapshot.nutrients).filter((id) =>
+    entries.every((entry) => entry.snapshot.nutrients[id] !== undefined),
+  );
+  for (const id of shared) {
+    let amount = 0;
+    let unit = "";
+    for (const entry of entries) {
+      const nutrient = entry.snapshot.nutrients[id];
+      amount += nutrient.amount * entry.servings;
+      unit ||= nutrient.unit;
+    }
+    nutrients[id] = { nutrientId: id, amount, unit };
+  }
+
+  return {
+    nutrients,
+    coverage: {
+      // The weakest meal decides, exactly as it does for the trends.
+      resolvedMassFraction: Math.min(...entries.map(entryCoverage)),
+      resolvedCount: entries.reduce((n, e) => n + e.snapshot.coverage.resolvedCount, 0),
+      totalCount: entries.reduce((n, e) => n + e.snapshot.coverage.totalCount, 0),
+    },
+  };
+}
+
+/**
+ * How often each daily target was met across the window.
+ *
+ * Only `period: "day"` targets are meaningful here — a week or per-meal goal
+ * measured against a single day's total would be a category error, and
+ * `evaluateTargets` filters on the period it is given.
+ */
+export function goalMetRates(
+  entries: readonly NutritionLogEntry[],
+  { window, targets }: { window: DateRange; targets: readonly NutritionTarget[] },
+): GoalMetRate[] {
+  const inWindow = entries.filter((e) => e.date >= window.from && e.date <= window.to);
+  const grouped = byDate(inWindow);
+
+  // Days with nothing logged never reach the evaluator at all: they are absence
+  // of evidence, not evidence of a missed goal.
+  const vectors = datesInRange(window)
+    .map((date) => dayVector(grouped.get(date) ?? []))
+    .filter((v): v is NutritionVector => v !== null);
+
+  const daily = targets.filter((t) => t.active && t.period === "day");
+  return daily.map((target) => {
+    const verdicts = vectors.map((v) => evaluateTargets([target], v, "day")[0]).filter(Boolean);
+    const judged = verdicts.filter((e) => e.status !== "unknown");
+    const met = judged.filter((e) => e.status === "met").length;
+    return {
+      target,
+      unit: verdicts.find((e) => e.unit !== null)?.unit ?? null,
+      evaluatedDays: judged.length,
+      metDays: met,
+      unknownDays: verdicts.length - judged.length,
+      rate: judged.length === 0 ? null : met / judged.length,
+    };
+  });
 }
 
 /** Human-readable reason a day was left out, for the "days not counted" panel. */

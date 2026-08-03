@@ -4,9 +4,12 @@ import {
   type DaySummary,
   exclusionLabel,
   formatNutrientAmount,
+  type GoalMetRate,
+  goalMetRates,
   HEADLINE_NUTRIENTS,
   habitReview,
   type NutrientTrend,
+  nutrientMeta,
   startOfWeek,
   toISODate,
   windowEndingOn,
@@ -58,6 +61,9 @@ export function HabitReview({ today = toISODate(new Date()) }: { today?: string 
   const window = useMemo(() => windowEndingOn(today, windowDays), [today, windowDays]);
 
   const entries = useQuery(api.nutritionLog.listRange, { from: window.from, to: window.to });
+  // BL-0038's targets. Absent while loading, and empty for a user who has set
+  // none — both mean "no goals to report", never "every goal missed".
+  const targets = useQuery(api.nutritionTargets.list);
   const record = useTracedAction(api.nutritionLog.recordPlannedWeek, "nutritionLog.record");
   const { run, error, pending } = useAsyncAction();
 
@@ -70,6 +76,11 @@ export function HabitReview({ today = toISODate(new Date()) }: { today?: string 
             nutrientIds: HEADLINE_NUTRIENTS.map((n) => n.id),
           }),
     [entries, window],
+  );
+
+  const rates = useMemo(
+    () => (entries === undefined || !targets ? [] : goalMetRates(entries, { window, targets })),
+    [entries, targets, window],
   );
 
   return (
@@ -128,6 +139,7 @@ export function HabitReview({ today = toISODate(new Date()) }: { today?: string 
             </Card>
           ) : (
             <>
+              <GoalMetRates rates={rates} />
               <div className="grid gap-4 sm:grid-cols-2">
                 {review.trends.map((trend) => (
                   <TrendCard key={trend.nutrientId} trend={trend} />
@@ -254,6 +266,50 @@ function Sparkline({ trend, label }: { trend: NutrientTrend; label: string }) {
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * How often each daily goal was actually met.
+ *
+ * The denominator is stated next to every percentage on purpose: "met 3 of 4
+ * counted days" and "met 3 of 30" are different claims, and a bare 75% hides
+ * which one the user is looking at.
+ */
+function GoalMetRates({ rates }: { rates: GoalMetRate[] }) {
+  if (rates.length === 0) return null;
+
+  return (
+    <Card title="Goals">
+      <ul className="flex flex-col gap-3">
+        {rates.map((rate) => (
+          <li key={`${rate.target.nutrientId}-${rate.target.operator}-${rate.target.value}`}>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm text-text">
+                {rate.target.label ??
+                  `${nutrientMeta(rate.target.nutrientId)?.label ?? rate.target.nutrientId} ${rate.target.operator} ${rate.target.value}${rate.unit ? ` ${rate.unit}` : ""}`}
+              </span>
+              <span className="text-sm font-semibold text-text">
+                {rate.rate === null ? "—" : `${Math.round(rate.rate * 100)}%`}
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              {rate.rate === null
+                ? "No day in this window could be judged against this goal."
+                : `met on ${rate.metDays} of ${rate.evaluatedDays} counted ${rate.evaluatedDays === 1 ? "day" : "days"}`}
+              {rate.unknownDays > 0 &&
+                ` · ${rate.unknownDays} ${rate.unknownDays === 1 ? "day" : "days"} could not be judged`}
+            </p>
+          </li>
+        ))}
+      </ul>
+      {rates.some((r) => r.unknownDays > 0) && (
+        <p className="mt-3 text-xs text-muted">
+          Days we couldn't judge are left out of these percentages rather than counted as misses —
+          missing data is not a broken streak.
+        </p>
+      )}
+    </Card>
   );
 }
 

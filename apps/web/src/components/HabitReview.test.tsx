@@ -2,14 +2,23 @@ import type { NutritionLogEntry, NutritionLogSource } from "@pantry/types";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { actionMock, queryMock } = vi.hoisted(() => ({
+const { actionMock, queryMock, targetsMock } = vi.hoisted(() => ({
   actionMock: vi.fn(),
   queryMock: vi.fn(),
+  targetsMock: vi.fn(),
+}));
+
+vi.mock("@pantry/convex/api", () => ({
+  api: {
+    nutritionLog: { listRange: "nutritionLog:listRange", recordPlannedWeek: "nutritionLog:record" },
+    nutritionTargets: { list: "nutritionTargets:list" },
+  },
 }));
 
 vi.mock("convex/react", () => ({
   useAction: () => actionMock,
-  useQuery: (_ref: unknown, args: unknown) => queryMock(args),
+  useQuery: (ref: unknown, args: unknown) =>
+    ref === "nutritionTargets:list" ? targetsMock() : queryMock(args),
 }));
 
 import { HabitReview } from "./HabitReview";
@@ -57,6 +66,8 @@ describe("HabitReview", () => {
     actionMock.mockReset();
     queryMock.mockReset();
     queryMock.mockReturnValue([]);
+    targetsMock.mockReset();
+    targetsMock.mockReturnValue([]);
   });
 
   it("waits for the log rather than rendering an empty history", () => {
@@ -164,5 +175,60 @@ describe("HabitReview", () => {
     fireEvent.click(screen.getByText("30 days"));
 
     expect(queryMock).toHaveBeenCalledWith({ from: "2026-07-11", to: TODAY });
+  });
+});
+
+describe("HabitReview — goal-met rate (BL-0038 targets)", () => {
+  const proteinGoal = {
+    _id: "t1",
+    nutrientId: PROTEIN,
+    operator: ">=" as const,
+    value: 100,
+    period: "day" as const,
+    active: true,
+  };
+
+  it("reports how often a goal was met, with the denominator alongside", () => {
+    targetsMock.mockReturnValue([proteinGoal]);
+    queryMock.mockReturnValue([
+      entry({ date: "2026-08-05", kcal: 500, protein: 120 }),
+      entry({ date: "2026-08-06", kcal: 500, protein: 40, recipeId: "r2" }),
+    ]);
+    render(<HabitReview today={TODAY} />);
+
+    expect(screen.getByText("Goals")).toBeTruthy();
+    expect(screen.getByText("50%")).toBeTruthy();
+    expect(screen.getByText(/met on 1 of 2 counted days/)).toBeTruthy();
+  });
+
+  it("keeps days it could not judge out of the percentage and says so", () => {
+    targetsMock.mockReturnValue([proteinGoal]);
+    queryMock.mockReturnValue([
+      entry({ date: "2026-08-05", kcal: 500, protein: 120 }),
+      entry({ date: "2026-08-06", kcal: 500, protein: 10, coverage: 0.2, recipeId: "r2" }),
+    ]);
+    render(<HabitReview today={TODAY} />);
+
+    // 100%, not 50% — the unidentifiable day is not a miss.
+    expect(screen.getByText("100%")).toBeTruthy();
+    expect(screen.getByText(/1 day could not be judged/)).toBeTruthy();
+    expect(screen.getByText(/rather than counted as misses/)).toBeTruthy();
+  });
+
+  it("shows a dash rather than 0% when no day could be judged", () => {
+    targetsMock.mockReturnValue([proteinGoal]);
+    queryMock.mockReturnValue([entry({ date: "2026-08-05", kcal: 500, coverage: 0.1 })]);
+    render(<HabitReview today={TODAY} />);
+
+    expect(screen.getByText("—")).toBeTruthy();
+    expect(screen.queryByText("0%")).toBeNull();
+  });
+
+  it("shows no goals panel at all when the user has set none", () => {
+    targetsMock.mockReturnValue([]);
+    queryMock.mockReturnValue([entry({ date: "2026-08-05", kcal: 500, protein: 120 })]);
+    render(<HabitReview today={TODAY} />);
+
+    expect(screen.queryByText("Goals")).toBeNull();
   });
 });
