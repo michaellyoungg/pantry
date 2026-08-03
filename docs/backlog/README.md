@@ -44,7 +44,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0010](BL-0010-wire-go-into-turborepo.md) | Wire the Go recipe-service into the Turborepo task graph | done | infra | S |
 | [BL-0011](BL-0011-convex-browser-safe-types.md) | Browser-safe @pantry/convex type entry (remove node-types leak) | done | infra | M |
 | [BL-0012](BL-0012-web-ui-interaction-polish.md) | Web UI interaction polish (optimistic updates + error surfacing) | done | web | M |
-| [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | proposed | recipes | M |
+| [BL-0013](BL-0013-recipe-management.md) | Recipe management — de-dup + delete | in-progress | recipes | M |
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | done | infra | M |
 | [BL-0015](BL-0015-cross-store-delete-consistency.md) | Cross-store delete/basket partial-failure consistency | done | web | S |
 | [BL-0016](BL-0016-app-ia-responsive-nav.md) | App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs) | done | web | M |
@@ -54,14 +54,14 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | in-progress | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | done | pantry | L |
 | [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps (schema + import already extracts them) | in-progress | recipes | M |
-| [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | proposed | pricing | L |
+| [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | in-progress | pricing | L |
 | [BL-0024](BL-0024-headless-core-package.md) | Extract headless packages/core (planner, grocery list, import review) | proposed | infra | M |
 | [BL-0025](BL-0025-design-tokens-as-data.md) | Design tokens as data (single source for CSS and future native styling) | in-progress | web | S |
-| [BL-0026](BL-0026-platform-portable-ui-primitives.md) | Platform-portable UI primitives (confirm dialog, auth submission) | proposed | web | S |
+| [BL-0026](BL-0026-platform-portable-ui-primitives.md) | Platform-portable UI primitives (confirm dialog, auth submission) | in-progress | web | S |
 | [BL-0027](BL-0027-observability-telemetry.md) | Observability & telemetry (OpenTelemetry + Grafana LGTM) | in-progress | infra | L |
 | [BL-0028](BL-0028-pantry-cook-decrement.md) | Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked | proposed | pantry | M |
 | [BL-0029](BL-0029-pantry-shelf-life-expiry-nudges.md) | Pantry shelf-life & expiry nudges — category-default dates + "use this week" batches | proposed | pantry | L |
-| [BL-0035](BL-0035-recipe-yield-servings.md) | Recipe yield — servings on the recipe model + import extraction | proposed | recipes | S |
+| [BL-0035](BL-0035-recipe-yield-servings.md) | Recipe yield — servings on the recipe model + import extraction | in-progress | recipes | S |
 | [BL-0036](BL-0036-nutrition-core-estimation.md) | Nutrition core — USDA FDC provider, gram resolution, per-recipe estimation | proposed | nutrition | L |
 | [BL-0037](BL-0037-nutrition-plan-rollup.md) | Nutrition plan rollup — day and week totals on the planner | proposed | nutrition | M |
 | [BL-0038](BL-0038-nutrition-targets-goals.md) | Nutrition targets — declarative goals, evaluation, and diet presets | proposed | nutrition | M |
