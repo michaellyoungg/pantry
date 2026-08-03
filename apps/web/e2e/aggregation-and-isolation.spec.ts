@@ -34,6 +34,16 @@ test("aggregates ingredients across recipes and isolates data per user", async (
   const garlicLines = page.getByRole("listitem").filter({ hasText: "garlic" });
   await expect(garlicLines).toHaveCount(1);
 
+  // BL-0019: merging is only useful if it stays traceable — the one line has to
+  // name both recipes it came from. This is the whole provenance chain in one
+  // assertion: Go aggregation → persisted sources → the sheet.
+  await garlicLines.getByRole("button", { name: /2 recipes/i }).click();
+  const provenance = page.getByRole("dialog");
+  await expect(provenance.getByRole("link", { name: recipeA })).toBeVisible();
+  await expect(provenance.getByRole("link", { name: recipeB })).toBeVisible();
+  await provenance.getByRole("button", { name: "Close" }).click();
+  await expect(provenance).toBeHidden();
+
   // --- sign out returns to the auth gate -----------------------------------
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByTestId("auth-form")).toBeVisible();
@@ -41,6 +51,6 @@ test("aggregates ingredients across recipes and isolates data per user", async (
   // --- user B: a fresh account starts with an empty list -------------------
   await signUp(page);
   await page.goto("/list");
-  await expect(page.getByText("Nothing yet — generate from your basket.")).toBeVisible();
+  await expect(page.getByText(/Nothing yet — generate from your basket/)).toBeVisible();
   await expect(page.getByRole("listitem")).toHaveCount(0);
 });
