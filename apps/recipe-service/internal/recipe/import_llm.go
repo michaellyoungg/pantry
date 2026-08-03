@@ -13,16 +13,17 @@ import (
 const claudeModel = "claude-haiku-4-5"
 
 const extractSystemPrompt = `You extract structured recipe data from the text of a web page.
-Return only the recipe's title and its ingredient list. For each ingredient, split it into a
-numeric quantity, a unit (empty string if none), the core item name, and an optional note
-(e.g. "minced", "at room temperature"). If a value is absent, use 0 for quantity and "" for
-unit. Do not invent ingredients that are not present in the text.`
+Return the recipe's title, its ingredient list, and its ordered preparation steps. For each
+ingredient, split it into a numeric quantity, a unit (empty string if none), the core item name,
+and an optional note (e.g. "minced", "at room temperature"). If a value is absent, use 0 for
+quantity and "" for unit. For steps, return each instruction as one string in order; use an empty
+list if the page has no method. Do not invent ingredients or steps that are not present in the text.`
 
 // recipeJSONSchema constrains the model's output (Anthropic structured outputs).
 var recipeJSONSchema = map[string]any{
 	"type":                 "object",
 	"additionalProperties": false,
-	"required":             []string{"title", "ingredients"},
+	"required":             []string{"title", "ingredients", "steps"},
 	"properties": map[string]any{
 		"title": map[string]any{"type": "string"},
 		"ingredients": map[string]any{
@@ -38,6 +39,10 @@ var recipeJSONSchema = map[string]any{
 					"note":     map[string]any{"type": "string"},
 				},
 			},
+		},
+		"steps": map[string]any{
+			"type":  "array",
+			"items": map[string]any{"type": "string"},
 		},
 	},
 }
@@ -130,9 +135,10 @@ func (c *claudeExtractor) Extract(ctx context.Context, pageText string) (Extract
 	var parsed struct {
 		Title       string       `json:"title"`
 		Ingredients []Ingredient `json:"ingredients"`
+		Steps       []string     `json:"steps"`
 	}
 	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
 		return ExtractedRecipe{}, fmt.Errorf("claude output was not valid JSON: %w", err)
 	}
-	return ExtractedRecipe{Title: parsed.Title, Ingredients: parsed.Ingredients}, nil
+	return ExtractedRecipe{Title: parsed.Title, Ingredients: parsed.Ingredients, Steps: parsed.Steps}, nil
 }
