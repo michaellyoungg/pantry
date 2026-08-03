@@ -3,9 +3,9 @@ import {
   type DayExclusionReason,
   type DaySummary,
   exclusionLabel,
-  habitReview,
   formatNutrientAmount,
   HEADLINE_NUTRIENTS,
+  habitReview,
   type NutrientTrend,
   startOfWeek,
   toISODate,
@@ -199,7 +199,11 @@ function TrendCard({ trend }: { trend: NutrientTrend }) {
         </span>
       </div>
       <p className="mt-1 text-2xl font-semibold text-text">
-        {formatNutrientAmount({ nutrientId: trend.nutrientId, amount: trend.average, unit: trend.unit })}
+        {formatNutrientAmount({
+          nutrientId: trend.nutrientId,
+          amount: trend.average,
+          unit: trend.unit,
+        })}
         <span className="ml-1 text-sm font-normal text-muted">avg / day</span>
       </p>
       <p className="text-xs text-muted">
