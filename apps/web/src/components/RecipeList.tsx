@@ -23,12 +23,12 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const { run, error, clearError, showError } = useAsyncAction();
 
   const refresh = useCallback(async () => {
-    setRecipes(await listRecipes());
+    setRecipes(await listRecipes({}));
   }, [listRecipes]);
 
   useEffect(() => {
     let active = true;
-    listRecipes()
+    listRecipes({})
       .then((r) => active && setRecipes(r))
       .catch(console.error);
     return () => {
