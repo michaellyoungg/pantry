@@ -48,6 +48,40 @@ export async function recipeServiceFetch<T>(
   return (await res.json()) as T;
 }
 
+/** One entry of POST /normalization/lookup. `shelfLifeDays` is absent when unknown. */
+interface NormalizedItem {
+  canonicalItem: string;
+  display: string;
+  aisle: string;
+  shelfLifeDays?: number;
+}
+
+/**
+ * Resolve approximate shelf life for a set of canonical items, as
+ * canonicalItem -> days (BL-0029). Items recipe-service doesn't recognize are
+ * simply absent from the result — never defaulted, because a guessed date is
+ * worse than no date.
+ */
+async function lookupShelfLife(
+  userId: string,
+  items: string[],
+  traceparent?: string,
+): Promise<Record<string, number>> {
+  if (items.length === 0) return {};
+  const res = await recipeServiceFetch<{ items: NormalizedItem[] }>(
+    userId,
+    "POST",
+    "/normalization/lookup",
+    { items },
+    traceparent,
+  );
+  const out: Record<string, number> = {};
+  for (const item of res.items ?? []) {
+    if (item.shelfLifeDays !== undefined) out[item.canonicalItem] = item.shelfLifeDays;
+  }
+  return out;
+}
+
 // servings is optional end to end: omitting it means "yield unknown" (BL-0035),
 // which is the normal case for manual entry and for every recipe that predates
 // the field. recipe-service validates the range.
@@ -210,7 +244,17 @@ export const generateGroceryList = action({
         traceparent,
       );
 
-      await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines });
+      // Resolve approximate shelf life for the list's canonical items (BL-0029).
+      // It has to happen here, in an action: check-off is a mutation and
+      // mutations cannot do network I/O, so the number must already be on the
+      // line by the time the box is ticked.
+      const shelfLife = await lookupShelfLife(
+        userId,
+        [...new Set(lines.map((l) => l.canonicalItem).filter(Boolean))],
+        traceparent,
+      );
+
+      await ctx.runMutation(internal.groceryList.mergeGroceryList, { userId, lines, shelfLife });
       return { count: lines.length };
     });
   },
