@@ -5,6 +5,54 @@ export interface Ingredient {
   note?: string;
 }
 
+/**
+ * The closed cooking-method enum (BL-0041). Closed on purpose: BL-0042's prep
+ * rules key on these values, and rules cannot be written against a vocabulary
+ * that varies per recipe. recipe-service is the source of truth
+ * (`internal/recipe/equipment.json`); this union mirrors it.
+ *
+ * Deliberately a type and not a runtime array. This package ships as `dist`
+ * only, and nothing else in the repo imports a VALUE from it: the Convex
+ * bundler and the Vite dev server both resolve it without a build step only
+ * while every import is `import type`. Consumers that need the members at
+ * runtime declare their own list and prove it covers this union at compile
+ * time — see packages/convex/convex/recipes.ts and
+ * apps/web/src/lib/cookingMethods.ts.
+ */
+export type CookingMethod =
+  | "bake"
+  | "roast"
+  | "grill"
+  | "smoke"
+  | "sous_vide"
+  | "slow_cook"
+  | "pressure_cook"
+  | "fry"
+  | "saute"
+  | "boil"
+  | "marinate"
+  | "no_cook";
+
+export type EquipmentCategory = "appliance" | "cookware" | "tool";
+
+/** One entry of the curated hardware catalog served by GET /equipment. */
+export interface EquipmentDef {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  aliases: string[];
+}
+
+/**
+ * An equipment tag on a recipe, referencing the catalog by slug.
+ * `required: false` is "a grill pan works too" — optional gear must not block
+ * BL-0043's "can I make this?" check.
+ */
+export interface RecipeEquipment {
+  id: string;
+  required: boolean;
+}
+
 export interface Recipe {
   id: string;
   userId: string;
@@ -21,6 +69,10 @@ export interface Recipe {
   ingredients: Ingredient[];
   /** Ordered instruction lines (the method). Empty for ingredients-only recipes. */
   steps: string[];
+  /** Equipment tags referencing the catalog. Empty when nothing was detected. */
+  equipment: RecipeEquipment[];
+  /** Members of the closed method enum. Empty when nothing was detected. */
+  methods: CookingMethod[];
   createdAt: string; // ISO-8601
 }
 
@@ -39,6 +91,8 @@ export interface CreateRecipeRequest {
   servings?: number;
   ingredients: Ingredient[];
   steps?: string[];
+  equipment?: RecipeEquipment[];
+  methods?: CookingMethod[];
 }
 
 export interface GroceryListItem {
@@ -89,6 +143,26 @@ export interface NutritionIngredient {
 }
 
 /**
+ * One recipe's contribution to a multi-recipe rollup (BL-0037).
+ *
+ * A single blended `resolvedMassFraction` cannot express every way a rollup is
+ * incomplete: it describes the food it *saw*. A recipe that could not be loaded
+ * at all contributes to neither side of that ratio, so a day missing a whole
+ * dinner would otherwise read as fully covered. `counted` is that case, named.
+ */
+export interface NutritionRecipeCoverage {
+  recipeId: string;
+  /** Absent when the recipe could not be read — an unreadable recipe leaks nothing. */
+  title?: string;
+  /** The servings dial this recipe contributed at. */
+  multiplier: number;
+  /** False when the recipe's ingredients never reached the totals at all. */
+  counted: boolean;
+  /** This recipe's own coverage, so the one bad dish can be named. */
+  coverage: NutritionCoverage;
+}
+
+/**
  * An estimated nutrient vector for a recipe or a selection of recipes.
  *
  * `nutrients` is an open map on purpose — adding a nutrient must be a data
@@ -103,6 +177,11 @@ export interface NutritionEstimate {
   coverage: NutritionCoverage;
   ingredients: NutritionIngredient[];
   estimatedAt: string; // ISO-8601
+  /**
+   * Present only on a rollup (`POST /nutrition/estimate`), where "which dish is
+   * missing?" is a question the blended coverage figure cannot answer.
+   */
+  recipes?: NutritionRecipeCoverage[];
 }
 
 /**

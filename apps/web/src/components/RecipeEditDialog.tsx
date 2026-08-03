@@ -1,6 +1,13 @@
-import type { Ingredient, Recipe } from "@pantry/types";
+import type {
+  CookingMethod,
+  EquipmentDef,
+  Ingredient,
+  Recipe,
+  RecipeEquipment,
+} from "@pantry/types";
 import { useEffect, useRef, useState } from "react";
 import { formatServings, parseServings } from "../lib/servings";
+import { EquipmentEditor } from "./EquipmentEditor";
 import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
@@ -10,15 +17,19 @@ const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
 export function RecipeEditDialog({
   recipe,
+  catalog,
   onSave,
   onClose,
 }: {
   recipe: Recipe;
+  catalog: EquipmentDef[];
   onSave: (
     title: string,
     servings: number | undefined,
     ingredients: Ingredient[],
     steps: string[],
+    equipment: RecipeEquipment[],
+    methods: CookingMethod[],
   ) => Promise<void>;
   onClose: () => void;
 }) {
@@ -31,6 +42,8 @@ export function RecipeEditDialog({
     recipe.ingredients.length ? recipe.ingredients : [emptyIngredient()],
   );
   const [steps, setSteps] = useState<string[]>(recipe.steps ?? []);
+  const [equipment, setEquipment] = useState<RecipeEquipment[]>(recipe.equipment ?? []);
+  const [methods, setMethods] = useState<CookingMethod[]>(recipe.methods ?? []);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -51,6 +64,8 @@ export function RecipeEditDialog({
         parseServings(servings),
         ingredients.filter((ing) => ing.item.trim() !== ""),
         steps.map((s) => s.trim()).filter((s) => s !== ""),
+        equipment,
+        methods,
       );
     } finally {
       setBusy(false);
@@ -101,6 +116,13 @@ export function RecipeEditDialog({
           + ingredient
         </Button>
         <StepsEditor steps={steps} onChange={setSteps} />
+        <EquipmentEditor
+          catalog={catalog}
+          equipment={equipment}
+          methods={methods}
+          onEquipmentChange={setEquipment}
+          onMethodsChange={setMethods}
+        />
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel

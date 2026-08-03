@@ -65,19 +65,19 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0025](BL-0025-design-tokens-as-data.md) | Design tokens as data (single source for CSS and future native styling) | done | web | S |
 | [BL-0026](BL-0026-platform-portable-ui-primitives.md) | Platform-portable UI primitives (confirm dialog, auth submission) | done | web | S |
 | [BL-0027](BL-0027-observability-telemetry.md) | Observability & telemetry (OpenTelemetry + Grafana LGTM) | done | infra | L |
-| [BL-0028](BL-0028-pantry-cook-decrement.md) | Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked | proposed | pantry | M |
+| [BL-0028](BL-0028-pantry-cook-decrement.md) | Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked | done | pantry | M |
 | [BL-0029](BL-0029-pantry-shelf-life-expiry-nudges.md) | Pantry shelf-life & expiry nudges — category-default dates + "use this week" batches | done | pantry | L |
 | [BL-0035](BL-0035-recipe-yield-servings.md) | Recipe yield — servings on the recipe model + import extraction | done | recipes | S |
 | [BL-0036](BL-0036-nutrition-core-estimation.md) | Nutrition core — USDA FDC provider, gram resolution, per-recipe estimation | done | nutrition | L |
-| [BL-0037](BL-0037-nutrition-plan-rollup.md) | Nutrition plan rollup — day and week totals on the planner | in-progress | nutrition | M |
+| [BL-0037](BL-0037-nutrition-plan-rollup.md) | Nutrition plan rollup — day and week totals on the planner | done | nutrition | M |
 | [BL-0038](BL-0038-nutrition-targets-goals.md) | Nutrition targets — declarative goals, evaluation, and diet presets | in-progress | nutrition | M |
-| [BL-0039](BL-0039-nutrition-habit-review.md) | Nutrition habit review — eating history and retrospective | proposed | nutrition | M |
+| [BL-0039](BL-0039-nutrition-habit-review.md) | Nutrition habit review — eating history and retrospective | in-progress | nutrition | M |
 | [BL-0040](BL-0040-nutrition-aware-recommendations.md) | Nutrition-aware recommendations — targets as a scoring dimension | proposed | recommendations | M |
-| [BL-0041](BL-0041-equipment-catalog-recipe-tagging.md) | Equipment catalog + recipe equipment/method tagging (with import detection) | in-progress | recipes | M |
+| [BL-0041](BL-0041-equipment-catalog-recipe-tagging.md) | Equipment catalog + recipe equipment/method tagging (with import detection) | done | recipes | M |
 | [BL-0042](BL-0042-prep-rule-engine.md) | Prep rule engine — derived lead-time tasks (thaw, soften, preheat) on Home | proposed | recipes | L |
 | [BL-0043](BL-0043-equipment-inventory-discovery.md) | Equipment inventory — "can I make this?" + new-device recipe discovery | proposed | recipes | M |
 | [BL-0044](BL-0044-prep-sources-llm-manual.md) | Prep task sources — LLM-derived and hand-authored, merged with rule output | proposed | recipes | M |
 | [BL-0045](BL-0045-generated-backlog-index.md) | Generate the backlog index from item frontmatter (kill the merge-conflict hotspot) | done | infra | S |
 | [BL-0046](BL-0046-kroger-real-store-prices.md) | Real store prices (opt-in) — Kroger Products API behind a feature flag | proposed | pricing | M |
 | [BL-0047](BL-0047-sale-aware-recommendations.md) | Sale-aware recommendations — plan the week around what's cheap right now | proposed | recommendations | L |
-| [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | in-progress | infra | S |
+| [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | done | infra | S |

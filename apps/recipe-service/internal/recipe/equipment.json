@@ -1,0 +1,474 @@
+{
+  "methods": [
+    {
+      "id": "bake",
+      "name": "Bake",
+      "aliases": ["bake", "bakes", "baked", "bake for", "bake until"],
+      "jsonldAliases": ["baking"]
+    },
+    {
+      "id": "roast",
+      "name": "Roast",
+      "aliases": ["roast", "roasts", "roasted", "roasting", "roast until"]
+    },
+    {
+      "id": "grill",
+      "name": "Grill",
+      "aliases": [
+        "grill",
+        "grills",
+        "chargrill",
+        "char-grill",
+        "on the grill",
+        "grill grates",
+        "grilling",
+        "barbecuing"
+      ]
+    },
+    {
+      "id": "smoke",
+      "name": "Smoke",
+      "aliases": ["smoke", "smoked", "smoking", "smoker", "cold smoke", "hot smoke"]
+    },
+    {
+      "id": "sous_vide",
+      "name": "Sous vide",
+      "aliases": ["sous vide", "sous-vide", "immersion circulator", "water bath"]
+    },
+    {
+      "id": "slow_cook",
+      "name": "Slow cook",
+      "aliases": [
+        "slow cook",
+        "slow-cook",
+        "slow cooker",
+        "crock pot",
+        "crockpot",
+        "crock-pot",
+        "cook on low for",
+        "slow cooking",
+        "slow-cooking"
+      ]
+    },
+    {
+      "id": "pressure_cook",
+      "name": "Pressure cook",
+      "aliases": [
+        "pressure cook",
+        "pressure-cook",
+        "pressure cooker",
+        "instant pot",
+        "under pressure",
+        "pressure cooking"
+      ]
+    },
+    {
+      "id": "fry",
+      "name": "Fry",
+      "aliases": [
+        "fry",
+        "fries",
+        "fried",
+        "deep fry",
+        "deep-fry",
+        "deep fried",
+        "pan fry",
+        "pan-fry",
+        "shallow fry",
+        "air fry",
+        "air-fry"
+      ],
+      "jsonldAliases": ["frying", "deep frying", "air frying"]
+    },
+    {
+      "id": "saute",
+      "name": "Sauté",
+      "aliases": [
+        "saute",
+        "sautes",
+        "sauteed",
+        "sauté",
+        "sautée",
+        "sautéed",
+        "stir fry",
+        "stir-fry",
+        "stir-fried",
+        "sweat the",
+        "sauteing",
+        "sautéing",
+        "sauteeing"
+      ]
+    },
+    {
+      "id": "boil",
+      "name": "Boil",
+      "aliases": [
+        "boil",
+        "boils",
+        "boiling",
+        "boiled",
+        "parboil",
+        "bring to a boil",
+        "simmer",
+        "simmers",
+        "simmering",
+        "blanch",
+        "poach",
+        "poached"
+      ]
+    },
+    {
+      "id": "marinate",
+      "name": "Marinate",
+      "aliases": ["marinate", "marinated", "marinating", "marinade", "brine", "brined", "brining"]
+    },
+    {
+      "id": "no_cook",
+      "name": "No-cook",
+      "aliases": ["no-cook", "no cook", "uncooked", "raw preparation"],
+      "jsonldAliases": ["raw"]
+    }
+  ],
+  "equipment": [
+    {
+      "id": "oven",
+      "name": "Oven",
+      "category": "appliance",
+      "aliases": ["oven", "preheat the oven", "preheated oven", "oven rack"],
+      "implies": ["bake"]
+    },
+    {
+      "id": "toaster_oven",
+      "name": "Toaster oven",
+      "category": "appliance",
+      "aliases": ["toaster oven"]
+    },
+    {
+      "id": "stovetop",
+      "name": "Stovetop",
+      "category": "appliance",
+      "aliases": [
+        "stovetop",
+        "stove top",
+        "cooktop",
+        "over medium heat",
+        "over medium-high heat",
+        "over high heat",
+        "over low heat"
+      ]
+    },
+    {
+      "id": "microwave",
+      "name": "Microwave",
+      "category": "appliance",
+      "aliases": ["microwave", "microwave-safe"]
+    },
+    {
+      "id": "slow_cooker",
+      "name": "Slow cooker",
+      "category": "appliance",
+      "aliases": ["slow cooker", "crock pot", "crockpot", "crock-pot"],
+      "implies": ["slow_cook"]
+    },
+    {
+      "id": "pressure_cooker",
+      "name": "Pressure cooker",
+      "category": "appliance",
+      "aliases": ["pressure cooker", "instant pot", "instapot", "multicooker"],
+      "implies": ["pressure_cook"]
+    },
+    {
+      "id": "sous_vide_circulator",
+      "name": "Sous-vide circulator",
+      "category": "appliance",
+      "aliases": ["sous vide", "sous-vide", "immersion circulator", "sous vide circulator"],
+      "implies": ["sous_vide"]
+    },
+    {
+      "id": "air_fryer",
+      "name": "Air fryer",
+      "category": "appliance",
+      "aliases": ["air fryer", "air-fryer"],
+      "implies": ["fry"]
+    },
+    {
+      "id": "deep_fryer",
+      "name": "Deep fryer",
+      "category": "appliance",
+      "aliases": ["deep fryer", "deep-fryer"],
+      "implies": ["fry"]
+    },
+    {
+      "id": "smoker",
+      "name": "Smoker",
+      "category": "appliance",
+      "aliases": ["smoker", "pellet grill", "offset smoker", "smoke box"],
+      "implies": ["smoke"]
+    },
+    {
+      "id": "grill",
+      "name": "Grill",
+      "category": "appliance",
+      "aliases": ["grill", "barbecue", "bbq", "charcoal grill", "gas grill", "grill grates"],
+      "implies": ["grill"]
+    },
+    {
+      "id": "panini_press",
+      "name": "Panini press",
+      "category": "appliance",
+      "aliases": ["panini press", "sandwich press"]
+    },
+    {
+      "id": "stand_mixer",
+      "name": "Stand mixer",
+      "category": "appliance",
+      "aliases": ["stand mixer", "dough hook", "paddle attachment"]
+    },
+    {
+      "id": "hand_mixer",
+      "name": "Hand mixer",
+      "category": "appliance",
+      "aliases": ["hand mixer", "electric mixer", "electric beaters"]
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "category": "appliance",
+      "aliases": ["blender", "countertop blender"]
+    },
+    {
+      "id": "immersion_blender",
+      "name": "Immersion blender",
+      "category": "appliance",
+      "aliases": ["immersion blender", "stick blender", "hand blender"]
+    },
+    {
+      "id": "food_processor",
+      "name": "Food processor",
+      "category": "appliance",
+      "aliases": ["food processor"]
+    },
+    {
+      "id": "rice_cooker",
+      "name": "Rice cooker",
+      "category": "appliance",
+      "aliases": ["rice cooker"]
+    },
+    {
+      "id": "waffle_iron",
+      "name": "Waffle iron",
+      "category": "appliance",
+      "aliases": ["waffle iron", "waffle maker"]
+    },
+    {
+      "id": "bread_machine",
+      "name": "Bread machine",
+      "category": "appliance",
+      "aliases": ["bread machine", "bread maker"]
+    },
+    {
+      "id": "skillet",
+      "name": "Skillet",
+      "category": "cookware",
+      "aliases": ["skillet", "frying pan", "frypan", "saute pan", "sauté pan"]
+    },
+    {
+      "id": "cast_iron_skillet",
+      "name": "Cast-iron skillet",
+      "category": "cookware",
+      "aliases": ["cast iron skillet", "cast-iron skillet", "cast iron pan", "cast-iron pan"]
+    },
+    {
+      "id": "grill_pan",
+      "name": "Grill pan",
+      "category": "cookware",
+      "aliases": ["grill pan", "griddle pan"]
+    },
+    {
+      "id": "griddle",
+      "name": "Griddle",
+      "category": "cookware",
+      "aliases": ["griddle", "flat top"]
+    },
+    {
+      "id": "wok",
+      "name": "Wok",
+      "category": "cookware",
+      "aliases": ["wok"]
+    },
+    {
+      "id": "saucepan",
+      "name": "Saucepan",
+      "category": "cookware",
+      "aliases": ["saucepan", "sauce pan", "small pot"]
+    },
+    {
+      "id": "stockpot",
+      "name": "Stockpot",
+      "category": "cookware",
+      "aliases": ["stockpot", "stock pot", "large pot", "pasta pot"]
+    },
+    {
+      "id": "dutch_oven",
+      "name": "Dutch oven",
+      "category": "cookware",
+      "aliases": ["dutch oven", "braiser"]
+    },
+    {
+      "id": "sheet_pan",
+      "name": "Sheet pan",
+      "category": "cookware",
+      "aliases": [
+        "sheet pan",
+        "baking sheet",
+        "rimmed baking sheet",
+        "cookie sheet",
+        "half sheet pan"
+      ]
+    },
+    {
+      "id": "baking_dish",
+      "name": "Baking dish",
+      "category": "cookware",
+      "aliases": ["baking dish", "casserole dish", "9x13 pan", "gratin dish"]
+    },
+    {
+      "id": "cake_pan",
+      "name": "Cake pan",
+      "category": "cookware",
+      "aliases": ["cake pan", "round cake pan", "springform pan"]
+    },
+    {
+      "id": "loaf_pan",
+      "name": "Loaf pan",
+      "category": "cookware",
+      "aliases": ["loaf pan", "bread pan"]
+    },
+    {
+      "id": "muffin_tin",
+      "name": "Muffin tin",
+      "category": "cookware",
+      "aliases": ["muffin tin", "muffin pan", "cupcake pan"]
+    },
+    {
+      "id": "pie_dish",
+      "name": "Pie dish",
+      "category": "cookware",
+      "aliases": ["pie dish", "pie plate", "tart pan"]
+    },
+    {
+      "id": "pizza_stone",
+      "name": "Pizza stone",
+      "category": "cookware",
+      "aliases": ["pizza stone", "baking steel", "pizza steel"]
+    },
+    {
+      "id": "roasting_pan",
+      "name": "Roasting pan",
+      "category": "cookware",
+      "aliases": ["roasting pan", "roasting rack", "roasting tin"]
+    },
+    {
+      "id": "steamer_basket",
+      "name": "Steamer basket",
+      "category": "cookware",
+      "aliases": ["steamer basket", "steamer insert", "bamboo steamer"]
+    },
+    {
+      "id": "mixing_bowl",
+      "name": "Mixing bowl",
+      "category": "cookware",
+      "aliases": ["mixing bowl", "large bowl", "medium bowl", "small bowl"]
+    },
+    {
+      "id": "colander",
+      "name": "Colander",
+      "category": "tool",
+      "aliases": ["colander", "strainer", "fine-mesh sieve", "sieve"]
+    },
+    {
+      "id": "chef_knife",
+      "name": "Chef's knife",
+      "category": "tool",
+      "aliases": ["chef's knife", "chefs knife", "chef knife"]
+    },
+    {
+      "id": "cutting_board",
+      "name": "Cutting board",
+      "category": "tool",
+      "aliases": ["cutting board", "chopping board"]
+    },
+    {
+      "id": "whisk",
+      "name": "Whisk",
+      "category": "tool",
+      "aliases": ["whisk", "balloon whisk"]
+    },
+    {
+      "id": "box_grater",
+      "name": "Box grater",
+      "category": "tool",
+      "aliases": ["box grater", "grater", "microplane"]
+    },
+    {
+      "id": "peeler",
+      "name": "Vegetable peeler",
+      "category": "tool",
+      "aliases": ["vegetable peeler", "peeler"]
+    },
+    {
+      "id": "mandoline",
+      "name": "Mandoline",
+      "category": "tool",
+      "aliases": ["mandoline", "mandolin slicer"]
+    },
+    {
+      "id": "rolling_pin",
+      "name": "Rolling pin",
+      "category": "tool",
+      "aliases": ["rolling pin"]
+    },
+    {
+      "id": "thermometer",
+      "name": "Instant-read thermometer",
+      "category": "tool",
+      "aliases": [
+        "instant read thermometer",
+        "instant-read thermometer",
+        "meat thermometer",
+        "probe thermometer",
+        "thermometer"
+      ]
+    },
+    {
+      "id": "kitchen_scale",
+      "name": "Kitchen scale",
+      "category": "tool",
+      "aliases": ["kitchen scale", "digital scale"]
+    },
+    {
+      "id": "tongs",
+      "name": "Tongs",
+      "category": "tool",
+      "aliases": ["tongs"]
+    },
+    {
+      "id": "mortar_and_pestle",
+      "name": "Mortar and pestle",
+      "category": "tool",
+      "aliases": ["mortar and pestle", "mortar & pestle"]
+    },
+    {
+      "id": "skewers",
+      "name": "Skewers",
+      "category": "tool",
+      "aliases": ["skewers", "wooden skewers", "metal skewers"]
+    },
+    {
+      "id": "pastry_brush",
+      "name": "Pastry brush",
+      "category": "tool",
+      "aliases": ["pastry brush", "basting brush"]
+    }
+  ]
+}

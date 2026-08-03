@@ -1,9 +1,10 @@
 import { api } from "@pantry/convex/api";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
-import type { Ingredient, Recipe } from "@pantry/types";
+import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -30,6 +31,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const { data, loading, error: loadError, reload } = useAsyncData(load, [refreshKey]);
   const { run, error, clearError, showError } = useAsyncAction();
   const { confirm, confirmDialog } = useConfirm();
+  // The equipment catalog is reference data: load it once here and pass it to
+  // every row rather than having each RecipeDetails fetch its own copy.
+  const { catalog } = useEquipmentCatalog();
   const recipes = data ?? [];
 
   // De-dup (BL-0013): duplicate titles stay LEGAL. Importing the same page
@@ -77,13 +81,15 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     servings: number | undefined,
     ingredients: Ingredient[],
     steps: string[],
+    equipment: RecipeEquipment[],
+    methods: CookingMethod[],
   ) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
       // update replaces the whole recipe, so servings must be sent every time —
       // omitting it clears the stored yield.
-      await updateRecipe({ id, title, servings, ingredients, steps });
+      await updateRecipe({ id, title, servings, ingredients, steps, equipment, methods });
       return true;
     });
     if (!saved) return;
@@ -158,7 +164,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 </Button>
               </span>
             </div>
-            <RecipeDetails recipe={r} />
+            <RecipeDetails recipe={r} catalog={catalog} />
             {/* Estimated on demand: it is a per-recipe network round trip, so it
                 loads when asked for rather than for every row in the list. */}
             {showNutrition === r.id && <RecipeNutrition recipeId={r.id} />}
@@ -167,7 +173,12 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
       </ul>
       <ErrorText message={error} />
       {editing && (
-        <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
+        <RecipeEditDialog
+          recipe={editing}
+          catalog={catalog}
+          onSave={onSaveEdit}
+          onClose={() => setEditing(null)}
+        />
       )}
       {confirmDialog}
     </Card>

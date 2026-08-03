@@ -35,6 +35,13 @@ func NewEstimator(norm Normalizer, p Provider, nutrients map[string]Nutrient) *E
 // servings <= 0 means the yield is unknown, in which case per-serving figures
 // are omitted rather than guessed.
 func (e *Estimator) Estimate(ctx context.Context, lines []Line, servings float64) Estimate {
+	return Compute(e.resolve(ctx, lines), e.nutrients, servings, e.now())
+}
+
+// resolve turns lines into resolutions. Split out so the multi-recipe rollup
+// (EstimateGroups) reaches the totals down exactly this path — one lookup rule,
+// one degradation rule, whether the caller asked about one recipe or a week.
+func (e *Estimator) resolve(ctx context.Context, lines []Line) []Resolution {
 	res := make([]Resolution, 0, len(lines))
 	for _, ln := range lines {
 		canonical, _, _ := e.norm.CanonicalItem(ln.Item)
@@ -49,5 +56,5 @@ func (e *Estimator) Estimate(ctx context.Context, lines []Line, servings float64
 		}
 		res = append(res, e.resolver.Resolve(ln, food, ok))
 	}
-	return Compute(res, e.nutrients, servings, e.now())
+	return res
 }

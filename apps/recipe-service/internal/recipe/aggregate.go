@@ -12,6 +12,16 @@ type ScaledRecipe struct {
 	Multiplier float64
 }
 
+// Scale is the multiplier actually applied. Absent or nonsensical dials mean a
+// single batch; nutrition and the grocery list read it through this one method
+// so a plan can never be shopped for at one scale and counted at another.
+func (e ScaledRecipe) Scale() float64 {
+	if e.Multiplier <= 0 {
+		return 1
+	}
+	return e.Multiplier
+}
+
 // Aggregate combines ingredients across recipes into grocery lines at
 // multiplier 1. Items are canonicalized (synonyms -> canonical), compatible
 // units are summed in a base unit and shown in a friendly unit, and each line
@@ -42,10 +52,7 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 	var order []key
 
 	for _, e := range entries {
-		mult := e.Multiplier
-		if mult <= 0 {
-			mult = 1
-		}
+		mult := e.Scale()
 		for _, ing := range e.Recipe.Ingredients {
 			canonical, display, aisle := normalizer.CanonicalItem(ing.Item)
 			dim, toBase, convertible := normalizer.Unit(ing.Unit)

@@ -4,9 +4,11 @@ import {
   draftSubmission,
   emptyDraft,
   emptyIngredient,
+  withEquipment,
   withExtraIngredient,
   withImportedRecipe,
   withIngredientPatch,
+  withMethods,
   withServings,
   withSteps,
 } from "./recipeDraft";
@@ -108,6 +110,20 @@ describe("withServings", () => {
   });
 });
 
+describe("withEquipment / withMethods", () => {
+  it("replaces the tag lists wholesale", () => {
+    const tagged = withMethods(withEquipment(emptyDraft(), [{ id: "smoker", required: true }]), [
+      "smoke",
+    ]);
+    expect(tagged.equipment).toEqual([{ id: "smoker", required: true }]);
+    expect(tagged.methods).toEqual(["smoke"]);
+    // Correcting a guess means replacing it, not accumulating alternatives.
+    expect(withEquipment(tagged, [{ id: "oven", required: false }]).equipment).toEqual([
+      { id: "oven", required: false },
+    ]);
+  });
+});
+
 describe("draftSubmission", () => {
   it("is null while the title is blank or whitespace", () => {
     expect(draftSubmission(emptyDraft())).toBeNull();
@@ -119,6 +135,8 @@ describe("draftSubmission", () => {
       title: "  Toast  ",
       url: "",
       servings: "4",
+      equipment: [{ id: "toaster_oven", required: true }],
+      methods: ["bake"],
       steps: ["  Toast the bread  ", "   ", ""],
       ingredients: [
         { quantity: 2, unit: "slice", item: "bread" },
@@ -131,6 +149,8 @@ describe("draftSubmission", () => {
       servings: "4",
       ingredients: [{ quantity: 2, unit: "slice", item: "bread" }],
       steps: ["Toast the bread"],
+      equipment: [{ id: "toaster_oven", required: true }],
+      methods: ["bake"],
     });
   });
 });
