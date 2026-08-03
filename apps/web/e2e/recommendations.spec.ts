@@ -44,7 +44,7 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   // which proves scoring actually ran rather than a list being echoed back.
   await page.getByRole("button", { name: "What can I make?" }).click();
   await expect(
-    page.getByText(/Uses up:|Uses \d+ things? you have|You have everything/),
+    page.getByText(/Uses up:|Uses \d+ things? you have|You have everything/).first(),
   ).toBeVisible({ timeout: 15_000 });
 });
 
