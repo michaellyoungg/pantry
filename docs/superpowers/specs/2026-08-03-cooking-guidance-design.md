@@ -350,9 +350,9 @@ BL-0044 needs an LLM API key that is not currently configured.
 
 ### Overlap with concurrent work
 
-BL-0030, BL-0031 and BL-0035 are filed on branches that have not merged yet
-(PR #72 and the BL-0005 recommendations work), so links to them resolve only once
-those land. Their IDs are already allocated and are not reused here.
+BL-0030 and BL-0031 are filed on the BL-0005 recommendations branch (PR #68), which
+has not merged, so links to them resolve only once it lands. Their IDs are already
+allocated and are not reused here.
 
 [BL-0030](../../backlog/BL-0030-recipe-discovery-metadata.md) (cuisine, tags, cook
 time, source URL) extends the recipe model along a different axis at the same time.
