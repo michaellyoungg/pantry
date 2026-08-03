@@ -102,3 +102,63 @@ describe("basket servings & leftovers (increment 2)", () => {
     expect((await asUser.query(api.basket.list, {}))[0].type).toBe("meal");
   });
 });
+
+describe("basket cooked flag (BL-0028)", () => {
+  it("markCooked stamps cookedAt", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.markCooked, { recipeId: "r1" });
+
+    const [row] = await asUser.query(api.basket.list, {});
+    expect(row.cookedAt).toBeTypeOf("number");
+  });
+
+  it("markCooked twice keeps the FIRST timestamp (the double-cook guard)", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.markCooked, { recipeId: "r1" });
+    const first = (await asUser.query(api.basket.list, {}))[0].cookedAt;
+    await asUser.mutation(api.basket.markCooked, { recipeId: "r1" });
+
+    expect((await asUser.query(api.basket.list, {}))[0].cookedAt).toBe(first);
+  });
+
+  it("unmarkCooked clears the flag so it can be marked again", async () => {
+    const t = convexTest(schema, modules);
+    await seedBasket(t, "r1");
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.markCooked, { recipeId: "r1" });
+    await asUser.mutation(api.basket.unmarkCooked, { recipeId: "r1" });
+    expect((await asUser.query(api.basket.list, {}))[0].cookedAt).toBeUndefined();
+
+    await asUser.mutation(api.basket.markCooked, { recipeId: "r1" });
+    expect((await asUser.query(api.basket.list, {}))[0].cookedAt).toBeTypeOf("number");
+  });
+
+  it("markCooked is a no-op when the recipe isn't in the basket", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.basket.markCooked, { recipeId: "ghost" });
+
+    expect(await asUser.query(api.basket.list, {})).toHaveLength(0);
+  });
+
+  it("markCooked never touches another user's plan entry", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("basket", { userId: "user-b", recipeId: "r1", title: "Theirs" });
+    });
+
+    await t.withIdentity(identity).mutation(api.basket.markCooked, { recipeId: "r1" });
+
+    const rows = await t.run(async (ctx) => await ctx.db.query("basket").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cookedAt).toBeUndefined();
+  });
+});

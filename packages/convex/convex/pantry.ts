@@ -1,11 +1,15 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import type { GroceryLine } from "@pantry/types";
+import { type Infer, v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { MutationCtx } from "./_generated/server";
-import { action, mutation, query } from "./_generated/server";
+import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { withSpan } from "./lib/otel";
 import { recipeServiceFetch } from "./recipes";
 
 export const pantryStateValidator = v.union(v.literal("have"), v.literal("low"), v.literal("out"));
+
+export type PantryState = Infer<typeof pantryStateValidator>;
 
 // --- helpers, shared with groceryList.toggleItem (not client-callable) ---
 
@@ -109,6 +113,88 @@ export async function removeAutoRow(
 
   await ctx.db.delete(existing._id);
 }
+
+// --- outflow: cook-decrement (BL-0028) ---
+
+/**
+ * One notch of outflow. Coarse on purpose: increment 1 models `have | low | out`
+ * and never a quantity, because numeric inventory drifts from reality within
+ * days. `out` is the floor — there is nothing below "you're out of it".
+ */
+export function steppedDown(state: PantryState): PantryState {
+  return state === "have" ? "low" : "out";
+}
+
+/**
+ * Step every pantry row a cooked recipe touched.
+ *
+ * Keyed on `canonicalItem` — the recipe-service normalization id the inflow loop
+ * and the grocery list already use — so a cooked recipe decrements exactly the
+ * rows check-off created. Keying on display text instead would match nothing and
+ * fail silently, which is the failure mode that produced the empty-grocery-list
+ * bug earlier in this repo.
+ *
+ * Two deliberate rules:
+ *
+ * - **Missing rows are not created.** An `out` row for every spice a recipe
+ *   mentions would bury the pantry page under items the user never tracked;
+ *   "absent" already reads as "not tracked" everywhere else in this loop.
+ * - **`source` is ignored.** Cooking consumes food whoever entered it. That is
+ *   the opposite of `removeAutoRow`, which must never touch a curated row —
+ *   because un-checking a box is a bookkeeping correction, and this is a report
+ *   of a physical event.
+ */
+export const applyCookDecrement = internalMutation({
+  args: { userId: v.string(), canonicalItems: v.array(v.string()) },
+  handler: async (ctx, { userId, canonicalItems }) => {
+    const now = Date.now();
+    // De-duplicated: a recipe can list the same ingredient on two lines (the Go
+    // aggregator keeps non-convertible units apart), and one cook is one notch.
+    for (const canonicalItem of [...new Set(canonicalItems)]) {
+      const row = await ctx.db
+        .query("pantryItems")
+        .withIndex("by_user_item", (q) => q.eq("userId", userId).eq("canonicalItem", canonicalItem))
+        .unique();
+      if (row === null) continue;
+      const state = steppedDown(row.state);
+      // Already `out`: skip the write entirely rather than churn updatedAt.
+      if (state === row.state) continue;
+      await ctx.db.patch(row._id, { state, updatedAt: now });
+    }
+  },
+});
+
+/**
+ * Resolve a cooked recipe's normalized ingredients, then step them.
+ *
+ * An action because the ingredient → `canonicalItem` mapping lives in
+ * recipe-service and only actions can reach it. `basket.markCooked` *schedules*
+ * this rather than awaiting it, for two reasons:
+ *
+ * 1. A mutation physically cannot fetch.
+ * 2. Recording that you cooked dinner should not fail because recipe-service is
+ *    down. The plan record is the user's; the pantry step is a consequence of it.
+ *
+ * The cost is that a failed decrement is silent. It is recoverable through the
+ * pantry page's manual have→low→out cycle — which is exactly why increment 1
+ * made that escape hatch mandatory rather than polish.
+ *
+ * `POST /grocery-list` for one recipe at multiplier 1 is reused as the
+ * ingredients → canonical-items endpoint rather than adding a Go route. Only the
+ * keys are used; the quantities it returns are discarded, because the pantry
+ * deliberately has none.
+ */
+export const cookDecrement = internalAction({
+  args: { userId: v.string(), recipeId: v.string() },
+  handler: async (ctx, { userId, recipeId }) => {
+    const lines = await recipeServiceFetch<GroceryLine[]>(userId, "POST", "/grocery-list", {
+      items: [{ recipeId, multiplier: 1 }],
+    });
+    const canonicalItems = [...new Set(lines.map((l) => l.canonicalItem).filter(Boolean))];
+    if (canonicalItems.length === 0) return;
+    await ctx.runMutation(internal.pantry.applyCookDecrement, { userId, canonicalItems });
+  },
+});
 
 // --- client-facing functions ---
 

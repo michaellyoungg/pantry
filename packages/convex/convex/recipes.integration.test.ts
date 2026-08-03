@@ -166,6 +166,58 @@ describe("recipes <-> recipe-service contract", () => {
     expect(Array.isArray(catalog)).toBe(true);
   });
 
+  it("listEquipment returns the curated hardware catalog", async () => {
+    const t = client();
+    const catalog = await t.action(api.recipes.listEquipment, {});
+    expect(catalog.length).toBeGreaterThan(20);
+    const oven = catalog.find((e) => e.id === "oven");
+    expect(oven).toMatchObject({ name: "Oven", category: "appliance" });
+  });
+
+  it("carries equipment and method tags through create and update", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Tagged Pork",
+      ingredients: [{ quantity: 2, unit: "kg", item: "pork shoulder" }],
+      steps: ["Into the crock pot."],
+      equipment: [
+        { id: "slow_cooker", required: true },
+        { id: "tongs", required: false },
+      ],
+      methods: ["slow_cook"],
+    });
+    created.push(recipe.id);
+
+    // Sorted by slug, and the optional flag survives the round trip.
+    expect(recipe.equipment).toEqual([
+      { id: "slow_cooker", required: true },
+      { id: "tongs", required: false },
+    ]);
+    expect(recipe.methods).toEqual(["slow_cook"]);
+
+    const updated = await t.action(api.recipes.update, {
+      id: recipe.id,
+      title: "Tagged Pork",
+      ingredients: [],
+      equipment: [{ id: "smoker", required: true }],
+      methods: ["smoke"],
+    });
+    // Tags replace rather than merge.
+    expect(updated.equipment).toEqual([{ id: "smoker", required: true }]);
+    expect(updated.methods).toEqual(["smoke"]);
+  });
+
+  it("rejects an equipment slug outside the curated catalog", async () => {
+    const t = client();
+    await expect(
+      t.action(api.recipes.create, {
+        title: "Bogus",
+        ingredients: [],
+        equipment: [{ id: "teleporter", required: true }],
+      }),
+    ).rejects.toThrow(/400/);
+  });
+
   it("accepts an optional traceCtx without affecting the result (telemetry off)", async () => {
     const t = client();
     const recipe = await t.action(api.recipes.create, {
