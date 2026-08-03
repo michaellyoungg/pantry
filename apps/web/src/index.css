@@ -1,16 +1,7 @@
 @import "tailwindcss";
-
-@theme {
-  --color-bg: #faf7f2;
-  --color-surface: #ffffff;
-  --color-border: #e7e5e4;
-  --color-primary: #3f7d4e;
-  --color-primary-hover: #356b43;
-  --color-danger: #c0562f;
-  --color-danger-hover: #a8481f;
-  --color-text: #292524;
-  --color-muted: #78716c;
-}
+/* The @theme rule below is generated from @pantry/design-tokens — change a
+   token there, then run `pnpm --filter @pantry/web tokens:css`. */
+@import "./theme.generated.css";
 
 body {
   background-color: var(--color-bg);

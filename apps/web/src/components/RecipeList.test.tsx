@@ -97,3 +97,71 @@ describe("RecipeList read-side states", () => {
     await screen.findByText("Garlic Bread");
   });
 });
+
+// update replaces the whole recipe, so an edit that never touches the yield
+// must still send it back — otherwise saving a title change silently clears
+// the servings every downstream per-serving figure depends on (BL-0035).
+describe("RecipeList edit preserves servings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    // jsdom ships <dialog> without the modal methods, so opening the edit
+    // dialog throws unless they are stubbed.
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function close() {
+      this.open = false;
+    };
+  });
+
+  it("resends the stored servings when only the title is edited", async () => {
+    listRecipes.mockResolvedValue([{ ...RECIPE, servings: 6 }]);
+    updateRecipe.mockResolvedValue(undefined);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByPlaceholderText("Title"), { target: { value: "Cheesy Bread" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(updateRecipe).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "r1", title: "Cheesy Bread", servings: 6 }),
+      ),
+    );
+  });
+
+  it("sends the edited servings when the user changes it", async () => {
+    listRecipes.mockResolvedValue([{ ...RECIPE, servings: 6 }]);
+    updateRecipe.mockResolvedValue(undefined);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/servings/i), { target: { value: "8" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(updateRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: 8 })),
+    );
+  });
+
+  it("clears the yield when the user blanks the field", async () => {
+    listRecipes.mockResolvedValue([{ ...RECIPE, servings: 6 }]);
+    updateRecipe.mockResolvedValue(undefined);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/servings/i), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(updateRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: undefined })),
+    );
+  });
+});

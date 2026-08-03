@@ -3,6 +3,7 @@ package recipe
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -67,7 +68,9 @@ func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {
 
 func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string       `json:"title"`
+		Title string `json:"title"`
+		// Absent or null means "yield unknown" (BL-0035).
+		Servings    *int         `json:"servings"`
 		Ingredients []Ingredient `json:"ingredients"`
 		Steps       []string     `json:"steps"`
 	}
@@ -78,7 +81,10 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients, req.Steps)
+	if !validServings(w, r, req.Servings) {
+		return
+	}
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
@@ -132,7 +138,10 @@ func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string       `json:"title"`
+		Title string `json:"title"`
+		// Update replaces the whole recipe, so an absent servings clears a
+		// previously known yield rather than leaving it in place.
+		Servings    *int         `json:"servings"`
 		Ingredients []Ingredient `json:"ingredients"`
 		Steps       []string     `json:"steps"`
 	}
@@ -143,7 +152,10 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients, req.Steps)
+	if !validServings(w, r, req.Servings) {
+		return
+	}
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
@@ -253,6 +265,21 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 			"count", len(skipped), "ids", skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
+}
+
+// validServings rejects a serving count that cannot be a real yield. nil is
+// always valid — it is how a caller says "unknown" — but a stored 0 or a
+// negative would silently divide or invert every per-serving figure downstream.
+func validServings(w http.ResponseWriter, r *http.Request, servings *int) bool {
+	if servings == nil {
+		return true
+	}
+	if *servings < 1 || *servings > maxServings {
+		writeError(w, r, http.StatusBadRequest,
+			fmt.Sprintf("servings must be between 1 and %d, or omitted", maxServings))
+		return false
+	}
+	return true
 }
 
 // decodeJSON reads a JSON request body with a size cap. It writes an error

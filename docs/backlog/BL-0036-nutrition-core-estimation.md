@@ -1,7 +1,7 @@
 ---
 id: BL-0036
 title: Nutrition core — USDA FDC provider, gram resolution, per-recipe estimation
-status: proposed
+status: in-progress
 area: nutrition
 effort: L
 related_specs: [2026-08-03-nutrition-system-design.md]

@@ -1,10 +1,11 @@
 import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
@@ -14,9 +15,9 @@ import { useConfirm } from "./ui/useConfirm";
 
 export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
-  const listRecipes = useAction(api.recipes.list);
-  const deleteRecipe = useAction(api.recipes.remove);
-  const updateRecipe = useAction(api.recipes.update);
+  const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
+  const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
+  const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
@@ -56,11 +57,18 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     reload();
   }
 
-  async function onSaveEdit(title: string, ingredients: Ingredient[], steps: string[]) {
+  async function onSaveEdit(
+    title: string,
+    servings: number | undefined,
+    ingredients: Ingredient[],
+    steps: string[],
+  ) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      await updateRecipe({ id, title, ingredients, steps });
+      // update replaces the whole recipe, so servings must be sent every time —
+      // omitting it clears the stored yield.
+      await updateRecipe({ id, title, servings, ingredients, steps });
       return true;
     });
     if (!saved) return;
