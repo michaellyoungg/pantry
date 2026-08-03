@@ -33,13 +33,14 @@ const OPERATORS: ReadonlyArray<{ value: NutritionTarget["operator"]; label: stri
   { value: "==", label: "about" },
 ];
 
-type TargetRow = NutritionTarget & { _id: string };
-
 const selectClass =
   "rounded-lg border border-border bg-surface px-2 py-2 text-sm text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
 export function NutritionGoals() {
-  const rows = (useQuery(api.nutritionTargets.list) ?? []) as TargetRow[];
+  // Deliberately uncast: `useQuery` infers the row type, which keeps `_id` a
+  // branded Id<"nutritionTargets"> so the mutations below cannot be handed a
+  // bare string. The rows satisfy NutritionTarget structurally.
+  const rows = useQuery(api.nutritionTargets.list) ?? [];
   const add = useMutation(api.nutritionTargets.add);
   const remove = useMutation(api.nutritionTargets.remove);
   const setActive = useMutation(api.nutritionTargets.setActive);

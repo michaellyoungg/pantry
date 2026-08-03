@@ -21,8 +21,15 @@ describe("GoalStatus", () => {
   });
 
   it("summarises how many goals were met", () => {
+    // Two distinct nutrients: the store allows only one constraint per nutrient
+    // per period, so two rows for the same pair is a state that cannot occur.
     render(
-      <GoalStatus evaluations={[evaluation(), evaluation({ status: "under", actual: 90 })]} />,
+      <GoalStatus
+        evaluations={[
+          evaluation(),
+          evaluation({ target: CAP, status: "under", actual: 90, unit: "mg" }),
+        ]}
+      />,
     );
     expect(screen.getByText(/1 of 2/)).toBeTruthy();
   });

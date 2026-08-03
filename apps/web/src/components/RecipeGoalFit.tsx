@@ -1,6 +1,6 @@
 import { api } from "@pantry/convex/api";
 import { evaluateTargets, type NutritionVector } from "@pantry/core";
-import type { NutritionEstimate, NutritionTarget } from "@pantry/types";
+import type { NutritionEstimate } from "@pantry/types";
 import { useQuery } from "convex/react";
 import { goalSummary } from "../lib/nutritionGoals";
 import { GoalStatus } from "./GoalStatus";
@@ -18,7 +18,7 @@ import { GoalStatus } from "./GoalStatus";
  * quietly re-introduce the guess at the point it does the most damage.
  */
 export function RecipeGoalFit({ estimate }: { estimate: NutritionEstimate }) {
-  const targets = (useQuery(api.nutritionTargets.list) ?? []) as NutritionTarget[];
+  const targets = useQuery(api.nutritionTargets.list) ?? [];
 
   const mealTargets = targets.filter((t) => t.active && t.period === "meal");
   if (mealTargets.length === 0) return null;
