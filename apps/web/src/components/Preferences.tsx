@@ -17,20 +17,51 @@ import { Input } from "./ui/Input";
 //
 // It lives here and nowhere else: the Convex `set` mutation stores whatever
 // avoid list it is handed and never consults this table.
-const MEAT = ["beef", "chicken", "pork", "bacon", "lamb"];
-const SEAFOOD = ["fish", "shrimp", "anchovy"];
+//
+// Every entry below MUST be a real canonical item key from
+// apps/recipe-service/internal/recipe/normalization.json — matching is exact
+// on that key (see preferences.ts), so a plausible-looking but non-canonical
+// entry (e.g. "beef" instead of "ground beef") silently filters nothing.
+// Preferences.dietSeeds.test.ts asserts every entry here still exists in that
+// file, so the two cannot drift without a failing test.
+const MEAT = [
+  "chicken",
+  "chicken breast",
+  "chicken thigh",
+  "ground beef",
+  "ground turkey",
+  "ground pork",
+  "ground lamb",
+  "steak",
+  "pork chop",
+  "pork tenderloin",
+  "bacon",
+  "sausage",
+  "ham",
+  "prosciutto",
+];
+const SEAFOOD = ["salmon", "shrimp", "cod", "tilapia"];
 const ANIMAL_PRODUCTS = [
-  "butter",
   "milk",
-  "cream",
-  "cheese",
+  "butter",
+  "egg",
+  "heavy cream",
+  "half and half",
+  "buttermilk",
+  "sour cream",
+  "yogurt",
+  "greek yogurt",
+  "cream cheese",
+  "cottage cheese",
+  "cheddar cheese",
   "parmesan",
   "mozzarella",
-  "egg",
+  "feta",
+  "ricotta",
   "honey",
 ];
 
-const DIET_SEEDS: Record<string, string[]> = {
+export const DIET_SEEDS: Record<string, string[]> = {
   vegetarian: [...MEAT, ...SEAFOOD],
   vegan: [...MEAT, ...SEAFOOD, ...ANIMAL_PRODUCTS],
   pescatarian: [...MEAT],
@@ -43,6 +74,11 @@ export function Preferences() {
   const [draft, setDraft] = useState("");
 
   const avoidItems = prefs?.avoidItems ?? [];
+  // The query has not resolved yet. Writing now would save a list built from
+  // the `[]` fallback above, silently dropping every already-stored avoid
+  // entry — so every control that saves must stay disabled until we know
+  // what is actually there.
+  const loading = prefs === undefined;
 
   const save = (next: string[]) =>
     run(() => setPreferences({ avoidItems: Array.from(new Set(next)) }));
@@ -60,8 +96,9 @@ export function Preferences() {
         <div>
           <h3 className="text-sm font-semibold text-text">Ingredients to avoid</h3>
           <p className="mt-0.5 text-xs text-muted">
-            Recipes containing these are <strong>never suggested</strong> — they're removed, not
-            just ranked lower.
+            Recipes with a matching ingredient are <strong>removed</strong>, not just ranked lower.
+            This matches specific ingredient names only — related products (e.g. "peanut" won't
+            catch "peanut butter") need their own entry.
           </p>
 
           <div className="mt-2 flex gap-2">
@@ -76,7 +113,7 @@ export function Preferences() {
                 }
               }}
             />
-            <Button variant="secondary" size="sm" onClick={add}>
+            <Button variant="secondary" size="sm" onClick={add} disabled={loading}>
               Add
             </Button>
           </div>
@@ -112,6 +149,7 @@ export function Preferences() {
                 key={diet}
                 variant="secondary"
                 size="sm"
+                disabled={loading}
                 onClick={() => save([...avoidItems, ...DIET_SEEDS[diet]])}
               >
                 {diet}

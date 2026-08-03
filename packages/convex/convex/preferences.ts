@@ -2,7 +2,21 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-/** Ingredient keys are canonical: lowercased and trimmed, matching Go's CanonicalItem. */
+/**
+ * Normalizes stored ingredient keys to lowercased, trimmed, de-duplicated
+ * strings. This is NOT Go's CanonicalItem: Go's Normalizer also resolves a
+ * 44-entry synonym table and folds plurals (see
+ * apps/recipe-service/internal/recipe/normalization.json), so "beef" here
+ * never matches "ground beef" and "peanut" never matches "peanut butter".
+ *
+ * `containsAvoided` in the recommend package does an EXACT map lookup
+ * against each ingredient's already-canonicalized key, so an avoid-list
+ * entry only removes recipes whose ingredient text canonicalizes to that
+ * exact string. Free-typed entries and diet-seed lists must therefore use
+ * real canonical item keys, not merely lowercased words, or they silently
+ * filter nothing. Full synonym-aware canonicalization of free-typed entries
+ * is a follow-up (needs a Convex action + its own UX), not done here.
+ */
 const canonicalize = (items: string[] | undefined): string[] =>
   Array.from(new Set((items ?? []).map((s) => s.trim().toLowerCase()).filter(Boolean)));
 

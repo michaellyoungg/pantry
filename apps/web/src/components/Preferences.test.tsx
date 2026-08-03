@@ -3,9 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 import { Preferences } from "./Preferences";
 
 const setPreferences = vi.fn();
+// Mutable so individual tests can simulate the query still being in flight
+// (convex/react's useQuery returns `undefined` until it resolves).
+let queryResult: unknown = {
+  avoidItems: ["peanut"],
+  likedItems: [],
+  dislikedItems: [],
+  dietLabels: [],
+};
 
 vi.mock("convex/react", () => ({
-  useQuery: () => ({ avoidItems: ["peanut"], likedItems: [], dislikedItems: [], dietLabels: [] }),
+  useQuery: () => queryResult,
   useMutation: () => setPreferences,
 }));
 
@@ -44,8 +52,27 @@ describe("Preferences", () => {
     );
   });
 
-  it("explains that avoided ingredients are removed, not down-ranked", () => {
+  it("explains that avoided ingredients are removed, not down-ranked, without overclaiming", () => {
     render(<Preferences />);
-    expect(screen.getByText(/never suggested/i)).toBeTruthy();
+    expect(screen.getByText(/removed/i)).toBeTruthy();
+    // The copy must not read as a blanket allergen guarantee: matching is
+    // exact on ingredient name, so it must say so rather than imply "peanut"
+    // also blocks "peanut butter".
+    expect(screen.getByText(/peanut butter/i)).toBeTruthy();
+  });
+
+  // Regression: the Add/diet buttons were enabled while useQuery still
+  // returned undefined. Clicking one saved `[...([]), value]`, wiping out
+  // every already-stored avoid entry because `avoidItems` fell back to `[]`
+  // before the real data arrived.
+  it("disables the write controls while preferences are still loading", () => {
+    queryResult = undefined;
+    try {
+      render(<Preferences />);
+      expect(screen.getByRole("button", { name: "Add" })).toHaveProperty("disabled", true);
+      expect(screen.getByRole("button", { name: "vegetarian" })).toHaveProperty("disabled", true);
+    } finally {
+      queryResult = { avoidItems: ["peanut"], likedItems: [], dislikedItems: [], dietLabels: [] };
+    }
   });
 });
