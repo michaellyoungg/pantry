@@ -24,7 +24,11 @@ A hybrid, multi-service monorepo:
 - **`convex/`** — self-hosted Convex. User-centric reactive data: profile,
   preferences, the meal basket, and the live grocery list. Stores references to
   recipe ids only — never recipe bodies.
-- **`packages/*`** — shared TypeScript packages (types, etc.).
+- **`packages/core`** — the headless domain layer: planner bucketing, aisle
+  grouping, the import-review draft, and the shared async/optimistic hooks. No
+  React in the pure entry point, no DOM anywhere — so a second client can reuse
+  it. See [`packages/core/README.md`](packages/core/README.md).
+- **`packages/*`** — other shared TypeScript packages (types, etc.).
 
 Local development runs everything via `docker compose`. Production targets
 Railway (self-hosted Convex + Postgres).

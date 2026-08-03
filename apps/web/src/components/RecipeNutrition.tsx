@@ -1,7 +1,7 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncData } from "@pantry/core/react";
 import { useCallback } from "react";
 import { nutritionDisplay } from "../lib/nutrition";
-import { useAsyncData } from "../lib/useAsyncData";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";

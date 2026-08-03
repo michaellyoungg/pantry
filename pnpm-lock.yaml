@@ -52,6 +52,9 @@ importers:
       '@pantry/convex':
         specifier: workspace:^
         version: link:../../packages/convex
+      '@pantry/core':
+        specifier: workspace:^
+        version: link:../../packages/core
       '@pantry/design-tokens':
         specifier: workspace:^
         version: link:../../packages/design-tokens
@@ -147,6 +150,43 @@ importers:
       convex-test:
         specifier: ^0.0.54
         version: 0.0.54(convex@1.42.3(react@19.2.8))
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.27.0)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/core:
+    dependencies:
+      '@pantry/convex':
+        specifier: workspace:^
+        version: link:../convex
+      '@pantry/types':
+        specifier: workspace:^
+        version: link:../types
+      convex:
+        specifier: ^1.42.3
+        version: 1.42.3(react@19.2.8)
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.27.0)(jiti@2.7.0)(yaml@2.9.0))

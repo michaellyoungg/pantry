@@ -1,9 +1,9 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncData } from "@pantry/core/react";
 import { Link } from "@tanstack/react-router";
 import { useAction, useQuery } from "convex/react";
 import { useCallback } from "react";
 import { expiringSoon, formatUseBy, isOverdue, type PantryRow } from "../lib/expiry";
-import { useAsyncData } from "../lib/useAsyncData";
 
 /**
  * The whole expiry nudge (BL-0029), in ONE card: "N items to use this week →

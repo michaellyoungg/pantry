@@ -46,6 +46,70 @@
       "quoteStyle": "double"
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/packages/core/src/**", "!**/packages/core/src/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "window": "packages/core must stay platform-free — take the value as an argument instead.",
+                  "document": "packages/core must stay platform-free — no DOM access.",
+                  "navigator": "packages/core must stay platform-free — no DOM access.",
+                  "localStorage": "packages/core must stay platform-free — pass storage in from the client.",
+                  "sessionStorage": "packages/core must stay platform-free — pass storage in from the client.",
+                  "alert": "packages/core must stay platform-free — return the message and let the client show it.",
+                  "confirm": "packages/core must stay platform-free — return the message and let the client show it.",
+                  "prompt": "packages/core must stay platform-free — return the message and let the client show it."
+                }
+              }
+            },
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["react-dom", "react-dom/**", "**/*.css"],
+                    "message": "packages/core is headless: no renderer and no styling."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/packages/core/src/**",
+        "!**/packages/core/src/react/**",
+        "!**/packages/core/src/**/*.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "Only packages/core/src/react (the @pantry/core/react entry point) may import React."
+                },
+                "patterns": [
+                  {
+                    "group": ["react-dom", "react-dom/**", "**/*.css"],
+                    "message": "packages/core is headless: no renderer and no styling."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {
