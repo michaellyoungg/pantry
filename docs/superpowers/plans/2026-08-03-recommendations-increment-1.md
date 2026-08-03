@@ -1683,7 +1683,8 @@ git commit -m "feat(convex): recommendations.pantry action"
 - Create: `apps/web/src/routes/settings.tsx`
 
 **Interfaces:**
-- Consumes: `api.preferences.get` / `api.preferences.set` (Task 6), `DIET_SEED_AVOIDS`.
+- Consumes: `api.preferences.get` / `api.preferences.set` (Task 6).
+- Owns: `DIET_SEEDS`, the single source of truth for diet→avoid-ingredient seeding. It exists here and nowhere else.
 - Produces: the `/settings` route. **Not added to `NAV_ITEMS`** — the IA reserves the 5 tabs and puts settings behind a menu.
 
 - [ ] **Step 1: Write the failing test**
