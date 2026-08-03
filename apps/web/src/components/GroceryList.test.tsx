@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted, mutable so each test can set the query result; one shared mutation spy.
@@ -52,19 +52,20 @@ describe("GroceryList", () => {
   });
 
   it("clears the list via the clear mutation when confirmed", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("button", { name: /clear list/i }));
-    expect(mutationMock).toHaveBeenCalledTimes(1);
+    fireEvent.click(await screen.findByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(1));
     expect(mutationMock).toHaveBeenCalledWith({}); // the clear mutation, args {}
     // the shared mock rejects → let the run() settle so no act warning
     await screen.findByRole("alert");
   });
 
-  it("does not clear when confirmation is cancelled", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("does not clear when confirmation is cancelled", async () => {
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("button", { name: /clear list/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(mutationMock).not.toHaveBeenCalled();
   });
 

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { signIn } = vi.hoisted(() => ({
-  signIn: vi.fn((_provider: string, _formData: FormData) => Promise.resolve()),
+  signIn: vi.fn((_provider: string, _credentials: Record<string, unknown>) => Promise.resolve()),
 }));
 vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signIn, signOut: vi.fn() }),
@@ -26,18 +26,31 @@ describe("AuthForm", () => {
     expect(screen.getByRole("button", { name: /sign up/i })).toBeTruthy();
   });
 
-  it("submits credentials with the password provider and current flow", async () => {
+  it("submits credentials as a plain object, not a FormData", async () => {
     render(<AuthForm />);
     fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "hunter2" } });
     fireEvent.submit(screen.getByTestId("auth-form"));
+
     expect(signIn).toHaveBeenCalledTimes(1);
-    const call = signIn.mock.calls[0];
-    if (!call) throw new Error("signIn was not called");
-    const [provider, formData] = call;
-    expect(provider).toBe("password");
-    expect(formData.get("email")).toBe("a@b.com");
-    expect(formData.get("password")).toBe("hunter2");
-    expect(formData.get("flow")).toBe("signIn");
+    expect(signIn).toHaveBeenCalledWith("password", {
+      email: "a@b.com",
+      password: "hunter2",
+      flow: "signIn",
+    });
+  });
+
+  it("submits the sign-up flow after toggling", async () => {
+    render(<AuthForm />);
+    fireEvent.click(screen.getByRole("button", { name: /need an account/i }));
+    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "hunter2" } });
+    fireEvent.submit(screen.getByTestId("auth-form"));
+
+    expect(signIn).toHaveBeenCalledWith("password", {
+      email: "a@b.com",
+      password: "hunter2",
+      flow: "signUp",
+    });
   });
 });
