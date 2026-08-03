@@ -1,0 +1,76 @@
+# Postgres-backed Convex (BL-0008) — layer this on top of docker-compose.yml.
+#
+#   docker compose -f docker-compose.yml \
+#                  -f deploy/docker-compose.convex-postgres.yml up -d
+#
+# The base compose file leaves convex-backend on its default SQLite file store.
+# That is fine on a laptop, but it is not what we want to depend on in
+# production: a single file on a container disk, with no replication and no
+# story for point-in-time recovery. This override moves Convex's transactional
+# store onto the same Postgres server recipe-service already uses.
+#
+# It is an OVERRIDE rather than the default so that pulling this change does
+# not silently re-point an existing developer stack at an empty database.
+#
+# Two things to know before switching an existing deployment:
+#
+#   1. This is a different store, not a migration. A backend that comes up on
+#      Postgres starts EMPTY — its SQLite data is still on disk but unread.
+#      Snapshot first, restore after: see docs/self-hosted-convex-ops.md
+#      ("Moving an existing deployment to Postgres").
+#   2. Convex does not create its database. postgres-init/10-convex-db.sql
+#      creates `convex_self_hosted`, but Postgres only runs init scripts on a
+#      first boot against an empty data directory. Against a Postgres that
+#      already has data, run it yourself:
+#        docker compose exec postgres \
+#          psql -U pantry -d postgres -c 'CREATE DATABASE convex_self_hosted'
+services:
+  postgres:
+    volumes:
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # `-h 127.0.0.1` is load-bearing, not cosmetic. The base file's socket-only
+      # `pg_isready -U pantry` also succeeds against the *initialization* server
+      # the Postgres entrypoint runs to apply /docker-entrypoint-initdb.d — a
+      # server that deliberately does not listen on TCP. Compose therefore marks
+      # postgres healthy, `depends_on: service_healthy` releases convex-backend,
+      # and the backend gets
+      #     FATAL: the database system is starting up
+      # and exits, because it does not retry its first connection. Probing over
+      # TCP reports unhealthy until the real server is accepting connections.
+      #
+      # This is scoped to the Postgres-backed override because that is where
+      # Convex gains a hard startup dependency on Postgres; the base stack has
+      # no such ordering constraint.
+      test: ["CMD-SHELL", "pg_isready -U pantry -h 127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  convex-backend:
+    # A failed database connection is fatal to the backend process — it exits
+    # rather than retrying. On SQLite that is unreachable; on Postgres it means
+    # any restart, failover or brief network blip on the database leaves Convex
+    # down until a human notices. Bounded retries rather than `unless-stopped`
+    # so a genuinely broken configuration still comes to rest instead of
+    # crash-looping forever.
+    restart: on-failure:20
+    environment:
+      # A Postgres *server* URL, with no database in the path — the backend
+      # appends its own (`convex_self_hosted`). The mere presence of this
+      # variable is what flips the image's run_backend.sh from `--db sqlite`
+      # to `--db postgres-v5`, so leaving it unset keeps SQLite.
+      - POSTGRES_URL=postgres://pantry:pantry@postgres:5432
+      # Only correct for two containers on the same compose network. Drop this
+      # line whenever Postgres is a managed instance reached over a network you
+      # do not control (Railway, RDS) — there the backend must require TLS.
+      - DO_NOT_REQUIRE_SSL=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # NOTE: the ./.data/convex volume from the base file is still required.
+    # Postgres backing moves only the transactional store. Uploaded files
+    # (/convex/data/storage) and the generated instance credentials
+    # (/convex/data/credentials) stay on that volume, so it still needs to be
+    # persistent — and `convex export --include-file-storage` is still the only
+    # thing that captures the files a pg_dump would miss.
