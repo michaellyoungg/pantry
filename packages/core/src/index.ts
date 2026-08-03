@@ -31,6 +31,7 @@ export {
   canGenerateList,
   decreaseServings,
   increaseServings,
+  isCooked,
   isLeftover,
   MIN_SERVINGS_MULTIPLIER,
   type PlannedDay,

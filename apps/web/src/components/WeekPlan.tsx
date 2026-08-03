@@ -5,6 +5,7 @@ import {
   DAYS,
   decreaseServings,
   increaseServings,
+  isCooked,
   isLeftover,
   type PlannedItem,
   planWeek,
@@ -54,6 +55,8 @@ export function WeekPlan() {
   const unschedule = useMutation(api.basket.unschedule);
   const setServings = useMutation(api.basket.setServings);
   const setType = useMutation(api.basket.setType);
+  const markCooked = useMutation(api.basket.markCooked);
+  const unmarkCooked = useMutation(api.basket.unmarkCooked);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );
@@ -82,6 +85,7 @@ export function WeekPlan() {
                   {day.items.map((i) => {
                     const mult = servingsMultiplier(i);
                     const leftover = isLeftover(i);
+                    const cooked = isCooked(i);
                     return (
                       <li
                         key={i._id}
@@ -90,7 +94,9 @@ export function WeekPlan() {
                         }`}
                       >
                         <div className="flex items-start justify-between gap-1">
-                          <span className="text-sm text-text">{i.title}</span>
+                          <span className={`text-sm text-text ${cooked ? "line-through" : ""}`}>
+                            {i.title}
+                          </span>
                           <button
                             type="button"
                             aria-label={`Remove ${i.title} from ${day.fullLabel}`}
@@ -160,6 +166,27 @@ export function WeekPlan() {
                             className="ml-auto hover:text-text"
                           >
                             {leftover ? "↩ meal" : "♻ leftover"}
+                          </button>
+                          {/* The pantry's only outflow signal (BL-0028): marking
+                              a meal cooked steps its ingredients have→low→out.
+                              Leftovers say "eaten" — they consume nothing new. */}
+                          <button
+                            type="button"
+                            aria-label={`Mark ${i.title} as ${cooked ? "not " : ""}${
+                              leftover ? "eaten" : "cooked"
+                            }`}
+                            aria-pressed={cooked}
+                            onClick={() => {
+                              gen.clearError();
+                              act.run(() =>
+                                cooked
+                                  ? unmarkCooked({ recipeId: i.recipeId })
+                                  : markCooked({ recipeId: i.recipeId }),
+                              );
+                            }}
+                            className="hover:text-text"
+                          >
+                            {cooked ? "✓" : leftover ? "eaten?" : "cooked?"}
                           </button>
                         </div>
                       </li>

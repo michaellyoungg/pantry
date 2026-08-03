@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 
 export const list = query({
@@ -104,6 +105,59 @@ export const setServings = mutation({
         servingsMultiplier: Math.max(0.25, servingsMultiplier),
       });
     }
+  },
+});
+
+// "I cooked this" (BL-0028) — the outflow event the pantry loop has been
+// missing. BL-0021 shipped inflow (checking a line off says you own the item)
+// but nothing consumed anything, so the pantry only ever filled up.
+//
+// Idempotent on purpose: `cookedAt` is written once and a second call is a
+// no-op. That single write is the double-cook guard — see the note on the field
+// in schema.ts. Marking a recipe that isn't basketed is a silent no-op, matching
+// schedule/unschedule/setType.
+export const markCooked = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (!existing || existing.cookedAt !== undefined) return;
+    await ctx.db.patch(existing._id, { cookedAt: Date.now() });
+
+    // Leftovers are reheated, not cooked: they occupy a day but consume nothing
+    // new, which is the same rule that keeps them off the grocery list.
+    if (existing.type === "leftover") return;
+
+    // Scheduled rather than awaited — resolving the recipe's normalized
+    // ingredients needs recipe-service, and a mutation cannot fetch. The patch
+    // above and this schedule commit in one transaction, so the decrement is
+    // queued exactly once per cook: the guard and the trigger cannot disagree.
+    await ctx.scheduler.runAfter(0, internal.pantry.cookDecrement, { userId, recipeId });
+  },
+});
+
+// Undo a mis-click. Clears the flag only — it deliberately does NOT put the
+// pantry back, because "I didn't cook this" is a correction to the plan record
+// and re-inflating `low` back to `have` would be a guess about food. The pantry
+// page's manual have→low→out cycle is where inventory gets corrected.
+//
+// Consequence, and it is intended: marking → un-marking → marking again steps
+// the pantry twice, because the user has asserted two separate cooks. The guard
+// only defends against repeating the SAME assertion.
+export const unmarkCooked = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { cookedAt: undefined });
   },
 });
 

@@ -14,6 +14,8 @@ export type PlannedItem = {
   weekday?: number;
   servingsMultiplier?: number;
   type?: "meal" | "leftover";
+  /** When this meal was marked cooked (BL-0028). Absent until it is. */
+  cookedAt?: number;
 };
 
 /** One day of the week grid, with the entries scheduled onto it. */
@@ -63,6 +65,15 @@ export function increaseServings(multiplier: number): number {
 /** Leftovers are eaten, not shopped for, so they produce no grocery lines. */
 export function isLeftover(item: PlannedItem): boolean {
   return item.type === "leftover";
+}
+
+/**
+ * Whether this meal has been cooked (BL-0028). The timestamp's presence is the
+ * whole state — marking is idempotent server-side, so the client never has to
+ * reason about how many times it was pressed.
+ */
+export function isCooked(item: PlannedItem): boolean {
+  return item.cookedAt !== undefined;
 }
 
 /** What the meal/leftover toggle should switch this entry to. */
