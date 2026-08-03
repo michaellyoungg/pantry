@@ -73,6 +73,40 @@ export interface Recipe {
   equipment: RecipeEquipment[];
   /** Members of the closed method enum. Empty when nothing was detected. */
   methods: CookingMethod[];
+  /**
+   * Discovery metadata (BL-0020) — what the catalog's filter chips read.
+   *
+   * `cuisine` and `tags` are an OPEN vocabulary, deliberately unlike
+   * `methods`. Methods are closed because BL-0042's prep rules key on them;
+   * nothing keys on a cuisine or a tag, so an import that meets a cuisine we
+   * have never heard of should keep it rather than drop it. recipe-service
+   * normalizes both to slugs, so "Gluten Free" and "gluten_free" are one chip.
+   *
+   * Absent when unknown.
+   */
+  cuisine?: string;
+  /**
+   * Wall-clock minutes from starting to eating. Absent means unknown — never
+   * zero, and never sorted or filtered as if it were fast. This is the #1
+   * weeknight filter.
+   */
+  totalMinutes?: number;
+  /**
+   * Free-form slugs ("vegan", "one-pot"). Diet lives here rather than in its
+   * own field: the UI groups the tags it recognizes as diets into a chip row,
+   * and a tag it does not recognize stays searchable instead of being dropped.
+   */
+  tags: string[];
+  /** Where the recipe came from, for attribution and re-import. Absent when hand-entered. */
+  sourceUrl?: string;
+  /**
+   * The catalog recipe this one was cloned from (BL-0020's clone-on-add).
+   *
+   * Server-owned and read-only: it is the idempotency key that stops a second
+   * "Add to basket" from making a second copy, so a client cannot set it.
+   * Present only on recipes that came from the catalog.
+   */
+  sourceRecipeId?: string;
   createdAt: string; // ISO-8601
 }
 
@@ -104,6 +138,12 @@ export interface GroceryLine {
   sources?: GroceryLineSource[];
 }
 
+/**
+ * The write shape for a recipe. Update accepts exactly the same fields and
+ * replaces the recipe wholesale, so an omitted field CLEARS the stored value —
+ * callers echo back whatever they want to keep. `sourceRecipeId` is absent by
+ * design: it is server-owned provenance, not something a client sets.
+ */
 export interface CreateRecipeRequest {
   title: string;
   /** Omit when unknown; recipe-service rejects a value outside 1..100. */
@@ -112,6 +152,13 @@ export interface CreateRecipeRequest {
   steps?: string[];
   equipment?: RecipeEquipment[];
   methods?: CookingMethod[];
+  /** Free text; recipe-service slugifies it. Omit when unknown. */
+  cuisine?: string;
+  /** Omit when unknown. recipe-service rejects zero and negatives. */
+  totalMinutes?: number;
+  tags?: string[];
+  /** Must be an absolute http(s) URL; anything else is rejected. */
+  sourceUrl?: string;
 }
 
 export interface GroceryListItem {

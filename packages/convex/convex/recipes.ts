@@ -126,40 +126,65 @@ async function lookupShelfLife(
   return out;
 }
 
-// servings is optional end to end: omitting it means "yield unknown" (BL-0035),
-// which is the normal case for manual entry and for every recipe that predates
-// the field. recipe-service validates the range.
+// The write args shared by create and update. Update replaces the whole recipe,
+// so the two accept exactly the same fields; declaring them once is what keeps
+// a field from being added to one and forgotten on the other.
+//
+// servings and totalMinutes are optional end to end: omitting them means
+// "unknown" (BL-0035, BL-0020), which is the normal case for manual entry and
+// for every recipe that predates the field. recipe-service validates ranges,
+// slugifies cuisine/tags, and rejects a sourceUrl that is not http(s).
+//
+// sourceRecipeId is deliberately NOT here: it is server-owned clone provenance,
+// and accepting it would let a client forge the key that makes catalog adds
+// idempotent.
+const recipeWriteArgs = {
+  title: v.string(),
+  servings: v.optional(v.number()),
+  ingredients: v.array(ingredientValidator),
+  steps: v.optional(v.array(v.string())),
+  equipment: v.optional(v.array(recipeEquipmentValidator)),
+  methods: v.optional(v.array(cookingMethodValidator)),
+  cuisine: v.optional(v.string()),
+  totalMinutes: v.optional(v.number()),
+  tags: v.optional(v.array(v.string())),
+  sourceUrl: v.optional(v.string()),
+};
+
+/** The recipe-service request body for a write. Absent optionals stay absent. */
+function recipeWriteBody(args: {
+  title: string;
+  servings?: number;
+  ingredients: Ingredient[];
+  steps?: string[];
+  equipment?: { id: string; required: boolean }[];
+  methods?: CookingMethod[];
+  cuisine?: string;
+  totalMinutes?: number;
+  tags?: string[];
+  sourceUrl?: string;
+}) {
+  return {
+    title: args.title,
+    servings: args.servings,
+    ingredients: args.ingredients,
+    steps: args.steps ?? [],
+    equipment: args.equipment ?? [],
+    methods: args.methods ?? [],
+    cuisine: args.cuisine ?? "",
+    totalMinutes: args.totalMinutes,
+    tags: args.tags ?? [],
+    sourceUrl: args.sourceUrl ?? "",
+  };
+}
+
 export const create = action({
-  args: {
-    title: v.string(),
-    servings: v.optional(v.number()),
-    ingredients: v.array(ingredientValidator),
-    steps: v.optional(v.array(v.string())),
-    equipment: v.optional(v.array(recipeEquipmentValidator)),
-    methods: v.optional(v.array(cookingMethodValidator)),
-    traceCtx: v.optional(v.string()),
-  },
-  handler: async (
-    ctx,
-    { title, servings, ingredients, steps, equipment, methods, traceCtx },
-  ): Promise<Recipe> => {
+  args: { ...recipeWriteArgs, traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { traceCtx, ...fields }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.create", traceCtx, (traceparent) =>
-      recipeServiceFetch<Recipe>(
-        userId,
-        "POST",
-        "/recipes",
-        {
-          title,
-          servings,
-          ingredients,
-          steps: steps ?? [],
-          equipment: equipment ?? [],
-          methods: methods ?? [],
-        },
-        traceparent,
-      ),
+      recipeServiceFetch<Recipe>(userId, "POST", "/recipes", recipeWriteBody(fields), traceparent),
     );
   },
 });
@@ -212,24 +237,12 @@ export const remove = action({
   },
 });
 
-// Update replaces the whole recipe, so omitting servings clears a previously
-// known yield rather than leaving it in place — callers must send the current
-// value to keep it.
+// Update replaces the whole recipe, so omitting a field clears the stored value
+// rather than leaving it in place — callers must send the current value to keep
+// it. This holds for servings, cuisine, totalMinutes, tags and sourceUrl alike.
 export const update = action({
-  args: {
-    id: v.string(),
-    title: v.string(),
-    servings: v.optional(v.number()),
-    ingredients: v.array(ingredientValidator),
-    steps: v.optional(v.array(v.string())),
-    equipment: v.optional(v.array(recipeEquipmentValidator)),
-    methods: v.optional(v.array(cookingMethodValidator)),
-    traceCtx: v.optional(v.string()),
-  },
-  handler: async (
-    ctx,
-    { id, title, servings, ingredients, steps, equipment, methods, traceCtx },
-  ): Promise<Recipe> => {
+  args: { id: v.string(), ...recipeWriteArgs, traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { id, traceCtx, ...fields }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     const updated = await withSpan("recipes.update", traceCtx, (traceparent) =>
@@ -237,14 +250,7 @@ export const update = action({
         userId,
         "PUT",
         `/recipes/${id}`,
-        {
-          title,
-          servings,
-          ingredients,
-          steps: steps ?? [],
-          equipment: equipment ?? [],
-          methods: methods ?? [],
-        },
+        recipeWriteBody(fields),
         traceparent,
       ),
     );
@@ -252,7 +258,7 @@ export const update = action({
     // it or the week plan keeps showing the old name. Same best-effort contract
     // as remove(): never fail an update that already committed.
     await reconcileBasket("update", () =>
-      ctx.runMutation(api.basket.updateTitle, { recipeId: id, title }),
+      ctx.runMutation(api.basket.updateTitle, { recipeId: id, title: fields.title }),
     );
     return updated;
   },
@@ -283,6 +289,39 @@ export const listCatalog = action({
     return withSpan("recipes.listCatalog", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe[]>(userId, "GET", "/catalog", undefined, traceparent),
     );
+  },
+});
+
+// Adds a shared catalog recipe to the user's week (BL-0020, UX plan decision
+// #6). Two steps, in this order and no other:
+//
+//  1. recipe-service clones the catalog recipe into the caller's own recipes,
+//  2. the CLONE's id goes into the basket.
+//
+// Basketing the catalog id directly is what the old catalog button did, and it
+// is why editing a planned catalog recipe was impossible: the row belonged to
+// the sentinel "catalog" user, so a user-scoped update could never find it.
+// Planning the clone instead means the recipe on the plan is the user's own,
+// editable, and survives the catalog entry later being retired.
+//
+// The clone step is idempotent server-side, so re-adding returns the copy the
+// user already has; basket.add is idempotent too, so the pair is safe to retry.
+export const addFromCatalog = action({
+  args: { catalogRecipeId: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { catalogRecipeId, traceCtx }): Promise<Recipe> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return withSpan("recipes.addFromCatalog", traceCtx, async (traceparent) => {
+      const clone = await recipeServiceFetch<Recipe>(
+        userId,
+        "POST",
+        `/catalog/${encodeURIComponent(catalogRecipeId)}/add`,
+        undefined,
+        traceparent,
+      );
+      await ctx.runMutation(api.basket.add, { recipeId: clone.id, title: clone.title });
+      return clone;
+    });
   },
 });
 
