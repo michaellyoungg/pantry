@@ -4,7 +4,10 @@ import { ConvexReactClient } from "convex/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
+import { initTelemetry } from "./telemetry";
 import "./index.css";
+
+initTelemetry();
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "http://127.0.0.1:3210";
 const convex = new ConvexReactClient(convexUrl as string);
