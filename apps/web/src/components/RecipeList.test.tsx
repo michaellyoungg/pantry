@@ -39,7 +39,6 @@ const RECIPE = {
 describe("RecipeList cross-store delete consistency", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("still refreshes the list and shows a targeted note when basket cleanup fails after delete", async () => {
@@ -50,6 +49,7 @@ describe("RecipeList cross-store delete consistency", () => {
     await screen.findByText("Garlic Bread");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete recipe" }));
 
     await waitFor(() => expect(screen.queryByText("Garlic Bread")).toBeNull());
 
@@ -58,5 +58,42 @@ describe("RecipeList cross-store delete consistency", () => {
     expect(alert.textContent).toContain("Garlic Bread");
 
     expect(listRecipes.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not delete when the confirmation is cancelled", async () => {
+    listRecipes.mockResolvedValue([RECIPE]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(deleteRecipe).not.toHaveBeenCalled();
+    expect(screen.getByText("Garlic Bread")).toBeTruthy();
+  });
+});
+
+describe("RecipeList read-side states", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows a loading state before recipes resolve (not the empty state)", () => {
+    listRecipes.mockReturnValue(new Promise(() => {}));
+    render(<RecipeList refreshKey={0} />);
+    expect(screen.getByText(/loading recipes/i)).toBeTruthy();
+    expect(screen.queryByText(/no recipes yet/i)).toBeNull();
+  });
+
+  it("shows an error with retry (not the empty state) when the load fails", async () => {
+    listRecipes.mockRejectedValueOnce(new Error("recipes down")).mockResolvedValue([RECIPE]);
+    render(<RecipeList refreshKey={0} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/recipes down/i);
+    expect(screen.queryByText(/no recipes yet/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await screen.findByText("Garlic Bread");
   });
 });

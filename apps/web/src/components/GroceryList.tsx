@@ -1,11 +1,16 @@
 import { api } from "@pantry/convex/api";
 import { useMutation, useQuery } from "convex/react";
 import { formatQuantity } from "../lib/formatQuantity";
-import { clearGroceryListOptimistic, toggleItemOptimistic } from "../lib/optimistic";
+import {
+  clearGroceryListOptimistic,
+  needItAnywayOptimistic,
+  toggleItemOptimistic,
+} from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { useConfirm } from "./ui/useConfirm";
 
 const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -15,11 +20,20 @@ export function GroceryList() {
   const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
     clearGroceryListOptimistic,
   );
-  const needItAnyway = useMutation(api.groceryList.needItAnyway);
+  const needItAnyway = useMutation(api.groceryList.needItAnyway).withOptimisticUpdate(
+    needItAnywayOptimistic,
+  );
   const { run, error } = useAsyncAction();
+  const { confirm, confirmDialog } = useConfirm();
 
-  function onClear() {
-    if (!window.confirm("Clear the grocery list?")) return;
+  async function onClear() {
+    const cleared = await confirm({
+      title: "Clear the grocery list?",
+      message: "Every line goes, including the ones you have already checked off.",
+      confirmLabel: "Clear",
+      destructive: true,
+    });
+    if (!cleared) return;
     run(() => clearList({}));
   }
 
@@ -96,6 +110,7 @@ export function GroceryList() {
         </div>
       )}
       <ErrorText message={error} />
+      {confirmDialog}
     </Card>
   );
 }

@@ -1,12 +1,26 @@
 ---
 id: BL-0022
 title: Persist recipe steps
-status: in-progress
+status: done
 area: recipes
 effort: M
-related_specs: [2026-07-12-url-import-recipe-parser-design.md]
+related_specs:
+  [2026-07-12-url-import-recipe-parser-design.md,
+   2026-08-03-cooking-guidance-design.md]
 created: 2026-07-12
 ---
+
+## Recovered and landed
+
+This work was written in July but stranded: PR #40 squash-merged only the *claim*
+commit, and the implementation was pushed to
+`origin/worktree-myoung-bl-0022-recipe-steps` afterwards, so it never reached
+`main`. It has now been cherry-picked forward onto current `main` (30 commits of
+drift) rather than reimplemented, resolving against BL-0027's `withSpan` tracing
+on the Convex recipe actions and BL-0012's `useAsyncData`/`useAsyncAction`
+refactor of the web components.
+
+This unblocks BL-0041 and BL-0042 — the equipment keyword scan reads step text.
 
 ## Context
 

@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "tsr generate && tsc -b && vite build",
     "typecheck": "tsr generate && tsc -b --noEmit",
-    "test": "vitest run",
+    "test": "node scripts/generate-theme-css.mjs --check && vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "tokens:css": "node scripts/generate-theme-css.mjs"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.94",
@@ -21,6 +22,7 @@
     "@opentelemetry/sdk-trace-web": "^2.10.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@pantry/convex": "workspace:^",
+    "@pantry/design-tokens": "workspace:^",
     "@pantry/types": "workspace:^",
     "@tanstack/react-router": "^1.170.18",
     "convex": "^1.42.3",
