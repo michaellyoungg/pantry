@@ -50,6 +50,7 @@ describe("recipes <-> recipe-service contract", () => {
         { quantity: 2, unit: "slices", item: "bread" },
         { quantity: 1, unit: "tbsp", item: "butter", note: "softened" },
       ],
+      steps: ["Toast the bread.", "Spread the butter."],
     });
     created.push(recipe.id);
 
@@ -57,6 +58,7 @@ describe("recipes <-> recipe-service contract", () => {
     expect(recipe.title).toBe("Integration Toast");
     expect(recipe.ingredients).toHaveLength(2);
     expect(recipe.ingredients[1]).toMatchObject({ item: "butter", note: "softened" });
+    expect(recipe.steps).toEqual(["Toast the bread.", "Spread the butter."]);
 
     const list = await t.action(api.recipes.list, {});
     expect(list.some((r) => r.id === recipe.id)).toBe(true);
@@ -74,11 +76,63 @@ describe("recipes <-> recipe-service contract", () => {
       id: recipe.id,
       title: "After",
       ingredients: [{ quantity: 2, unit: "cups", item: "sugar" }],
+      steps: ["Cream the sugar."],
     });
 
     expect(updated.id).toBe(recipe.id);
     expect(updated.title).toBe("After");
     expect(updated.ingredients).toEqual([{ quantity: 2, unit: "cups", item: "sugar" }]);
+    expect(updated.steps).toEqual(["Cream the sugar."]);
+  });
+
+  // BL-0035: servings crosses Convex -> recipe-service -> store as a nullable
+  // field. Absent must come back absent, not zero.
+  it("create round-trips servings and omits it when unknown", async () => {
+    const t = client();
+    const withYield = await t.action(api.recipes.create, {
+      title: "Chili",
+      servings: 6,
+      ingredients: [{ quantity: 1, unit: "lb", item: "beef" }],
+    });
+    created.push(withYield.id);
+    expect(withYield.servings).toBe(6);
+
+    const unknown = await t.action(api.recipes.create, {
+      title: "Toast",
+      ingredients: [{ quantity: 1, unit: "slice", item: "bread" }],
+    });
+    created.push(unknown.id);
+    expect(unknown.servings).toBeUndefined();
+
+    const list = await t.action(api.recipes.list, {});
+    expect(list.find((r) => r.id === withYield.id)?.servings).toBe(6);
+    expect(list.find((r) => r.id === unknown.id)?.servings).toBeUndefined();
+  });
+
+  it("update replaces servings, and clears it when omitted", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Chili",
+      servings: 6,
+      ingredients: [],
+    });
+    created.push(recipe.id);
+
+    const rescaled = await t.action(api.recipes.update, {
+      id: recipe.id,
+      title: "Chili",
+      servings: 8,
+      ingredients: [],
+    });
+    expect(rescaled.servings).toBe(8);
+
+    // Update replaces the whole recipe, so omitting servings clears the yield.
+    const cleared = await t.action(api.recipes.update, {
+      id: recipe.id,
+      title: "Chili",
+      ingredients: [],
+    });
+    expect(cleared.servings).toBeUndefined();
   });
 
   it("remove deletes the recipe so it no longer lists", async () => {
@@ -112,6 +166,17 @@ describe("recipes <-> recipe-service contract", () => {
     expect(Array.isArray(catalog)).toBe(true);
   });
 
+  it("accepts an optional traceCtx without affecting the result (telemetry off)", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Traceparent Toast",
+      ingredients: [{ quantity: 1, unit: "slice", item: "bread" }],
+      traceCtx: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+    });
+    created.push(recipe.id);
+    expect(recipe.id).toBeTruthy();
+  });
+
   it("generateGroceryList aggregates basketed recipes via recipe-service", async () => {
     const t = client();
     const a = await t.action(api.recipes.create, {
@@ -137,5 +202,68 @@ describe("recipes <-> recipe-service contract", () => {
     const flourLines = rows.filter((r) => r.item.toLowerCase() === "flour");
     expect(flourLines).toHaveLength(1);
     expect(flourLines[0].quantity).toBeGreaterThan(0);
+  });
+
+  it("nutrition estimates a recipe, with coverage and per-ingredient provenance", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Integration Pancakes",
+      ingredients: [
+        { quantity: 1, unit: "cup", item: "flour" },
+        { quantity: 2, unit: "", item: "eggs" },
+        { quantity: 1, unit: "pinch", item: "salt" },
+      ],
+    });
+    created.push(recipe.id);
+
+    const estimate = await t.action(api.recipes.nutrition, { id: recipe.id });
+
+    // Energy is keyed by FDC nutrient number, never by a name of our own.
+    expect(estimate.nutrients["1008"]).toMatchObject({ nutrientId: "1008", unit: "kcal" });
+    expect(estimate.nutrients["1008"].amount).toBeGreaterThan(0);
+
+    // Coverage is not optional: two of three lines resolve, and the pinch of
+    // salt comes back named rather than silently dropped.
+    expect(estimate.coverage).toMatchObject({ resolvedCount: 2, totalCount: 3 });
+    expect(estimate.ingredients).toHaveLength(3);
+    const salt = estimate.ingredients[2];
+    expect(salt).toMatchObject({ item: "salt", resolved: false, grams: null });
+    expect(salt.reason).toBeTruthy();
+
+    // This recipe was created without a yield, so per-serving must be absent
+    // rather than derived from a guessed serving count.
+    expect(estimate.perServing).toBeUndefined();
+    expect(estimate.servings).toBe(0);
+  });
+
+  it("nutrition divides by the recipe's yield when it has one", async () => {
+    const t = client();
+    const recipe = await t.action(api.recipes.create, {
+      title: "Integration Pancakes (serves 4)",
+      servings: 4,
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+    });
+    created.push(recipe.id);
+
+    const estimate = await t.action(api.recipes.nutrition, { id: recipe.id });
+
+    expect(estimate.servings).toBe(4);
+    expect(estimate.perServing).toBeDefined();
+    // Totals are unaffected by the division.
+    expect(estimate.perServing?.["1008"].amount).toBeCloseTo(
+      estimate.nutrients["1008"].amount / 4,
+      2,
+    );
+  });
+
+  it("nutrition 404s for a recipe the caller cannot see", async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: "other-user|session" });
+    const mine = await client().action(api.recipes.create, {
+      title: "Private",
+      ingredients: [{ quantity: 1, unit: "cup", item: "flour" }],
+    });
+    created.push(mine.id);
+
+    await expect(t.action(api.recipes.nutrition, { id: mine.id })).rejects.toThrow();
   });
 });

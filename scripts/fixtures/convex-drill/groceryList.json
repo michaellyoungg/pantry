@@ -1,0 +1,30 @@
+[
+  {
+    "userId": "drill-user",
+    "item": "Tomato",
+    "canonicalItem": "tomato",
+    "unit": "g",
+    "quantity": 400,
+    "aisle": "produce",
+    "checked": false
+  },
+  {
+    "userId": "drill-user",
+    "item": "Olive oil",
+    "canonicalItem": "olive oil",
+    "unit": "ml",
+    "quantity": 30,
+    "aisle": "pantry",
+    "checked": true
+  },
+  {
+    "userId": "drill-user",
+    "item": "Basil",
+    "canonicalItem": "basil",
+    "unit": "bunch",
+    "quantity": 1,
+    "aisle": "produce",
+    "checked": false,
+    "alreadyHave": true
+  }
+]

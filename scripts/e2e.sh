@@ -116,6 +116,13 @@ echo "==> deploying Convex functions"
 convex_cli dev --once
 
 # --- 6. run the browser test ----------------------------------------------
+# The web app imports @pantry/core (and the other workspace packages) through
+# their published `dist/`, and Playwright starts the Vite *dev* server, which
+# builds nothing. Without this the dev server cannot resolve them and every
+# spec fails at the first render.
+echo "==> building workspace packages the dev server resolves"
+pnpm build --filter="@pantry/web^..."
+
 echo "==> running Playwright (starts the Vite dev server)"
 pnpm --filter @pantry/web exec playwright test "$@"
 

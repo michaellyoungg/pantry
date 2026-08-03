@@ -59,6 +59,12 @@ export default defineSchema({
     // state "have". Purely an annotation — the line is still shown, still in
     // its original position, still checkable. Cleared per-line by needItAnyway.
     alreadyHave: v.optional(v.boolean()),
+    // Approximate shelf life for this canonicalItem, looked up from
+    // recipe-service during generation (BL-0029). It rides on the line because
+    // check-off is a *mutation* and mutations cannot do network I/O — the
+    // number has to already be in the database when the box is ticked.
+    // Absent when recipe-service doesn't recognize the item.
+    shelfLifeDays: v.optional(v.number()),
   }).index("by_user", ["userId"]),
 
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
@@ -78,6 +84,11 @@ export default defineSchema({
     // display, and aisle, and it stays part of don't-rebuy.
     useItUp: v.optional(v.boolean()),
     updatedAt: v.number(),
+    // Approximate "use by" (BL-0029), stamped from the item's shelf life when
+    // it entered the pantry. Optional: rows for items with no known shelf life
+    // never get one, because a guessed date is worse than no date. The user is
+    // never asked to type this.
+    useBy: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_user_item", ["userId", "canonicalItem"]),

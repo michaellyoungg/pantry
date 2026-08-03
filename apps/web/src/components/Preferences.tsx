@@ -1,7 +1,7 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncAction } from "@pantry/core/react";
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
-import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";

@@ -1,13 +1,15 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncAction } from "@pantry/core/react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import type { BasketRow, GroceryRow } from "../lib/homeState";
 import { deriveHomeState } from "../lib/homeState";
-import { useAsyncAction } from "../lib/useAsyncAction";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { GettingStarted } from "./home/GettingStarted";
 import { NextAction } from "./home/NextAction";
 import { QuickActions } from "./home/QuickActions";
 import { WeekStrip } from "./home/WeekStrip";
+import { UseItUp } from "./UseItUp";
 
 // Home is read-and-route (BL-0017): it shows where the weekly loop stands and offers
 // exactly one next action. All state derives from the plan and the list — see
@@ -17,7 +19,7 @@ export function Home() {
   // would surface at compile time, and `as` would silence it.
   const basket: BasketRow[] | undefined = useQuery(api.basket.list);
   const list: GroceryRow[] | undefined = useQuery(api.groceryList.getGroceryList);
-  const generate = useAction(api.recipes.generateGroceryList);
+  const generate = useTracedAction(api.recipes.generateGroceryList, "recipes.generateGroceryList");
   const gen = useAsyncAction();
   const navigate = useNavigate();
 
@@ -38,6 +40,11 @@ export function Home() {
       </div>
 
       <NextAction state={state} onBuildList={buildList} pending={gen.pending} error={gen.error} />
+
+      {/* Sits directly under the single next action and renders nothing when
+          nothing is expiring, so it never competes with the weekly loop — it
+          only interrupts when there is genuinely food about to be wasted. */}
+      <UseItUp />
 
       <WeekStrip basket={basket ?? []} />
 

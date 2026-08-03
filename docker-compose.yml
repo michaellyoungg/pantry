@@ -28,6 +28,10 @@ services:
       # Optional: enables the Claude fallback for URL import (BL-0001). Unset =
       # JSON-LD-only import; the ":-" default keeps compose happy when it is absent.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Optional: enables live USDA FoodData Central lookups for nutrition
+      # (BL-0036). Unset = the checked-in snapshot alone, which still resolves
+      # common ingredients and reports coverage honestly for the rest.
+      FDC_API_KEY: ${FDC_API_KEY:-}
       # Unset by default: telemetry is a no-op without it, so the plain
       # `docker compose up` stack and CI never try to reach a collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
@@ -62,7 +66,19 @@ services:
       - "3210:3210"
       - "3211:3211"
     volumes:
+      # SQLite lives here by default (db.sqlite3), alongside file storage and
+      # the generated instance credentials. The latter two stay here even with
+      # Postgres backing, so this volume is always load-bearing.
+      #
+      # For the Postgres-backed configuration we intend to run in production,
+      # layer deploy/docker-compose.convex-postgres.yml on top — it is an
+      # override rather than the default so that pulling it cannot silently
+      # re-point an existing stack at an empty database. Backups, the restore
+      # drill and the upgrade procedure: docs/self-hosted-convex-ops.md.
       - ./.data/convex:/convex/data
+    # Observability (BL-0027): Convex action spans are opt-in. The backend reads
+    # OTEL_EXPORTER_OTLP_ENDPOINT from its deployment env (set via `convex env
+    # set`), not from compose, so the default stack stays quiet.
     environment:
       - INSTANCE_SECRET=${CONVEX_INSTANCE_SECRET:?set CONVEX_INSTANCE_SECRET in .env}
       - CONVEX_CLOUD_ORIGIN=http://127.0.0.1:3210

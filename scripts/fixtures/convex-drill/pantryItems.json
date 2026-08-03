@@ -1,0 +1,20 @@
+[
+  {
+    "userId": "drill-user",
+    "canonicalItem": "olive oil",
+    "display": "Olive oil",
+    "aisle": "pantry",
+    "state": "have",
+    "source": "manual",
+    "updatedAt": 1785000000000
+  },
+  {
+    "userId": "drill-user",
+    "canonicalItem": "basil",
+    "display": "Basil",
+    "aisle": "produce",
+    "state": "low",
+    "source": "auto",
+    "updatedAt": 1785000000001
+  }
+]

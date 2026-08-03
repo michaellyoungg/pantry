@@ -41,6 +41,11 @@ jobs:
       - name: Lint & format (Biome)
         run: pnpm biome check
 
+      # The backlog index table is generated from each item's frontmatter, so a
+      # claim is a one-file edit and parallel agents stop conflicting on it.
+      - name: Backlog index is current
+        run: pnpm backlog:index:check
+
       - name: Typecheck
         run: pnpm typecheck
 

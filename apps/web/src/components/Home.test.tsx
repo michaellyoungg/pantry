@@ -15,15 +15,22 @@ import type { BasketRow, GroceryRow } from "../lib/homeState";
 const state = vi.hoisted(() => ({
   basket: undefined as BasketRow[] | undefined,
   list: undefined as GroceryRow[] | undefined,
+  pantry: [] as unknown[],
   generate: vi.fn(async () => ({ count: 3 })),
+  recipesToUse: vi.fn(async () => [] as unknown[]),
 }));
 
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return {
-    useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
-      getFunctionName(ref).startsWith("basket") ? state.basket : state.list,
-    useAction: () => state.generate,
+    useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
+      const name = getFunctionName(ref);
+      if (name.startsWith("basket")) return state.basket;
+      if (name.startsWith("pantry")) return state.pantry;
+      return state.list;
+    },
+    useAction: (ref: Parameters<typeof getFunctionName>[0]) =>
+      getFunctionName(ref).startsWith("pantry") ? state.recipesToUse : state.generate,
   };
 });
 
@@ -62,6 +69,8 @@ beforeEach(() => {
   state.basket = [];
   state.list = [];
   state.generate = vi.fn(async () => ({ count: 3 }));
+  state.pantry = [];
+  state.recipesToUse = vi.fn(async () => []);
 });
 
 describe("Home next action", () => {
@@ -208,5 +217,26 @@ describe("Home quick actions and onboarding", () => {
     state.list = [line("1", false)];
     await renderHome();
     expect(screen.queryByRole("heading", { name: /getting started/i })).toBeNull();
+  });
+});
+
+describe("Home use-it-up nudge (BL-0029)", () => {
+  it("surfaces the batch on the surface that answers 'what do I do now'", async () => {
+    state.pantry = [
+      {
+        _id: "p1",
+        display: "Spinach",
+        canonicalItem: "spinach",
+        state: "have",
+        useBy: Date.now() + 2 * 86_400_000,
+      },
+    ];
+    await renderHome();
+    expect(screen.getByText(/1 item to use this week/i)).toBeTruthy();
+  });
+
+  it("stays out of the way when nothing is expiring", async () => {
+    await renderHome();
+    expect(screen.queryByText(/to use this week/i)).toBeNull();
   });
 });

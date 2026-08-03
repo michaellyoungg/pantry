@@ -3,8 +3,10 @@ package recipe
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -36,19 +38,27 @@ func traced(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 // NewRouterWithImporter is NewRouter plus URL import. imp may be nil, in which
-// case POST /recipes/import responds 503 (import not configured).
-func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handler {
+// case POST /recipes/import responds 503 (import not configured). Further
+// optional surfaces arrive as opts (see WithNutrition).
+func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...RouterOption) http.Handler {
 	h := &handlers{store: store, importer: imp}
+	for _, opt := range opts {
+		opt(h)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", traced(h.healthz))
 	mux.HandleFunc("POST /recipes", traced(h.createRecipe))
 	mux.HandleFunc("GET /recipes", traced(h.listRecipes))
 	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
+	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
 	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
+	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
+	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
+	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
 	mux.HandleFunc("POST /recommendations/pantry", traced(h.recommendPantry))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
@@ -57,8 +67,9 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer) http.Handl
 }
 
 type handlers struct {
-	store    Store
-	importer *Importer
+	store     Store
+	importer  *Importer
+	nutrition NutritionEstimator
 }
 
 func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {
@@ -67,8 +78,11 @@ func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {
 
 func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string       `json:"title"`
+		Title string `json:"title"`
+		// Absent or null means "yield unknown" (BL-0035).
+		Servings    *int         `json:"servings"`
 		Ingredients []Ingredient `json:"ingredients"`
+		Steps       []string     `json:"steps"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -77,7 +91,10 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Ingredients)
+	if !validServings(w, r, req.Servings) {
+		return
+	}
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
@@ -131,8 +148,12 @@ func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string       `json:"title"`
+		Title string `json:"title"`
+		// Update replaces the whole recipe, so an absent servings clears a
+		// previously known yield rather than leaving it in place.
+		Servings    *int         `json:"servings"`
 		Ingredients []Ingredient `json:"ingredients"`
+		Steps       []string     `json:"steps"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -141,7 +162,10 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "title is required")
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Ingredients)
+	if !validServings(w, r, req.Servings) {
+		return
+	}
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
@@ -251,6 +275,113 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 			"count", len(skipped), "ids", skipped)
 	}
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
+}
+
+// maxRecipesUsing caps the "cook these" suggestions. The nudge is a prompt, not
+// a search results page — a long list is the nag BL-0029 exists to avoid.
+const maxRecipesUsing = 5
+
+// normalizationLookup exposes the shelf-life/aisle table to Convex, which
+// cannot hold a copy of it: canonicalization (synonyms, plural folding) lives
+// here, and a duplicated table would drift the moment either side is edited.
+// Input is raw ingredient text, so callers get canonicalization for free.
+func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []string `json:"items"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	seen := make(map[string]bool, len(req.Items))
+	out := make([]ItemDetails, 0, len(req.Items))
+	for _, raw := range req.Items {
+		d := normalizer.Details(raw)
+		if d.CanonicalItem == "" || seen[d.CanonicalItem] {
+			continue
+		}
+		seen[d.CanonicalItem] = true
+		out = append(out, d)
+	}
+	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
+}
+
+// recipesUsing answers "what can I cook with these before they go off". It
+// searches the caller's recipes and the shared catalog — a new user's pantry
+// would otherwise match nothing — and ranks by how many of the items a recipe
+// uses, so the suggestion that clears the most is first.
+func (h *handlers) recipesUsing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []string `json:"items"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	wanted := make(map[string]bool, len(req.Items))
+	for _, raw := range req.Items {
+		if canonical, _, _ := normalizer.CanonicalItem(raw); canonical != "" {
+			wanted[canonical] = true
+		}
+	}
+	if len(wanted) == 0 {
+		writeJSON(w, http.StatusOK, []RecipeMatch{})
+		return
+	}
+
+	userID := userIDFrom(r.Context())
+	recs, err := h.store.ListRecipes(r.Context(), userID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
+		return
+	}
+	if userID != CatalogUserID {
+		catRecs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+		if err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
+			return
+		}
+		recs = append(recs, catRecs...)
+	}
+
+	matches := make([]RecipeMatch, 0, len(recs))
+	for _, rec := range recs {
+		hit := map[string]bool{}
+		matched := []string{}
+		for _, ing := range rec.Ingredients {
+			canonical, _, _ := normalizer.CanonicalItem(ing.Item)
+			if wanted[canonical] && !hit[canonical] {
+				hit[canonical] = true
+				matched = append(matched, canonical)
+			}
+		}
+		if len(matched) > 0 {
+			matches = append(matches, RecipeMatch{Recipe: rec, MatchedItems: matched})
+		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool {
+		if len(matches[i].MatchedItems) != len(matches[j].MatchedItems) {
+			return len(matches[i].MatchedItems) > len(matches[j].MatchedItems)
+		}
+		return matches[i].Title < matches[j].Title
+	})
+	if len(matches) > maxRecipesUsing {
+		matches = matches[:maxRecipesUsing]
+	}
+	writeJSON(w, http.StatusOK, matches)
+}
+
+// validServings rejects a serving count that cannot be a real yield. nil is
+// always valid — it is how a caller says "unknown" — but a stored 0 or a
+// negative would silently divide or invert every per-serving figure downstream.
+func validServings(w http.ResponseWriter, r *http.Request, servings *int) bool {
+	if servings == nil {
+		return true
+	}
+	if *servings < 1 || *servings > maxServings {
+		writeError(w, r, http.StatusBadRequest,
+			fmt.Sprintf("servings must be between 1 and %d, or omitted", maxServings))
+		return false
+	}
+	return true
 }
 
 // decodeJSON reads a JSON request body with a size cap. It writes an error

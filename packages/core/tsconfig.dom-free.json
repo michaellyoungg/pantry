@@ -1,0 +1,13 @@
+{
+  // The DOM-free guard. tsconfig.json already sets lib: ES2022 with no ambient
+  // @types, but src/convex pulls in the Convex client's declarations, which
+  // `/// <reference lib="dom" />` — so DOM globals silently reappear in the whole
+  // program. Typechecking the pure + react layers without that subtree restores
+  // the guarantee: a stray `document`/`window` there is a compile error.
+  // src/convex keeps its DOM types (it is the browser-cache contract) and is
+  // held to the same rule by biome.json's noRestrictedGlobals override instead.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["src"],
+  "exclude": ["src/convex/**", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}
