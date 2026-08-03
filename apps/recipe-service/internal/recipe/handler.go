@@ -60,6 +60,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
 	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
+	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
@@ -239,44 +240,18 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ids := make([]string, 0, len(req.Items))
-	seen := map[string]bool{}
 	for _, it := range req.Items {
-		if !seen[it.RecipeID] {
-			seen[it.RecipeID] = true
-			ids = append(ids, it.RecipeID)
-		}
+		ids = append(ids, it.RecipeID)
 	}
-	recs, err := h.store.GetRecipesByIDs(r.Context(), userIDFrom(r.Context()), ids)
+	// Catalog recipes are owned by CatalogUserID, not the caller, but the catalog
+	// UI lets anyone add them to their basket — readableRecipes resolves both
+	// scopes, without which a basket of catalog recipes aggregates to an empty
+	// list. The nutrition rollup reads the same helper, so the two paths can
+	// never disagree about which recipes a plan contains.
+	byID, err := h.readableRecipes(r.Context(), ids)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not load recipes", err)
 		return
-	}
-	byID := make(map[string]Recipe, len(recs))
-	for _, rec := range recs {
-		byID[rec.ID] = rec
-	}
-
-	// Catalog recipes are owned by CatalogUserID, not the caller, but the
-	// catalog UI lets anyone add them to their basket. Resolve whatever the
-	// user-scoped lookup missed against the shared catalog — without this,
-	// a basket of catalog recipes aggregates to an empty list. The second
-	// lookup is pinned to CatalogUserID, so it can't reach another user's
-	// private recipes.
-	missing := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if _, ok := byID[id]; !ok {
-			missing = append(missing, id)
-		}
-	}
-	if len(missing) > 0 {
-		catRecs, err := h.store.GetRecipesByIDs(r.Context(), CatalogUserID, missing)
-		if err != nil {
-			writeErr(w, r, http.StatusInternalServerError, "could not load catalog recipes", err)
-			return
-		}
-		for _, rec := range catRecs {
-			byID[rec.ID] = rec
-		}
 	}
 
 	entries := make([]ScaledRecipe, 0, len(req.Items))

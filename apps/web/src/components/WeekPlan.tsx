@@ -17,6 +17,7 @@ import { useAsyncAction } from "@pantry/core/react";
 import { useMutation, useQuery } from "convex/react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { PlanNutrition } from "./PlanNutrition";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -170,6 +171,9 @@ export function WeekPlan() {
           );
         })}
       </div>
+
+      {/* What the planned week comes to (BL-0037). */}
+      <PlanNutrition items={items} />
 
       {/* Unscheduled rail: basket recipes waiting to be placed on a day. */}
       <Card title="Not yet planned">

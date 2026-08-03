@@ -1,6 +1,7 @@
+import { NUTRITION_COVERAGE_THRESHOLD } from "@pantry/core";
 import type { NutritionEstimate, NutritionIngredient } from "@pantry/types";
 import { describe, expect, it } from "vitest";
-import { COVERAGE_THRESHOLD, formatAmount, nutritionDisplay, unresolvedItems } from "./nutrition";
+import { nutritionDisplay } from "./nutrition";
 
 function estimate(overrides: Partial<NutritionEstimate> = {}): NutritionEstimate {
   const ingredients: NutritionIngredient[] = [
@@ -19,31 +20,6 @@ function estimate(overrides: Partial<NutritionEstimate> = {}): NutritionEstimate
     ...overrides,
   };
 }
-
-describe("formatAmount", () => {
-  it("gives grams a decimal and everything else none", () => {
-    expect(formatAmount({ nutrientId: "1003", amount: 12.913, unit: "g" })).toBe("12.9 g");
-    expect(formatAmount({ nutrientId: "1008", amount: 455.4, unit: "kcal" })).toBe("455 kcal");
-    expect(formatAmount({ nutrientId: "1093", amount: 1594.772, unit: "mg" })).toBe("1595 mg");
-  });
-
-  it("omits an unknown unit rather than printing undefined", () => {
-    expect(formatAmount({ nutrientId: "9999", amount: 42, unit: "" })).toBe("42");
-  });
-});
-
-describe("unresolvedItems", () => {
-  it("names the ingredients that did not make it in, in recipe order", () => {
-    const est = estimate({
-      ingredients: [
-        { item: "flour", grams: 125, resolved: true },
-        { item: "saffron", grams: null, resolved: false, reason: "no food match" },
-        { item: "gochujang", grams: null, resolved: false, reason: "no food match" },
-      ],
-    });
-    expect(unresolvedItems(est)).toEqual(["saffron", "gochujang"]);
-  });
-});
 
 describe("nutritionDisplay", () => {
   it("shows the headline nutrients when coverage is good", () => {
@@ -125,7 +101,11 @@ describe("nutritionDisplay", () => {
   it("treats the threshold itself as good enough", () => {
     const atThreshold = nutritionDisplay(
       estimate({
-        coverage: { resolvedMassFraction: COVERAGE_THRESHOLD, resolvedCount: 4, totalCount: 5 },
+        coverage: {
+          resolvedMassFraction: NUTRITION_COVERAGE_THRESHOLD,
+          resolvedCount: 4,
+          totalCount: 5,
+        },
       }),
     );
     expect(atThreshold.kind).toBe("estimate");
@@ -133,7 +113,7 @@ describe("nutritionDisplay", () => {
     const justBelow = nutritionDisplay(
       estimate({
         coverage: {
-          resolvedMassFraction: COVERAGE_THRESHOLD - 0.01,
+          resolvedMassFraction: NUTRITION_COVERAGE_THRESHOLD - 0.01,
           resolvedCount: 4,
           totalCount: 5,
         },
