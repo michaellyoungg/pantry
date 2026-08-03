@@ -107,6 +107,49 @@ export const setServings = mutation({
   },
 });
 
+// "I cooked this" (BL-0028) — the outflow event the pantry loop has been
+// missing. BL-0021 shipped inflow (checking a line off says you own the item)
+// but nothing consumed anything, so the pantry only ever filled up.
+//
+// Idempotent on purpose: `cookedAt` is written once and a second call is a
+// no-op. That single write is the double-cook guard — see the note on the field
+// in schema.ts. Marking a recipe that isn't basketed is a silent no-op, matching
+// schedule/unschedule/setType.
+export const markCooked = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (!existing || existing.cookedAt !== undefined) return;
+    await ctx.db.patch(existing._id, { cookedAt: Date.now() });
+  },
+});
+
+// Undo a mis-click. Clears the flag only — it deliberately does NOT put the
+// pantry back, because "I didn't cook this" is a correction to the plan record
+// and re-inflating `low` back to `have` would be a guess about food. The pantry
+// page's manual have→low→out cycle is where inventory gets corrected.
+//
+// Consequence, and it is intended: marking → un-marking → marking again steps
+// the pantry twice, because the user has asserted two separate cooks. The guard
+// only defends against repeating the SAME assertion.
+export const unmarkCooked = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("basket")
+      .withIndex("by_user_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, { cookedAt: undefined });
+  },
+});
+
 // Marks a planned recipe as a leftover (occupies its day but adds nothing to
 // the grocery list) or back to a meal.
 export const setType = mutation({
