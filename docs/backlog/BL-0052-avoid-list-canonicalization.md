@@ -1,5 +1,5 @@
 ---
-id: BL-0049
+id: BL-0052
 title: Avoid-list canonicalization + allergen families
 status: proposed
 area: recommendations

@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
+import type * as equipment from "../equipment.js";
 import type * as groceryList from "../groceryList.js";
 import type * as http from "../http.js";
 import type * as lib_otel from "../lib/otel.js";
@@ -31,6 +32,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   basket: typeof basket;
+  equipment: typeof equipment;
   groceryList: typeof groceryList;
   http: typeof http;
   "lib/otel": typeof lib_otel;

@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { NutritionGoals } from "../components/NutritionGoals";
 import { Preferences } from "../components/Preferences";
+import { Card } from "../components/ui/Card";
 
 /**
- * Settings hosts two independently-built sections that arrived on the same
- * route from different branches: nutrition goals (BL-0038) and ingredient
- * preferences (BL-0005).
+ * Settings collects standing setup from several independently-built branches:
+ * nutrition goals (BL-0038), the kitchen-inventory pointer (BL-0043) and
+ * ingredient preferences (BL-0005).
  *
  * The nutrition caveat is scoped to its own section rather than left under the
  * page heading, where it would read as a statement about everything on the page
@@ -24,6 +25,20 @@ function SettingsPage() {
         </p>
         <NutritionGoals />
       </div>
+
+      {/* The inventory itself lives with the recipes it filters (BL-0043), but
+          it is standing setup like the goals above, so this is where someone
+          looks for it. A pointer rather than a second copy of the surface. */}
+      <Card title="My Kitchen">
+        <p className="text-sm text-muted">
+          Tell us what equipment you own and we'll flag recipes you can't make yet — and show you
+          what a new gadget unlocks.{" "}
+          <Link to="/recipes/kitchen" className="text-primary underline">
+            Manage your kitchen
+          </Link>
+          .
+        </p>
+      </Card>
 
       <Preferences />
     </div>
