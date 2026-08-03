@@ -52,6 +52,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
 	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
 	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
+	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
@@ -79,9 +80,11 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title string `json:"title"`
 		// Absent or null means "yield unknown" (BL-0035).
-		Servings    *int         `json:"servings"`
-		Ingredients []Ingredient `json:"ingredients"`
-		Steps       []string     `json:"steps"`
+		Servings    *int              `json:"servings"`
+		Ingredients []Ingredient      `json:"ingredients"`
+		Steps       []string          `json:"steps"`
+		Equipment   []RecipeEquipment `json:"equipment"`
+		Methods     []string          `json:"methods"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -93,7 +96,11 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	if !validServings(w, r, req.Servings) {
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
+	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
+		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+		return
+	}
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
@@ -117,6 +124,14 @@ func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
+}
+
+// listEquipment serves the curated hardware catalog so clients can render
+// equipment names and offer a picker without duplicating the dataset. It is
+// reference data — the same for every caller — but stays behind the service
+// secret like every other route.
+func (h *handlers) listEquipment(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, EquipmentList())
 }
 
 func (h *handlers) getRecipe(w http.ResponseWriter, r *http.Request) {
@@ -150,9 +165,11 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		Title string `json:"title"`
 		// Update replaces the whole recipe, so an absent servings clears a
 		// previously known yield rather than leaving it in place.
-		Servings    *int         `json:"servings"`
-		Ingredients []Ingredient `json:"ingredients"`
-		Steps       []string     `json:"steps"`
+		Servings    *int              `json:"servings"`
+		Ingredients []Ingredient      `json:"ingredients"`
+		Steps       []string          `json:"steps"`
+		Equipment   []RecipeEquipment `json:"equipment"`
+		Methods     []string          `json:"methods"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -164,7 +181,11 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	if !validServings(w, r, req.Servings) {
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps)
+	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
+		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+		return
+	}
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return

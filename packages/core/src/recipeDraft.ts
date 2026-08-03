@@ -1,4 +1,4 @@
-import type { Ingredient } from "@pantry/types";
+import type { CookingMethod, Ingredient, RecipeEquipment } from "@pantry/types";
 
 // The import-review draft: the state a recipe sits in between "parsed from a
 // URL" (or typed by hand) and "saved". Every transition is a pure function of
@@ -16,6 +16,13 @@ export type RecipeDraft = {
   ingredients: Ingredient[];
   /** Ordered instruction lines (the method); empty for an ingredients-only recipe. */
   steps: string[];
+  /**
+   * Equipment tags referencing the service's curated catalog by slug, and the
+   * closed cooking-method enum (BL-0041). Import guesses both from the step
+   * text, so they arrive in the draft precisely to be corrected before saving.
+   */
+  equipment: RecipeEquipment[];
+  methods: CookingMethod[];
   /** The URL being imported from; empty for a hand-typed recipe. */
   url: string;
 };
@@ -27,6 +34,8 @@ export type ImportedRecipe = {
   steps?: string[];
   /** Already rendered for the field; blank when the import found no yield. */
   servings?: string;
+  equipment?: RecipeEquipment[];
+  methods?: CookingMethod[];
 };
 
 /** The payload a draft saves as; `servings` is still the raw field text. */
@@ -35,6 +44,8 @@ export type RecipeSubmission = {
   servings: string;
   ingredients: Ingredient[];
   steps: string[];
+  equipment: RecipeEquipment[];
+  methods: CookingMethod[];
 };
 
 /** The row the editor always shows at least one of, so there's a place to type. */
@@ -43,7 +54,15 @@ export function emptyIngredient(): Ingredient {
 }
 
 export function emptyDraft(): RecipeDraft {
-  return { title: "", servings: "", ingredients: [emptyIngredient()], steps: [], url: "" };
+  return {
+    title: "",
+    servings: "",
+    ingredients: [emptyIngredient()],
+    steps: [],
+    equipment: [],
+    methods: [],
+    url: "",
+  };
 }
 
 /**
@@ -58,6 +77,8 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
     servings: imported.servings ?? "",
     ingredients: imported.ingredients.length ? imported.ingredients : [emptyIngredient()],
     steps: imported.steps ?? [],
+    equipment: imported.equipment ?? [],
+    methods: imported.methods ?? [],
   };
 }
 
@@ -67,6 +88,14 @@ export function withSteps(draft: RecipeDraft, steps: string[]): RecipeDraft {
 
 export function withServings(draft: RecipeDraft, servings: string): RecipeDraft {
   return { ...draft, servings };
+}
+
+export function withEquipment(draft: RecipeDraft, equipment: RecipeEquipment[]): RecipeDraft {
+  return { ...draft, equipment };
+}
+
+export function withMethods(draft: RecipeDraft, methods: CookingMethod[]): RecipeDraft {
+  return { ...draft, methods };
 }
 
 export function withIngredientPatch(
@@ -97,6 +126,10 @@ export function draftSubmission(draft: RecipeDraft): RecipeSubmission | null {
     servings: draft.servings,
     ingredients: draft.ingredients.filter((ing) => ing.item.trim() !== ""),
     steps: draft.steps.map((step) => step.trim()).filter((step) => step !== ""),
+    // Tags carry through as-is: unlike blank ingredient rows there is no
+    // scaffolding to drop, and an empty list is a meaningful "nothing detected".
+    equipment: draft.equipment,
+    methods: draft.methods,
   };
 }
 

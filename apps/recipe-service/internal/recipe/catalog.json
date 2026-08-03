@@ -3,66 +3,262 @@
     "id": "cat-garlic-bread",
     "title": "Garlic Bread",
     "ingredients": [
-      { "quantity": 1, "unit": "loaf", "item": "baguette" },
-      { "quantity": 4, "unit": "cloves", "item": "garlic", "note": "minced" },
-      { "quantity": 0.5, "unit": "cup", "item": "butter", "note": "softened" },
-      { "quantity": 2, "unit": "tbsp", "item": "parsley", "note": "chopped" }
-    ]
+      {
+        "quantity": 1,
+        "unit": "loaf",
+        "item": "baguette"
+      },
+      {
+        "quantity": 4,
+        "unit": "cloves",
+        "item": "garlic",
+        "note": "minced"
+      },
+      {
+        "quantity": 0.5,
+        "unit": "cup",
+        "item": "butter",
+        "note": "softened"
+      },
+      {
+        "quantity": 2,
+        "unit": "tbsp",
+        "item": "parsley",
+        "note": "chopped"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "oven",
+        "required": true
+      },
+      {
+        "id": "sheet_pan",
+        "required": true
+      }
+    ],
+    "methods": ["bake"]
   },
   {
     "id": "cat-aglio-e-olio",
     "title": "Spaghetti Aglio e Olio",
     "ingredients": [
-      { "quantity": 1, "unit": "lb", "item": "spaghetti" },
-      { "quantity": 6, "unit": "cloves", "item": "garlic", "note": "thinly sliced" },
-      { "quantity": 4, "unit": "tbsp", "item": "olive oil" },
-      { "quantity": 1, "unit": "tsp", "item": "red pepper flakes" },
-      { "quantity": 2, "unit": "tbsp", "item": "parsley", "note": "chopped" }
-    ]
+      {
+        "quantity": 1,
+        "unit": "lb",
+        "item": "spaghetti"
+      },
+      {
+        "quantity": 6,
+        "unit": "cloves",
+        "item": "garlic",
+        "note": "thinly sliced"
+      },
+      {
+        "quantity": 4,
+        "unit": "tbsp",
+        "item": "olive oil"
+      },
+      {
+        "quantity": 1,
+        "unit": "tsp",
+        "item": "red pepper flakes"
+      },
+      {
+        "quantity": 2,
+        "unit": "tbsp",
+        "item": "parsley",
+        "note": "chopped"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "stockpot",
+        "required": true
+      },
+      {
+        "id": "skillet",
+        "required": true
+      },
+      {
+        "id": "colander",
+        "required": true
+      }
+    ],
+    "methods": ["boil", "saute"]
   },
   {
     "id": "cat-margherita-pizza",
     "title": "Margherita Pizza",
     "ingredients": [
-      { "quantity": 1, "unit": "ball", "item": "pizza dough" },
-      { "quantity": 1, "unit": "can", "item": "crushed tomatoes" },
-      { "quantity": 8, "unit": "oz", "item": "mozzarella" },
-      { "quantity": 10, "unit": "leaves", "item": "basil" },
-      { "quantity": 2, "unit": "tbsp", "item": "olive oil" }
-    ]
+      {
+        "quantity": 1,
+        "unit": "ball",
+        "item": "pizza dough"
+      },
+      {
+        "quantity": 1,
+        "unit": "can",
+        "item": "crushed tomatoes"
+      },
+      {
+        "quantity": 8,
+        "unit": "oz",
+        "item": "mozzarella"
+      },
+      {
+        "quantity": 10,
+        "unit": "leaves",
+        "item": "basil"
+      },
+      {
+        "quantity": 2,
+        "unit": "tbsp",
+        "item": "olive oil"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "oven",
+        "required": true
+      },
+      {
+        "id": "pizza_stone",
+        "required": false
+      }
+    ],
+    "methods": ["bake"]
   },
   {
     "id": "cat-caesar-salad",
     "title": "Caesar Salad",
     "ingredients": [
-      { "quantity": 1, "unit": "head", "item": "romaine" },
-      { "quantity": 0.5, "unit": "cup", "item": "parmesan", "note": "grated" },
-      { "quantity": 1, "unit": "cup", "item": "croutons" },
-      { "quantity": 2, "unit": "cloves", "item": "garlic" },
-      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
-      { "quantity": 1, "unit": "whole", "item": "lemon" }
-    ]
+      {
+        "quantity": 1,
+        "unit": "head",
+        "item": "romaine"
+      },
+      {
+        "quantity": 0.5,
+        "unit": "cup",
+        "item": "parmesan",
+        "note": "grated"
+      },
+      {
+        "quantity": 1,
+        "unit": "cup",
+        "item": "croutons"
+      },
+      {
+        "quantity": 2,
+        "unit": "cloves",
+        "item": "garlic"
+      },
+      {
+        "quantity": 3,
+        "unit": "tbsp",
+        "item": "olive oil"
+      },
+      {
+        "quantity": 1,
+        "unit": "whole",
+        "item": "lemon"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "mixing_bowl",
+        "required": true
+      },
+      {
+        "id": "whisk",
+        "required": true
+      }
+    ],
+    "methods": ["no_cook"]
   },
   {
     "id": "cat-tomato-soup",
     "title": "Tomato Soup",
     "ingredients": [
-      { "quantity": 6, "unit": "whole", "item": "tomato" },
-      { "quantity": 1, "unit": "whole", "item": "onion" },
-      { "quantity": 2, "unit": "cloves", "item": "garlic" },
-      { "quantity": 2, "unit": "tbsp", "item": "olive oil" },
-      { "quantity": 6, "unit": "leaves", "item": "basil" }
-    ]
+      {
+        "quantity": 6,
+        "unit": "whole",
+        "item": "tomato"
+      },
+      {
+        "quantity": 1,
+        "unit": "whole",
+        "item": "onion"
+      },
+      {
+        "quantity": 2,
+        "unit": "cloves",
+        "item": "garlic"
+      },
+      {
+        "quantity": 2,
+        "unit": "tbsp",
+        "item": "olive oil"
+      },
+      {
+        "quantity": 6,
+        "unit": "leaves",
+        "item": "basil"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "stockpot",
+        "required": true
+      },
+      {
+        "id": "immersion_blender",
+        "required": false
+      }
+    ],
+    "methods": ["boil"]
   },
   {
     "id": "cat-roasted-vegetables",
     "title": "Roasted Vegetables",
     "ingredients": [
-      { "quantity": 4, "unit": "whole", "item": "carrot" },
-      { "quantity": 3, "unit": "whole", "item": "potato" },
-      { "quantity": 1, "unit": "whole", "item": "onion" },
-      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
-      { "quantity": 1, "unit": "tbsp", "item": "rosemary" }
-    ]
+      {
+        "quantity": 4,
+        "unit": "whole",
+        "item": "carrot"
+      },
+      {
+        "quantity": 3,
+        "unit": "whole",
+        "item": "potato"
+      },
+      {
+        "quantity": 1,
+        "unit": "whole",
+        "item": "onion"
+      },
+      {
+        "quantity": 3,
+        "unit": "tbsp",
+        "item": "olive oil"
+      },
+      {
+        "quantity": 1,
+        "unit": "tbsp",
+        "item": "rosemary"
+      }
+    ],
+    "equipment": [
+      {
+        "id": "oven",
+        "required": true
+      },
+      {
+        "id": "sheet_pan",
+        "required": true
+      }
+    ],
+    "methods": ["roast"]
   }
 ]

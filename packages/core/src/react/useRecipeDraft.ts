@@ -1,4 +1,4 @@
-import type { Ingredient } from "@pantry/types";
+import type { CookingMethod, Ingredient, RecipeEquipment } from "@pantry/types";
 import { useCallback, useMemo, useState } from "react";
 import {
   draftImportUrl,
@@ -6,9 +6,11 @@ import {
   emptyDraft,
   type ImportedRecipe,
   type RecipeDraft,
+  withEquipment,
   withExtraIngredient,
   withImportedRecipe,
   withIngredientPatch,
+  withMethods,
   withServings,
   withSteps,
 } from "../recipeDraft";
@@ -34,6 +36,14 @@ export function useRecipeDraft() {
     (servings: string) => setDraft((d) => withServings(d, servings)),
     [],
   );
+  const setEquipment = useCallback(
+    (equipment: RecipeEquipment[]) => setDraft((d) => withEquipment(d, equipment)),
+    [],
+  );
+  const setMethods = useCallback(
+    (methods: CookingMethod[]) => setDraft((d) => withMethods(d, methods)),
+    [],
+  );
   const applyImported = useCallback(
     (imported: ImportedRecipe) => setDraft((d) => withImportedRecipe(d, imported)),
     [],
@@ -51,6 +61,8 @@ export function useRecipeDraft() {
     addIngredient,
     setSteps,
     setServings,
+    setEquipment,
+    setMethods,
     applyImported,
     reset,
     /** The payload to save, or `null` while the draft isn't submittable. */
