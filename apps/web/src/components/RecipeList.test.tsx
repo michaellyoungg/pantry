@@ -84,3 +84,45 @@ describe("RecipeList read-side states", () => {
     await screen.findByText("Garlic Bread");
   });
 });
+
+// Duplicate titles stay legal (BL-0013) — the recipe set is the user's, and
+// two takes on "Chili" is a reasonable thing to want. What was missing is any
+// way to SEE the collisions, which is what makes the list feel unmanageable.
+describe("RecipeList duplicate titles", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  it("flags every member of a colliding title group, ignoring case and padding", async () => {
+    listRecipes.mockResolvedValue([
+      RECIPE,
+      { ...RECIPE, id: "r2", title: "  garlic bread " },
+      { ...RECIPE, id: "r3", title: "Soup" },
+    ]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Soup");
+
+    expect(screen.getAllByText("Duplicate")).toHaveLength(2);
+  });
+
+  it("leaves a list of unique titles unflagged", async () => {
+    listRecipes.mockResolvedValue([RECIPE, { ...RECIPE, id: "r2", title: "Soup" }]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Soup");
+
+    expect(screen.queryByText("Duplicate")).toBeNull();
+  });
+
+  it("still offers Edit and Delete on a duplicate so it can be cleaned up", async () => {
+    listRecipes.mockResolvedValue([RECIPE, { ...RECIPE, id: "r2", title: "Garlic Bread" }]);
+
+    render(<RecipeList refreshKey={0} />);
+    await waitFor(() => expect(screen.getAllByText("Duplicate")).toHaveLength(2));
+
+    expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+  });
+});
