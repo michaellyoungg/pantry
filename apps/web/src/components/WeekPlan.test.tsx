@@ -24,6 +24,10 @@ vi.mock("convex/react", () => ({
   },
 }));
 
+// The nutrition rollup (BL-0037) is a Convex action of its own and has its own
+// test; stubbed here so its load doesn't land on this file's shared action spy.
+vi.mock("./PlanNutrition", () => ({ PlanNutrition: () => null }));
+
 import { WeekPlan } from "./WeekPlan";
 
 const row = (over: Record<string, unknown>) => ({

@@ -89,6 +89,26 @@ export interface NutritionIngredient {
 }
 
 /**
+ * One recipe's contribution to a multi-recipe rollup (BL-0037).
+ *
+ * A single blended `resolvedMassFraction` cannot express every way a rollup is
+ * incomplete: it describes the food it *saw*. A recipe that could not be loaded
+ * at all contributes to neither side of that ratio, so a day missing a whole
+ * dinner would otherwise read as fully covered. `counted` is that case, named.
+ */
+export interface NutritionRecipeCoverage {
+  recipeId: string;
+  /** Absent when the recipe could not be read — an unreadable recipe leaks nothing. */
+  title?: string;
+  /** The servings dial this recipe contributed at. */
+  multiplier: number;
+  /** False when the recipe's ingredients never reached the totals at all. */
+  counted: boolean;
+  /** This recipe's own coverage, so the one bad dish can be named. */
+  coverage: NutritionCoverage;
+}
+
+/**
  * An estimated nutrient vector for a recipe or a selection of recipes.
  *
  * `nutrients` is an open map on purpose — adding a nutrient must be a data
@@ -103,6 +123,11 @@ export interface NutritionEstimate {
   coverage: NutritionCoverage;
   ingredients: NutritionIngredient[];
   estimatedAt: string; // ISO-8601
+  /**
+   * Present only on a rollup (`POST /nutrition/estimate`), where "which dish is
+   * missing?" is a question the blended coverage figure cannot answer.
+   */
+  recipes?: NutritionRecipeCoverage[];
 }
 
 /**
