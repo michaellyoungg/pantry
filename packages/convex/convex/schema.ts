@@ -58,6 +58,28 @@ export default defineSchema({
     shelfLifeDays: v.optional(v.number()),
   }).index("by_user", ["userId"]),
 
+  // What hardware the user owns (BL-0043). One row per owned equipment slug;
+  // absence is "doesn't own it", so un-checking a box deletes the row rather
+  // than storing a false — there is no third state to represent.
+  //
+  // Lives in Convex rather than recipe-service because it is reactive user
+  // state like `basket` and `pantryItems`; the matching against recipe tags
+  // still happens in recipe-service, where the recipe data is.
+  //
+  // `equipmentId` references recipe-service's curated catalog by slug and
+  // cannot be foreign-keyed here — Convex deliberately carries no copy of the
+  // catalog. A slug retired from the catalog therefore just stops matching
+  // anything; the match endpoint ignores it rather than failing.
+  equipmentInventory: defineTable({
+    userId: v.string(),
+    equipmentId: v.string(),
+    // When it entered the kitchen. Drives "new to your kitchen" ordering — the
+    // discovery moment is the headline experience, and it needs a recency.
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_equipment", ["userId", "equipmentId"]),
+
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
   // quantity — numeric inventory drifts from reality within days. Keyed on the
   // normalized ingredient so "Green onion" and "green onions" are one row.
