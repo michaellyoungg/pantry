@@ -293,7 +293,15 @@
       "label": "Rice, white long grain",
       "gramsPerMl": 0.85,
       "match": ["rice", "white rice", "long grain rice", "jasmine rice", "basmati rice"],
-      "exclude": ["rice vinegar", "rice wine", "rice noodle", "rice paper", "wild rice", "rice flour", "rice milk"]
+      "exclude": [
+        "rice vinegar",
+        "rice wine",
+        "rice noodle",
+        "rice paper",
+        "wild rice",
+        "rice flour",
+        "rice milk"
+      ]
     },
     "round-roast": {
       "seriesId": "APU0000703311",
