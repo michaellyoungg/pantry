@@ -1,6 +1,6 @@
+import { DAY_FULL, DAYS } from "@pantry/core";
 import { Link } from "@tanstack/react-router";
 import type { BasketRow } from "../../lib/homeState";
-import { DAY_FULL, DAYS } from "../../lib/week";
 
 // Read-and-route: cells link to /plan rather than deep-linking a focused day, because
 // /plan has no day parameter yet. Adding one is a follow-up once BL-0018 settles.

@@ -1,8 +1,20 @@
 import { api } from "@pantry/convex/api";
+import {
+  canGenerateList,
+  DAY_FULL,
+  DAYS,
+  decreaseServings,
+  increaseServings,
+  isLeftover,
+  type PlannedItem,
+  planWeek,
+  servingsMultiplier,
+  toggledType,
+  unscheduledItems,
+} from "@pantry/core";
+import { removeFromBasketOptimistic } from "@pantry/core/convex";
+import { useAsyncAction } from "@pantry/core/react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { removeFromBasketOptimistic } from "../lib/optimistic";
-import { useAsyncAction } from "../lib/useAsyncAction";
-import { DAY_FULL, DAYS } from "../lib/week";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -10,15 +22,8 @@ import { Card } from "./ui/Card";
 // Dinner-first week plan (BL-0018). weekday 0=Mon … 6=Sun. A basket entry with a
 // weekday is scheduled onto that day; without one it waits in the rail. Slots
 // beyond dinner, servings, and diff-merge regeneration are deliberately later.
-
-type BasketRow = {
-  _id: string;
-  recipeId: string;
-  title: string;
-  weekday?: number;
-  servingsMultiplier?: number;
-  type?: "meal" | "leftover";
-};
+// The bucketing and the servings clamp live in @pantry/core (BL-0024); this
+// component is presentation over that.
 
 /** A compact 7-day selector; the active day is highlighted. */
 function DayPicker({ active, onPick }: { active?: number; onPick: (weekday: number) => void }) {
@@ -42,7 +47,7 @@ function DayPicker({ active, onPick }: { active?: number; onPick: (weekday: numb
 }
 
 export function WeekPlan() {
-  const items = (useQuery(api.basket.list) ?? []) as BasketRow[];
+  const items = (useQuery(api.basket.list) ?? []) as PlannedItem[];
   const schedule = useMutation(api.basket.schedule);
   const unschedule = useMutation(api.basket.unschedule);
   const setServings = useMutation(api.basket.setServings);
@@ -54,39 +59,39 @@ export function WeekPlan() {
   const gen = useAsyncAction();
   const act = useAsyncAction();
 
-  const unscheduled = items.filter((i) => i.weekday == null);
+  const week = planWeek(items);
+  const unscheduled = unscheduledItems(items);
 
   return (
     <div className="flex flex-col gap-4">
       {/* Week grid: agenda (stacked) on phone, 7-column grid on desktop. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-        {DAYS.map((label, day) => {
-          const dayItems = items.filter((i) => i.weekday === day);
+        {week.map((day) => {
           return (
             <div
-              key={label}
+              key={day.label}
               className="flex min-h-24 flex-col gap-2 rounded-xl border border-border bg-surface p-3"
             >
-              <div className="text-sm font-medium text-text">{DAY_FULL[day]}</div>
-              {dayItems.length === 0 ? (
+              <div className="text-sm font-medium text-text">{day.fullLabel}</div>
+              {day.items.length === 0 ? (
                 <p className="text-xs text-muted">No dinner planned</p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {dayItems.map((i) => {
-                    const mult = i.servingsMultiplier ?? 1;
-                    const isLeftover = i.type === "leftover";
+                  {day.items.map((i) => {
+                    const mult = servingsMultiplier(i);
+                    const leftover = isLeftover(i);
                     return (
                       <li
                         key={i._id}
                         className={`flex flex-col gap-1 rounded-lg px-2 py-1.5 ${
-                          isLeftover ? "bg-border/30 text-muted" : "bg-primary/10"
+                          leftover ? "bg-border/30 text-muted" : "bg-primary/10"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-1">
                           <span className="text-sm text-text">{i.title}</span>
                           <button
                             type="button"
-                            aria-label={`Remove ${i.title} from ${DAY_FULL[day]}`}
+                            aria-label={`Remove ${i.title} from ${day.fullLabel}`}
                             onClick={() => {
                               gen.clearError();
                               act.run(() => unschedule({ recipeId: i.recipeId }));
@@ -97,7 +102,7 @@ export function WeekPlan() {
                           </button>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted">
-                          {isLeftover ? (
+                          {leftover ? (
                             <span>leftovers — not on list</span>
                           ) : (
                             <span className="flex items-center gap-1">
@@ -109,7 +114,7 @@ export function WeekPlan() {
                                   act.run(() =>
                                     setServings({
                                       recipeId: i.recipeId,
-                                      servingsMultiplier: Math.max(0.25, mult - 0.5),
+                                      servingsMultiplier: decreaseServings(mult),
                                     }),
                                   );
                                 }}
@@ -126,7 +131,7 @@ export function WeekPlan() {
                                   act.run(() =>
                                     setServings({
                                       recipeId: i.recipeId,
-                                      servingsMultiplier: mult + 0.5,
+                                      servingsMultiplier: increaseServings(mult),
                                     }),
                                   );
                                 }}
@@ -139,20 +144,20 @@ export function WeekPlan() {
                           <button
                             type="button"
                             aria-label={
-                              isLeftover ? `Mark ${i.title} as meal` : `Mark ${i.title} as leftover`
+                              leftover ? `Mark ${i.title} as meal` : `Mark ${i.title} as leftover`
                             }
                             onClick={() => {
                               gen.clearError();
                               act.run(() =>
                                 setType({
                                   recipeId: i.recipeId,
-                                  type: isLeftover ? "meal" : "leftover",
+                                  type: toggledType(i),
                                 }),
                               );
                             }}
                             className="ml-auto hover:text-text"
                           >
-                            {isLeftover ? "↩ meal" : "♻ leftover"}
+                            {leftover ? "↩ meal" : "♻ leftover"}
                           </button>
                         </div>
                       </li>
@@ -206,7 +211,7 @@ export function WeekPlan() {
             act.clearError();
             gen.run(() => generate({}));
           }}
-          disabled={gen.pending || items.length === 0}
+          disabled={gen.pending || !canGenerateList(items)}
         >
           {gen.pending ? "Generating…" : "Generate grocery list"}
         </Button>

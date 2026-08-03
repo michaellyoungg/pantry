@@ -1,57 +1,47 @@
 import { api } from "@pantry/convex/api";
-import type { Ingredient, Recipe } from "@pantry/types";
+import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
+import type { Recipe } from "@pantry/types";
 import { useAction } from "convex/react";
-import { useState } from "react";
-import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
-const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
-
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
-  const [title, setTitle] = useState("");
-  const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
-  const [steps, setSteps] = useState<string[]>([]);
-  const [url, setUrl] = useState("");
+  // The import-review draft and its transitions live in @pantry/core (BL-0024);
+  // this component only renders them.
+  const {
+    draft,
+    setTitle,
+    setUrl,
+    updateIngredient,
+    addIngredient,
+    setSteps,
+    applyImported,
+    reset,
+    submission,
+    importUrl,
+  } = useRecipeDraft();
   const createRecipe = useAction(api.recipes.create);
   const importFromUrl = useAction(api.recipes.importFromUrl);
   const { run, error, pending } = useAsyncAction();
   const importAction = useAsyncAction();
 
-  function update(i: number, patch: Partial<Ingredient>) {
-    setIngredients((prev) => prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing)));
-  }
-
-  async function importUrl() {
-    if (!url.trim()) return;
-    const preview = (await importAction.run(() => importFromUrl({ url: url.trim() }))) as
+  async function importRecipe() {
+    if (!importUrl) return;
+    const preview = (await importAction.run(() => importFromUrl({ url: importUrl }))) as
       | Recipe
       | undefined;
-    if (preview) {
-      setTitle(preview.title);
-      setIngredients(preview.ingredients.length ? preview.ingredients : [emptyIngredient()]);
-      setSteps(preview.steps ?? []);
-    }
+    if (preview) applyImported(preview);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
-    const created = await run(() =>
-      createRecipe({
-        title: title.trim(),
-        ingredients: ingredients.filter((ing) => ing.item.trim() !== ""),
-        steps: steps.map((s) => s.trim()).filter((s) => s !== ""),
-      }),
-    );
+    if (!submission) return;
+    const created = await run(() => createRecipe(submission));
     if (created) {
-      setTitle("");
-      setIngredients([emptyIngredient()]);
-      setSteps([]);
-      setUrl("");
+      reset();
       onCreated();
     }
   }
@@ -62,49 +52,44 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         <Input
           placeholder="Paste a recipe URL to import…"
           className="flex-1"
-          value={url}
+          value={draft.url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <Button variant="ghost" size="sm" onClick={importUrl} disabled={importAction.pending}>
+        <Button variant="ghost" size="sm" onClick={importRecipe} disabled={importAction.pending}>
           {importAction.pending ? "Importing…" : "Import"}
         </Button>
       </div>
       <ErrorText message={importAction.error} />
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input placeholder="Title" value={draft.title} onChange={(e) => setTitle(e.target.value)} />
         <div className="flex flex-col gap-2">
-          {ingredients.map((ing, i) => (
+          {draft.ingredients.map((ing, i) => (
             <div key={i} className="flex gap-2">
               <Input
                 type="number"
                 className="w-16"
                 value={ing.quantity}
-                onChange={(e) => update(i, { quantity: Number(e.target.value) })}
+                onChange={(e) => updateIngredient(i, { quantity: Number(e.target.value) })}
               />
               <Input
                 placeholder="unit"
                 className="w-24"
                 value={ing.unit}
-                onChange={(e) => update(i, { unit: e.target.value })}
+                onChange={(e) => updateIngredient(i, { unit: e.target.value })}
               />
               <Input
                 placeholder="item"
                 className="flex-1"
                 value={ing.item}
-                onChange={(e) => update(i, { item: e.target.value })}
+                onChange={(e) => updateIngredient(i, { item: e.target.value })}
               />
             </div>
           ))}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="self-start"
-          onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
-        >
+        <Button variant="ghost" size="sm" className="self-start" onClick={addIngredient}>
           + ingredient
         </Button>
-        <StepsEditor steps={steps} onChange={setSteps} />
+        <StepsEditor steps={draft.steps} onChange={setSteps} />
         <Button type="submit" disabled={pending} className="self-end">
           {pending ? "Saving…" : "Create recipe"}
         </Button>
