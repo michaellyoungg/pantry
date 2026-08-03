@@ -8,10 +8,14 @@ vi.mock("@pantry/convex/api", () => ({
   },
 }));
 
-const { listCatalog, addMock } = vi.hoisted(() => ({
-  listCatalog: vi.fn(),
-  addMock: vi.fn(() => Promise.resolve()),
-}));
+const { listCatalog, addMock } = vi.hoisted(() => {
+  const addMock = vi.fn(() => Promise.resolve()) as unknown as {
+    (...a: unknown[]): Promise<unknown>;
+    withOptimisticUpdate: (u: unknown) => typeof addMock;
+  };
+  addMock.withOptimisticUpdate = () => addMock;
+  return { listCatalog: vi.fn(), addMock };
+});
 
 vi.mock("convex/react", () => ({
   useAction: () => listCatalog,

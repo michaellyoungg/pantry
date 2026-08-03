@@ -2,7 +2,7 @@ import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
 import { useAction, useMutation } from "convex/react";
 import { useState } from "react";
-import { removeFromBasketOptimistic } from "../lib/optimistic";
+import { addToBasketOptimistic, removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
@@ -15,7 +15,7 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const listRecipes = useAction(api.recipes.list);
   const deleteRecipe = useAction(api.recipes.remove);
   const updateRecipe = useAction(api.recipes.update);
-  const addToBasket = useMutation(api.basket.add);
+  const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );

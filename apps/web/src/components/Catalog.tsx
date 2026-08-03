@@ -1,5 +1,6 @@
 import { api } from "@pantry/convex/api";
 import { useAction, useMutation } from "convex/react";
+import { addToBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
@@ -8,7 +9,7 @@ import { Card } from "./ui/Card";
 
 export function Catalog() {
   const listCatalog = useAction(api.recipes.listCatalog);
-  const addToBasket = useMutation(api.basket.add);
+  const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
   const { data, loading, error: loadError, reload } = useAsyncData(listCatalog);
   const { run, error } = useAsyncAction();
   const recipes = data ?? [];
