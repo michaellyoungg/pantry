@@ -8,6 +8,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/recipes", label: "Recipes", icon: "📖" },
   { to: "/list", label: "List", icon: "🛒" },
   { to: "/pantry", label: "Pantry", icon: "🥫" },
+  { to: "/history", label: "History", icon: "📈" },
+  { to: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 function NavLinks({ variant }: { variant: "sidebar" | "bottom" }) {
@@ -43,21 +45,6 @@ export function Nav() {
         className="hidden shrink-0 flex-col gap-1 border-r border-border bg-surface p-2 sm:flex sm:w-16 lg:w-56"
       >
         <NavLinks variant="sidebar" />
-        {/* Deliberately outside NAV_ITEMS: the IA reserves exactly 5 primary
-            tabs, so Settings (the only way to reach the allergen/avoid-list
-            filter) gets a discreet footer link instead of a 6th tab. */}
-        <div className="mt-auto border-t border-border pt-1">
-          <Link
-            to="/settings"
-            activeProps={{ "aria-current": "page", "data-active": "true" }}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted hover:bg-border/40 hover:text-text data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-          >
-            <span className="text-xl" aria-hidden>
-              ⚙️
-            </span>
-            <span className="hidden lg:inline">Settings</span>
-          </Link>
-        </div>
       </nav>
       <nav
         aria-label="Mobile"

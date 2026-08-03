@@ -31,6 +31,34 @@ Optimized for one-handed in-store phone use.
 - **Live household sync polish:** presence + highlight on remote change (Convex — nearly
   free).
 
+## Progress
+
+**Increment 1 (provenance + manual add) — done.** The aggregator now retains
+which recipes each line came from and how much each wanted; the line shows
+"N recipes" and a sheet lists them, each linking through to `/recipes?recipe=<id>`.
+Manual add takes one typed field ("2 lb butter"), categorised server-side from
+recipe-service's normalization table, with recent-item chips drawn from the
+pantry. Manual lines survive re-generation; only they can be removed.
+
+Note for whoever picks this up next: an earlier PR titled "BL-0019: Grocery list
+UX polish" (#38) was the *claim* commit — it changed only the two backlog files.
+Nothing from the proposal had shipped before the increment above.
+
+**Remaining**, roughly in value order:
+
+- **Collapsible aisle sections with counts** — sections render, but they are
+  plain headings; nothing collapses.
+- **"In cart" section** — checked lines strike through in place today; they do
+  not animate out into a separate section, so the top of the list is not yet
+  "what's left".
+- **"Done shopping" flow** — remove-purchased vs keep-unbought. Not started.
+- **Swipe-away delete with undo** — the accelerator half of the interaction.
+  Tap-to-check is in place and remains primary.
+- **One-handed ergonomics** — new controls are ≥44px, but add/check/"Done" are
+  not yet gathered into the bottom thumb zone.
+- **Live household sync polish** — presence + highlight on remote change. The
+  list is already reactive; this is the visible acknowledgement of a remote edit.
+
 ## Alternatives considered
 
 - **Offline PWA now** — the biggest structural web weakness for in-store use, but larger

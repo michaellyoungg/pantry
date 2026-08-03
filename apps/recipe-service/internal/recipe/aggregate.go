@@ -47,6 +47,14 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 		unit    string  // non-convertible unit, or "" for convertible
 		dim     string  // dimension for convertible, or "" otherwise
 		base    float64 // convertible: sum in base units; else: raw sum
+		// Per-recipe contributions to this line, in the same units as base, so a
+		// client can show what a merged line is actually made of. srcOrder keeps
+		// first-seen recipe order; srcBase/srcTitle are keyed by recipe id, which
+		// makes a recipe planned twice in one week one source with a summed
+		// amount rather than the same title twice.
+		srcOrder []string
+		srcBase  map[string]float64
+		srcTitle map[string]string
 	}
 	accs := map[key]*acc{}
 	var order []key
@@ -66,7 +74,12 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 
 			a := accs[k]
 			if a == nil {
-				a = &acc{display: display, aisle: aisle}
+				a = &acc{
+					display:  display,
+					aisle:    aisle,
+					srcBase:  map[string]float64{},
+					srcTitle: map[string]string{},
+				}
 				if convertible {
 					a.dim = dim
 				} else {
@@ -75,10 +88,20 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 				accs[k] = a
 				order = append(order, k)
 			}
+			contribution := ing.Quantity * mult
 			if convertible {
-				a.base += ing.Quantity * mult * toBase
-			} else {
-				a.base += ing.Quantity * mult
+				contribution *= toBase
+			}
+			a.base += contribution
+			// A recipe with no id can't be linked to from the provenance sheet, so
+			// it contributes nothing traceable. Every stored recipe has one; this
+			// only skips synthetic recipes assembled in memory.
+			if id := e.Recipe.ID; id != "" {
+				if _, seen := a.srcBase[id]; !seen {
+					a.srcOrder = append(a.srcOrder, id)
+					a.srcTitle[id] = e.Recipe.Title
+				}
+				a.srcBase[id] += contribution
 			}
 		}
 	}
@@ -93,12 +116,33 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 		} else {
 			qty, unit = snapNice(a.base), a.unit
 		}
+
+		// Contributions were summed in base units; re-express them in whatever
+		// display unit the line ended up in so they add up to its quantity. An
+		// unrecognised display unit (a dimension with no ladder) means base units
+		// were already the display units, so the divisor stays 1.
+		perDisplayUnit := 1.0
+		if a.dim != "" {
+			if _, toBase, ok := normalizer.Unit(unit); ok {
+				perDisplayUnit = toBase
+			}
+		}
+		var sources []GroceryLineSource
+		for _, id := range a.srcOrder {
+			sources = append(sources, GroceryLineSource{
+				RecipeID: id,
+				Title:    a.srcTitle[id],
+				Quantity: snapNice(a.srcBase[id] / perDisplayUnit),
+			})
+		}
+
 		lines = append(lines, GroceryLine{
 			Item:          a.display,
 			CanonicalItem: k.item,
 			Unit:          unit,
 			Quantity:      qty,
 			Aisle:         a.aisle,
+			Sources:       sources,
 		})
 	}
 

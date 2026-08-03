@@ -26,6 +26,7 @@ async function renderNavAt(path: string) {
     "/recipes/catalog",
     "/list",
     "/pantry",
+    "/history",
     "/settings",
   ].map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }));
   const router = createRouter({
@@ -44,18 +45,19 @@ describe("Nav", () => {
       const link = within(sidebar).getByRole("link", { name: item.label });
       expect(link.getAttribute("href")).toBe(item.to);
     }
-    expect(NAV_ITEMS).toHaveLength(5);
+    // Home · Plan · Recipes · List · Pantry · History (BL-0039) · Settings (BL-0038).
+    expect(NAV_ITEMS).toHaveLength(7);
   });
 
-  // Regression: /settings existed but nothing linked to it, so the allergen
-  // filter (the only "never suggested" control) was reachable only by typing
-  // the URL. The IA reserves exactly 5 primary tabs, so this link must exist
-  // without growing NAV_ITEMS.
-  it("provides a discreet Settings link outside the 5-item nav", async () => {
+  // Regression (BL-0005): /settings existed but nothing linked to it, so the
+  // avoid list — the only "never suggest this" control — was reachable only by
+  // typing the URL. BL-0038 since promoted Settings to a primary tab, which
+  // satisfies this just as well; the assertion is on reachability, deliberately
+  // not on which nav slot provides it.
+  it("links to Settings from the sidebar", async () => {
     const sidebar = await renderNavAt("/");
     const settingsLink = within(sidebar).getByRole("link", { name: "Settings" });
     expect(settingsLink.getAttribute("href")).toBe("/settings");
-    expect(NAV_ITEMS.some((item) => item.to === "/settings")).toBe(false);
   });
 
   it("marks only the Home link active on '/'", async () => {

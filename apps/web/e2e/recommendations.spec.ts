@@ -137,12 +137,18 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await expect(suggestions(page).getByText(control)).toBeVisible();
 
   // Now avoid peanut and confirm it disappears.
+  //
+  // Scoped to the Preferences card: /settings also hosts BL-0038's nutrition
+  // goals, whose "Add a goal" card has its own "Add" button, so an unscoped
+  // getByRole("button", { name: "Add" }) matches two elements and throws.
   await page.goto("/settings");
-  await page.getByPlaceholder("Ingredient to avoid").fill("peanut");
-  await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByText("peanut")).toBeVisible();
+  const prefs = page.locator("section").filter({ hasText: "Preferences" });
+  await prefs.getByPlaceholder("Ingredient to avoid").fill("peanut");
+  await prefs.getByRole("button", { name: "Add" }).click();
+  await expect(prefs.getByText("peanut")).toBeVisible();
 
   await navigateTo(page, "Pantry");
   await page.getByRole("button", { name: "What can I make?" }).click();
-  await expect(page.getByText(title)).toHaveCount(0);
+  await expect(suggestions(page).getByText(control)).toBeVisible({ timeout: 15_000 });
+  await expect(suggestions(page).getByText(title)).toHaveCount(0);
 });

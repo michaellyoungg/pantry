@@ -7,6 +7,17 @@ const { state, mutationMock } = vi.hoisted(() => ({
   mutationMock: vi.fn(() => Promise.reject(new Error("mutation failed"))),
 }));
 
+// The add field runs its own query and action and is covered by its own suite;
+// stubbing it keeps this file about the list.
+vi.mock("./GroceryAddItem", () => ({
+  GroceryAddItem: () => <div data-testid="add-item" />,
+}));
+
+// The provenance sheet links through to a recipe, which needs a router.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>,
+}));
+
 vi.mock("convex/react", () => ({
   useQuery: () => state.lines,
   // PricingSummary (BL-0023) runs an action; these tests are about the list, so
@@ -178,5 +189,76 @@ describe("GroceryList", () => {
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("button", { name: /need it anyway/i }));
     expect(mutationMock).toHaveBeenCalledWith({ id: "g1" });
+  });
+});
+
+// BL-0019: a merged line is otherwise opaque — "3 cloves garlic" with no way
+// back to which of the week's recipes wanted it.
+describe("GroceryList provenance", () => {
+  const withSources = [
+    {
+      ...oneLine[0],
+      item: "Butter",
+      unit: "cup",
+      quantity: 0.75,
+      aisle: "dairy",
+      sources: [
+        { recipeId: "r1", title: "Cookies", quantity: 0.25 },
+        { recipeId: "r2", title: "Toast", quantity: 0.5 },
+      ],
+    },
+  ];
+
+  it("shows how many recipes a line came from", () => {
+    state.lines = withSources;
+    render(<GroceryList />);
+    expect(screen.getByRole("button", { name: /2 recipes/i })).toBeTruthy();
+  });
+
+  it("opens a sheet naming the recipes and their amounts", async () => {
+    state.lines = withSources;
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /2 recipes/i }));
+
+    const sheet = await screen.findByRole("dialog");
+    expect(sheet.textContent).toContain("Cookies");
+    expect(sheet.textContent).toContain("¼ cup");
+    expect(sheet.textContent).toContain("Toast");
+    expect(sheet.textContent).toContain("½ cup");
+  });
+
+  it("closes the sheet again", async () => {
+    state.lines = withSources;
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /2 recipes/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("offers no provenance for a line with no recipe behind it", () => {
+    state.lines = [{ ...oneLine[0], manual: true }];
+    render(<GroceryList />);
+    expect(screen.queryByRole("button", { name: /recipes?$/i })).toBeNull();
+  });
+});
+
+describe("GroceryList manual lines", () => {
+  it("offers the add field", () => {
+    render(<GroceryList />);
+    expect(screen.getByTestId("add-item")).toBeTruthy();
+  });
+
+  it("removes a manual line", () => {
+    state.lines = [{ ...oneLine[0], item: "Foil", manual: true }];
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /remove foil/i }));
+    expect(mutationMock).toHaveBeenCalledWith({ id: "g1" });
+  });
+
+  it("offers no remove on a generated line, which would just come back", () => {
+    state.lines = [{ ...oneLine[0], item: "Garlic" }];
+    render(<GroceryList />);
+    expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 });
