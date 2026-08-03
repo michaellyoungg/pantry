@@ -15,6 +15,7 @@ export function GroceryList() {
   const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
     clearGroceryListOptimistic,
   );
+  const needItAnyway = useMutation(api.groceryList.needItAnyway);
   const { run, error } = useAsyncAction();
 
   function onClear() {
@@ -44,21 +45,43 @@ export function GroceryList() {
             <ul className="flex flex-col gap-1">
               {group.lines.map((line) => (
                 <li key={line._id}>
-                  <label
-                    className={`flex items-center gap-2 text-sm ${line.checked ? "text-muted line-through" : "text-text"}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-[var(--color-primary)]"
-                      checked={line.checked}
-                      onChange={(e) =>
-                        run(() => toggle({ id: line._id, checked: e.target.checked }))
-                      }
-                    />
-                    <span>
-                      {formatQuantity(line.quantity)} {line.unit} {line.item}
-                    </span>
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label
+                      className={`flex flex-1 items-center gap-2 text-sm ${
+                        line.checked
+                          ? "text-muted line-through"
+                          : line.alreadyHave
+                            ? "text-muted"
+                            : "text-text"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[var(--color-primary)]"
+                        checked={line.checked}
+                        onChange={(e) =>
+                          run(() => toggle({ id: line._id, checked: e.target.checked }))
+                        }
+                      />
+                      <span>
+                        {formatQuantity(line.quantity)} {line.unit} {line.item}
+                      </span>
+                    </label>
+                    {line.alreadyHave && (
+                      <>
+                        <span className="rounded-full bg-border px-2 py-0.5 text-xs text-muted">
+                          already have
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => run(() => needItAnyway({ id: line._id }))}
+                        >
+                          Need it anyway
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

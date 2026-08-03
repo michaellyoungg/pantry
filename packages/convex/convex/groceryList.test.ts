@@ -123,8 +123,8 @@ describe("mergeGroceryList (increment 2)", () => {
     await t.mutation(internal.groceryList.mergeGroceryList, {
       userId: USER_ID,
       lines: [
-        { item: "Milk", unit: "cup", quantity: 2, aisle: "dairy" },
-        { item: "Bread", unit: "loaf", quantity: 1, aisle: "bakery" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+        { item: "Bread", canonicalItem: "bread", unit: "loaf", quantity: 1, aisle: "bakery" },
       ],
     });
     const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
@@ -132,5 +132,166 @@ describe("mergeGroceryList (increment 2)", () => {
     expect(Object.keys(byItem).sort()).toEqual(["Bread", "Milk"]);
     expect(byItem.Milk).toMatchObject({ quantity: 2, checked: true });
     expect(byItem.Bread).toMatchObject({ checked: false });
+  });
+
+  it("persists canonicalItem on inserted lines", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        {
+          item: "Green onion",
+          canonicalItem: "green onion",
+          unit: "bunch",
+          quantity: 2,
+          aisle: "produce",
+        },
+      ],
+    });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].canonicalItem).toBe("green onion");
+  });
+
+  it("heals canonicalItem onto rows written before the field existed", async () => {
+    const t = convexTest(schema, modules);
+    // Insert a legacy row without canonicalItem (simulating pre-BL-0021 rows)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "Milk",
+        unit: "cup",
+        quantity: 1,
+        aisle: "dairy",
+        checked: false,
+      }); // canonicalItem is optional on the table, so a legacy row omits it
+    });
+
+    // Merge with a line that provides canonicalItem
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [{ item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" }],
+    });
+
+    // Verify the row was healed to include canonicalItem
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      item: "Milk",
+      canonicalItem: "milk",
+      quantity: 2,
+      aisle: "dairy",
+    });
+  });
+});
+
+describe("don't-rebuy (BL-0021)", () => {
+  async function seedPantry(
+    t: ReturnType<typeof convexTest>,
+    canonicalItem: string,
+    state: "have" | "low" | "out",
+  ) {
+    await t.run(async (ctx) =>
+      ctx.db.insert("pantryItems", {
+        userId: USER_ID,
+        canonicalItem,
+        display: canonicalItem,
+        aisle: "dairy",
+        state,
+        source: "manual" as const,
+        updatedAt: 0,
+      }),
+    );
+  }
+
+  it("flags lines the user already has", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const byItem = Object.fromEntries(rows.map((r) => [r.item, r]));
+    expect(byItem.Butter.alreadyHave).toBe(true);
+    expect(byItem.Milk.alreadyHave).toBe(false);
+  });
+
+  it("does not flag items that are low or out", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "low");
+    await seedPantry(t, "milk", "out");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.every((r) => r.alreadyHave === false)).toBe(true);
+  });
+
+  it("never drops or reorders lines", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+        { item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 2, aisle: "dairy" },
+      ],
+    });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item)).toEqual(["Butter", "Milk"]);
+  });
+
+  it("needItAnyway clears the flag without touching the pantry row", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [
+        { item: "Butter", canonicalItem: "butter", unit: "cup", quantity: 1, aisle: "dairy" },
+      ],
+    });
+    const asUser = t.withIdentity(identity);
+    const [line] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.needItAnyway, { id: line._id });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows[0].alreadyHave).toBe(false);
+    expect(await asUser.query(api.pantry.list, {})).toHaveLength(1);
+  });
+
+  it("preserves a needItAnyway override across regeneration", async () => {
+    const t = convexTest(schema, modules);
+    await seedPantry(t, "butter", "have");
+    const line = {
+      item: "Butter",
+      canonicalItem: "butter",
+      unit: "cup",
+      quantity: 1,
+      aisle: "dairy",
+    };
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+    const asUser = t.withIdentity(identity);
+    const [row] = await asUser.query(api.groceryList.getGroceryList, {});
+    await asUser.mutation(api.groceryList.needItAnyway, { id: row._id });
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [line] });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows[0].alreadyHave).toBe(false);
   });
 });

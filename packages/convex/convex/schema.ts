@@ -34,9 +34,33 @@ export default defineSchema({
   groceryList: defineTable({
     userId: v.string(),
     item: v.string(),
+    // Normalized key from recipe-service; optional because rows predating
+    // BL-0021 don't have it. Rows without it simply never match a pantry item.
+    canonicalItem: v.optional(v.string()),
     unit: v.string(),
     quantity: v.number(),
     aisle: v.string(),
     checked: v.boolean(),
+    // Set during generation when a pantry row for this canonicalItem is in
+    // state "have". Purely an annotation — the line is still shown, still in
+    // its original position, still checkable. Cleared per-line by needItAnyway.
+    alreadyHave: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
+
+  // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
+  // quantity — numeric inventory drifts from reality within days. Keyed on the
+  // normalized ingredient so "Green onion" and "green onions" are one row.
+  pantryItems: defineTable({
+    userId: v.string(),
+    canonicalItem: v.string(), // "green onion"
+    display: v.string(), // "Green onion"
+    aisle: v.string(),
+    state: v.union(v.literal("have"), v.literal("low"), v.literal("out")),
+    // "auto" rows came from checking an item off the grocery list and may be
+    // removed by un-checking it. "manual" rows are user-curated and never are.
+    source: v.union(v.literal("auto"), v.literal("manual")),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_item", ["userId", "canonicalItem"]),
 });

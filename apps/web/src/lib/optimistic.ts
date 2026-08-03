@@ -33,3 +33,29 @@ export function clearGroceryListOptimistic(localStore: OptimisticLocalStore): vo
   if (cur === undefined) return;
   localStore.setQuery(api.groceryList.getGroceryList, {}, []);
 }
+
+export function setPantryStateOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { id: Id<"pantryItems">; state: "have" | "low" | "out" },
+): void {
+  const cur = localStore.getQuery(api.pantry.list, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.pantry.list,
+    {},
+    cur.map((p) => (p._id === args.id ? { ...p, state: args.state } : p)),
+  );
+}
+
+export function removePantryItemOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { id: Id<"pantryItems"> },
+): void {
+  const cur = localStore.getQuery(api.pantry.list, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.pantry.list,
+    {},
+    cur.filter((p) => p._id !== args.id),
+  );
+}

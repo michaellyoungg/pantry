@@ -2,12 +2,14 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { GroceryLine } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { removeAutoRow, upsertFromCheckoff } from "./pantry";
 
 // Single runtime source for the grocery-line shape on the Convex side. Its
 // inferred type is pinned to the @pantry/types contract by the guard below, so
 // the validator and the shared TS type can't silently drift.
 export const groceryLineValidator = v.object({
   item: v.string(),
+  canonicalItem: v.string(),
   unit: v.string(),
   quantity: v.number(),
   aisle: v.string(),
@@ -49,6 +51,20 @@ export const mergeGroceryList = internalMutation({
       .query("groceryList")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+
+    // "Don't rebuy": items the user already owns. Only `have` counts — `low`
+    // and `out` mean they still need to buy it.
+    const owned = new Set(
+      (
+        await ctx.db
+          .query("pantryItems")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect()
+      )
+        .filter((p) => p.state === "have")
+        .map((p) => p.canonicalItem),
+    );
+
     const keyOf = (l: { item: string; unit: string; aisle: string }) =>
       `${l.item} ${l.unit} ${l.aisle}`;
     const byKey = new Map(existing.map((row) => [keyOf(row), row]));
@@ -58,15 +74,21 @@ export const mergeGroceryList = internalMutation({
       const k = keyOf(line);
       const row = byKey.get(k);
       if (row && !seen.has(k)) {
-        await ctx.db.patch(row._id, { quantity: line.quantity }); // keep checked
+        // keep `checked` and any needItAnyway override; heal canonicalItem
+        await ctx.db.patch(row._id, {
+          quantity: line.quantity,
+          canonicalItem: line.canonicalItem,
+        });
       } else {
         await ctx.db.insert("groceryList", {
           userId,
           item: line.item,
+          canonicalItem: line.canonicalItem,
           unit: line.unit,
           quantity: line.quantity,
           aisle: line.aisle,
           checked: false,
+          alreadyHave: owned.has(line.canonicalItem),
         });
       }
       seen.add(k);
@@ -77,6 +99,10 @@ export const mergeGroceryList = internalMutation({
   },
 });
 
+// Checking a line off is also the pantry's inflow signal (BL-0021): it records
+// that the user now owns the item. Both writes happen in this one mutation, so
+// they are a single transaction — a checkbox can never report success while the
+// pantry write was lost.
 export const toggleItem = mutation({
   args: { id: v.id("groceryList"), checked: v.boolean() },
   handler: async (ctx, { id, checked }) => {
@@ -85,6 +111,20 @@ export const toggleItem = mutation({
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
     await ctx.db.patch(id, { checked });
+
+    // Rows predating BL-0021 have no canonical key and can't be joined to a
+    // pantry item; leave the pantry untouched for them.
+    if (row.canonicalItem === undefined) return;
+    if (checked) {
+      await upsertFromCheckoff(ctx, {
+        userId,
+        canonicalItem: row.canonicalItem,
+        display: row.item,
+        aisle: row.aisle,
+      });
+    } else {
+      await removeAutoRow(ctx, { userId, canonicalItem: row.canonicalItem });
+    }
   },
 });
 
@@ -98,5 +138,19 @@ export const clearGroceryList = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const row of rows) await ctx.db.delete(row._id);
+  },
+});
+
+// "I need it anyway" — the pantry thinks the user owns this, but they don't (or
+// they want more). Clears the annotation for this line only; the pantry row is
+// left alone, because the user is correcting the list, not the pantry.
+export const needItAnyway = mutation({
+  args: { id: v.id("groceryList") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const row = await ctx.db.get(id);
+    if (row === null || row.userId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, { alreadyHave: false });
   },
 });
