@@ -2,8 +2,8 @@
 
 Self-hosting Convex means we own the operations Convex Cloud would otherwise
 run for us. This is the runbook for that ownership: what the deployment is made
-of, how it is backed up, how a restore actually goes, how to upgrade it, and who
-can reach the dashboard.
+of, how it is backed up, how a restore actually goes, how to upgrade it, who can
+reach the dashboard, and how the credential that guards all of it is rotated.
 
 Scope note: everything here is exercised against the local `docker compose`
 stack, which is the only self-hosted deployment that exists today. The hosted
@@ -299,7 +299,8 @@ docker run --rm -p 6791:6791 \
 ```
 
 Rationale: a permanently-hosted dashboard puts a login form backed by a single
-static, unscoped, effectively un-rotatable credential on the public internet,
+static, unscoped credential on the public internet — one whose only revocation
+is a restart of the whole deployment —
 guarding the entire database. The convenience does not justify that, and
 Railway's "private" networking mode makes a hosted dashboard awkward anyway —
 which is the constraint BL-0008 flagged, resolved in the direction it was
@@ -310,11 +311,162 @@ machine (a tunnel if it is on private networking), and the CLI —
 `convex env`, `convex export`, `convex run` — is the primary operational
 interface, not the dashboard UI. That is already true of every script here.
 
-**Not yet verified:** admin-key rotation. The key is derived from
-`INSTANCE_SECRET`, so rotating it means changing that secret, and what a running
-deployment does with its existing data when the instance secret changes has not
-been tested. Filed as [BL-0048](backlog/BL-0048-convex-admin-key-rotation.md)
-rather than asserted here.
+Rotation of that key is covered in the next section. It has been drilled, and it
+works — but its most important property is that it is *undoable*, so read the
+warning before you rely on it.
+
+---
+
+## Rotating the admin key
+
+> Everything in this section was executed against a scratch deployment and is
+> re-checkable with `scripts/convex-rotate-drill.sh`. Where something could not
+> be tested locally it is called out as untested rather than assumed.
+
+### Two facts that determine the whole procedure
+
+**Issuing a new admin key revokes nothing.** `generate_admin_key.sh` returns a
+*different* key every time it is run, and every key it has ever returned for the
+current secret stays valid. Handing someone a fresh key does not invalidate the
+one they already have. Verified: two keys generated back-to-back from an
+unchanged secret both authenticated (HTTP 200).
+
+**So the instance secret is the only revocation lever.** The key is
+`generate_key $INSTANCE_NAME $INSTANCE_SECRET`, and rotating it therefore *is*
+changing `INSTANCE_SECRET`. There is no per-key revocation, no expiry, and no
+key list to prune.
+
+The secret is read by `read_credentials.sh` in this order — **environment
+variable first**, then `/convex/data/credentials/instance_secret`, then a fresh
+random one — and whichever wins is then written back to that file. The env var
+takes precedence over the persisted value on *every* boot, which is what makes
+rotation possible at all, and also what makes it reversible.
+
+### The procedure
+
+```bash
+# 1. new secret
+openssl rand -hex 32
+
+# 2. put it in .env (CONVEX_INSTANCE_SECRET=…) AND in the secret store.
+#    This is the step that makes the rotation stick — see the warning below.
+
+# 3. restart the backend onto it (~3s of downtime)
+docker compose up -d --force-recreate convex-backend
+
+# 4. re-derive the key and update packages/convex/.env.local by hand
+docker compose exec -T convex-backend ./generate_admin_key.sh
+
+# 5. confirm: the old key is refused, the new one is accepted
+probe() { curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+  http://127.0.0.1:3210/api/query -H "Authorization: Convex $1" \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"_system/cli/queryEnvironmentVariables:get","args":{},"format":"json"}'; }
+probe "$OLD_KEY"   # expect 401
+probe "$NEW_KEY"   # expect 200
+```
+
+`401` for the old key and `200` for the new one is the whole success condition.
+Anything else means the restart did not pick the new secret up — check that
+`.env` really changed and that step 3 *recreated* the container rather than
+merely restarting it.
+
+### The warning: rotation is reversible, so it is only as good as your `.env`
+
+Because the environment variable beats the persisted file on every boot, a
+deployment that is restarted with a stale `.env` **silently un-rotates itself
+and brings the revoked key back to life.** Verified directly: restarting on the
+previous secret returned the "revoked" key to HTTP 200 and made the new key 401.
+
+There is no state anywhere that records "the old secret is burned". Practical
+consequences:
+
+- The rotation is not complete when the backend restarts. It is complete when
+  **every copy of the old secret is gone** — `.env`, the secret store, CI
+  variables, the hosting platform's config, and any operator's shell history or
+  scratch file.
+- A rollback of the deploy that carried the new secret is also a rollback of the
+  rotation.
+- If you are rotating because a key leaked, the leaked key is only dead for as
+  long as nobody restores the old `INSTANCE_SECRET`.
+
+Treat the instance secret as the credential and the admin key as a derived
+artifact of it, because that is exactly what it is.
+
+### What actually breaks, and what does not
+
+Observed on the drill:
+
+| | Effect |
+| --- | --- |
+| Backend availability | recreated; answered `/version` again **~3 s** later |
+| Documents | **survive** — byte-for-byte identical across the rotation |
+| Deployment env (`convex env`) | **survives** — including `JWT_PRIVATE_KEY`/`JWKS` |
+| File storage | **survives** — uploaded files still fetch at the same URLs |
+| Any pre-rotation admin key | **dead** — HTTP 401, `"The provided admin key was invalid for this instance"` |
+| In-flight storage *upload* URLs | **dead** — `StorageTokenInvalid`, HTTP 401; an upload in progress fails and has to be retried |
+| Dashboard browser session | must re-authenticate — paste the new key. The container itself holds no key (only `NEXT_PUBLIC_DEPLOYMENT_URL`), so it needs no redeploy |
+| `packages/convex/.env.local` | **does not self-heal** — it holds a literal key and must be edited by hand, or every CLI command fails |
+| `scripts/convex-backup.sh`, `-restore.sh`, the drills | self-heal — they derive a key from the running container rather than storing one |
+| `recipe-service` | unaffected — it authenticates with `RECIPE_SERVICE_SECRET`, a separate credential |
+| Signed-in end users | not invalidated *by design*: Convex Auth signs with `JWT_PRIVATE_KEY`, a deployment env var, and those survive. See the limits below |
+
+The CLI is a poor way to notice a bad key: given a stale one it prints
+`Failed to authenticate: "The provided admin key was invalid for this instance"`
+and then enters a WebSocket reconnect loop rather than exiting. The raw HTTP
+probe above fails immediately and is what the drill uses.
+
+### The rotation drill
+
+```bash
+scripts/convex-rotate-drill.sh
+```
+
+Same reasoning as the restore drill — a recovery procedure nobody has run is a
+hypothesis — with the extra motive that everything above is a behaviour of the
+image's `read_credentials.sh`, not a documented API. A future backend image
+could change it, and this repo would not otherwise notice. The drill asserts
+each claim in this section, including the reversibility footgun, so an image
+that changes the semantics fails the drill instead of quietly invalidating the
+runbook.
+
+**Safety.** Its own compose project (`pantry-keyrot`), its own *named* volumes
+and its own shifted ports (`34xx`/`5544`) — clear of both the developer stack
+and the restore drill, so all three can be up simultaneously. It refuses to run
+under the `pantry` project. See `deploy/docker-compose.keyrot.yml`.
+
+**Last verified:** 2026-08-03, against
+`convex-backend@sha256:705b8d89…` on Postgres 17 — passed. Independently
+re-checked by hand against the default **SQLite** backing, with identical
+results, so the procedure is not specific to the Postgres configuration.
+
+Run it on the upgrade cadence, alongside the restore drill.
+
+### What could not be verified locally
+
+Stated plainly, because the point of this section is that it is tested:
+
+- **A signed-in browser session across a rotation was not exercised end to end.**
+  What was verified is the mechanism it depends on: `JWT_PRIVATE_KEY` and `JWKS`
+  are ordinary deployment env vars and survive the rotation unchanged, and the
+  admin key is not involved in end-user auth. Sessions should therefore be
+  unaffected — but that is an inference from two verified facts, not an observed
+  login.
+- **Hosted-platform restart semantics** (BL-0006). Everything above assumes you
+  can recreate the backend container with a new environment variable and that it
+  comes back on the same volume and database. Whether the hosting platform's
+  env-var update triggers that recreation itself, how long its restart takes,
+  and whether the volume reattaches cleanly are properties of a platform nobody
+  has stood up yet.
+- **Rotating `INSTANCE_NAME`.** The key is derived from the name as well as the
+  secret, but the name is deployment identity rather than a credential, and
+  changing it was not tested. Rotate the secret.
+
+One operational note that bit this drill: `docker compose down` interpolates the
+whole compose file, so it fails the `CONVEX_INSTANCE_SECRET`/`RECIPE_SERVICE_SECRET`
+`:?` guards just like `up` does. A teardown run without those variables set
+fails — and if you have redirected its output, fails silently, leaving the stack
+running and its ports held.
 
 ---
 

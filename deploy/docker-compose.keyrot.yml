@@ -1,0 +1,41 @@
+# Scratch stack for the admin-key rotation drill (BL-0048) — see
+# scripts/convex-rotate-drill.sh.
+#
+# Same isolation reasoning as deploy/docker-compose.drill.yml, and deliberately
+# a separate file rather than a reuse of it: the rotation drill and the restore
+# drill both destroy their stacks with `down -v`, and giving them distinct
+# projects *and* distinct volume names means running one can never disturb the
+# other's in-flight state.
+#
+#   * Named volumes instead of the base file's ./.data bind mounts, so
+#     `-p pantry-keyrot down -v` cannot reach the developer stack's data.
+#   * Host ports shifted again (34xx/5544) — clear of both the developer stack
+#     (3210/5433) and the restore drill (33xx/5533), so all three can be up at
+#     once and a mistargeted CLI command fails to connect rather than writing to
+#     the wrong deployment.
+#
+# Always used with an explicit `-p pantry-keyrot`; the drill script refuses to
+# run under the `pantry` project.
+services:
+  postgres:
+    ports: !override
+      - "5544:5432"
+    volumes: !override
+      - keyrot-postgres:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+
+  convex-backend:
+    ports: !override
+      - "3410:3210"
+      - "3411:3211"
+    volumes: !override
+      - keyrot-convex:/convex/data
+    environment:
+      # Must match the shifted host ports: the backend hands these origins out
+      # to clients (storage URLs, action callbacks).
+      - CONVEX_CLOUD_ORIGIN=http://127.0.0.1:3410
+      - CONVEX_SITE_ORIGIN=http://127.0.0.1:3411
+
+volumes:
+  keyrot-postgres:
+  keyrot-convex:
