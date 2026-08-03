@@ -1,8 +1,10 @@
 import { api } from "@pantry/convex/api";
-import type { Ingredient, Recipe } from "@pantry/types";
+import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
 import { useAction } from "convex/react";
 import { useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
+import { EquipmentEditor } from "./EquipmentEditor";
 import { ErrorText } from "./ErrorText";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
@@ -15,7 +17,10 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
   const [steps, setSteps] = useState<string[]>([]);
+  const [equipment, setEquipment] = useState<RecipeEquipment[]>([]);
+  const [methods, setMethods] = useState<CookingMethod[]>([]);
   const [url, setUrl] = useState("");
+  const { catalog } = useEquipmentCatalog();
   const createRecipe = useAction(api.recipes.create);
   const importFromUrl = useAction(api.recipes.importFromUrl);
   const { run, error, pending } = useAsyncAction();
@@ -34,6 +39,10 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       setTitle(preview.title);
       setIngredients(preview.ingredients.length ? preview.ingredients : [emptyIngredient()]);
       setSteps(preview.steps ?? []);
+      // Import tags equipment and methods deterministically from the steps; the
+      // editor below is where a wrong guess gets corrected before saving.
+      setEquipment(preview.equipment ?? []);
+      setMethods(preview.methods ?? []);
     }
   }
 
@@ -45,12 +54,16 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         title: title.trim(),
         ingredients: ingredients.filter((ing) => ing.item.trim() !== ""),
         steps: steps.map((s) => s.trim()).filter((s) => s !== ""),
+        equipment,
+        methods,
       }),
     );
     if (created) {
       setTitle("");
       setIngredients([emptyIngredient()]);
       setSteps([]);
+      setEquipment([]);
+      setMethods([]);
       setUrl("");
       onCreated();
     }
@@ -105,6 +118,13 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
           + ingredient
         </Button>
         <StepsEditor steps={steps} onChange={setSteps} />
+        <EquipmentEditor
+          catalog={catalog}
+          equipment={equipment}
+          methods={methods}
+          onEquipmentChange={setEquipment}
+          onMethodsChange={setMethods}
+        />
         <Button type="submit" disabled={pending} className="self-end">
           {pending ? "Saving…" : "Create recipe"}
         </Button>

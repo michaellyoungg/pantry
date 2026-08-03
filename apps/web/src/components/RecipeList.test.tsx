@@ -3,26 +3,41 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@pantry/convex/api", () => ({
   api: {
-    recipes: { list: "recipes.list", remove: "recipes.remove", update: "recipes.update" },
+    recipes: {
+      list: "recipes.list",
+      remove: "recipes.remove",
+      update: "recipes.update",
+      listEquipment: "recipes.listEquipment",
+    },
     basket: { add: "basket.add", remove: "basket.remove", updateTitle: "basket.updateTitle" },
   },
 }));
 
-const { listRecipes, deleteRecipe, updateRecipe, rejectingMutation } = vi.hoisted(() => {
-  const listRecipes = vi.fn();
-  const deleteRecipe = vi.fn();
-  const updateRecipe = vi.fn();
-  const m = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
-    (...a: unknown[]): Promise<unknown>;
-    withOptimisticUpdate: ReturnType<typeof vi.fn>;
-  };
-  m.withOptimisticUpdate = vi.fn(() => m);
-  return { listRecipes, deleteRecipe, updateRecipe, rejectingMutation: m };
-});
+const { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation } = vi.hoisted(
+  () => {
+    const listRecipes = vi.fn();
+    const deleteRecipe = vi.fn();
+    const updateRecipe = vi.fn();
+    // The equipment catalog is reference data every RecipeList render loads.
+    const listEquipment = vi.fn(() => Promise.resolve([]));
+    const m = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
+      (...a: unknown[]): Promise<unknown>;
+      withOptimisticUpdate: ReturnType<typeof vi.fn>;
+    };
+    m.withOptimisticUpdate = vi.fn(() => m);
+    return { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation: m };
+  },
+);
 
 vi.mock("convex/react", () => ({
   useAction: (ref: string) =>
-    ref === "recipes.list" ? listRecipes : ref === "recipes.remove" ? deleteRecipe : updateRecipe,
+    ref === "recipes.list"
+      ? listRecipes
+      : ref === "recipes.remove"
+        ? deleteRecipe
+        : ref === "recipes.listEquipment"
+          ? listEquipment
+          : updateRecipe,
   useMutation: () => rejectingMutation,
 }));
 

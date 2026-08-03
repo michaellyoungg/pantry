@@ -1,10 +1,11 @@
 import { api } from "@pantry/convex/api";
-import type { Ingredient, Recipe } from "@pantry/types";
+import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
+import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
 import { RecipeEditDialog } from "./RecipeEditDialog";
@@ -26,6 +27,9 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
   const load = useCallback(() => listRecipes({}), [listRecipes]);
   const { data, loading, error: loadError, reload } = useAsyncData(load, [refreshKey]);
   const { run, error, clearError, showError } = useAsyncAction();
+  // The equipment catalog is reference data: load it once here and pass it to
+  // every row rather than having each RecipeDetails fetch its own copy.
+  const { catalog } = useEquipmentCatalog();
   const recipes = data ?? [];
 
   // The recipe-service op is the source of truth. The Convex basket cleanup that
@@ -49,11 +53,17 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
     reload();
   }
 
-  async function onSaveEdit(title: string, ingredients: Ingredient[], steps: string[]) {
+  async function onSaveEdit(
+    title: string,
+    ingredients: Ingredient[],
+    steps: string[],
+    equipment: RecipeEquipment[],
+    methods: CookingMethod[],
+  ) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      await updateRecipe({ id, title, ingredients, steps });
+      await updateRecipe({ id, title, ingredients, steps, equipment, methods });
       return true;
     });
     if (!saved) return;
@@ -110,13 +120,18 @@ export function RecipeList({ refreshKey }: { refreshKey: number }) {
                 </Button>
               </span>
             </div>
-            <RecipeDetails recipe={r} />
+            <RecipeDetails recipe={r} catalog={catalog} />
           </li>
         ))}
       </ul>
       <ErrorText message={error} />
       {editing && (
-        <RecipeEditDialog recipe={editing} onSave={onSaveEdit} onClose={() => setEditing(null)} />
+        <RecipeEditDialog
+          recipe={editing}
+          catalog={catalog}
+          onSave={onSaveEdit}
+          onClose={() => setEditing(null)}
+        />
       )}
     </Card>
   );
