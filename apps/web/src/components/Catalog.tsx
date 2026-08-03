@@ -5,6 +5,7 @@ import { addToBasketOptimistic } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
+import { RecipeDetails } from "./RecipeDetails";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -34,15 +35,18 @@ export function Catalog() {
       )}
       <ul className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
-          <li key={r.id} className="flex items-center justify-between gap-2 py-2">
-            <span className="font-medium text-text">{r.title}</span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
-            >
-              Add to basket
-            </Button>
+          <li key={r.id} className="flex flex-col gap-1.5 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-text">{r.title}</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
+              >
+                Add to basket
+              </Button>
+            </div>
+            <RecipeDetails recipe={r} />
           </li>
         ))}
       </ul>
