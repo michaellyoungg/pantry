@@ -159,3 +159,91 @@ func TestAggregate_UnknownItemCanonicalPassesThrough(t *testing.T) {
 		t.Fatalf("CanonicalItem = %q, want %q", got[0].CanonicalItem, "dragonfruit")
 	}
 }
+
+// rid is r with an id — provenance is only recorded for recipes that have one,
+// because a source the client can't navigate to isn't worth carrying.
+func rid(id, title string, ings ...Ingredient) Recipe {
+	return Recipe{ID: id, Title: title, Ingredients: ings}
+}
+
+func TestAggregate_RecordsContributingRecipes(t *testing.T) {
+	got := Aggregate([]Recipe{
+		rid("r1", "Chili", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}),
+		rid("r2", "Aioli", Ingredient{Quantity: 1, Unit: "cloves", Item: "garlic"}),
+	})
+	want := []GroceryLine{{
+		Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce",
+		Sources: []GroceryLineSource{
+			{RecipeID: "r1", Title: "Chili", Quantity: 2},
+			{RecipeID: "r2", Title: "Aioli", Quantity: 1},
+		},
+	}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestAggregate_SourceQuantitiesAreInTheLineUnit(t *testing.T) {
+	// 4 tbsp + 0.5 cup -> a 3/4 cup line; the sources must read 1/4 + 1/2 cup so
+	// they visibly add up to the total the shopper is looking at.
+	got := Aggregate([]Recipe{
+		rid("r1", "Cookies", Ingredient{Quantity: 4, Unit: "tbsp", Item: "butter"}),
+		rid("r2", "Toast", Ingredient{Quantity: 0.5, Unit: "cup", Item: "butter"}),
+	})
+	want := []GroceryLineSource{
+		{RecipeID: "r1", Title: "Cookies", Quantity: 0.25},
+		{RecipeID: "r2", Title: "Toast", Quantity: 0.5},
+	}
+	if !reflect.DeepEqual(got[0].Sources, want) {
+		t.Fatalf("sources = %+v, want %+v", got[0].Sources, want)
+	}
+}
+
+func TestAggregateScaled_SourceQuantitiesAreScaled(t *testing.T) {
+	got := AggregateScaled([]ScaledRecipe{
+		{Recipe: rid("r1", "Chili", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}), Multiplier: 1.5},
+	})
+	if got[0].Sources[0].Quantity != 3 {
+		t.Fatalf("source quantity = %v, want 3 (2 x 1.5)", got[0].Sources[0].Quantity)
+	}
+}
+
+func TestAggregate_OneRecipeUsedTwiceIsOneSource(t *testing.T) {
+	// The same recipe twice in a week's plan is one recipe on the sheet, with
+	// its contributions summed — not the same title listed twice.
+	got := AggregateScaled([]ScaledRecipe{
+		{Recipe: rid("r1", "Chili", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}), Multiplier: 1},
+		{Recipe: rid("r1", "Chili", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}), Multiplier: 1},
+	})
+	want := []GroceryLineSource{{RecipeID: "r1", Title: "Chili", Quantity: 4}}
+	if !reflect.DeepEqual(got[0].Sources, want) {
+		t.Fatalf("sources = %+v, want %+v", got[0].Sources, want)
+	}
+}
+
+func TestAggregate_SourcesFollowSeparateLinesOfTheSameItem(t *testing.T) {
+	// Non-convertible units keep two lines for one item; each line carries only
+	// the recipe that produced it, not both.
+	got := Aggregate([]Recipe{
+		rid("r1", "Chili", Ingredient{Quantity: 2, Unit: "cloves", Item: "garlic"}),
+		rid("r2", "Paste", Ingredient{Quantity: 10, Unit: "grams", Item: "garlic"}),
+	})
+	if len(got) != 2 {
+		t.Fatalf("got %d lines, want 2", len(got))
+	}
+	if len(got[0].Sources) != 1 || got[0].Sources[0].RecipeID != "r1" {
+		t.Fatalf("cloves line sources = %+v, want just r1", got[0].Sources)
+	}
+	if len(got[1].Sources) != 1 || got[1].Sources[0].RecipeID != "r2" {
+		t.Fatalf("grams line sources = %+v, want just r2", got[1].Sources)
+	}
+}
+
+func TestAggregate_RecipeWithoutIDContributesNoSource(t *testing.T) {
+	got := Aggregate([]Recipe{
+		r("untitled", Ingredient{Quantity: 1, Unit: "", Item: "egg"}),
+	})
+	if got[0].Sources != nil {
+		t.Fatalf("sources = %+v, want nil for an id-less recipe", got[0].Sources)
+	}
+}

@@ -15,10 +15,17 @@ function ingredientLine(ing: Ingredient): string {
 export function RecipeDetails({
   recipe,
   catalog = [],
+  open = false,
 }: {
   recipe: Recipe;
   /** Equipment catalog, for resolving tag slugs to names. */
   catalog?: EquipmentDef[];
+  /**
+   * Start expanded. This is how a link into the list (the grocery list's
+   * provenance sheet) lands on the recipe it named rather than on a closed row
+   * the user then has to find and click.
+   */
+  open?: boolean;
 }) {
   const steps = recipe.steps ?? [];
   const equipment = recipe.equipment ?? [];
@@ -33,7 +40,7 @@ export function RecipeDetails({
   }
 
   return (
-    <details className="text-sm text-muted">
+    <details open={open} className="text-sm text-muted">
       <summary className="cursor-pointer select-none hover:text-text">View recipe</summary>
       <div className="mt-2 flex flex-col gap-3 pl-1">
         {methods.length > 0 && (

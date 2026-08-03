@@ -19,6 +19,7 @@ export {
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
+export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export {
   formatNutrientAmount,
   HEADLINE_NUTRIENTS,

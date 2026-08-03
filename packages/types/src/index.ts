@@ -76,6 +76,20 @@ export interface Recipe {
   createdAt: string; // ISO-8601
 }
 
+/**
+ * One recipe's contribution to an aggregated grocery line.
+ *
+ * `quantity` is in the *parent line's* unit, not the unit the recipe wrote, so
+ * the contributions add up to the line total — that additivity is the question
+ * the provenance sheet answers ("why is this ¾ cup?"). The unit is therefore
+ * not repeated here.
+ */
+export interface GroceryLineSource {
+  recipeId: string;
+  title: string;
+  quantity: number;
+}
+
 export interface GroceryLine {
   item: string;
   /** Normalized ingredient key ("green onion"); the identity the pantry joins on. */
@@ -83,6 +97,11 @@ export interface GroceryLine {
   unit: string;
   quantity: number;
   aisle: string;
+  /**
+   * The recipes this line was aggregated from, in first-seen order. Absent for
+   * manually added lines and for lines generated before BL-0019.
+   */
+  sources?: GroceryLineSource[];
 }
 
 export interface CreateRecipeRequest {

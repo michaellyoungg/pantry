@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -205,8 +206,16 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	want := []GroceryLine{{Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}}
-	if len(got) != 1 || got[0] != want[0] {
+	want := []GroceryLine{{
+		Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce",
+		// Provenance survives the wire: stored recipes have ids, so the merged
+		// line can be traced back to both of them.
+		Sources: []GroceryLineSource{
+			{RecipeID: a.ID, Title: "A", Quantity: 2},
+			{RecipeID: b.ID, Title: "B", Quantity: 1},
+		},
+	}}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 }
@@ -233,8 +242,14 @@ func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	want := GroceryLine{Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce"}
-	if len(got) != 1 || got[0] != want {
+	want := GroceryLine{
+		Item: "Garlic", CanonicalItem: "garlic", Unit: "cloves", Quantity: 3, Aisle: "produce",
+		Sources: []GroceryLineSource{
+			{RecipeID: own.ID, Title: "Own", Quantity: 1},
+			{RecipeID: cat.ID, Title: "Catalog", Quantity: 2},
+		},
+	}
+	if len(got) != 1 || !reflect.DeepEqual(got[0], want) {
 		t.Fatalf("got %+v, want [%+v]", got, want)
 	}
 }
