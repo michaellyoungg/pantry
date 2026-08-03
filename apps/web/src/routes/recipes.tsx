@@ -19,6 +19,12 @@ function RecipesLayout() {
         <Link to="/recipes/catalog" activeProps={{ "data-active": "true" }} className={tab}>
           Browse catalog
         </Link>
+        {/* Equipment inventory sits with the recipes it filters rather than in a
+            settings screen: the only reason to record what you own is to change
+            what browsing shows you, and the two are one tab apart here. */}
+        <Link to="/recipes/kitchen" activeProps={{ "data-active": "true" }} className={tab}>
+          My kitchen
+        </Link>
       </nav>
       <Outlet />
     </div>

@@ -49,6 +49,17 @@ describe("Nav", () => {
     expect(NAV_ITEMS).toHaveLength(7);
   });
 
+  // Regression (BL-0005): /settings existed but nothing linked to it, so the
+  // avoid list — the only "never suggest this" control — was reachable only by
+  // typing the URL. BL-0038 since promoted Settings to a primary tab, which
+  // satisfies this just as well; the assertion is on reachability, deliberately
+  // not on which nav slot provides it.
+  it("links to Settings from the sidebar", async () => {
+    const sidebar = await renderNavAt("/");
+    const settingsLink = within(sidebar).getByRole("link", { name: "Settings" });
+    expect(settingsLink.getAttribute("href")).toBe("/settings");
+  });
+
   it("marks only the Home link active on '/'", async () => {
     const sidebar = await renderNavAt("/");
     expect(within(sidebar).getByRole("link", { name: "Home" }).getAttribute("aria-current")).toBe(

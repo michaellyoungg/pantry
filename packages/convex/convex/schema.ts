@@ -5,17 +5,30 @@ import { v } from "convex/values";
 export default defineSchema({
   ...authTables,
 
-  // Per-user preferences.
+  // Per-user preferences (BL-0005). Ingredient-grounded fields score TODAY;
+  // the facet fields are captured but inert until recipes carry metadata
+  // (BL-0030), so switching them on later is a scoring change, not a migration
+  // plus a re-onboarding.
   preferences: defineTable({
     userId: v.string(),
-    // How many people this household cooks for (BL-0018). Seeds the planner's
-    // servings dial: a recipe's default multiplier is household ÷ its yield, so
-    // the common case needs no tapping at all. Optional because it is genuinely
-    // unknown until asked — and a guessed household would scale every grocery
-    // quantity wrong, silently.
+    // Ingredient-grounded — active now. avoidItems is a HARD FILTER: a recipe
+    // containing one is removed, never merely down-weighted.
+    avoidItems: v.array(v.string()),
+    likedItems: v.array(v.string()),
+    dislikedItems: v.array(v.string()),
+    // Facets — captured, inert. Selecting a diet label PRE-FILLS avoidItems
+    // from a curated seed set rather than filtering by inference, so nothing is
+    // ever excluded invisibly.
+    dietLabels: v.optional(v.array(v.string())),
+    cuisines: v.optional(v.array(v.string())),
+    maxMinutes: v.optional(v.number()),
+    // How many people this household cooks for. Reserved by BL-0005 and made
+    // real by BL-0018: it seeds the planner's servings dial, where a recipe's
+    // default multiplier is household ÷ its yield, so the common case needs no
+    // tapping. Optional because it is genuinely unknown until asked — a guessed
+    // household would scale every grocery quantity wrong, silently.
     householdSize: v.optional(v.number()),
-    // freeform for now; real fields arrive with the recommendations work.
-    data: v.optional(v.any()),
+    updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
   // "What I'm cooking" — references to recipe ids owned by recipe-service.
@@ -84,6 +97,28 @@ export default defineSchema({
     removed: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
+  // What hardware the user owns (BL-0043). One row per owned equipment slug;
+  // absence is "doesn't own it", so un-checking a box deletes the row rather
+  // than storing a false — there is no third state to represent.
+  //
+  // Lives in Convex rather than recipe-service because it is reactive user
+  // state like `basket` and `pantryItems`; the matching against recipe tags
+  // still happens in recipe-service, where the recipe data is.
+  //
+  // `equipmentId` references recipe-service's curated catalog by slug and
+  // cannot be foreign-keyed here — Convex deliberately carries no copy of the
+  // catalog. A slug retired from the catalog therefore just stops matching
+  // anything; the match endpoint ignores it rather than failing.
+  equipmentInventory: defineTable({
+    userId: v.string(),
+    equipmentId: v.string(),
+    // When it entered the kitchen. Drives "new to your kitchen" ordering — the
+    // discovery moment is the headline experience, and it needs a recency.
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_equipment", ["userId", "equipmentId"]),
+
   // Nutrition goals (BL-0038). One row per constraint — a macro goal is three
   // or four rows, a low-cholesterol diet is one, and a "diet preset" is just a
   // bundle of rows inserted together. There is deliberately no `lowCarbMode`
@@ -116,6 +151,10 @@ export default defineSchema({
     // "auto" rows came from checking an item off the grocery list and may be
     // removed by un-checking it. "manual" rows are user-curated and never are.
     source: v.union(v.literal("auto"), v.literal("manual")),
+    // "Things to use up" is a FLAG on the pantry row, not a second table — the
+    // row already carries canonicalItem (so it joins to recipes for free),
+    // display, and aisle, and it stays part of don't-rebuy.
+    useItUp: v.optional(v.boolean()),
     updatedAt: v.number(),
     // Approximate "use by" (BL-0029), stamped from the item's shelf life when
     // it entered the pantry. Optional: rows for items with no known shelf life

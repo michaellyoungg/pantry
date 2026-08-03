@@ -20,7 +20,11 @@ A hybrid, multi-service monorepo:
 
 - **`apps/web`** — React (Vite) web app.
 - **`apps/recipe-service`** — Go + Postgres. Canonical source of truth for
-  recipe definitions, ingredient data, and grocery-list aggregation.
+  recipe definitions, ingredient data, and grocery-list aggregation. Also hosts
+  `internal/recommend`, a dependency-free scoring package behind
+  `POST /recommendations/*`. It holds no user state — Convex passes the full
+  user context per request — which is what lets it live here as a module
+  instead of a separate service.
 - **`convex/`** — self-hosted Convex. User-centric reactive data: profile,
   preferences, the meal basket, and the live grocery list. Stores references to
   recipe ids only — never recipe bodies.
