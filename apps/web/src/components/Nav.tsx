@@ -9,6 +9,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/list", label: "List", icon: "🛒" },
   { to: "/pantry", label: "Pantry", icon: "🥫" },
   { to: "/history", label: "History", icon: "📈" },
+  { to: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 function NavLinks({ variant }: { variant: "sidebar" | "bottom" }) {

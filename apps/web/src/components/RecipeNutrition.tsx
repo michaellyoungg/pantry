@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { nutritionDisplay } from "../lib/nutrition";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { RecipeGoalFit } from "./RecipeGoalFit";
 import { Button } from "./ui/Button";
 
 /**
@@ -49,6 +50,9 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
           {display.coveragePercent}% accounted for).
         </p>
         {display.missing.length > 0 && <MissingNote items={display.missing} />}
+        {/* Goals still get an answer here — "can't tell" — because the case a
+            user most needs told about is the one where we could not measure. */}
+        <RecipeGoalFit estimate={data} />
       </div>
     );
   }
@@ -60,7 +64,10 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
 
   return (
     <div className="py-2">
-      <p className="mb-2 text-xs uppercase tracking-wide text-muted">
+      {/* The verdict leads: a cook scanning the list wants "does this fit?"
+          before they want eight numbers. */}
+      <RecipeGoalFit estimate={data} />
+      <p className="mb-2 mt-1 text-xs uppercase tracking-wide text-muted">
         {perServing ? `Estimated · per serving of ${display.servings}` : "Estimated · whole recipe"}
         {display.coveragePercent < 100 &&
           ` · ${display.coveragePercent}% of ingredients accounted for`}

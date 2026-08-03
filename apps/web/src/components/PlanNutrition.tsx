@@ -11,6 +11,7 @@ import { useAsyncData } from "@pantry/core/react";
 import { useCallback } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { PlanGoals } from "./PlanGoals";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -75,6 +76,10 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
             <DayRow key={day.weekday} day={day} />
           ))}
         </ul>
+        {/* Goal status against the very same rollup (BL-0038). Sharing the
+            one fetch is what keeps the two halves of this card from ever
+            disagreeing about whether a day is knowable. */}
+        <PlanGoals days={data.days} week={data.week} />
         {loading && <p className="text-xs text-muted">Refreshing…</p>}
       </div>
     </Card>

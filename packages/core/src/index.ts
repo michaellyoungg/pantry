@@ -16,13 +16,16 @@ export {
   toISODate,
   windowEndingOn,
 } from "./calendar";
+export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
 export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
 export {
   formatNutrientAmount,
   HEADLINE_NUTRIENTS,
   NUTRITION_COVERAGE_THRESHOLD,
+  type NutrientMeta,
   type NutrientRow,
+  nutrientMeta,
   nutrientRows,
   unresolvedItems,
 } from "./nutrition";
@@ -51,6 +54,11 @@ export {
   summarizeNutrition,
   type WeekNutritionRollup,
 } from "./nutritionRollup";
+export {
+  EQUALITY_BAND,
+  evaluateTargets,
+  type NutritionVector,
+} from "./nutritionTargets";
 export {
   canGenerateList,
   decreaseServings,
