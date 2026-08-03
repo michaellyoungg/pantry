@@ -71,16 +71,16 @@ func TestNormalizationLookup_CollapsesDuplicates(t *testing.T) {
 func TestRecipesUsing_MatchesOwnAndCatalogRecipesRankedByMatchCount(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := t.Context()
-	if _, err := store.CreateRecipe(ctx, "user-a", "Spinach & Egg Scramble",
-		[]Ingredient{{Quantity: 2, Item: "spinach"}, {Quantity: 3, Item: "eggs"}}); err != nil {
+	if _, err := store.CreateRecipe(ctx, "user-a", "Spinach & Egg Scramble", nil,
+		[]Ingredient{{Quantity: 2, Item: "spinach"}, {Quantity: 3, Item: "eggs"}}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateRecipe(ctx, "user-a", "Toast",
-		[]Ingredient{{Quantity: 1, Item: "bread"}}); err != nil {
+	if _, err := store.CreateRecipe(ctx, "user-a", "Toast", nil,
+		[]Ingredient{{Quantity: 1, Item: "bread"}}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateRecipe(ctx, CatalogUserID, "Creamed Spinach",
-		[]Ingredient{{Quantity: 1, Item: "spinach"}}); err != nil {
+	if _, err := store.CreateRecipe(ctx, CatalogUserID, "Creamed Spinach", nil,
+		[]Ingredient{{Quantity: 1, Item: "spinach"}}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,8 +109,8 @@ func TestRecipesUsing_MatchesOwnAndCatalogRecipesRankedByMatchCount(t *testing.T
 
 func TestRecipesUsing_DoesNotLeakAnotherUsersRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(t.Context(), "user-b", "Secret Spinach Pie",
-		[]Ingredient{{Quantity: 1, Item: "spinach"}}); err != nil {
+	if _, err := store.CreateRecipe(t.Context(), "user-b", "Secret Spinach Pie", nil,
+		[]Ingredient{{Quantity: 1, Item: "spinach"}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	resp := postJSON(t, srv.URL+"/recipes/using", `{"items":["spinach"]}`)
@@ -126,8 +126,8 @@ func TestRecipesUsing_DoesNotLeakAnotherUsersRecipes(t *testing.T) {
 
 func TestRecipesUsing_EmptyItemsYieldsEmptyList(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(t.Context(), "user-a", "Toast",
-		[]Ingredient{{Quantity: 1, Item: "bread"}}); err != nil {
+	if _, err := store.CreateRecipe(t.Context(), "user-a", "Toast", nil,
+		[]Ingredient{{Quantity: 1, Item: "bread"}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	resp := postJSON(t, srv.URL+"/recipes/using", `{"items":[]}`)
