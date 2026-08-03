@@ -19,9 +19,15 @@ async function renderNavAt(path: string) {
       </>
     ),
   });
-  const routes = ["/", "/plan", "/recipes", "/recipes/catalog", "/list", "/pantry"].map((p) =>
-    createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }),
-  );
+  const routes = [
+    "/",
+    "/plan",
+    "/recipes",
+    "/recipes/catalog",
+    "/list",
+    "/pantry",
+    "/settings",
+  ].map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }));
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -39,6 +45,17 @@ describe("Nav", () => {
       expect(link.getAttribute("href")).toBe(item.to);
     }
     expect(NAV_ITEMS).toHaveLength(5);
+  });
+
+  // Regression: /settings existed but nothing linked to it, so the allergen
+  // filter (the only "never suggested" control) was reachable only by typing
+  // the URL. The IA reserves exactly 5 primary tabs, so this link must exist
+  // without growing NAV_ITEMS.
+  it("provides a discreet Settings link outside the 5-item nav", async () => {
+    const sidebar = await renderNavAt("/");
+    const settingsLink = within(sidebar).getByRole("link", { name: "Settings" });
+    expect(settingsLink.getAttribute("href")).toBe("/settings");
+    expect(NAV_ITEMS.some((item) => item.to === "/settings")).toBe(false);
   });
 
   it("marks only the Home link active on '/'", async () => {
