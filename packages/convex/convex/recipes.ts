@@ -49,7 +49,7 @@ export async function recipeServiceFetch<T>(
 }
 
 /** One entry of POST /normalization/lookup. `shelfLifeDays` is absent when unknown. */
-interface NormalizedItem {
+export interface NormalizedItem {
   canonicalItem: string;
   display: string;
   aisle: string;

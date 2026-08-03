@@ -51,6 +51,19 @@ export default defineSchema({
     // number has to already be in the database when the box is ticked.
     // Absent when recipe-service doesn't recognize the item.
     shelfLifeDays: v.optional(v.number()),
+    // Which recipes this line was aggregated from, and how much each wanted
+    // (BL-0019). Denormalized onto the row for the same reason shelfLifeDays is:
+    // the list is read in-store, and re-deriving provenance would mean calling
+    // recipe-service on every render. Absent on manual lines and on rows
+    // generated before BL-0019.
+    sources: v.optional(
+      v.array(v.object({ recipeId: v.string(), title: v.string(), quantity: v.number() })),
+    ),
+    // True for a line the user typed in themselves. It is what keeps
+    // mergeGroceryList from deleting the line on the next generation: a manual
+    // line has no recipe backing it, so it can never appear in an aggregated
+    // result and would otherwise vanish the moment the plan changed.
+    manual: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
