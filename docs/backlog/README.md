@@ -19,14 +19,20 @@ it can be filtered/sorted/updated programmatically.
   - `created` — `YYYY-MM-DD`.
 - **Body sections:** `## Context` (the decision it branched off),
   `## Proposal` (what we'd do), `## Alternatives considered`.
-- **Claim before you build.** When you pick up an item, first flip it to
-  `in-progress` — in the frontmatter *and* the index table below — in a
-  **dedicated changeset that lands before any implementation** (e.g.
+- **Claim before you build.** When you pick up an item, first set
+  `status: in-progress` in its frontmatter — nothing else — in a **dedicated
+  changeset that lands before any implementation** (e.g.
   `chore(backlog): claim BL-NNNN`). This is how parallel agents avoid grabbing
   the same item; check the item isn't already `in-progress` before claiming.
   See [`../../CLAUDE.md`](../../CLAUDE.md) for the full rule.
 - On completion, set `status: done` and link the spec it produces back into
   `related_specs`.
+- **The index below is generated — don't hand-edit it.** It is derived from the
+  frontmatter of every item file by `scripts/backlog-index.mjs`; run
+  `pnpm backlog:index` after changing an item (CI runs
+  `pnpm backlog:index:check` and fails if it is stale). A hand-maintained table
+  meant every parallel agent edited the same lines of this one file, so every
+  merge re-conflicted every open PR.
 
 ## Index
 
@@ -48,12 +54,12 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0014](BL-0014-e2e-browser-tests.md) | End-to-end browser tests (Playwright) | done | infra | M |
 | [BL-0015](BL-0015-cross-store-delete-consistency.md) | Cross-store delete/basket partial-failure consistency | done | web | S |
 | [BL-0016](BL-0016-app-ia-responsive-nav.md) | App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs) | done | web | M |
-| [BL-0017](BL-0017-home-dashboard-weekly-handoff.md) | Home dashboard — state-aware next action + shopping-day handoff | done | web | M |
+| [BL-0017](BL-0017-home-dashboard-weekly-handoff.md) | Home dashboard — state-aware "what do I do now?" + shopping-day handoff | done | web | M |
 | [BL-0018](BL-0018-meal-planner-week.md) | Meal planner — basket becomes a dinner-first week plan | in-progress | meal-planning | L |
-| [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, provenance, done-shopping | in-progress | grocery-list | L |
+| [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping | in-progress | grocery-list | L |
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | in-progress | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | done | pantry | L |
-| [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps (schema + import already extracts them) | done | recipes | M |
+| [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps | done | recipes | M |
 | [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | in-progress | pricing | L |
 | [BL-0024](BL-0024-headless-core-package.md) | Extract headless packages/core (planner, grocery list, import review) | proposed | infra | M |
 | [BL-0025](BL-0025-design-tokens-as-data.md) | Design tokens as data (single source for CSS and future native styling) | done | web | S |
@@ -72,3 +78,5 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0043](BL-0043-equipment-inventory-discovery.md) | Equipment inventory — "can I make this?" + new-device recipe discovery | proposed | recipes | M |
 | [BL-0044](BL-0044-prep-sources-llm-manual.md) | Prep task sources — LLM-derived and hand-authored, merged with rule output | proposed | recipes | M |
 | [BL-0045](BL-0045-generated-backlog-index.md) | Generate the backlog index from item frontmatter (kill the merge-conflict hotspot) | in-progress | infra | S |
+| [BL-0046](BL-0046-kroger-real-store-prices.md) | Real store prices (opt-in) — Kroger Products API behind a feature flag | proposed | pricing | M |
+| [BL-0047](BL-0047-sale-aware-recommendations.md) | Sale-aware recommendations — plan the week around what's cheap right now | proposed | recommendations | L |
