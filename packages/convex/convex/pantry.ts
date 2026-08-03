@@ -120,3 +120,21 @@ export const remove = mutation({
     await ctx.db.delete(id);
   },
 });
+
+/**
+ * Mark (or unmark) a pantry row as something to use up.
+ *
+ * This is a flag on the existing row rather than a separate "leftovers" table:
+ * the row already carries the canonicalItem that joins to recipe ingredients,
+ * so the recommender needs no second source of truth about what the user has.
+ */
+export const setUseItUp = mutation({
+  args: { id: v.id("pantryItems"), useItUp: v.boolean() },
+  handler: async (ctx, { id, useItUp }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const row = await ctx.db.get(id);
+    if (row === null || row.userId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, { useItUp, updatedAt: Date.now() });
+  },
+});
