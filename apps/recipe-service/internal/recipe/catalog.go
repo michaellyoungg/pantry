@@ -16,6 +16,7 @@ type catalogEntry struct {
 	ID          string       `json:"id"`
 	Title       string       `json:"title"`
 	Ingredients []Ingredient `json:"ingredients"`
+	Steps       []string     `json:"steps"`
 }
 
 // LoadCatalog parses the embedded catalog dataset into system-owned recipes,
@@ -46,6 +47,7 @@ func LoadCatalog() ([]Recipe, error) {
 			UserID:      CatalogUserID,
 			Title:       e.Title,
 			Ingredients: e.Ingredients,
+			Steps:       e.Steps,
 		})
 	}
 	return out, nil
