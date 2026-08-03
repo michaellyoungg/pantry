@@ -1231,7 +1231,9 @@ git commit -m "feat(convex): real preferences schema + pantry useItUp flag"
 
 **Interfaces:**
 - Consumes: the `preferences` table from Task 5.
-- Produces: `api.preferences.get` (query, returns defaults when unset), `api.preferences.set` (mutation), and the exported helper `DIET_SEED_AVOIDS: Record<string, string[]>`.
+- Produces: `api.preferences.get` (query, returns defaults when unset) and `api.preferences.set` (mutation).
+
+**Note:** the diet→avoid-ingredients seed table lives **only** in the web component (Task 9). Do not add it here. The `set` mutation never reads it, a second copy would drift from the UI's, and an unused export fails knip in CI.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1314,24 +1316,6 @@ Create `packages/convex/convex/preferences.ts`:
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-
-/**
- * Selecting a diet label pre-fills the avoid list from this seed set, which the
- * user then sees and can edit.
- *
- * This is deliberate: filtering by INFERRING which ingredients are meat would
- * produce false negatives under partial dictionary coverage — a beef recipe
- * shown to someone who declared vegetarian — which destroys trust in the whole
- * feature. Nothing is ever excluded invisibly.
- */
-export const DIET_SEED_AVOIDS: Record<string, string[]> = {
-  vegetarian: ["beef", "chicken", "pork", "bacon", "lamb", "fish", "shrimp", "anchovy"],
-  vegan: [
-    "beef", "chicken", "pork", "bacon", "lamb", "fish", "shrimp", "anchovy",
-    "butter", "milk", "cream", "cheese", "parmesan", "mozzarella", "egg", "honey",
-  ],
-  pescatarian: ["beef", "chicken", "pork", "bacon", "lamb"],
-};
 
 /** Ingredient keys are canonical: lowercased and trimmed, matching Go's CanonicalItem. */
 const canonicalize = (items: string[] | undefined): string[] =>
@@ -1774,12 +1758,24 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
-// Mirrors DIET_SEED_AVOIDS in packages/convex/convex/preferences.ts. Selecting a
-// diet PRE-FILLS the avoid list so the user can see and edit exactly what gets
-// excluded — nothing is filtered by invisible inference.
+// The single source of truth for diet seeds. Selecting a diet PRE-FILLS the
+// avoid list so the user can see and edit exactly what gets excluded.
+//
+// This is deliberate: filtering by INFERRING which ingredients are meat would
+// produce false negatives under partial dictionary coverage — a beef recipe
+// shown to someone who declared vegetarian — which destroys trust in the whole
+// feature. Nothing is ever excluded invisibly.
+//
+// It lives here and nowhere else: the Convex `set` mutation stores whatever
+// avoid list it is handed and never consults this table.
+const MEAT = ["beef", "chicken", "pork", "bacon", "lamb"];
+const SEAFOOD = ["fish", "shrimp", "anchovy"];
+const ANIMAL_PRODUCTS = ["butter", "milk", "cream", "cheese", "parmesan", "mozzarella", "egg", "honey"];
+
 const DIET_SEEDS: Record<string, string[]> = {
-  vegetarian: ["beef", "chicken", "pork", "bacon", "lamb", "fish", "shrimp", "anchovy"],
-  pescatarian: ["beef", "chicken", "pork", "bacon", "lamb"],
+  vegetarian: [...MEAT, ...SEAFOOD],
+  vegan: [...MEAT, ...SEAFOOD, ...ANIMAL_PRODUCTS],
+  pescatarian: [...MEAT],
 };
 
 export function Preferences() {
@@ -2243,8 +2239,15 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
 
   // Build a recipe, plan it, and shop it — checking the line off is what puts
   // the ingredient in the pantry (BL-0021 inflow).
-  const title = `Rice Bowl ${uniqueSuffix()}`;
-  await createRecipeAndAddToBasket(page, title, { quantity: "1", unit: "cup", item: "rice" });
+  //
+  // The ingredient MUST be "garlic", not something arbitrary. This recipe ends
+  // up in the basket, so it is excluded from its own results; the suggestion has
+  // to come from the seeded catalog. Garlic appears in 4 of the 6 catalog
+  // recipes AND is a canonical item in normalization.json. Picking an ingredient
+  // absent from the catalog (rice, say) makes this test assert on a suggestion
+  // that can never exist.
+  const title = `Garlic Bowl ${uniqueSuffix()}`;
+  await createRecipeAndAddToBasket(page, title, { quantity: "2", unit: "cloves", item: "garlic" });
 
   await navigateTo(page, "Plan");
   const planRow = page.getByRole("listitem").filter({ hasText: title });
@@ -2253,13 +2256,13 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
-  const line = page.getByRole("listitem").filter({ hasText: /rice/i }).first();
+  const line = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
   await expect(line).toBeVisible();
   await line.getByRole("checkbox").check();
 
-  // The pantry now holds "rice". Mark it to use up.
+  // The pantry now holds garlic. Mark it to use up.
   await navigateTo(page, "Pantry");
-  const pantryRow = page.getByRole("listitem").filter({ hasText: /rice/i }).first();
+  const pantryRow = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
   await expect(pantryRow).toBeVisible();
   await pantryRow.getByRole("button", { name: /Mark .* to use up/ }).click();
 
@@ -2275,15 +2278,51 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
 test("never suggests a recipe containing an avoided ingredient", async ({ page }) => {
   await signUp(page);
 
-  const title = `Peanut Rice ${uniqueSuffix()}`;
-  await page.goto("/recipes");
+  // This test must first prove the recipe DOES surface, then prove the avoid
+  // list removes it. Asserting only the absence would pass even if the filter
+  // were entirely broken — a recipe sharing nothing with the pantry is dropped
+  // for zero overlap anyway, so absence on its own proves nothing.
+  //
+  // Getting garlic into the pantry requires the check-off flow: the Pantry
+  // screen has NO manual-add affordance, so the grocery list is the only inflow.
+  // That means two recipes — a "base" one we shop (and which therefore lands in
+  // the basket and is excluded from results), and the peanut one we never
+  // basket, so it stays eligible.
+  const base = `Garlic Base ${uniqueSuffix()}`;
+  await createRecipeAndAddToBasket(page, base, { quantity: "2", unit: "cloves", item: "garlic" });
+
+  await navigateTo(page, "Plan");
+  const baseRow = page.getByRole("listitem").filter({ hasText: base });
+  await expect(baseRow).toBeVisible();
+  await baseRow.getByRole("button", { name: "Monday" }).click();
+  await page.getByRole("button", { name: "Generate grocery list" }).click();
+
+  await navigateTo(page, "List");
+  const garlicLine = page.getByRole("listitem").filter({ hasText: /garlic/i }).first();
+  await expect(garlicLine).toBeVisible();
+  await garlicLine.getByRole("checkbox").check();
+
+  // The peanut recipe: two ingredient rows, added with the "+ ingredient"
+  // button. Never added to the basket, so it stays an eligible candidate.
+  const title = `Peanut Garlic ${uniqueSuffix()}`;
+  await navigateTo(page, "Recipes");
   await page.getByPlaceholder("Title").fill(title);
-  await page.getByRole("spinbutton").first().fill("1");
-  await page.getByPlaceholder("unit").first().fill("cup");
-  await page.getByPlaceholder("item").first().fill("peanut");
+  await page.getByRole("spinbutton").first().fill("2");
+  await page.getByPlaceholder("unit").first().fill("cloves");
+  await page.getByPlaceholder("item").first().fill("garlic");
+  await page.getByRole("button", { name: "+ ingredient" }).click();
+  await page.getByRole("spinbutton").last().fill("2");
+  await page.getByPlaceholder("unit").last().fill("tbsp");
+  await page.getByPlaceholder("item").last().fill("peanut");
   await page.getByRole("button", { name: "Create recipe" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
 
+  // BASELINE: with no avoid list, the recipe surfaces.
+  await navigateTo(page, "Pantry");
+  await page.getByRole("button", { name: "What can I make?" }).click();
+  await expect(page.getByText(title)).toBeVisible({ timeout: 15_000 });
+
+  // Now avoid peanut and confirm it disappears.
   await page.goto("/settings");
   await page.getByPlaceholder("Ingredient to avoid").fill("peanut");
   await page.getByRole("button", { name: "Add" }).click();
