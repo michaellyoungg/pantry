@@ -26,6 +26,11 @@ export default defineSchema({
     // Increment 2: servings scaling + leftovers.
     servingsMultiplier: v.optional(v.number()), // absent → treated as 1
     type: v.optional(v.union(v.literal("meal"), v.literal("leftover"))), // absent → "meal"
+    // When the user marked this planned meal cooked (BL-0028). Absent = not yet
+    // cooked. This timestamp IS the idempotency guard for cook-decrement: it is
+    // written once, inside the same transaction that schedules the decrement, so
+    // a second "mark cooked" can never step the pantry a second time.
+    cookedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_user_recipe", ["userId", "recipeId"]),

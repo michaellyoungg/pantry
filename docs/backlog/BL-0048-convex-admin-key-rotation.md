@@ -1,7 +1,7 @@
 ---
 id: BL-0048
 title: Convex admin-key rotation procedure (verified, not assumed)
-status: in-progress
+status: done
 area: infra
 effort: S
 related_specs: []
@@ -62,3 +62,35 @@ recovery procedure nobody has run is a hypothesis.
   during an incident.
 - **Test it against the live local deployment.** Rejected — it is shared, it has
   real data, and the whole question is whether this operation is destructive.
+
+## Outcome
+
+Answered experimentally against a scratch stack (`pantry-keyrot`, own volumes,
+ports `34xx`/`5544`), on Postgres and again by hand on the default SQLite
+backing. The procedure, the observed behaviour and the limits of what could be
+tested are in
+[`docs/self-hosted-convex-ops.md` → Rotating the admin key](../self-hosted-convex-ops.md#rotating-the-admin-key);
+`scripts/convex-rotate-drill.sh` re-checks every claim it makes.
+
+The short version:
+
+- **Rotation works and is not destructive.** The backend comes back up (~3 s),
+  documents are byte-for-byte identical, deployment env survives (including
+  `JWT_PRIVATE_KEY`/`JWKS`), and uploaded files still fetch at the same URLs.
+  The hypothesis in the Context above — that the instance secret is treated as
+  identity rather than a rotatable credential — is **wrong**:
+  `read_credentials.sh` prefers the env var over the persisted file on every
+  boot and writes the new value back.
+- **Every prior admin key dies** (HTTP 401), which is the property that made
+  this worth testing.
+- **Issuing a new key revokes nothing.** `generate_admin_key.sh` emits a
+  different key each run and all of them stay valid, so the instance secret is
+  the only revocation lever.
+- **The rotation is reversible by a stale `.env`** — restarting on the old
+  secret revives the "revoked" key. Nothing records that the old secret is
+  burned. This is the finding that most needed writing down, and it is asserted
+  by the drill rather than merely described.
+
+Not verified locally, and said so in the runbook: a signed-in browser session
+across a rotation (the mechanism it depends on was verified, the login was not),
+hosted-platform restart semantics (BL-0006), and rotating `INSTANCE_NAME`.

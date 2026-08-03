@@ -19,6 +19,8 @@ describe("useRecipeDraft", () => {
       servings: "",
       ingredients: [],
       steps: [],
+      equipment: [],
+      methods: [],
     });
   });
 
@@ -42,6 +44,8 @@ describe("useRecipeDraft", () => {
       servings: "",
       ingredients: [{ quantity: 2, unit: "clove", item: "garlic" }],
       steps: [],
+      equipment: [],
+      methods: [],
     });
   });
 
@@ -65,6 +69,16 @@ describe("useRecipeDraft", () => {
     expect(result.current.draft.ingredients[1]).toEqual({ quantity: 3, unit: "", item: "flour" });
   });
 
+  it("holds equipment and method tags and carries them into the submission", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => result.current.setTitle("Brisket"));
+    act(() => result.current.setEquipment([{ id: "smoker", required: true }]));
+    act(() => result.current.setMethods(["smoke"]));
+    expect(result.current.draft.equipment).toEqual([{ id: "smoker", required: true }]);
+    expect(result.current.submission?.equipment).toEqual([{ id: "smoker", required: true }]);
+    expect(result.current.submission?.methods).toEqual(["smoke"]);
+  });
+
   it("reset returns to a fresh empty draft", () => {
     const { result } = renderHook(() => useRecipeDraft());
     act(() => {
@@ -78,6 +92,8 @@ describe("useRecipeDraft", () => {
       servings: "",
       steps: [],
       ingredients: [{ quantity: 1, unit: "", item: "" }],
+      equipment: [],
+      methods: [],
     });
   });
 });

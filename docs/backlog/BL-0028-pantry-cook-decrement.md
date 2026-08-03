@@ -1,10 +1,10 @@
 ---
 id: BL-0028
 title: Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked
-status: proposed
+status: done
 area: pantry
 effort: M
-related_specs: [2026-07-18-pantry-thin-loop-design.md]
+related_specs: [2026-07-18-pantry-thin-loop-design.md, 2026-08-03-pantry-cook-decrement-design.md]
 created: 2026-08-03
 ---
 
