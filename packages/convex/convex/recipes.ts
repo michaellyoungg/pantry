@@ -4,7 +4,6 @@ import { type Infer, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { withSpan } from "./lib/otel";
-import { lookupShelfLife } from "./lib/recipeService";
 
 const ingredientValidator = v.object({
   quantity: v.number(),
@@ -22,7 +21,7 @@ export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingred
 // forwards the authenticated user id. Never reachable from the browser.
 // When a `traceparent` is supplied it rides along so the Go span (BL-0027)
 // nests under the Convex span.
-async function recipeServiceFetch<T>(
+export async function recipeServiceFetch<T>(
   userId: string,
   method: string,
   path: string,
@@ -47,6 +46,40 @@ async function recipeServiceFetch<T>(
   if (!res.ok) throw new Error(`recipe-service ${method} ${path} failed: ${res.status}`);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** One entry of POST /normalization/lookup. `shelfLifeDays` is absent when unknown. */
+interface NormalizedItem {
+  canonicalItem: string;
+  display: string;
+  aisle: string;
+  shelfLifeDays?: number;
+}
+
+/**
+ * Resolve approximate shelf life for a set of canonical items, as
+ * canonicalItem -> days (BL-0029). Items recipe-service doesn't recognize are
+ * simply absent from the result — never defaulted, because a guessed date is
+ * worse than no date.
+ */
+async function lookupShelfLife(
+  userId: string,
+  items: string[],
+  traceparent?: string,
+): Promise<Record<string, number>> {
+  if (items.length === 0) return {};
+  const res = await recipeServiceFetch<{ items: NormalizedItem[] }>(
+    userId,
+    "POST",
+    "/normalization/lookup",
+    { items },
+    traceparent,
+  );
+  const out: Record<string, number> = {};
+  for (const item of res.items ?? []) {
+    if (item.shelfLifeDays !== undefined) out[item.canonicalItem] = item.shelfLifeDays;
+  }
+  return out;
 }
 
 // servings is optional end to end: omitting it means "yield unknown" (BL-0035),

@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { action, mutation, query } from "./_generated/server";
 import { withSpan } from "./lib/otel";
-import { recipeServiceFetch } from "./lib/recipeService";
+import { recipeServiceFetch } from "./recipes";
 
 export const pantryStateValidator = v.union(v.literal("have"), v.literal("low"), v.literal("out"));
 

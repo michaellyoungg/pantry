@@ -15,6 +15,7 @@ import type * as http from "../http.js";
 import type * as lib_otel from "../lib/otel.js";
 import type * as lib_recipeService from "../lib/recipeService.js";
 import type * as pantry from "../pantry.js";
+import type * as pricing from "../pricing.js";
 import type * as recipes from "../recipes.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   "lib/otel": typeof lib_otel;
   "lib/recipeService": typeof lib_recipeService;
   pantry: typeof pantry;
+  pricing: typeof pricing;
   recipes: typeof recipes;
 }>;
 
