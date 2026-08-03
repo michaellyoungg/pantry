@@ -24,6 +24,16 @@ type itemDef struct {
 	// ShelfLifeDays overrides the aisle default. 0 means "use the aisle
 	// default", not "expires today".
 	ShelfLifeDays int `json:"shelfLifeDays,omitempty"`
+	// Category is what an ingredient *is* — "protein", "dairy", "legume" —
+	// as opposed to Aisle, which is where it is sold. Prep rules (BL-0042)
+	// key on it: "thaw the frozen protein" is a fact about proteins, not
+	// about the meat aisle, and tofu is a protein sold in produce.
+	//
+	// Deliberately partial: an item only carries a category where a rule
+	// actually keys on one, so the field stays a claim we can defend rather
+	// than a taxonomy invented to fill a column. Empty means "unclassified",
+	// which no category rule matches.
+	Category string `json:"category,omitempty"`
 }
 
 type normalizationData struct {
@@ -48,6 +58,15 @@ type ItemDetails struct {
 	// ShelfLifeDays is omitted rather than zeroed when unknown, so callers can
 	// tell "we don't know" apart from "it expires today".
 	ShelfLifeDays int `json:"shelfLifeDays,omitempty"`
+	// Category is the what-is-it axis prep rules match on; empty when the item
+	// is unclassified or unknown. See itemDef.Category.
+	Category string `json:"category,omitempty"`
+	// Known reports whether the dataset actually recognized the item. Unknown
+	// items still get a CanonicalItem — the normalized raw text — so callers
+	// can group by it, but nothing else about them is asserted. Callers that
+	// need to tell "we know this is bread" from "we have never seen this word"
+	// must read this rather than inferring it from an "other" aisle.
+	Known bool `json:"known"`
 }
 
 // displayUnit is one rung of a dimension's friendly-display ladder.
@@ -142,7 +161,22 @@ func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
 		Display:       it.Display,
 		Aisle:         it.Aisle,
 		ShelfLifeDays: shelf,
+		Category:      it.Category,
+		Known:         true,
 	}
+}
+
+// Categories returns every category the dataset asserts. It exists so the prep
+// rule loader can reject a rule that keys on a category no item carries — a
+// typo there is silent otherwise: the rule simply never fires.
+func (n *Normalizer) Categories() map[string]bool {
+	out := map[string]bool{}
+	for _, it := range n.data.Items {
+		if it.Category != "" {
+			out[it.Category] = true
+		}
+	}
+	return out
 }
 
 // singularCandidates returns plural-to-singular guesses, most specific first.

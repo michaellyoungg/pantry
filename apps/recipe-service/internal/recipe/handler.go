@@ -61,6 +61,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
 	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
+	mux.HandleFunc("POST /prep-tasks", traced(h.prepTasks))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
