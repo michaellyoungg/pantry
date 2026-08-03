@@ -28,6 +28,20 @@ vi.mock("convex/react", () => ({
 // test; stubbed here so its load doesn't land on this file's shared action spy.
 vi.mock("./PlanNutrition", () => ({ PlanNutrition: () => null }));
 
+// Same reason for derived prep (BL-0042): usePlanPrep runs its own action, and
+// the badge it feeds has its own test. Stubbed to a loaded, empty week so this
+// file stays about scheduling.
+vi.mock("../lib/usePlanPrep", () => ({
+  usePlanPrep: () => ({
+    meals: [],
+    today: "2026-08-05",
+    done: new Set<string>(),
+    setDone: vi.fn(),
+    loading: false,
+    error: null,
+  }),
+}));
+
 import { WeekPlan } from "./WeekPlan";
 
 const row = (over: Record<string, unknown>) => ({

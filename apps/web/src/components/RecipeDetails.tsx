@@ -1,6 +1,8 @@
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
+import { useState } from "react";
 import { COOKING_METHOD_LABELS } from "../lib/cookingMethods";
 import { equipmentName } from "../lib/useEquipmentCatalog";
+import { RecipePrep } from "./RecipePrep";
 
 function ingredientLine(ing: Ingredient): string {
   const qty = Number.isFinite(ing.quantity) && ing.quantity > 0 ? String(ing.quantity) : "";
@@ -20,6 +22,11 @@ export function RecipeDetails({
   /** Equipment catalog, for resolving tag slugs to names. */
   catalog?: EquipmentDef[];
 }) {
+  // Prep derivation is a network round trip per recipe, so it is deferred until
+  // the row is actually expanded. A native <details> keeps its children mounted
+  // while collapsed, which would otherwise fire one request for every recipe in
+  // the list on first render.
+  const [open, setOpen] = useState(false);
   const steps = recipe.steps ?? [];
   const equipment = recipe.equipment ?? [];
   const methods = recipe.methods ?? [];
@@ -33,9 +40,15 @@ export function RecipeDetails({
   }
 
   return (
-    <details className="text-sm text-muted">
+    <details
+      className="text-sm text-muted"
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="cursor-pointer select-none hover:text-text">View recipe</summary>
       <div className="mt-2 flex flex-col gap-3 pl-1">
+        {/* Lead-time prep (BL-0042), derived from the tags and ingredients
+            below rather than authored on the recipe. */}
+        {open && <RecipePrep recipeId={recipe.id} />}
         {methods.length > 0 && (
           <p>
             <span className="font-medium text-text">Method: </span>
