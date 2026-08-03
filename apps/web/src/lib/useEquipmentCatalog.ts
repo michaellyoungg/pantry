@@ -1,8 +1,8 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncData } from "@pantry/core/react";
 import type { EquipmentDef } from "@pantry/types";
 import { useCallback } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
-import { useAsyncData } from "./useAsyncData";
 
 /**
  * Loads the curated equipment catalog (BL-0041). It is reference data — the

@@ -71,10 +71,15 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
 - **Biome** (`biome.json`) — linter + formatter for JS/TS. A few opinionated
   rules (`noNonNullAssertion`, `noArrayIndexKey`, `useExhaustiveDependencies`)
   are set to `warn` so they surface without blocking; tighten them to `error`
-  as the code is cleaned up. CSS and `public/` static assets are excluded.
-- **Vitest coverage** (`apps/web/vite.config.ts`) — thresholds are a ratchet set
-  just below current coverage. Raise them as tests are added; the `src/lib`
-  layer is already near 100% and the feature components are the gap.
+  as the code is cleaned up. CSS and `public/` static assets are excluded. The
+  `overrides` block is what keeps `packages/core` platform-free: browser globals
+  and `react-dom`/stylesheet imports are errors there, and `react` itself is an
+  error outside `packages/core/src/react`. See
+  [`packages/core/README.md`](../packages/core/README.md).
+- **Vitest coverage** (`apps/web/vite.config.ts`, `packages/core/vitest.config.ts`)
+  — thresholds are a ratchet set just below current coverage. Raise them as tests
+  are added; the domain layer in `packages/core` is near 100% and the web feature
+  components are the gap.
 - **convex-test** (`packages/convex/vitest.config.ts`) — runs Convex functions
   against an in-memory backend. See `packages/convex/convex/groceryList.test.ts`.
 - **golangci-lint** (`apps/recipe-service/.golangci.yml`) — the standard linter

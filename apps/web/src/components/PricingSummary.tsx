@@ -1,7 +1,7 @@
 import { api } from "@pantry/convex/api";
+import { useAsyncData } from "@pantry/core/react";
 import { useAction } from "convex/react";
 import { useCallback } from "react";
-import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
 
 /**

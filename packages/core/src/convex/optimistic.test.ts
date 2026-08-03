@@ -4,6 +4,8 @@ import {
   clearGroceryListOptimistic,
   needItAnywayOptimistic,
   removeFromBasketOptimistic,
+  removePantryItemOptimistic,
+  setPantryStateOptimistic,
   toggleItemOptimistic,
 } from "./optimistic";
 
@@ -112,6 +114,43 @@ describe("needItAnywayOptimistic", () => {
   it("no-ops when the query is not in the cache", () => {
     const { store } = fakeStore(undefined);
     needItAnywayOptimistic(store as never, { id: "g1" as never });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("setPantryStateOptimistic", () => {
+  it("sets state only on the matching id", () => {
+    const { store, state } = fakeStore([
+      { _id: "p1", item: "rice", state: "have" },
+      { _id: "p2", item: "beans", state: "have" },
+    ]);
+    setPantryStateOptimistic(store as never, { id: "p1" as never, state: "out" });
+    expect(state.value).toEqual([
+      { _id: "p1", item: "rice", state: "out" },
+      { _id: "p2", item: "beans", state: "have" },
+    ]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    setPantryStateOptimistic(store as never, { id: "p1" as never, state: "low" });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("removePantryItemOptimistic", () => {
+  it("filters out the matching id", () => {
+    const { store, state } = fakeStore([
+      { _id: "p1", item: "rice" },
+      { _id: "p2", item: "beans" },
+    ]);
+    removePantryItemOptimistic(store as never, { id: "p1" as never });
+    expect(state.value).toEqual([{ _id: "p2", item: "beans" }]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    removePantryItemOptimistic(store as never, { id: "p1" as never });
     expect(store.setQuery).not.toHaveBeenCalled();
   });
 });
