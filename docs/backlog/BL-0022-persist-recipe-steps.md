@@ -4,9 +4,31 @@ title: Persist recipe steps
 status: in-progress
 area: recipes
 effort: M
-related_specs: [2026-07-12-url-import-recipe-parser-design.md]
+related_specs:
+  [2026-07-12-url-import-recipe-parser-design.md,
+   2026-08-03-cooking-guidance-design.md]
 created: 2026-07-12
 ---
+
+## ⚠️ This work is written but never landed
+
+The implementation exists and is complete — Go store and schema, `packages/types`,
+Convex actions, and web UI (`StepsEditor.tsx`, steps on `RecipeDetails`, import
+wiring; ~450 lines across 24 files) — but it is **not on `main`**.
+
+PR #40 is marked merged, but its merge commit is the *claim* commit
+(`chore(backlog): claim BL-0022`). The implementation was pushed to the branch
+**after** the squash-merge and stranded there. As of `origin/main` `4274120`,
+`Steps` appears zero times in `apps/recipe-service/internal/recipe/types.go`.
+
+The work is at `origin/worktree-myoung-bl-0022-recipe-steps`:
+
+- `4526de1` — `feat(recipe-service): persist recipe steps end to end`
+- `0c29db6` — `feat(web): edit, import, and view recipe steps`
+
+**Recovering that branch onto main is all this item needs.** Rebase it (main has
+moved a long way since July) rather than reimplementing. It is a prerequisite for
+BL-0041 and BL-0042 — the equipment keyword scan reads step text.
 
 ## Context
 
