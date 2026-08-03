@@ -2,8 +2,11 @@ import { api } from "@pantry/convex/api";
 import type { Ingredient, Recipe } from "@pantry/types";
 import { useAction } from "convex/react";
 import { useState } from "react";
+import { formatServings, parseServings } from "../lib/servings";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { ServingsField } from "./ServingsField";
+import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -12,7 +15,9 @@ const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
 
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
+  const [servings, setServings] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([emptyIngredient()]);
+  const [steps, setSteps] = useState<string[]>([]);
   const [url, setUrl] = useState("");
   const createRecipe = useAction(api.recipes.create);
   const importFromUrl = useAction(api.recipes.importFromUrl);
@@ -30,7 +35,11 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       | undefined;
     if (preview) {
       setTitle(preview.title);
+      // The import fills this in when the page's recipeYield reads as a serving
+      // count; otherwise it stays blank for the user to supply.
+      setServings(formatServings(preview.servings));
       setIngredients(preview.ingredients.length ? preview.ingredients : [emptyIngredient()]);
+      setSteps(preview.steps ?? []);
     }
   }
 
@@ -40,12 +49,16 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     const created = await run(() =>
       createRecipe({
         title: title.trim(),
+        servings: parseServings(servings),
         ingredients: ingredients.filter((ing) => ing.item.trim() !== ""),
+        steps: steps.map((s) => s.trim()).filter((s) => s !== ""),
       }),
     );
     if (created) {
       setTitle("");
+      setServings("");
       setIngredients([emptyIngredient()]);
+      setSteps([]);
       setUrl("");
       onCreated();
     }
@@ -67,6 +80,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       <ErrorText message={importAction.error} />
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <ServingsField value={servings} onChange={setServings} />
         <div className="flex flex-col gap-2">
           {ingredients.map((ing, i) => (
             <div key={i} className="flex gap-2">
@@ -91,18 +105,18 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
-          >
-            + ingredient
-          </Button>
-          <Button type="submit" disabled={pending} className="ml-auto">
-            {pending ? "Saving…" : "Create recipe"}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
+        >
+          + ingredient
+        </Button>
+        <StepsEditor steps={steps} onChange={setSteps} />
+        <Button type="submit" disabled={pending} className="self-end">
+          {pending ? "Saving…" : "Create recipe"}
+        </Button>
         <ErrorText message={error} />
       </form>
     </Card>

@@ -2,8 +2,15 @@ CREATE TABLE IF NOT EXISTS recipes (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     title       TEXT NOT NULL,
+    -- Nullable: NULL means "yield unknown", not "zero". See BL-0035.
+    servings    INT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- This file is the whole schema and is re-applied on every service start, so
+-- columns added after a deployment exists need an idempotent ALTER alongside
+-- their CREATE TABLE entry above. There is no migrations tool here yet.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS servings INT;
 
 CREATE TABLE IF NOT EXISTS ingredients (
     id          BIGSERIAL PRIMARY KEY,
@@ -15,5 +22,13 @@ CREATE TABLE IF NOT EXISTS ingredients (
     note        TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS recipe_steps (
+    id          BIGSERIAL PRIMARY KEY,
+    recipe_id   TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    position    INT  NOT NULL,
+    text        TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS ingredients_recipe_id_idx ON ingredients(recipe_id);
+CREATE INDEX IF NOT EXISTS recipe_steps_recipe_id_idx ON recipe_steps(recipe_id);
 CREATE INDEX IF NOT EXISTS recipes_user_id_idx ON recipes(user_id);

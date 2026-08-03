@@ -1,7 +1,7 @@
 ---
 id: BL-0035
 title: Recipe yield — servings on the recipe model + import extraction
-status: proposed
+status: done
 area: recipes
 effort: S
 related_specs: [2026-08-03-nutrition-system-design.md]
