@@ -1,31 +1,32 @@
 import { api } from "@pantry/convex/api";
-import type { Recipe } from "@pantry/types";
 import { useAction, useMutation } from "convex/react";
-import { useEffect, useState } from "react";
 import { useAsyncAction } from "../lib/useAsyncAction";
+import { useAsyncData } from "../lib/useAsyncData";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
 export function Catalog() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const listCatalog = useAction(api.recipes.listCatalog);
   const addToBasket = useMutation(api.basket.add);
+  const { data, loading, error: loadError, reload } = useAsyncData(listCatalog);
   const { run, error } = useAsyncAction();
-
-  useEffect(() => {
-    let active = true;
-    listCatalog()
-      .then((r) => active && setRecipes(r))
-      .catch(console.error);
-    return () => {
-      active = false;
-    };
-  }, [listCatalog]);
+  const recipes = data ?? [];
 
   return (
     <Card title="Catalog">
-      {recipes.length === 0 && <p className="text-sm text-muted">No catalog recipes yet.</p>}
+      {loading && <p className="text-sm text-muted">Loading catalog…</p>}
+      {loadError && (
+        <div className="flex items-center gap-2">
+          <ErrorText message={loadError} />
+          <Button variant="secondary" size="sm" onClick={reload}>
+            Retry
+          </Button>
+        </div>
+      )}
+      {!loading && !loadError && recipes.length === 0 && (
+        <p className="text-sm text-muted">No catalog recipes yet.</p>
+      )}
       <ul className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-2 py-2">
