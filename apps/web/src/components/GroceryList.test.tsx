@@ -9,6 +9,9 @@ const { state, mutationMock } = vi.hoisted(() => ({
 
 vi.mock("convex/react", () => ({
   useQuery: () => state.lines,
+  // PricingSummary (BL-0023) runs an action; these tests are about the list, so
+  // the estimate never resolves and the summary stays in its loading state.
+  useAction: () => () => new Promise(() => {}),
   useMutation: () => {
     const fn = ((...args: unknown[]) =>
       (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {

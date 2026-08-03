@@ -8,6 +8,7 @@ import {
 } from "../lib/optimistic";
 import { useAsyncAction } from "../lib/useAsyncAction";
 import { ErrorText } from "./ErrorText";
+import { PricingSummary } from "./PricingSummary";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -94,6 +95,7 @@ export function GroceryList() {
           </div>
         ))}
       </div>
+      <PricingSummary lines={lines} />
       {lines.length > 0 && (
         <div className="mt-3 flex justify-end">
           <Button variant="ghost" size="sm" onClick={onClear}>
