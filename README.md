@@ -128,6 +128,18 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318 docker compose --profile obs up
 | http://localhost:3001 | Grafana — Explore → Tempo for traces, Loki for logs |
 | http://localhost:12345 | Alloy pipeline UI — check here first when telemetry is missing |
 
+Convex actions in `recipes.ts` emit their own spans and forward a W3C
+`traceparent` to recipe-service, so a browser→Convex→Go request is one trace.
+The browser↔Convex transport is a WebSocket, so the trace id crosses that hop as
+a plain `traceCtx` action argument rather than a header. Convex reads its OTLP
+endpoint from the deployment env — enable it with:
+
+```bash
+convex env set OTEL_EXPORTER_OTLP_ENDPOINT http://alloy:4318
+```
+
+Like every layer, Convex tracing is a no-op when that variable is unset.
+
 Telemetry is a **complete no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset**, so
 CI and the plain compose stack are unaffected. Log lines carry `trace_id` and
 `span_id`, so you can pivot from any log line to its trace and back.

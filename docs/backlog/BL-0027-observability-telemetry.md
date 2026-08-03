@@ -34,10 +34,10 @@ Ships as three PRs under this one item:
    `internal/telemetry`; `otelhttp` on the router (outside `requireService`, so
    auth failures trace); `otelpgx` on the pool; stdlib `log` → `slog` with
    trace-stamped lines. — landed on this branch.
-2. **Convex** — `convex/lib/otel.ts` exposing `withSpan`; `traceCtx` args on
-   `recipes.ts` actions; `traceparent` injection in `recipeServiceFetch`.
+2. ✅ (landed) **Convex** — `convex/lib/otel.ts` exposing `withSpan`; `traceCtx`
+   args on `recipes.ts` actions; `traceparent` injection in `recipeServiceFetch`.
    Actions only — Convex queries/mutations cannot perform network I/O, so they
-   cannot emit spans.
+   cannot emit spans. — landed on this branch.
 3. **Web** — OTel web SDK init, React error boundary, trace id threading into
    Convex action calls.
 

@@ -63,6 +63,9 @@ services:
       - "3211:3211"
     volumes:
       - ./.data/convex:/convex/data
+    # Observability (BL-0027): Convex action spans are opt-in. The backend reads
+    # OTEL_EXPORTER_OTLP_ENDPOINT from its deployment env (set via `convex env
+    # set`), not from compose, so the default stack stays quiet.
     environment:
       - INSTANCE_SECRET=${CONVEX_INSTANCE_SECRET:?set CONVEX_INSTANCE_SECRET in .env}
       - CONVEX_CLOUD_ORIGIN=http://127.0.0.1:3210

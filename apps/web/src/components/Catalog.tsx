@@ -15,7 +15,7 @@ export function Catalog() {
 
   useEffect(() => {
     let active = true;
-    listCatalog()
+    listCatalog({})
       .then((r) => active && setRecipes(r))
       .catch(console.error);
     return () => {
