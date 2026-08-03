@@ -246,3 +246,74 @@ export interface CostEstimate {
   lines: PricedLine[];
   basis: PriceBasis;
 }
+
+/**
+ * Nutrition targets (BL-0038).
+ *
+ * A goal is a *constraint*, never a feature. "150 g of protein a day", "keep
+ * cholesterol under 200 mg", "stay under 2,000 calories" and "low carb" differ
+ * only in their field values, so one row shape and one evaluator serve all of
+ * them — and serve goals nobody has asked for yet. There is deliberately no
+ * `lowCarbMode` boolean anywhere in the system.
+ */
+export type NutritionTargetOperator = "<=" | ">=" | "==";
+
+/**
+ * The window a target is measured over. `meal` is a single serving of a single
+ * recipe, which is what makes a "fits your goals" badge on a recipe possible
+ * without inventing a second concept.
+ */
+export type NutritionTargetPeriod = "day" | "week" | "meal";
+
+/** One constraint. A macro goal is three or four of these; a diet is one or two. */
+export interface NutritionTarget {
+  nutrientId: string;
+  operator: NutritionTargetOperator;
+  value: number;
+  period: NutritionTargetPeriod;
+  /** Optional user- or preset-supplied name, e.g. "Low cholesterol". */
+  label?: string;
+  /** Inactive targets are kept but never evaluated, so pausing a diet is not a delete. */
+  active: boolean;
+}
+
+/**
+ * `unknown` is not a failure mode, it is the honest answer when coverage is too
+ * low to say. It must never collapse to `met`: a missing ingredient reading as
+ * "under your limit" turns absent data into false reassurance on a health
+ * screen, which is worse than showing nothing.
+ */
+export type NutritionTargetStatus = "met" | "under" | "over" | "unknown";
+
+/** Why a target could not be evaluated. Present only when status is `unknown`. */
+export type NutritionUnknownReason =
+  /** No estimate at all — nothing planned, or the rollup has not loaded. */
+  | "no-estimate"
+  /** Too little of the food resolved for the total to mean anything. */
+  | "low-coverage"
+  /** The estimate resolved, but carries no amount for this nutrient. */
+  | "nutrient-missing";
+
+export interface NutritionTargetEvaluation {
+  target: NutritionTarget;
+  /** The measured amount, or null when the status is `unknown`. */
+  actual: number | null;
+  /** Unit of `actual`, from the estimate or the nutrient catalog. */
+  unit: string | null;
+  status: NutritionTargetStatus;
+  reason?: NutritionUnknownReason;
+  /** 0..1 of the underlying food that resolved, carried through for the UI. */
+  coverage: number | null;
+}
+
+/**
+ * A diet preset is a *bundle of target rows*, shipped as data. Adding "low
+ * sodium" is an edit to a data file — no schema change, no evaluator branch, no
+ * new code path.
+ */
+export interface DietPreset {
+  id: string;
+  label: string;
+  description: string;
+  targets: Array<Omit<NutritionTarget, "active">>;
+}

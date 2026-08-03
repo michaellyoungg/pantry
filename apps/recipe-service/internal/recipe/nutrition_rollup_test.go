@@ -36,7 +36,6 @@ func postRollup(t *testing.T, srv *httptest.Server, userID, body string) (*http.
 
 func mustRecipe(t *testing.T, store Store, userID, title string, ings []Ingredient) Recipe {
 	t.Helper()
-	// No steps, equipment or methods: a nutrition rollup is about ingredients.
 	rec, err := store.CreateRecipe(context.Background(), userID, title, nil, ings, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)

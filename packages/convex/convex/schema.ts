@@ -71,6 +71,26 @@ export default defineSchema({
     manual: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
+  // Nutrition goals (BL-0038). One row per constraint — a macro goal is three
+  // or four rows, a low-cholesterol diet is one, and a "diet preset" is just a
+  // bundle of rows inserted together. There is deliberately no `lowCarbMode`
+  // boolean and no per-diet column: the shape below expresses every goal the
+  // product has, and every goal nobody has asked for yet.
+  nutritionTargets: defineTable({
+    userId: v.string(),
+    // FDC nutrient number ("1003" protein, "1253" cholesterol) — the same
+    // identifiers the estimate is keyed by, so evaluation is a map lookup.
+    nutrientId: v.string(),
+    operator: v.union(v.literal("<="), v.literal(">="), v.literal("==")),
+    value: v.number(),
+    period: v.union(v.literal("day"), v.literal("week"), v.literal("meal")),
+    // Where the constraint came from ("Low cholesterol"), for the goal editor.
+    label: v.optional(v.string()),
+    // Pausing a diet must not destroy the numbers the user tuned, so `active`
+    // is a flag rather than a delete.
+    active: v.boolean(),
+  }).index("by_user", ["userId"]),
+
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
   // quantity — numeric inventory drifts from reality within days. Keyed on the
   // normalized ingredient so "Green onion" and "green onions" are one row.

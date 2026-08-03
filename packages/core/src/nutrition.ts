@@ -17,21 +17,39 @@ import type { NutrientAmount, NutritionEstimate } from "@pantry/types";
  */
 export const NUTRITION_COVERAGE_THRESHOLD = 0.8;
 
+/** A nutrient this UI can name, and the unit its amounts are written in. */
+export interface NutrientMeta {
+  id: string;
+  label: string;
+  unit: string;
+}
+
 /**
  * The nutrients the UI surfaces, in display order. Presentation only: the
  * estimate carries whatever FDC returned, so surfacing another nutrient is a
  * one-line change here and nothing else.
+ *
+ * `unit` is carried here as well as on each `NutrientAmount` because a goal
+ * (BL-0038) has to be written and labelled before any estimate exists — there is
+ * no measured amount to read a unit off when the user is still typing the number.
  */
-export const HEADLINE_NUTRIENTS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "1008", label: "Calories" },
-  { id: "1003", label: "Protein" },
-  { id: "1005", label: "Carbs" },
-  { id: "1004", label: "Fat" },
-  { id: "1258", label: "Saturated fat" },
-  { id: "1079", label: "Fiber" },
-  { id: "1093", label: "Sodium" },
-  { id: "1253", label: "Cholesterol" },
+export const HEADLINE_NUTRIENTS: readonly NutrientMeta[] = [
+  { id: "1008", label: "Calories", unit: "kcal" },
+  { id: "1003", label: "Protein", unit: "g" },
+  { id: "1005", label: "Carbs", unit: "g" },
+  { id: "1004", label: "Fat", unit: "g" },
+  { id: "1258", label: "Saturated fat", unit: "g" },
+  { id: "1079", label: "Fiber", unit: "g" },
+  { id: "1093", label: "Sodium", unit: "mg" },
+  { id: "1253", label: "Cholesterol", unit: "mg" },
 ];
+
+const BY_ID = new Map(HEADLINE_NUTRIENTS.map((n) => [n.id, n]));
+
+/** Label and unit for a nutrient id, or undefined if we do not surface it. */
+export function nutrientMeta(nutrientId: string): NutrientMeta | undefined {
+  return BY_ID.get(nutrientId);
+}
 
 /** One rendered nutrient: a label and an already-formatted amount. */
 export interface NutrientRow {

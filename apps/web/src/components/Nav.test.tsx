@@ -19,9 +19,15 @@ async function renderNavAt(path: string) {
       </>
     ),
   });
-  const routes = ["/", "/plan", "/recipes", "/recipes/catalog", "/list", "/pantry"].map((p) =>
-    createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }),
-  );
+  const routes = [
+    "/",
+    "/plan",
+    "/recipes",
+    "/recipes/catalog",
+    "/list",
+    "/pantry",
+    "/settings",
+  ].map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => null }));
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -38,7 +44,7 @@ describe("Nav", () => {
       const link = within(sidebar).getByRole("link", { name: item.label });
       expect(link.getAttribute("href")).toBe(item.to);
     }
-    expect(NAV_ITEMS).toHaveLength(5);
+    expect(NAV_ITEMS).toHaveLength(6);
   });
 
   it("marks only the Home link active on '/'", async () => {
