@@ -1,7 +1,7 @@
 ---
 id: BL-0027
 title: Observability & telemetry (OpenTelemetry + Grafana LGTM)
-status: proposed
+status: in-progress
 area: infra
 effort: L
 related_specs: [2026-07-19-observability-telemetry-design.md]
@@ -30,9 +30,10 @@ sampling, and profiling are explicitly out of scope.
 
 Ships as three PRs under this one item:
 
-1. **Foundation + Go** — Alloy + LGTM compose services; `internal/telemetry`;
-   `otelhttp` on the router (outside `requireService`, so auth failures trace);
-   `otelpgx` on the pool; stdlib `log` → `slog` with trace-stamped lines.
+1. ✅ (landed) **Foundation + Go** — Alloy + LGTM compose services;
+   `internal/telemetry`; `otelhttp` on the router (outside `requireService`, so
+   auth failures trace); `otelpgx` on the pool; stdlib `log` → `slog` with
+   trace-stamped lines. — landed on this branch.
 2. **Convex** — `convex/lib/otel.ts` exposing `withSpan`; `traceCtx` args on
    `recipes.ts` actions; `traceparent` injection in `recipeServiceFetch`.
    Actions only — Convex queries/mutations cannot perform network I/O, so they
