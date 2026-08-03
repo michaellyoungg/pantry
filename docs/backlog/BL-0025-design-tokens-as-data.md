@@ -1,7 +1,7 @@
 ---
 id: BL-0025
 title: Design tokens as data (single source for CSS and future native styling)
-status: in-progress
+status: done
 area: web
 effort: S
 related_specs: [2026-07-18-mobile-client-design.md]
