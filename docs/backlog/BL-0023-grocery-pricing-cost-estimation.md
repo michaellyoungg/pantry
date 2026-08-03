@@ -1,7 +1,7 @@
 ---
 id: BL-0023
 title: Grocery pricing — cost estimation, then sale-aware meal recommendations
-status: proposed
+status: in-progress
 area: pricing
 effort: L
 related_specs: [2026-07-12-full-app-ux-plan.md]
