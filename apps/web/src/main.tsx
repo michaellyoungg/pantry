@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { ConvexReactClient } from "convex/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { routeTree } from "./routeTree.gen";
 import { initTelemetry } from "./telemetry";
 import "./index.css";
@@ -22,8 +23,10 @@ declare module "@tanstack/react-router" {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ConvexAuthProvider client={convex}>
-      <RouterProvider router={router} />
-    </ConvexAuthProvider>
+    <ErrorBoundary>
+      <ConvexAuthProvider client={convex}>
+        <RouterProvider router={router} />
+      </ConvexAuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
