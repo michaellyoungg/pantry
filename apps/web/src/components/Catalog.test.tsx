@@ -5,21 +5,27 @@ vi.mock("@pantry/convex/api", () => ({
   api: {
     recipes: { listCatalog: "recipes.listCatalog" },
     basket: { add: "basket.add" },
+    preferences: { get: "preferences.get" },
   },
 }));
 
-const { listCatalog, addMock } = vi.hoisted(() => {
+const { listCatalog, addMock, household } = vi.hoisted(() => {
   const addMock = vi.fn(() => Promise.resolve()) as unknown as {
     (...a: unknown[]): Promise<unknown>;
     withOptimisticUpdate: (u: unknown) => typeof addMock;
   };
   addMock.withOptimisticUpdate = () => addMock;
-  return { listCatalog: vi.fn(), addMock };
+  return {
+    listCatalog: vi.fn(),
+    addMock,
+    household: { prefs: { householdSize: undefined } as { householdSize?: number } },
+  };
 });
 
 vi.mock("convex/react", () => ({
   useAction: () => listCatalog,
   useMutation: () => addMock,
+  useQuery: () => household.prefs,
 }));
 
 import { Catalog } from "./Catalog";
@@ -67,5 +73,41 @@ describe("Catalog", () => {
     expect(screen.queryByText(/no catalog recipes/i)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     await screen.findByText("Garlic Bread");
+  });
+});
+
+describe("Catalog seeds the servings dial from household size (BL-0018)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    household.prefs = { householdSize: undefined };
+  });
+
+  it("halves a catalog recipe that feeds twice the household", async () => {
+    household.prefs = { householdSize: 2 };
+    listCatalog.mockResolvedValue([{ ...CAT, servings: 4 }]);
+
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(addMock).toHaveBeenCalledWith(
+        expect.objectContaining({ recipeId: CAT.id, servingsMultiplier: 0.5 }),
+      ),
+    );
+  });
+
+  it("sends no multiplier when there is nothing to derive one from", async () => {
+    listCatalog.mockResolvedValue([CAT]);
+
+    render(<Catalog />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(addMock).toHaveBeenCalledWith(
+        expect.objectContaining({ servingsMultiplier: undefined }),
+      ),
+    );
   });
 });

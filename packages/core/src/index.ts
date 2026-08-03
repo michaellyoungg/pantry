@@ -18,7 +18,14 @@ export {
 } from "./calendar";
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export { formatQuantity } from "./formatQuantity";
-export { type AisleGroup, type AisleLine, groupByAisle, titleCase } from "./grocery";
+export {
+  type AisleGroup,
+  type AisleLine,
+  groupByAisle,
+  partitionRemoved,
+  type RemovableLine,
+  titleCase,
+} from "./grocery";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export {
   formatNutrientAmount,
@@ -65,6 +72,7 @@ export {
 export {
   canGenerateList,
   decreaseServings,
+  defaultServingsMultiplier,
   increaseServings,
   isCooked,
   isLeftover,

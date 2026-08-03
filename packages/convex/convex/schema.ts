@@ -5,9 +5,15 @@ import { v } from "convex/values";
 export default defineSchema({
   ...authTables,
 
-  // Per-user preferences placeholder (populated later).
+  // Per-user preferences.
   preferences: defineTable({
     userId: v.string(),
+    // How many people this household cooks for (BL-0018). Seeds the planner's
+    // servings dial: a recipe's default multiplier is household ÷ its yield, so
+    // the common case needs no tapping at all. Optional because it is genuinely
+    // unknown until asked — and a guessed household would scale every grocery
+    // quantity wrong, silently.
+    householdSize: v.optional(v.number()),
     // freeform for now; real fields arrive with the recommendations work.
     data: v.optional(v.any()),
   }).index("by_user", ["userId"]),
@@ -69,6 +75,13 @@ export default defineSchema({
     // line has no recipe backing it, so it can never appear in an aggregated
     // result and would otherwise vanish the moment the plan changed.
     manual: v.optional(v.boolean()),
+    // The plan no longer produces this line, but the shopper had already
+    // checked it off (BL-0018, UX-plan decision #2: "flag removed"). Deleting
+    // it would silently erase a tick — and, since check-off is also the
+    // pantry's inflow signal, leave a pantry row with nothing explaining it.
+    // Only ever set on checked lines: an untouched line carries no user state,
+    // so the plan losing it is simply the list following the plan.
+    removed: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
   // Nutrition goals (BL-0038). One row per constraint — a macro goal is three

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { HouseholdSize } from "../components/HouseholdSize";
 import { NutritionGoals } from "../components/NutritionGoals";
 
 function SettingsPage() {
@@ -11,6 +12,7 @@ function SettingsPage() {
           little of a meal can be identified, the goal is reported as unchecked rather than met.
         </p>
       </div>
+      <HouseholdSize />
       <NutritionGoals />
     </div>
   );

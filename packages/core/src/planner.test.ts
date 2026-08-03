@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canGenerateList,
   decreaseServings,
+  defaultServingsMultiplier,
   increaseServings,
   isCooked,
   isLeftover,
@@ -108,5 +109,46 @@ describe("isCooked", () => {
   it("is the presence of a cookedAt timestamp", () => {
     expect(isCooked({ _id: "b1", recipeId: "r1", title: "Toast" })).toBe(false);
     expect(isCooked({ _id: "b1", recipeId: "r1", title: "Toast", cookedAt: 0 })).toBe(true);
+  });
+});
+
+describe("defaultServingsMultiplier", () => {
+  it("is a single batch when the recipe already feeds the household", () => {
+    expect(defaultServingsMultiplier(4, 4)).toBe(1);
+  });
+
+  it("doubles a recipe that feeds half the household", () => {
+    expect(defaultServingsMultiplier(4, 2)).toBe(2);
+  });
+
+  it("halves a recipe that feeds twice the household", () => {
+    expect(defaultServingsMultiplier(2, 4)).toBe(0.5);
+  });
+
+  it("snaps to the step the stepper moves in, rounding up on a tie", () => {
+    // 5/4 = 1.25 — exactly between the 1.0 and 1.5 the stepper offers. Round up:
+    // on a grocery list, buying slightly too much beats not being able to cook.
+    expect(defaultServingsMultiplier(5, 4)).toBe(1.5);
+  });
+
+  it("never proposes less than the floor the stepper clamps to", () => {
+    expect(defaultServingsMultiplier(1, 12)).toBe(MIN_SERVINGS_MULTIPLIER);
+  });
+
+  it("derives nothing when the recipe's yield is unknown", () => {
+    // BL-0035 made servings nullable, and it usually is. Scaling by a guessed
+    // yield would be worse than not scaling at all — and leaving the dial unset
+    // is exactly how the planner already spells "one batch".
+    expect(defaultServingsMultiplier(4, undefined)).toBeUndefined();
+  });
+
+  it("derives nothing when the household size is unset", () => {
+    expect(defaultServingsMultiplier(undefined, 2)).toBeUndefined();
+  });
+
+  it("ignores nonsensical values rather than dividing by them", () => {
+    expect(defaultServingsMultiplier(4, 0)).toBeUndefined();
+    expect(defaultServingsMultiplier(0, 4)).toBeUndefined();
+    expect(defaultServingsMultiplier(-2, 4)).toBeUndefined();
   });
 });

@@ -49,10 +49,15 @@ export const getGroceryList = query({
 
 // Called only from the generateGroceryList action, which passes the
 // authenticated userId it already resolved. Internal → not client-callable.
-// Non-destructive merge: lines matching an existing row by item+unit+aisle keep
-// their `checked` state (only the quantity is refreshed); new lines are
-// inserted unchecked; existing rows absent from the new list are deleted. This
-// preserves in-store check-off progress across re-generation (BL-0018 inc 2).
+// Non-destructive merge — the three rules of UX-plan decision #2 (BL-0018):
+//   1. preserve  — a line still in the plan keeps its `checked` state (and any
+//                  needItAnyway override); only the quantity is refreshed
+//   2. merge     — a line the plan newly wants is inserted, unchecked
+//   3. flag      — a line the plan no longer wants is *flagged* `removed` if it
+//                  was already checked off, and deleted only if it wasn't
+//
+// Regeneration is therefore always safe to press: nothing a shopper has done
+// can be undone by it. Manual lines sit outside all three rules — see below.
 export const mergeGroceryList = internalMutation({
   args: {
     userId: v.string(),
@@ -101,6 +106,10 @@ export const mergeGroceryList = internalMutation({
           canonicalItem: line.canonicalItem,
           shelfLifeDays,
           sources: line.sources,
+          // Back in the plan, so it is no longer a leftover of an older one.
+          // Clearing rather than ignoring matters: a flagged line whose recipe
+          // returns must go back to being an ordinary line, tick intact.
+          removed: undefined,
         });
       } else {
         await ctx.db.insert("groceryList", {
@@ -126,6 +135,15 @@ export const mergeGroceryList = internalMutation({
       // have picked up from a recipe that has since left the plan.
       if (row.manual) {
         if (row.sources !== undefined) await ctx.db.patch(row._id, { sources: undefined });
+        continue;
+      }
+      // The third diff-merge rule: flag, don't destroy. Someone mid-shop who
+      // has already put this in the cart must not have it vanish because the
+      // plan changed on another device — they need to see that it is no longer
+      // needed and decide for themselves. An unchecked line has no such
+      // decision attached, so it still just goes.
+      if (row.checked) {
+        if (!row.removed) await ctx.db.patch(row._id, { removed: true, sources: undefined });
         continue;
       }
       await ctx.db.delete(row._id);
@@ -269,9 +287,12 @@ export const insertManualLine = internalMutation({
   },
 });
 
-// Removing a line the user added by hand. Deliberately not offered for
-// generated lines: those come back on the next generation, so "remove" would be
-// a lie. Un-checking a recipe-backed line is the planner's job, not the list's.
+// Removing a line the user added by hand, or dismissing one the plan has
+// dropped. Still deliberately not offered for a generated line that is *in* the
+// plan: that one comes back on the next generation, so "remove" would be a lie
+// — un-checking it is the planner's job, not the list's. A `removed` line is
+// the opposite case: no recipe will ever bring it back, so the shopper is the
+// only one who can clear it.
 export const removeItem = mutation({
   args: { id: v.id("groceryList") },
   handler: async (ctx, { id }) => {
@@ -279,7 +300,9 @@ export const removeItem = mutation({
     if (userId === null) throw new Error("Not authenticated");
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
-    if (!row.manual) throw new Error("Only manually added lines can be removed");
+    if (!row.manual && !row.removed) {
+      throw new Error("Only manually added or removed lines can be removed");
+    }
     await ctx.db.delete(id);
   },
 });

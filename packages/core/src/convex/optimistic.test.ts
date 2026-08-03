@@ -85,6 +85,16 @@ describe("addToBasketOptimistic", () => {
     ]);
   });
 
+  it("carries the household default so the placeholder row scales like the real one", () => {
+    const { store, state } = fakeStore([]);
+    addToBasketOptimistic(store as never, {
+      recipeId: "r2",
+      title: "Salad",
+      servingsMultiplier: 2,
+    });
+    expect((state.value as Array<{ servingsMultiplier?: number }>)[0].servingsMultiplier).toBe(2);
+  });
+
   it("is a no-op when the recipe is already in the basket", () => {
     const { store, state } = fakeStore([{ _id: "b1", recipeId: "r1", title: "Toast" }]);
     addToBasketOptimistic(store as never, { recipeId: "r1", title: "Toast" });
