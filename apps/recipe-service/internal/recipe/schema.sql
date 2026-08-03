@@ -12,6 +12,24 @@ CREATE TABLE IF NOT EXISTS recipes (
 -- their CREATE TABLE entry above. There is no migrations tool here yet.
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS servings INT;
 
+-- Discovery metadata (BL-0020). cuisine and source_url default to '' rather
+-- than being nullable: both are plain strings whose "absent" value is the empty
+-- one, and NOT NULL keeps the scan path free of sql.NullString. total_minutes
+-- IS nullable, because for a duration NULL and 0 mean genuinely different
+-- things ("unknown" vs "instant") — the same distinction servings draws.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS cuisine       TEXT NOT NULL DEFAULT '';
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS total_minutes INT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS source_url    TEXT NOT NULL DEFAULT '';
+
+-- Clone-on-add provenance (BL-0020): the catalog recipe a user's copy came
+-- from. Deliberately NOT a foreign key onto recipes(id) — a catalog entry can
+-- be retired from catalog.json, and ON DELETE CASCADE would then delete the
+-- user's own recipe, which is exactly the coupling clone-on-add exists to
+-- break. The unique index is what makes "add to basket" idempotent.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS source_recipe_id TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS recipes_user_source_recipe_idx
+    ON recipes(user_id, source_recipe_id) WHERE source_recipe_id <> '';
+
 CREATE TABLE IF NOT EXISTS ingredients (
     id          BIGSERIAL PRIMARY KEY,
     recipe_id   TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
@@ -53,7 +71,19 @@ CREATE TABLE IF NOT EXISTS recipe_methods (
     PRIMARY KEY (recipe_id, method)
 );
 
+-- Free-form discovery tags (BL-0020). A child table rather than a TEXT[] column
+-- so "every recipe tagged vegan" is an index lookup once the catalog outgrows
+-- client-side filtering. position preserves the authored order, which for
+-- hand-written catalog entries carries intent.
+CREATE TABLE IF NOT EXISTS recipe_tags (
+    recipe_id   TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    tag         TEXT NOT NULL,
+    position    INT  NOT NULL,
+    PRIMARY KEY (recipe_id, tag)
+);
+
 CREATE INDEX IF NOT EXISTS ingredients_recipe_id_idx ON ingredients(recipe_id);
+CREATE INDEX IF NOT EXISTS recipe_tags_tag_idx ON recipe_tags(tag);
 CREATE INDEX IF NOT EXISTS recipe_steps_recipe_id_idx ON recipe_steps(recipe_id);
 CREATE INDEX IF NOT EXISTS recipes_user_id_idx ON recipes(user_id);
 CREATE INDEX IF NOT EXISTS recipe_equipment_equipment_id_idx ON recipe_equipment(equipment_id);

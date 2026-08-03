@@ -31,6 +31,10 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	var ldMethods []string
 	// Only JSON-LD supplies a yield today; the LLM fallback leaves it unknown.
 	var servings *int
+	// Discovery metadata, likewise JSON-LD only (BL-0020).
+	var cuisine string
+	var tags []string
+	var totalMinutes *int
 
 	if ld, ok := extractJSONLD(html); ok && len(ld.IngredientLines) > 0 {
 		title = ld.Title
@@ -40,6 +44,7 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 		}
 		steps = ld.Steps
 		ldMethods = ld.CookingMethods
+		cuisine, tags, totalMinutes = ld.Cuisine, ld.Tags, ld.TotalMinutes
 	} else if imp.extractor != nil {
 		ex, err := imp.extractor.Extract(ctx, htmlToText(html))
 		if err != nil {
@@ -61,13 +66,36 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	equip, methods := equipmentCatalog.DetectTags(steps)
 	methods = normMethods(append(equipmentCatalog.MethodsFromJSONLD(ldMethods), methods...))
 
+	// Scraped metadata goes through the same validator as a hand-typed recipe,
+	// so an imported "Gluten Free" lands on the same chip. Sites routinely
+	// publish dozens of keywords, so the list is capped BEFORE validating —
+	// otherwise a keyword-stuffed page would fail the whole metadata check and
+	// lose its cuisine and cook time along with the surplus tags.
+	tags = normTags(tags)
+	if len(tags) > maxTags {
+		tags = tags[:maxTags]
+	}
+	normCuisine, normalizedTags, sourceURL, err := ValidateDiscovery(cuisine, totalMinutes, tags, rawURL)
+	if err != nil {
+		// A page with an unusable value loses only that value: bad metadata must
+		// never fail an import whose ingredients parsed fine. rawURL already
+		// passed the fetcher's SSRF checks, so keep it as attribution regardless.
+		normCuisine, normalizedTags, totalMinutes = "", nil, nil
+		sourceURL, _ = normSourceURL(rawURL)
+	}
+
 	return Recipe{
-		UserID:      userID,
-		Title:       strings.TrimSpace(title),
-		Servings:    servings,
-		Ingredients: ings,
-		Steps:       steps,
-		Equipment:   equip,
-		Methods:     methods,
+		UserID:       userID,
+		Title:        strings.TrimSpace(title),
+		Servings:     servings,
+		Ingredients:  ings,
+		Steps:        steps,
+		Equipment:    equip,
+		Methods:      methods,
+		Cuisine:      normCuisine,
+		TotalMinutes: totalMinutes,
+		Tags:         normTags(normalizedTags),
+		// No SourceRecipeID: an import is not a clone of anything we own.
+		SourceURL: sourceURL,
 	}, nil
 }
