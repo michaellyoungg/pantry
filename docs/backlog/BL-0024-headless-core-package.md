@@ -1,7 +1,7 @@
 ---
 id: BL-0024
 title: Extract headless packages/core (planner, grocery list, import review)
-status: proposed
+status: in-progress
 area: infra
 effort: M
 related_specs: [2026-07-18-mobile-client-design.md]
