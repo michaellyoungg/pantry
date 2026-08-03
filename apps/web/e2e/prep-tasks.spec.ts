@@ -54,10 +54,8 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
 
   // --- and the tick survives a full reload, keyed on the stable task key ---
   await page.reload();
-  const afterReload = page
-    .getByRole("region", { name: "Before you cook" })
-    .getByRole("checkbox", {
-      name: `Move the chicken breast to the fridge to thaw for ${title}`,
-    });
+  const afterReload = page.getByRole("region", { name: "Before you cook" }).getByRole("checkbox", {
+    name: `Move the chicken breast to the fridge to thaw for ${title}`,
+  });
   await expect(afterReload).toBeChecked();
 });
