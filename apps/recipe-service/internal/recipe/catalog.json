@@ -37,7 +37,10 @@
         "required": true
       }
     ],
-    "methods": ["bake"]
+    "methods": ["bake"],
+    "cuisine": "italian",
+    "totalMinutes": 20,
+    "tags": ["vegetarian", "side", "weeknight"]
   },
   {
     "id": "cat-aglio-e-olio",
@@ -85,7 +88,10 @@
         "required": true
       }
     ],
-    "methods": ["boil", "saute"]
+    "methods": ["boil", "saute"],
+    "cuisine": "italian",
+    "totalMinutes": 20,
+    "tags": ["vegan", "vegetarian", "dairy-free", "weeknight", "one-pot"]
   },
   {
     "id": "cat-margherita-pizza",
@@ -127,7 +133,10 @@
         "required": false
       }
     ],
-    "methods": ["bake"]
+    "methods": ["bake"],
+    "cuisine": "italian",
+    "totalMinutes": 45,
+    "tags": ["vegetarian"]
   },
   {
     "id": "cat-caesar-salad",
@@ -175,7 +184,10 @@
         "required": true
       }
     ],
-    "methods": ["no_cook"]
+    "methods": ["no_cook"],
+    "cuisine": "american",
+    "totalMinutes": 15,
+    "tags": ["vegetarian", "no-cook", "weeknight"]
   },
   {
     "id": "cat-tomato-soup",
@@ -217,7 +229,10 @@
         "required": false
       }
     ],
-    "methods": ["boil"]
+    "methods": ["boil"],
+    "cuisine": "american",
+    "totalMinutes": 35,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "one-pot"]
   },
   {
     "id": "cat-roasted-vegetables",
@@ -259,6 +274,8 @@
         "required": true
       }
     ],
-    "methods": ["roast"]
+    "methods": ["roast"],
+    "totalMinutes": 40,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "side"]
   }
 ]

@@ -22,7 +22,7 @@ func postMatch(t *testing.T, url, body string) (*http.Response, EquipmentMatchRe
 
 func seedTagged(t *testing.T, store Store, userID, title string, equip ...RecipeEquipment) Recipe {
 	t.Helper()
-	rec, err := store.CreateRecipe(t.Context(), userID, title, nil, nil, nil, equip, nil)
+	rec, err := store.CreateRecipe(t.Context(), userID, RecipeInput{Title: title, Equipment: equip})
 	if err != nil {
 		t.Fatal(err)
 	}

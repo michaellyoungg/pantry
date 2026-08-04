@@ -137,6 +137,10 @@ describe("draftSubmission", () => {
       servings: "4",
       equipment: [{ id: "toaster_oven", required: true }],
       methods: ["bake"],
+      cuisine: "  italian ",
+      totalMinutes: "20",
+      tags: ["vegetarian"],
+      sourceUrl: " https://example.com/toast ",
       steps: ["  Toast the bread  ", "   ", ""],
       ingredients: [
         { quantity: 2, unit: "slice", item: "bread" },
@@ -151,6 +155,10 @@ describe("draftSubmission", () => {
       steps: ["Toast the bread"],
       equipment: [{ id: "toaster_oven", required: true }],
       methods: ["bake"],
+      cuisine: "italian",
+      totalMinutes: "20",
+      tags: ["vegetarian"],
+      sourceUrl: "https://example.com/toast",
     });
   });
 });
