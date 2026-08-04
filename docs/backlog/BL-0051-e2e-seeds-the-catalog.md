@@ -1,7 +1,7 @@
 ---
 id: BL-0051
 title: Seed the recipe catalog in the e2e environment
-status: proposed
+status: in-progress
 area: infra
 effort: S
 related_specs: [2026-07-12-seeded-recipe-catalog-design.md, 2026-08-03-recommendations-design.md]
