@@ -52,7 +52,9 @@ test("a recipe shows its estimate as a Nutrition Facts panel", async ({ page }) 
 
   // The recipe carries no yield, so the panel names the whole recipe rather
   // than inventing a serving.
-  await expect(panel.getByText("Entire recipe")).toBeVisible();
+  // `exact` matters: the table's sr-only <caption> repeats this label inside a
+  // longer sentence, and a substring match would resolve to two elements.
+  await expect(panel.getByText("Entire recipe", { exact: true })).toBeVisible();
   await expect(panel.getByRole("columnheader", { name: "% Daily Value" })).toBeVisible();
 
   // A real table: the row-and-column relationship the visual rules draw is
