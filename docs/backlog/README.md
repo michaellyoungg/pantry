@@ -67,7 +67,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0027](BL-0027-observability-telemetry.md) | Observability & telemetry (OpenTelemetry + Grafana LGTM) | done | infra | L |
 | [BL-0028](BL-0028-pantry-cook-decrement.md) | Pantry cook-decrement — step ingredients have→low→out when a recipe is marked cooked | done | pantry | M |
 | [BL-0029](BL-0029-pantry-shelf-life-expiry-nudges.md) | Pantry shelf-life & expiry nudges — category-default dates + "use this week" batches | done | pantry | L |
-| [BL-0030](BL-0030-recipe-discovery-metadata.md) | Recipe discovery metadata (cuisine, tags, cook time, source URL) | in-progress | recipes | M |
+| [BL-0030](BL-0030-recipe-discovery-metadata.md) | Recipe discovery metadata (cuisine, tags, cook time, source URL) | done | recipes | M |
 | [BL-0031](BL-0031-normalization-dictionary-coverage.md) | Normalization dictionary coverage + staple flag | done | grocery-list | M |
 | [BL-0032](BL-0032-purchase-units-leftover-residue.md) | Purchase units + leftover residue inference | done | grocery-list | L |
 | [BL-0033](BL-0033-suggest-my-week.md) | "Suggest my week" — set-level meal plan optimization | done | recommendations | L |
