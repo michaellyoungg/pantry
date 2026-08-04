@@ -1,7 +1,7 @@
 ---
 id: BL-0050
 title: Unify the two pantry suggestion surfaces (expiry vs. recommendations)
-status: proposed
+status: in-progress
 area: pantry
 effort: M
 related_specs: [2026-08-03-recommendations-design.md, 2026-07-18-pantry-thin-loop-design.md]
