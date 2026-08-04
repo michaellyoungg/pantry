@@ -123,7 +123,7 @@ func TestGetRecipe_NotFound(t *testing.T) {
 
 func TestListRecipes_ReturnsOwnerRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
-	_, _ = store.CreateRecipe(context.Background(), "user-a", "A", nil, nil, nil, nil, nil)
+	_, _ = store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "A"})
 	resp := doAuth(t, http.MethodGet, srv.URL+"/recipes", nil)
 	defer resp.Body.Close()
 	var got []Recipe
@@ -190,8 +190,8 @@ func TestCreateRecipe_PersistsAndReturnsSteps(t *testing.T) {
 func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	a, _ := store.CreateRecipe(ctx, "user-a", "A", nil, []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
-	b, _ := store.CreateRecipe(ctx, "user-a", "B", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
+	a, _ := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "A", Ingredients: []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}})
+	b, _ := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "B", Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}})
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": a.ID, "multiplier": 1},
@@ -226,8 +226,8 @@ func TestGroceryList_AggregatesAcrossRecipeIDs(t *testing.T) {
 func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	own, _ := store.CreateRecipe(ctx, "user-a", "Own", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
-	cat, _ := store.CreateRecipe(ctx, CatalogUserID, "Catalog", nil, []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
+	own, _ := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Own", Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}})
+	cat, _ := store.CreateRecipe(ctx, CatalogUserID, RecipeInput{Title: "Catalog", Ingredients: []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}})
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": own.ID, "multiplier": 1},
@@ -258,8 +258,8 @@ func TestGroceryList_IncludesCatalogRecipes(t *testing.T) {
 func TestGroceryList_ExcludesOtherUsersRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 	ctx := context.Background()
-	mine, _ := store.CreateRecipe(ctx, "user-a", "Mine", nil, []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
-	theirs, _ := store.CreateRecipe(ctx, "user-b", "Theirs", nil, []Ingredient{{Quantity: 5, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
+	mine, _ := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Mine", Ingredients: []Ingredient{{Quantity: 1, Unit: "cloves", Item: "garlic"}}})
+	theirs, _ := store.CreateRecipe(ctx, "user-b", RecipeInput{Title: "Theirs", Ingredients: []Ingredient{{Quantity: 5, Unit: "cloves", Item: "garlic"}}})
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": mine.ID, "multiplier": 1},
@@ -278,8 +278,7 @@ func TestGroceryList_ExcludesOtherUsersRecipes(t *testing.T) {
 
 func TestGroceryList_ScalesByMultiplier(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Garlic", nil,
-		[]Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}, nil, nil, nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Garlic", Ingredients: []Ingredient{{Quantity: 2, Unit: "cloves", Item: "garlic"}}})
 
 	body, _ := json.Marshal(map[string]any{"items": []map[string]any{
 		{"recipeId": rec.ID, "multiplier": 2},
@@ -300,7 +299,7 @@ func TestGroceryList_ScalesByMultiplier(t *testing.T) {
 
 func TestDeleteRecipe_RemovesAndReturns204(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil, nil, nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Toast"})
 
 	resp := doAuth(t, http.MethodDelete, srv.URL+"/recipes/"+rec.ID, nil)
 	defer resp.Body.Close()
@@ -326,7 +325,7 @@ func TestDeleteRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_ReplacesAndReturns200(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil, nil, nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Toast"})
 
 	body := bytes.NewBufferString(`{"title":"French Toast","ingredients":[{"quantity":2,"unit":"slices","item":"brioche"}],"steps":["Soak.","Fry."]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
@@ -371,7 +370,7 @@ func TestUpdateRecipe_MissingReturns404(t *testing.T) {
 
 func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil, nil, nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Toast"})
 	body := bytes.NewBufferString(`{"title":"   ","ingredients":[]}`)
 	req := authReq(http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)
 	req.Header.Set("Content-Type", "application/json")
@@ -391,7 +390,7 @@ func TestUpdateRecipe_BlankTitleReturns400(t *testing.T) {
 // list must be empty.
 func TestRecipes_CrossUserReturns404(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, err := store.CreateRecipe(context.Background(), "user-a", "Toast", nil, nil, nil, nil, nil)
+	rec, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Toast"})
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -457,7 +456,7 @@ func TestListCatalog_ReturnsCatalogOwnedRecipesOnly(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	// A regular user's recipe must NOT leak into the catalog.
-	_, _ = store.CreateRecipe(ctx, "user-a", "Mine", nil, nil, nil, nil, nil)
+	_, _ = store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Mine"})
 
 	resp := doAuth(t, http.MethodGet, srv.URL+"/catalog", nil)
 	defer resp.Body.Close()
@@ -594,7 +593,7 @@ func TestCreateRecipe_RejectsNonPositiveServings(t *testing.T) {
 
 func TestUpdateRecipe_ReplacesServings(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(context.Background(), "user-a", "Chili", intPtr(6), nil, nil, nil, nil)
+	rec, _ := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Chili", Servings: intPtr(6)})
 
 	body := bytes.NewBufferString(`{"title":"Chili","servings":8,"ingredients":[]}`)
 	resp := doAuth(t, http.MethodPut, srv.URL+"/recipes/"+rec.ID, body)

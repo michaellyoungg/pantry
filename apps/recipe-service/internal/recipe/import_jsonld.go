@@ -18,9 +18,16 @@ type jsonLDRecipe struct {
 	// read as a serving count. See parseRecipeYield.
 	Servings *int
 	// CookingMethods are the raw schema.org `cookingMethod` values, mapped onto
-	// the closed method enum by the caller. `recipeCategory` and `keywords` are
-	// deliberately NOT read here — they belong to BL-0030's tags.
+	// the closed method enum by the caller.
 	CookingMethods []string
+	// Discovery metadata (BL-0020, which absorbed the never-filed BL-0030).
+	// Cuisine is the raw `recipeCuisine`; Tags are `recipeCategory` + `keywords`
+	// merged. Both are slugified by the caller through ValidateDiscovery, so an
+	// imported "Gluten Free" lands on the same chip as a hand-typed one.
+	Cuisine string
+	Tags    []string
+	// TotalMinutes is `totalTime`, or prepTime+cookTime when the page omits it.
+	TotalMinutes *int
 }
 
 // extractJSONLD scans a page for schema.org Recipe JSON-LD and returns the first
@@ -87,7 +94,32 @@ func buildRecipe(m map[string]any) jsonLDRecipe {
 			rec.CookingMethods = append(rec.CookingMethods, s)
 		}
 	}
+
+	rec.Cuisine = firstNonEmpty(asStringSlice(m["recipeCuisine"]))
+	rec.TotalMinutes = totalMinutesFrom(asString(m["totalTime"]), asString(m["prepTime"]), asString(m["cookTime"]))
+	// keywords is conventionally comma-separated even when it is a single
+	// string, so it is split before slugifying — otherwise a whole keyword list
+	// becomes one unusable mega-tag.
+	for _, raw := range append(asStringSlice(m["recipeCategory"]), asStringSlice(m["keywords"])...) {
+		for _, part := range strings.Split(cleanText(raw), ",") {
+			if s := strings.TrimSpace(part); s != "" {
+				rec.Tags = append(rec.Tags, s)
+			}
+		}
+	}
 	return rec
+}
+
+// firstNonEmpty returns the first non-blank entry, cleaned. schema.org allows a
+// list where we can only store one value (recipeCuisine); taking the first is
+// the convention the rest of this file already follows for @graph nodes.
+func firstNonEmpty(values []string) string {
+	for _, v := range values {
+		if s := cleanText(v); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // cleanText decodes HTML entities (recipe sites routinely encode e.g. "&#39;"

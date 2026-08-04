@@ -21,6 +21,12 @@ type catalogEntry struct {
 	// detected: catalog recipes are hand-written, so the tags can be right.
 	Equipment []RecipeEquipment `json:"equipment"`
 	Methods   []string          `json:"methods"`
+	// Discovery metadata (BL-0020), curated for the same reason. These are what
+	// the catalog's filter chips are built from, so the seed set is the one
+	// place they are guaranteed to be present and accurate.
+	Cuisine      string   `json:"cuisine"`
+	TotalMinutes *int     `json:"totalMinutes"`
+	Tags         []string `json:"tags"`
 }
 
 // LoadCatalog parses the embedded catalog dataset into system-owned recipes,
@@ -48,15 +54,25 @@ func LoadCatalog() ([]Recipe, error) {
 		if err := ValidateTags(e.Equipment, e.Methods); err != nil {
 			return nil, fmt.Errorf("catalog entry %q: %w", e.ID, err)
 		}
+		// Catalog entries go through the same validator as a client request, so
+		// a typo in the seed file fails the boot rather than shipping a chip
+		// nobody can match.
+		cuisine, tags, _, err := ValidateDiscovery(e.Cuisine, e.TotalMinutes, e.Tags, "")
+		if err != nil {
+			return nil, fmt.Errorf("catalog entry %q: %w", e.ID, err)
+		}
 		seen[e.ID] = true
 		out = append(out, Recipe{
-			ID:          e.ID,
-			UserID:      CatalogUserID,
-			Title:       e.Title,
-			Ingredients: e.Ingredients,
-			Steps:       e.Steps,
-			Equipment:   normEquipment(e.Equipment),
-			Methods:     normMethods(e.Methods),
+			ID:           e.ID,
+			UserID:       CatalogUserID,
+			Title:        e.Title,
+			Ingredients:  e.Ingredients,
+			Steps:        e.Steps,
+			Equipment:    normEquipment(e.Equipment),
+			Methods:      normMethods(e.Methods),
+			Cuisine:      cuisine,
+			TotalMinutes: e.TotalMinutes,
+			Tags:         tags,
 		})
 	}
 	return out, nil

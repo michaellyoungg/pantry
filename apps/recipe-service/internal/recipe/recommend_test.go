@@ -45,10 +45,10 @@ func postRecommendations(t *testing.T, srv string, body any) recResponse {
 func TestRecommendPantryRanksOwnAndCatalogRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
 
-	if _, err := store.CreateRecipe(context.Background(), "user-a", "Garlic Rice", nil, []Ingredient{
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Garlic Rice", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "rice"},
 		{Quantity: 2, Unit: "cloves", Item: "garlic"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	if err := store.UpsertRecipe(context.Background(), Recipe{
@@ -84,9 +84,9 @@ func TestRecommendPantryRanksOwnAndCatalogRecipes(t *testing.T) {
 // "green onion" are the same pantry row.
 func TestRecommendPantryCanonicalizesIngredients(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(context.Background(), "user-a", "Scallion Bowl", nil, []Ingredient{
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Scallion Bowl", Ingredients: []Ingredient{
 		{Quantity: 2, Unit: "whole", Item: "scallions"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -105,9 +105,9 @@ func TestRecommendPantryCanonicalizesIngredients(t *testing.T) {
 // Cross-user isolation: another user's private recipe must never be a candidate.
 func TestRecommendPantryNeverLeaksAnotherUsersRecipes(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(context.Background(), "user-b", "Secret Rice", nil, []Ingredient{
+	if _, err := store.CreateRecipe(context.Background(), "user-b", RecipeInput{Title: "Secret Rice", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "rice"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -124,10 +124,10 @@ func TestRecommendPantryNeverLeaksAnotherUsersRecipes(t *testing.T) {
 
 func TestRecommendPantryAppliesAvoidList(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(context.Background(), "user-a", "Peanut Rice", nil, []Ingredient{
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Peanut Rice", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "rice"},
 		{Quantity: 2, Unit: "tbsp", Item: "peanut"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 

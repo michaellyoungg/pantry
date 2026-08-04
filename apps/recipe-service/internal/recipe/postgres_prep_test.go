@@ -14,7 +14,7 @@ func TestPostgres_PrepTasksTableAcceptsRows(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	rec, err := s.CreateRecipe(ctx, "user-a", "Roast turkey", nil, nil, nil, nil, nil)
+	rec, err := s.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Roast turkey"})
 	if err != nil {
 		t.Fatalf("create recipe: %v", err)
 	}
