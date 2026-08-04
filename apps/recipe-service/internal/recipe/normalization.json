@@ -1182,5 +1182,145 @@
     },
     "ice cream": { "display": "Ice cream", "aisle": "frozen", "shelfLifeDays": 60 }
   },
-  "aisleOrder": ["produce", "meat", "dairy", "bakery", "pantry", "frozen", "other"]
+  "aisleOrder": ["produce", "meat", "dairy", "bakery", "pantry", "frozen", "other"],
+  "allergens": {
+    "peanut": {
+      "display": "Peanuts",
+      "names": ["peanut", "peanuts", "groundnut", "groundnuts"],
+      "items": ["peanut", "peanut butter"]
+    },
+    "tree nut": {
+      "display": "Tree nuts",
+      "names": ["tree nut", "tree nuts", "treenut", "treenuts"],
+      "items": [
+        "almond",
+        "almond butter",
+        "almond flour",
+        "cashew",
+        "coconut milk",
+        "coconut oil",
+        "pecan",
+        "pine nut",
+        "pistachio",
+        "walnut"
+      ]
+    },
+    "milk": {
+      "display": "Milk and dairy",
+      "names": ["milk", "milks", "dairy"],
+      "items": [
+        "blue cheese",
+        "butter",
+        "buttermilk",
+        "cheddar cheese",
+        "cottage cheese",
+        "cream cheese",
+        "evaporated milk",
+        "feta",
+        "ghee",
+        "goat cheese",
+        "gouda",
+        "greek yogurt",
+        "half and half",
+        "heavy cream",
+        "ice cream",
+        "mascarpone",
+        "milk",
+        "monterey jack",
+        "mozzarella",
+        "parmesan",
+        "provolone",
+        "ricotta",
+        "sour cream",
+        "sweetened condensed milk",
+        "swiss cheese",
+        "yogurt"
+      ]
+    },
+    "egg": {
+      "display": "Eggs",
+      "names": ["egg", "eggs"],
+      "items": ["egg", "egg noodles", "mayonnaise"]
+    },
+    "fish": {
+      "display": "Fish",
+      "names": ["fish", "finfish"],
+      "items": [
+        "canned tuna",
+        "cod",
+        "fish sauce",
+        "halibut",
+        "salmon",
+        "smoked salmon",
+        "tilapia",
+        "tuna steak",
+        "worcestershire sauce"
+      ]
+    },
+    "shellfish": {
+      "display": "Shellfish",
+      "names": ["shellfish", "crustacean", "crustaceans"],
+      "items": ["clam", "crab", "mussel", "oyster sauce", "scallop", "shrimp"]
+    },
+    "wheat": {
+      "display": "Wheat",
+      "names": ["wheat"],
+      "items": [
+        "bagel",
+        "baguette",
+        "bread",
+        "bread flour",
+        "breadcrumbs",
+        "cracker",
+        "croissant",
+        "crouton",
+        "couscous",
+        "dinner roll",
+        "egg noodles",
+        "english muffin",
+        "farro",
+        "fettuccine",
+        "flour",
+        "fusilli",
+        "hamburger bun",
+        "hot dog bun",
+        "lasagna noodles",
+        "linguine",
+        "macaroni",
+        "naan",
+        "orzo",
+        "panko",
+        "pasta",
+        "penne",
+        "phyllo dough",
+        "pita",
+        "pizza dough",
+        "puff pastry",
+        "ramen noodles",
+        "rigatoni",
+        "sourdough",
+        "spaghetti",
+        "tortilla",
+        "whole wheat flour"
+      ]
+    },
+    "soy": {
+      "display": "Soy",
+      "names": ["soy", "soya", "soybean", "soybeans"],
+      "items": [
+        "frozen edamame",
+        "gochujang",
+        "hoisin sauce",
+        "miso",
+        "soy sauce",
+        "tempeh",
+        "tofu"
+      ]
+    },
+    "sesame": {
+      "display": "Sesame",
+      "names": ["sesame"],
+      "items": ["sesame oil", "sesame seed", "tahini"]
+    }
+  }
 }

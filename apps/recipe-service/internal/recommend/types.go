@@ -76,6 +76,17 @@ type CandidateIngredient struct {
 	// conservative reading: an unknown ingredient is one we cannot promise the
 	// user has, so it counts against the recipe.
 	Staple bool
+	// Allergens are the coarse allergen families this ingredient belongs to —
+	// "peanut" for peanut butter, both "egg" and "wheat" for egg noodles
+	// (BL-0052). Like Staple, the CALLER fills it from the dictionary; this
+	// package owns no data.
+	//
+	// It is what makes an avoid entry cover a family rather than one exact
+	// string. Empty for an ingredient in no family and for every ingredient the
+	// dictionary does not recognize: an unknown ingredient is one whose
+	// allergens we do not know, and it is named as unmatched elsewhere rather
+	// than quietly assumed safe.
+	Allergens []string
 }
 
 // Candidate is a recipe reduced to identity plus canonicalized ingredients.

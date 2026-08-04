@@ -58,6 +58,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
+	mux.HandleFunc("POST /normalization/avoid", traced(h.normalizationAvoid))
 	mux.HandleFunc("GET /normalization/coverage", traced(h.normalizationCoverage))
 	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
@@ -429,6 +430,31 @@ func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
 		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
+}
+
+// normalizationAvoid resolves free-typed avoid-list entries to what they will
+// actually match, so Convex can canonicalize them BEFORE storing (BL-0052).
+//
+// It is separate from /normalization/lookup for a reason that matters here and
+// nowhere else: lookup collapses duplicate results, so a caller cannot tell what
+// any individual entry became — and "what did MY entry become, and does it match
+// anything at all?" is the entire question an avoid list needs answered. This
+// endpoint therefore answers one-to-one and in order, including for entries the
+// dictionary does not recognize.
+func (h *handlers) normalizationAvoid(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Entries []string `json:"entries"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	out := make([]AvoidResolution, 0, len(req.Entries))
+	for _, raw := range req.Entries {
+		if res, ok := normalizer.ResolveAvoid(raw); ok {
+			out = append(out, res)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string][]AvoidResolution{"entries": out})
 }
 
 // normalizationCoverage reports how much of the ingredient text in real stored
