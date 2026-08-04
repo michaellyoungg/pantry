@@ -1,7 +1,7 @@
 ---
 id: BL-0032
 title: Purchase units + leftover residue inference
-status: proposed
+status: in-progress
 area: grocery-list
 effort: L
 related_specs: [2026-08-03-recommendations-design.md]
