@@ -102,8 +102,7 @@ func TestCreateRecipe_RejectsUnknownTags(t *testing.T) {
 
 func TestUpdateRecipe_ReplacesTags(t *testing.T) {
 	srv, store := newTestServer(t)
-	rec, _ := store.CreateRecipe(t.Context(), "user-a", "Roast", nil, nil, nil,
-		[]RecipeEquipment{{ID: "oven", Required: true}}, []string{"roast"})
+	rec, _ := store.CreateRecipe(t.Context(), "user-a", RecipeInput{Title: "Roast", Equipment: []RecipeEquipment{{ID: "oven", Required: true}}, Methods: []string{"roast"}})
 
 	body := `{"title":"Roast","ingredients":[],"equipment":[{"id":"smoker","required":true}],"methods":["smoke"]}`
 	resp := doAuth(t, http.MethodPut, srv.URL+"/recipes/"+rec.ID, bytes.NewBufferString(body))

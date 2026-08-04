@@ -138,10 +138,14 @@ func toCandidates(recs []Recipe, source string) []recommend.Candidate {
 	for _, rec := range recs {
 		ings := make([]recommend.CandidateIngredient, 0, len(rec.Ingredients))
 		for _, ing := range rec.Ingredients {
-			canonical, display, _ := normalizer.CanonicalItem(ing.Item)
+			d := normalizer.Details(ing.Item)
 			ings = append(ings, recommend.CandidateIngredient{
-				CanonicalItem: canonical,
-				Display:       display,
+				CanonicalItem: d.CanonicalItem,
+				Display:       d.Display,
+				// The dictionary is the only thing that knows a staple from an
+				// errand (BL-0031). recommend deliberately owns no data, so the
+				// answer has to be attached here, at the edge that has it.
+				Staple: d.Staple,
 			})
 		}
 		out = append(out, recommend.Candidate{

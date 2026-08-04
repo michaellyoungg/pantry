@@ -52,6 +52,11 @@ var knownUnits = map[string]string{
 	"bunch": "bunch", "bunches": "bunch",
 	"head": "head", "heads": "head",
 	"fillet": "fillet", "fillets": "fillet",
+	// "4 ears fresh corn", "1 rack baby back ribs" — count units that were
+	// missing, so the whole line landed in the item text and could never
+	// resolve to a canonical item (found by the BL-0031 coverage report).
+	"ear": "ear", "ears": "ear",
+	"rack": "rack", "racks": "rack",
 	"drop": "drop", "drops": "drop",
 	"knob": "knob", "knobs": "knob",
 }

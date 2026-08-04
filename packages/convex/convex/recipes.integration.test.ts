@@ -18,6 +18,10 @@ const modules = import.meta.glob("./**/*.*s");
 // groceryList.test.ts), so this resolves to the user id "integration-user".
 const identity = { subject: "integration-user|session" };
 
+// recipe-service's sentinel owner for the shared catalog. Mirrors
+// internal/recipe/types.go's CatalogUserID.
+const CATALOG_USER_ID = "catalog";
+
 function client() {
   return convexTest(schema, modules).withIdentity(identity);
 }
@@ -26,9 +30,13 @@ describe("recipes <-> recipe-service contract", () => {
   // Track ids we create so each test cleans up after itself — the Postgres
   // store persists across runs, so assertions must not assume an empty store.
   let created: string[] = [];
+  // Recipes owned by the sentinel catalog user need deleting AS that user;
+  // a normal caller's delete cannot see them.
+  let catalogCreated: string[] = [];
 
   beforeEach(() => {
     created = [];
+    catalogCreated = [];
   });
 
   afterEach(async () => {
@@ -38,6 +46,16 @@ describe("recipes <-> recipe-service contract", () => {
         await t.action(api.recipes.remove, { id });
       } catch {
         // already gone / test asserted the delete — ignore
+      }
+    }
+    const catalogT = convexTest(schema, modules).withIdentity({
+      subject: `${CATALOG_USER_ID}|session`,
+    });
+    for (const id of catalogCreated) {
+      try {
+        await catalogT.action(api.recipes.remove, { id });
+      } catch {
+        // ignore
       }
     }
   });
@@ -306,6 +324,100 @@ describe("recipes <-> recipe-service contract", () => {
       estimate.nutrients["1008"].amount / 4,
       2,
     );
+  });
+
+  // Clone-on-add across the real service boundary (BL-0020). The catalog is
+  // seeded by a separate command and is empty here, so this test creates the
+  // source recipe under the SENTINEL catalog identity — which is also what
+  // makes it a real test of the ownership quirk: recipe-service has to find a
+  // recipe the caller does not own.
+  describe("addFromCatalog", () => {
+    const catalogClient = () =>
+      convexTest(schema, modules).withIdentity({ subject: `${CATALOG_USER_ID}|session` });
+
+    async function seedCatalogRecipe(title: string) {
+      const rec = await catalogClient().action(api.recipes.create, {
+        title,
+        ingredients: [{ quantity: 2, unit: "cloves", item: "garlic" }],
+        steps: ["Roast it."],
+        cuisine: "Italian",
+        totalMinutes: 25,
+        tags: ["Vegetarian", "weeknight"],
+      });
+      return rec;
+    }
+
+    it("clones a catalog recipe into the caller's own recipes, with its metadata", async () => {
+      const source = await seedCatalogRecipe("Contract Garlic Bread");
+      catalogCreated.push(source.id);
+
+      const clone = await client().action(api.recipes.addFromCatalog, {
+        catalogRecipeId: source.id,
+      });
+      created.push(clone.id);
+
+      expect(clone.id).not.toBe(source.id);
+      expect(clone.userId).toBe("integration-user");
+      expect(clone.sourceRecipeId).toBe(source.id);
+      // Normalization happened server-side on the way in, so both sides agree.
+      expect(clone.cuisine).toBe("italian");
+      expect(clone.totalMinutes).toBe(25);
+      expect(clone.tags).toEqual(["vegetarian", "weeknight"]);
+      expect(clone.ingredients).toHaveLength(1);
+      expect(clone.steps).toEqual(["Roast it."]);
+
+      // The clone is the caller's own recipe, so it shows up in their list.
+      const mine = await client().action(api.recipes.list, {});
+      expect(mine.map((r) => r.id)).toContain(clone.id);
+    });
+
+    it("is idempotent: adding twice yields one recipe", async () => {
+      const source = await seedCatalogRecipe("Contract Caesar Salad");
+      catalogCreated.push(source.id);
+
+      const first = await client().action(api.recipes.addFromCatalog, {
+        catalogRecipeId: source.id,
+      });
+      created.push(first.id);
+      const second = await client().action(api.recipes.addFromCatalog, {
+        catalogRecipeId: source.id,
+      });
+
+      expect(second.id).toBe(first.id);
+    });
+
+    it("editing a clone leaves the shared catalog recipe untouched", async () => {
+      const source = await seedCatalogRecipe("Contract Margherita");
+      catalogCreated.push(source.id);
+      const clone = await client().action(api.recipes.addFromCatalog, {
+        catalogRecipeId: source.id,
+      });
+      created.push(clone.id);
+
+      await client().action(api.recipes.update, {
+        id: clone.id,
+        title: "My Margherita",
+        ingredients: [{ quantity: 1, unit: "", item: "dough" }],
+        cuisine: "American",
+      });
+
+      const catalogNow = await catalogClient().action(api.recipes.list, {});
+      const unchanged = catalogNow.find((r) => r.id === source.id);
+      expect(unchanged?.title).toBe("Contract Margherita");
+      expect(unchanged?.cuisine).toBe("italian");
+    });
+
+    it("rejects a recipe that is not in the catalog", async () => {
+      const mine = await client().action(api.recipes.create, {
+        title: "Not a catalog recipe",
+        ingredients: [{ quantity: 1, unit: "", item: "flour" }],
+      });
+      created.push(mine.id);
+
+      await expect(
+        client().action(api.recipes.addFromCatalog, { catalogRecipeId: mine.id }),
+      ).rejects.toThrow();
+    });
   });
 
   it("nutrition 404s for a recipe the caller cannot see", async () => {

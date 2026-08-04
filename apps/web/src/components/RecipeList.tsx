@@ -2,7 +2,7 @@ import { api } from "@pantry/convex/api";
 import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
-import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
+import type { Recipe } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
@@ -10,7 +10,7 @@ import { useHouseholdSize } from "../lib/useHouseholdSize";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
-import { RecipeEditDialog } from "./RecipeEditDialog";
+import { type RecipeEdit, RecipeEditDialog } from "./RecipeEditDialog";
 import { RecipeNutrition } from "./RecipeNutrition";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -86,29 +86,23 @@ export function RecipeList({
     reload();
   }
 
-  async function onSaveEdit(
-    title: string,
-    servings: number | undefined,
-    ingredients: Ingredient[],
-    steps: string[],
-    equipment: RecipeEquipment[],
-    methods: CookingMethod[],
-  ) {
+  async function onSaveEdit(edit: RecipeEdit) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
-      // update replaces the whole recipe, so servings must be sent every time —
-      // omitting it clears the stored yield.
-      await updateRecipe({ id, title, servings, ingredients, steps, equipment, methods });
+      // update replaces the whole recipe, so every field must be sent every
+      // time — omitting one clears the stored value.
+      await updateRecipe({ id, ...edit });
       return true;
     });
     if (!saved) return;
     setEditing(null);
     try {
-      await updateBasketTitle({ recipeId: id, title }); // idempotent no-op if not in basket
+      // idempotent no-op if not in basket
+      await updateBasketTitle({ recipeId: id, title: edit.title });
     } catch {
       showError(
-        `Saved "${title}", but couldn't update the basket title — it may show the old title until reload.`,
+        `Saved "${edit.title}", but couldn't update the basket title — it may show the old title until reload.`,
       );
     }
     reload();
