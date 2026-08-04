@@ -1,7 +1,7 @@
 ---
 id: BL-0044
 title: Prep task sources — LLM-derived and hand-authored, merged with rule output
-status: proposed
+status: done
 area: recipes
 effort: M
 related_specs: [2026-08-03-cooking-guidance-design.md]
@@ -57,3 +57,27 @@ and can land alone.
 - **Letting all three sources emit freely without precedence** — produces
   duplicate "thaw the chicken" entries from two producers; dedupe by key is the
   cheap fix and the reason keys were made stable in BL-0042.
+
+## Progress
+
+**Manual + precedence: shipped.** `recipe_prep_tasks` now carries a `task_key`,
+and `MergePrepTasks` folds stored tasks over the rule table's on-the-fly
+derivation, deduped by key with precedence `manual > llm > rule`. A hand-authored
+task overrides the rule that would have produced it rather than doubling it; the
+three-way case is covered by tests. Writes are scoped by producer, so the recipe
+form replaces only `manual` rows and import only `llm` ones — a client that omits
+`prepTasks` entirely changes nothing.
+
+Authoring lives in `PrepEditor` on both recipe forms: text plus a window, plus an
+*Override* button on each derived task that copies its key onto a new task of the
+user's. `PrepSourceBadge` labels every task on Home and recipe detail as
+auto / suggested / yours.
+
+**LLM half: built, dark.** `ANTHROPIC_API_KEY` is still unconfigured, so
+`NewClaudeTagger` is never constructed and the import path is byte-for-byte what
+it was. Behind the key, the tagger fills equipment and methods when the
+deterministic keyword scan finds nothing, and picks prep *rules by id* — the text
+and window come from `prep_rules.json`, and the response schema has no field for
+a sentence the model wrote. Suggestions naming an unknown rule are dropped.
+Nothing in this path can invent prep advice, by construction rather than by
+prompt.

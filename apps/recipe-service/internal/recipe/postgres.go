@@ -262,6 +262,20 @@ func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
 	if err := replaceChildren(ctx, tx, rec.ID, rec.Ingredients, rec.Steps, rec.Equipment, rec.Methods, rec.Tags); err != nil {
 		return err
 	}
+	// Per producer, and only for producers the caller actually supplied: a
+	// re-seed that carries no prep is saying nothing about prep, not asserting
+	// that the recipe has none.
+	for source := range prepSourcesIn(rec.PrepTasks) {
+		batch := []StoredPrepTask{}
+		for _, t := range rec.PrepTasks {
+			if t.Source == source {
+				batch = append(batch, t)
+			}
+		}
+		if err := replacePrepTasksTx(ctx, tx, rec.ID, source, batch); err != nil {
+			return err
+		}
+	}
 	return tx.Commit(ctx)
 }
 
@@ -369,8 +383,10 @@ func (s *PostgresStore) ingredientsFor(ctx context.Context, recipeID string) ([]
 	return ings, rows.Err()
 }
 
-// loadTags fills a recipe's equipment, method and discovery-tag sets. All three
-// are always non-nil so the JSON contract stays [] rather than null.
+// loadTags fills a recipe's equipment, method and discovery-tag sets, plus its
+// stored prep tasks. All are always non-nil so the JSON contract stays []
+// rather than null. It is the single hook both read paths go through, which is
+// why the prep tasks BL-0044 added need no change to either of them.
 func (s *PostgresStore) loadTags(ctx context.Context, rec *Recipe) error {
 	equip, err := s.equipmentFor(ctx, rec.ID)
 	if err != nil {
@@ -387,6 +403,74 @@ func (s *PostgresStore) loadTags(ctx context.Context, rec *Recipe) error {
 		return err
 	}
 	rec.Tags = discoveryTags
+	prep, err := s.prepTasksFor(ctx, rec.ID)
+	if err != nil {
+		return err
+	}
+	rec.PrepTasks = prep
+	return nil
+}
+
+func (s *PostgresStore) prepTasksFor(ctx context.Context, recipeID string) ([]StoredPrepTask, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT task_key, prep_window, text, source FROM recipe_prep_tasks
+		 WHERE recipe_id = $1 ORDER BY position, id`, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []StoredPrepTask{}
+	for rows.Next() {
+		var t StoredPrepTask
+		if err := rows.Scan(&t.Key, &t.Window, &t.Text, &t.Source); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// ReplacePrepTasks swaps out one producer's rows for a recipe, leaving the
+// other producer's alone. See the Store interface for why it is scoped by
+// source rather than replacing everything the recipe carries.
+func (s *PostgresStore) ReplacePrepTasks(ctx context.Context, recipeID, source string, tasks []StoredPrepTask) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// The recipe has to exist: without this the delete-then-insert below is a
+	// silent no-op for a bad id, and the caller would be told the write worked.
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT true FROM recipes WHERE id = $1`, recipeID).Scan(&exists); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if err := replacePrepTasksTx(ctx, tx, recipeID, source, tasks); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func replacePrepTasksTx(ctx context.Context, tx pgx.Tx, recipeID, source string, tasks []StoredPrepTask) error {
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM recipe_prep_tasks WHERE recipe_id = $1 AND source = $2`, recipeID, source); err != nil {
+		return err
+	}
+	for i, t := range tasks {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO recipe_prep_tasks (recipe_id, position, prep_window, text, source, task_key)
+			 VALUES ($1,$2,$3,$4,$5,$6)
+			 ON CONFLICT (recipe_id, source, task_key) DO UPDATE
+			 SET position = EXCLUDED.position, prep_window = EXCLUDED.prep_window,
+			     text = EXCLUDED.text`,
+			recipeID, i, string(t.Window), t.Text, t.Source, t.Key); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -35,6 +35,15 @@ type Store interface {
 	// FindCloneOf returns userID's existing clone of sourceRecipeID, or
 	// ErrNotFound. It is what makes clone-on-add idempotent.
 	FindCloneOf(ctx context.Context, userID, sourceRecipeID string) (Recipe, error)
+	// ReplacePrepTasks swaps out one producer's stored prep for a recipe
+	// (BL-0044), leaving the other producer's rows alone.
+	//
+	// Its own method rather than a RecipeInput field because the two producers
+	// write at different times and neither owns the other's rows: saving the
+	// edit form must not delete what the model tagged at import, and
+	// re-importing must not delete what the cook typed. That is the one place
+	// this store deviates from "a write replaces the whole recipe".
+	ReplacePrepTasks(ctx context.Context, recipeID, source string, tasks []StoredPrepTask) error
 }
 
 // applyInput writes in onto rec, normalizing every collection so the JSON
@@ -54,6 +63,9 @@ func applyInput(rec *Recipe, in RecipeInput) {
 	// SourceRecipeID is intentionally NOT written here. applyInput is the
 	// "replace the recipe" path shared by create and update; provenance must
 	// survive an edit, so the two stores set it only on insert.
+	//
+	// Neither is PrepTasks: see the Store interface.
+	rec.PrepTasks = normPrepTasks(rec.PrepTasks)
 }
 
 // normSlice replaces a nil slice with an empty one so recipes always marshal
@@ -149,6 +161,18 @@ func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID string, in Reci
 	return rec, nil
 }
 
+func (s *MemoryStore) ReplacePrepTasks(_ context.Context, recipeID, source string, tasks []StoredPrepTask) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rec, ok := s.byID[recipeID]
+	if !ok {
+		return ErrNotFound
+	}
+	rec.PrepTasks = replacePrepSource(rec.PrepTasks, source, tasks)
+	s.byID[recipeID] = rec
+	return nil
+}
+
 func (s *MemoryStore) FindCloneOf(_ context.Context, userID, sourceRecipeID string) (Recipe, error) {
 	if sourceRecipeID == "" {
 		return Recipe{}, ErrNotFound
@@ -190,6 +214,7 @@ func (s *MemoryStore) UpsertRecipe(_ context.Context, rec Recipe) error {
 	defer s.mu.Unlock()
 	if existing, ok := s.byID[rec.ID]; ok {
 		rec.CreatedAt = existing.CreatedAt
+		rec.PrepTasks = overlayPrepBySource(existing.PrepTasks, rec.PrepTasks)
 	} else {
 		if rec.CreatedAt.IsZero() {
 			rec.CreatedAt = time.Now().UTC().Truncate(time.Microsecond)

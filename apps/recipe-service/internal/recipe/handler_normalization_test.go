@@ -1,6 +1,7 @@
 package recipe
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -38,7 +39,7 @@ func TestNormalizationLookup_CanonicalizesRawTextAndReturnsShelfLife(t *testing.
 
 func TestNormalizationLookup_OmitsShelfLifeForUnknownItems(t *testing.T) {
 	srv, _ := newTestServer(t)
-	resp := postJSON(t, srv.URL+"/normalization/lookup", `{"items":["sriracha"]}`)
+	resp := postJSON(t, srv.URL+"/normalization/lookup", `{"items":["unobtainium"]}`)
 	defer resp.Body.Close()
 	var raw map[string][]map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
@@ -65,5 +66,50 @@ func TestNormalizationLookup_CollapsesDuplicates(t *testing.T) {
 	}
 	if len(got.Items) != 1 {
 		t.Fatalf("got %d items, want 1 deduped: %+v", len(got.Items), got.Items)
+	}
+}
+
+func TestNormalizationCoverage_ReportsShareAndNamesTheMisses(t *testing.T) {
+	srv, store := newTestServer(t)
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Odd Bowl", Ingredients: []Ingredient{
+		{Quantity: 1, Unit: "", Item: "tomato"},
+		{Quantity: 1, Unit: "", Item: "unobtainium"},
+		{Quantity: 2, Unit: "", Item: "unobtainium"}, // same miss twice: counted, listed once
+	}}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	resp := doAuth(t, http.MethodGet, srv.URL+"/normalization/coverage", nil)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var got CoverageReport
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Lines != 3 {
+		t.Fatalf("lines = %d, want the 3 ingredient lines of the one stored recipe", got.Lines)
+	}
+	if got.Resolved != 1 || got.Share <= 0 || got.Share >= 1 {
+		t.Fatalf("resolved/share = %d/%v, want 1 and a fraction", got.Resolved, got.Share)
+	}
+	if len(got.Unresolved) != 1 || got.Unresolved[0].Item != "unobtainium" || got.Unresolved[0].Count != 2 {
+		t.Fatalf("unresolved = %+v, want unobtainium x2", got.Unresolved)
+	}
+	if len(got.Unresolved[0].Examples) != 1 || got.Unresolved[0].Examples[0] != "Odd Bowl" {
+		t.Errorf("examples = %v, want the recipe title so an operator can go look", got.Unresolved[0].Examples)
+	}
+}
+
+func TestNormalizationCoverage_RequiresAuth(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp, err := http.Get(srv.URL + "/normalization/coverage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
 }

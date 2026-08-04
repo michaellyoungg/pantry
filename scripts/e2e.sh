@@ -12,7 +12,8 @@
 #
 # What it does:
 #   1. Ensures ephemeral secrets in .env (gitignored).
-#   2. Brings up the compose stack (postgres, recipe-service, convex-backend).
+#   2. Brings up the compose stack (postgres, recipe-service, convex-backend)
+#      and seeds the shared recipe catalog.
 #   3. Generates a Convex admin key and points the Convex CLI at the backend.
 #   4. Sets the deployment env (auth keys, SITE_URL, recipe-service wiring).
 #   5. Pushes the Convex functions (`convex dev --once`).
@@ -66,6 +67,21 @@ trap cleanup EXIT
 # --- 2. bring up the stack -------------------------------------------------
 echo "==> starting stack (postgres, recipe-service, convex-backend)"
 docker compose up -d --build postgres recipe-service convex-backend
+
+# The shared browse-and-pick catalog is system data owned by the `catalog`
+# sentinel user, and it exists in every other environment because someone ran
+# this job. Without it here, GET /catalog, the /recipes/catalog route,
+# add-catalog-recipe-to-basket and catalog-sourced recommendations are all empty
+# for the whole browser suite, so an integration break in any of them reaches
+# main green (BL-0051).
+#
+# Ordered before the convex-backend wait deliberately: the backend is still
+# booting, so this costs no wall clock in the common case. The job connects
+# straight to Postgres and applies schema.sql itself, so it does not depend on
+# recipe-service having finished starting. Recipes upsert by stable id, so
+# re-running against a warm ./.data/postgres is inert.
+echo "==> seeding the shared recipe catalog"
+docker compose run --rm --build -T seed
 
 echo "==> waiting for convex-backend to answer /version"
 for _ in $(seq 1 60); do

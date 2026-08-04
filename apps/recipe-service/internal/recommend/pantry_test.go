@@ -391,3 +391,102 @@ func TestResultOmitsUrgencyKeyWhenAbsent(t *testing.T) {
 		t.Errorf("absent urgency should be omitted, got %s", buf)
 	}
 }
+
+// --- missingNonStaple, live since BL-0031 shipped the staple flag -----------
+
+// candStaples builds a candidate where the named items are pantry staples.
+func candStaples(id, title string, staples []string, items ...string) Candidate {
+	isStaple := map[string]bool{}
+	for _, s := range staples {
+		isStaple[s] = true
+	}
+	c := cand(id, title, items...)
+	for i := range c.Ingredients {
+		c.Ingredients[i].Staple = isStaple[c.Ingredients[i].CanonicalItem]
+	}
+	return c
+}
+
+// The failure this feature exists to fix: before the staple flag, a missing
+// pinch of salt cost a recipe exactly what a missing chicken did.
+func TestRankPantryDoesNotPenalizeMissingStaples(t *testing.T) {
+	uc := UserContext{Pantry: have("tomato", "onion")}
+	got := RankPantry(uc, []Candidate{
+		// Identical coverage — 2 of 3 on hand. The difference is only whether
+		// the third thing is something you have to go and buy.
+		candStaples("salt", "Needs salt", []string{"salt"}, "tomato", "onion", "salt"),
+		candStaples("beef", "Needs beef", nil, "tomato", "onion", "beef"),
+	})
+	eq(t, ids(got), []string{"salt", "beef"})
+	if got[0].Score <= got[1].Score {
+		t.Fatalf("missing-a-staple scored %v, missing-beef %v — the penalty is not firing",
+			got[0].Score, got[1].Score)
+	}
+}
+
+func TestMissingStaplesEarnNoPenaltyAtAll(t *testing.T) {
+	uc := UserContext{Pantry: have("tomato", "onion")}
+	onlyStaples := RankPantry(uc, []Candidate{
+		candStaples("a", "A", []string{"salt", "black pepper"}, "tomato", "onion", "salt", "black pepper"),
+	})
+	nothingMissing := RankPantry(uc, []Candidate{cand("b", "B", "tomato", "onion")})
+	// Coverage differs (2/4 vs 2/2), so the scores are not equal; what must
+	// hold is that the missingNonStaple term contributed nothing.
+	if onlyStaples[0].Score == 0 {
+		t.Fatal("a recipe missing only staples scored zero")
+	}
+	if nothingMissing[0].Score <= onlyStaples[0].Score {
+		t.Fatalf("full coverage %v should still beat partial %v",
+			nothingMissing[0].Score, onlyStaples[0].Score)
+	}
+}
+
+func TestMissingNonStaplePenaltyScalesWithHowMuchYouMustBuy(t *testing.T) {
+	uc := UserContext{Pantry: have("tomato", "onion")}
+	got := RankPantry(uc, []Candidate{
+		cand("one", "One missing", "tomato", "onion", "beef", "rice"),
+		cand("two", "Two missing", "tomato", "onion", "beef", "wine"),
+	})
+	// Both miss two non-staples out of four, so the penalty is equal and the
+	// tiebreak is the recipe id — the determinism guarantee.
+	eq(t, ids(got), []string{"one", "two"})
+	if got[0].Score != got[1].Score {
+		t.Fatalf("equal shopping burden scored differently: %v vs %v", got[0].Score, got[1].Score)
+	}
+}
+
+func TestReasonsSayWhenOnlyStaplesAreMissing(t *testing.T) {
+	uc := UserContext{Pantry: have("tomato", "onion")}
+	got := RankPantry(uc, []Candidate{
+		candStaples("a", "A", []string{"salt"}, "tomato", "onion", "salt"),
+	})
+	if !strings.Contains(strings.Join(got[0].Reasons, " | "), "You have everything but pantry staples") {
+		t.Fatalf("reasons = %v, want the staples-only line", got[0].Reasons)
+	}
+}
+
+func TestMissingItemsCarryTheStapleFlagToTheClient(t *testing.T) {
+	uc := UserContext{Pantry: have("tomato")}
+	got := RankPantry(uc, []Candidate{
+		candStaples("a", "A", []string{"salt"}, "tomato", "salt", "beef"),
+	})
+	byItem := map[string]bool{}
+	for _, m := range got[0].Missing {
+		byItem[m.CanonicalItem] = m.Staple
+	}
+	if !byItem["salt"] {
+		t.Error("salt should be reported as a staple so a client can de-emphasize it")
+	}
+	if byItem["beef"] {
+		t.Error("beef must not be reported as a staple")
+	}
+	// And it has to survive the JSON boundary, which is the only place a client
+	// ever sees it.
+	raw, err := json.Marshal(got[0].Missing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"staple":true`) {
+		t.Errorf("missing items marshalled without the staple flag: %s", raw)
+	}
+}

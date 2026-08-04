@@ -73,17 +73,17 @@ func TestAggregate_MixedDimensionsForOneItemStaySeparate(t *testing.T) {
 }
 
 func TestAggregate_SortsByAisleThenFirstSeen(t *testing.T) {
-	// sriracha (unknown -> other) seen first, milk (dairy) second; dairy sorts before other.
+	// unobtainium (unknown -> other) seen first, milk (dairy) second; dairy sorts before other.
 	got := Aggregate([]Recipe{
 		r("a",
-			Ingredient{Quantity: 1, Unit: "", Item: "sriracha"},
+			Ingredient{Quantity: 1, Unit: "", Item: "unobtainium"},
 			Ingredient{Quantity: 1, Unit: "cup", Item: "milk"},
 		),
-		r("b", Ingredient{Quantity: 2, Unit: "", Item: "sriracha"}),
+		r("b", Ingredient{Quantity: 2, Unit: "", Item: "unobtainium"}),
 	})
 	want := []GroceryLine{
 		{Item: "Milk", CanonicalItem: "milk", Unit: "cup", Quantity: 1, Aisle: "dairy"},
-		{Item: "sriracha", CanonicalItem: "sriracha", Unit: "", Quantity: 3, Aisle: "other"},
+		{Item: "unobtainium", CanonicalItem: "unobtainium", Unit: "", Quantity: 3, Aisle: "other"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)

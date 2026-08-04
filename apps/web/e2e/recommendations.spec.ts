@@ -40,10 +40,9 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await line.getByRole("checkbox").check();
 
   // A second recipe sharing the ingredient, never added to the basket so it
-  // stays an eligible candidate. It has to be a recipe of the user's own: the
-  // shared catalog would be the realistic source of a suggestion here, but
-  // scripts/e2e.sh never runs cmd/seed, so the catalog table is empty in this
-  // environment and a catalog-dependent assertion could never pass.
+  // stays an eligible candidate. Owned by this user, which keeps the assertion
+  // below independent of the catalog's contents; the catalog half of the
+  // candidate pool is asserted separately at the end of the test.
   const title = `Garlic Toast ${uniqueSuffix()}`;
   await navigateTo(page, "Recipes");
   await page.getByPlaceholder("Title").fill(title);
@@ -72,6 +71,17 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   const row = suggestions(page).getByRole("listitem").filter({ hasText: title });
   await expect(row).toBeVisible({ timeout: 15_000 });
   await expect(row.getByText(/Uses up:/)).toBeVisible();
+
+  // The candidate pool is the user's recipes PLUS the shared catalog, and the
+  // catalog half only exists here because scripts/e2e.sh seeds it (BL-0051).
+  // "Spaghetti Aglio e Olio" is a seeded recipe whose ingredients include
+  // garlic, so a break in the catalog leg of recommendCandidates — an empty
+  // seed, a user-scoped lookup, a dropped source — takes this assertion with it
+  // while the user-owned suggestion above keeps passing.
+  const fromCatalog = suggestions(page)
+    .getByRole("listitem")
+    .filter({ hasText: "Spaghetti Aglio e Olio" });
+  await expect(fromCatalog).toBeVisible();
 });
 
 test("never suggests a recipe containing an avoided ingredient", async ({ page }) => {

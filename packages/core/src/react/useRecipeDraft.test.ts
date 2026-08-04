@@ -25,6 +25,7 @@ describe("useRecipeDraft", () => {
       totalMinutes: "",
       tags: [],
       sourceUrl: "",
+      prepTasks: [],
     });
   });
 
@@ -54,7 +55,38 @@ describe("useRecipeDraft", () => {
       totalMinutes: "",
       tags: [],
       sourceUrl: "",
+      prepTasks: [],
     });
+  });
+
+  it("carries hand-authored prep tasks into the submission, dropping blank rows", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => {
+      result.current.setTitle("Roast");
+      result.current.setPrepTasks([
+        { window: "night_before", text: "Take the turkey out" },
+        { window: "at_start", text: "  " },
+      ]);
+    });
+    expect(result.current.submission?.prepTasks).toEqual([
+      { window: "night_before", text: "Take the turkey out" },
+    ]);
+  });
+
+  // Import is the only producer of `llm` tasks, and they have to survive review
+  // or the model's work is thrown away on the way to the save.
+  it("keeps model-derived prep from an import", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() =>
+      result.current.applyImported({
+        title: "Pulled pork",
+        ingredients: [{ quantity: 2, unit: "kg", item: "pork shoulder" }],
+        prepTasks: [{ window: "morning_of", text: "Start the smoker", source: "llm" }],
+      }),
+    );
+    expect(result.current.submission?.prepTasks).toEqual([
+      { window: "morning_of", text: "Start the smoker", source: "llm" },
+    ]);
   });
 
   it("holds step lines", () => {
@@ -143,6 +175,7 @@ describe("useRecipeDraft", () => {
       totalMinutes: "",
       tags: [],
       sourceUrl: "",
+      prepTasks: [],
     });
   });
 });

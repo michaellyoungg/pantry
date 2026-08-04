@@ -58,6 +58,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
+	mux.HandleFunc("GET /normalization/coverage", traced(h.normalizationCoverage))
 	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
 	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
@@ -95,6 +96,11 @@ type recipeBody struct {
 	TotalMinutes *int     `json:"totalMinutes"`
 	Tags         []string `json:"tags"`
 	SourceURL    string   `json:"sourceUrl"`
+	// Prep tasks (BL-0044). Unlike every field above, an ABSENT value does not
+	// clear the stored rows: two producers write them independently, so a
+	// client that knows nothing about prep must not be able to delete what the
+	// model tagged at import. Send [] to clear.
+	PrepTasks []StoredPrepTask `json:"prepTasks"`
 }
 
 // validatedInput checks a decoded recipe body and turns it into the store's
@@ -140,9 +146,25 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Validated before the recipe is written: a rejected task must not leave a
+	// half-created recipe behind.
+	//
+	// Create is the one write that accepts model-derived tasks, because saving
+	// a freshly imported recipe is the only moment they exist: the import
+	// preview is returned to the caller and persisted by it, so the tags the
+	// model produced come back in this payload or not at all. Update takes
+	// manual tasks only — see there.
+	prep, err := NormalizePrepTasksBySource(req.PrepTasks, PrepSourceManual, PrepSourceLLM)
+	if err != nil {
+		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
+		return
+	}
 	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), in)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
+		return
+	}
+	if !h.savePrep(w, r, &rec, req.PrepTasks, prep, PrepSourceManual, PrepSourceLLM) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, rec)
@@ -261,6 +283,15 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Manual only. An edit is the long-lived write path, and letting it stamp a
+	// task "llm" would let a client claim the app guessed something the user
+	// wrote. Overriding a model-derived task needs no such claim: reuse its key
+	// and precedence does the rest.
+	prep, err := NormalizePrepTasksBySource(req.PrepTasks, PrepSourceManual)
+	if err != nil {
+		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
+		return
+	}
 	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), in)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
@@ -270,7 +301,36 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusInternalServerError, "could not update recipe", err)
 		return
 	}
+	if !h.savePrep(w, r, &rec, req.PrepTasks, prep, PrepSourceManual) {
+		return
+	}
 	writeJSON(w, http.StatusOK, rec)
+}
+
+// savePrep persists the prep a recipe write carried and folds it into the
+// response, so the client gets back the keys the server assigned instead of
+// having to guess them.
+//
+// requested is the raw field: nil (absent or JSON null) means the client said
+// nothing about prep and every stored row is left exactly as it is. Otherwise
+// each producer in `sources` is replaced — including with nothing, since
+// deleting the last task you wrote has to be possible. Producers not listed are
+// never touched by this write.
+//
+// Reports whether the caller should keep writing the response.
+func (h *handlers) savePrep(w http.ResponseWriter, r *http.Request, rec *Recipe, requested []StoredPrepTask, normalized map[string][]StoredPrepTask, sources ...string) bool {
+	if requested == nil {
+		return true
+	}
+	for _, source := range sources {
+		if err := h.store.ReplacePrepTasks(r.Context(), rec.ID, source, normalized[source]); err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "could not save prep tasks", err)
+			return false
+		}
+		rec.PrepTasks = replacePrepSource(rec.PrepTasks, source, normalized[source])
+	}
+	rec.PrepTasks = normPrepTasks(rec.PrepTasks)
+	return true
 }
 
 func (h *handlers) importRecipe(w http.ResponseWriter, r *http.Request) {
@@ -369,6 +429,36 @@ func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
 		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
+}
+
+// normalizationCoverage reports how much of the ingredient text in real stored
+// recipes resolves to a canonical item, and names what did not.
+//
+// This is the operator surface BL-0031 asks for: an unresolved ingredient never
+// errors, it just quietly cannot join to anything, so the only way the
+// dictionary grows from real usage instead of guesswork is to be able to LOOK at
+// the misses. It reports over the caller's own recipes plus the shared catalog —
+// the same corpus the recommender ranks — so the number answers "how well does
+// the dictionary serve THIS user", which is the question that matters.
+func (h *handlers) normalizationCoverage(w http.ResponseWriter, r *http.Request) {
+	mine, err := h.store.ListRecipes(r.Context(), userIDFrom(r.Context()))
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
+		return
+	}
+	catalog, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
+		return
+	}
+	c := NewCoverageCounter()
+	for _, rec := range mine {
+		c.AddRecipe(rec)
+	}
+	for _, rec := range catalog {
+		c.AddRecipe(rec)
+	}
+	writeJSON(w, http.StatusOK, c.Report())
 }
 
 // equipmentMatch answers "can I make this?" for a whole recipe library at once.
