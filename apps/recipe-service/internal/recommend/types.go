@@ -45,6 +45,16 @@ type UserContext struct {
 	// guess.
 	Now int64 `json:"now"`
 
+	// IncludeUnmatched keeps candidates that share NOTHING with the pantry.
+	//
+	// The "cook what I have" surface drops them — a recipe with no pantry hit has
+	// nothing to say about your fridge, so listing it is noise. Set selection
+	// (BL-0033) wants the opposite: a recipe that matches nothing in the pantry
+	// can still be an excellent week member because it shares ingredients with
+	// the OTHER dishes chosen, and a user whose pantry is empty would otherwise
+	// get an empty week. Defaults to false, so the pantry surface is unchanged.
+	IncludeUnmatched bool `json:"includeUnmatched,omitempty"`
+
 	// NutritionTargets are the caller's ACTIVE nutrition goals (BL-0038/0040).
 	// Paused rows are filtered out before they get here: a paused goal is not a
 	// goal, and the ranker should not have to know that.

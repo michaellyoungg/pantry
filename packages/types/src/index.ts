@@ -394,6 +394,12 @@ export interface RecommendationRequest {
   excludeRecipeIds?: string[];
   limit?: number;
   /**
+   * Keep candidates that share nothing with the pantry (BL-0033). The "cook what
+   * you have" surface drops them as noise; set selection needs them, because a
+   * dish can earn its place by sharing ingredients with the other dinners.
+   */
+  includeUnmatched?: boolean;
+  /**
    * The caller's clock, epoch ms. Sent rather than read from the server clock so
    * scoring stays a pure function of its input. Omitting it makes expiry
    * unavailable — absent data degrades to "no signal", never to a guess.
