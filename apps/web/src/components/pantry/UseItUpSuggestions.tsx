@@ -1,8 +1,9 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncAction } from "@pantry/core/react";
 import type { Recommendation } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
+import { hardConstraintCount, unverifiedLabel } from "../../lib/nutritionGoals";
 import { ErrorText } from "../ErrorText";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -10,6 +11,12 @@ import { Card } from "../ui/Card";
 export function UseItUpSuggestions() {
   const recommend = useAction(api.recommendations.pantry);
   const addToBasket = useMutation(api.basket.add);
+  // Read the goals directly rather than having the action report back what it
+  // filtered on: a list that silently shrank is indistinguishable from having
+  // nothing to suggest, and the user should be told before they press the button
+  // rather than left to wonder afterwards.
+  const goals = useQuery(api.nutritionTargets.list) ?? [];
+  const required = hardConstraintCount(goals);
   const { run, error, pending } = useAsyncAction();
   // null = not asked yet, so the empty state only appears after a real
   // attempt — never on first render, and never merely because the previous
@@ -28,6 +35,13 @@ export function UseItUpSuggestions() {
       <p className="text-sm text-muted">
         Mark things above to use up, then see what you could make with them.
       </p>
+      {required > 0 && (
+        <p className="mt-1 text-xs text-muted">
+          Hiding recipes that break{" "}
+          {required === 1 ? "your required goal" : `your ${required} required goals`}. Your other
+          goals only change the order.
+        </p>
+      )}
 
       <div className="mt-2">
         <Button variant="secondary" size="sm" onClick={ask} disabled={pending}>
@@ -57,6 +71,16 @@ export function UseItUpSuggestions() {
                 {(r.missing?.length ?? 0) > 0 && (
                   <p className="text-xs text-muted">
                     Need: {r.missing.map((m) => m.display).join(", ")}
+                  </p>
+                )}
+                {/* A recipe we could not measure is still suggested — being
+                    unmapped is a data gap, not a nutritional verdict — but it
+                    must never look like it cleared a limit it was never
+                    checked against. */}
+                {(r.nutritionUnverified?.length ?? 0) > 0 && (
+                  <p className="text-xs text-text">
+                    Not checked against:{" "}
+                    {(r.nutritionUnverified ?? []).map(unverifiedLabel).join(", ")}
                   </p>
                 )}
               </div>

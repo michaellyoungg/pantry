@@ -82,8 +82,30 @@ CREATE TABLE IF NOT EXISTS recipe_tags (
     PRIMARY KEY (recipe_id, tag)
 );
 
+-- Materialized prep tasks (BL-0042 ships the table; BL-0044 fills it).
+--
+-- Rule-derived prep is NOT stored here: it is computed on demand by
+-- DerivePrepTasks from prep_rules.json, so improving a rule improves every
+-- recipe at once instead of requiring a backfill. This table is for the two
+-- sources that cannot be recomputed — a task the model wrote at import time and
+-- a task the user typed. It exists now so those sources need no migration, and
+-- is empty until then.
+--
+-- `prep_window`, NOT `window`: WINDOW is a reserved word in Postgres and
+-- `CREATE TABLE t (window TEXT)` is a syntax error. Only the column is renamed;
+-- the Go field and the JSON key stay `window`.
+CREATE TABLE IF NOT EXISTS recipe_prep_tasks (
+    id           BIGSERIAL PRIMARY KEY,
+    recipe_id    TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    position     INT  NOT NULL,
+    prep_window  TEXT NOT NULL,
+    text         TEXT NOT NULL,
+    source       TEXT NOT NULL          -- "llm" | "manual"
+);
+
 CREATE INDEX IF NOT EXISTS ingredients_recipe_id_idx ON ingredients(recipe_id);
 CREATE INDEX IF NOT EXISTS recipe_tags_tag_idx ON recipe_tags(tag);
+CREATE INDEX IF NOT EXISTS recipe_prep_tasks_recipe_id_idx ON recipe_prep_tasks(recipe_id);
 CREATE INDEX IF NOT EXISTS recipe_steps_recipe_id_idx ON recipe_steps(recipe_id);
 CREATE INDEX IF NOT EXISTS recipes_user_id_idx ON recipes(user_id);
 CREATE INDEX IF NOT EXISTS recipe_equipment_equipment_id_idx ON recipe_equipment(equipment_id);

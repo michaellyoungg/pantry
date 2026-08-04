@@ -16,8 +16,10 @@ import {
 import { removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction } from "@pantry/core/react";
 import { useMutation, useQuery } from "convex/react";
+import { usePlanPrep } from "../lib/usePlanPrep";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { MealPrepBadge } from "./MealPrepBadge";
 import { PlanNutrition } from "./PlanNutrition";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -64,6 +66,11 @@ export function WeekPlan() {
   const gen = useAsyncAction();
   const act = useAsyncAction();
 
+  // Derived lead-time prep for the planned week (BL-0042), keyed by recipe: the
+  // basket holds one row per recipe, so a recipe id identifies a meal.
+  const { meals: prepMeals, done: prepDone } = usePlanPrep();
+  const prepByRecipe = new Map(prepMeals.map((m) => [m.recipeId, m]));
+
   const week = planWeek(items);
   const unscheduled = unscheduledItems(items);
 
@@ -109,6 +116,11 @@ export function WeekPlan() {
                             ×
                           </button>
                         </div>
+                        {/* The 24-hour thaw, visible when you SCHEDULE the meal
+                            rather than on the night you forgot it. */}
+                        {!leftover && (
+                          <MealPrepBadge meal={prepByRecipe.get(i.recipeId)} done={prepDone} />
+                        )}
                         <div className="flex items-center gap-1 text-xs text-muted">
                           {leftover ? (
                             <span>leftovers — not on list</span>

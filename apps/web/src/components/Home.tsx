@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import type { BasketRow, GroceryRow } from "../lib/homeState";
 import { deriveHomeState } from "../lib/homeState";
 import { useTracedAction } from "../telemetry/useTracedAction";
+import { BeforeYouCook } from "./BeforeYouCook";
 import { GettingStarted } from "./home/GettingStarted";
 import { NextAction } from "./home/NextAction";
 import { QuickActions } from "./home/QuickActions";
@@ -40,6 +41,13 @@ export function Home() {
       </div>
 
       <NextAction state={state} onBuildList={buildList} pending={gen.pending} error={gen.error} />
+
+      {/* Lead-time prep for today (BL-0042). It sits ABOVE the expiry nudge and
+          directly under the next action because it is the only card on Home
+          that is time-critical in a way the user cannot recover from: a thaw
+          missed today cannot be made up tomorrow. Renders nothing when there is
+          nothing due. */}
+      <BeforeYouCook />
 
       {/* Sits directly under the single next action and renders nothing when
           nothing is expiring, so it never competes with the weekly loop — it

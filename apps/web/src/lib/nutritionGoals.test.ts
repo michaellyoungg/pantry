@@ -1,6 +1,12 @@
 import type { NutritionTarget, NutritionTargetEvaluation } from "@pantry/types";
 import { describe, expect, it } from "vitest";
-import { goalChips, goalLabel, goalSummary } from "./nutritionGoals";
+import {
+  goalChips,
+  goalLabel,
+  goalSummary,
+  hardConstraintCount,
+  unverifiedLabel,
+} from "./nutritionGoals";
 
 function target(over: Partial<NutritionTarget> = {}): NutritionTarget {
   return { nutrientId: "1003", operator: ">=", value: 150, period: "day", active: true, ...over };
@@ -162,5 +168,38 @@ describe("goalSummary", () => {
     const summary = goalSummary([]);
     expect(summary.judged).toBe(0);
     expect(summary.onTrack).toBe(false);
+  });
+});
+
+describe("unverifiedLabel", () => {
+  it("prefers the user's own name for the goal", () => {
+    expect(unverifiedLabel({ nutrientId: "1253", label: "Low cholesterol" })).toBe(
+      "Low cholesterol",
+    );
+  });
+
+  it("falls back to the nutrient catalog", () => {
+    expect(unverifiedLabel({ nutrientId: "1253" })).toBe("Cholesterol");
+  });
+
+  // Never silence: a constraint that renders as nothing reads exactly like one
+  // that passed, which is the failure this whole field exists to prevent.
+  it("still names a nutrient it has never heard of", () => {
+    expect(unverifiedLabel({ nutrientId: "9999" })).toBe("Nutrient 9999");
+  });
+});
+
+describe("hardConstraintCount", () => {
+  it("counts only goals the user marked as required", () => {
+    expect(hardConstraintCount([target(), target({ hard: true })])).toBe(1);
+  });
+
+  // The operator does not decide this. A cap is not automatically a constraint.
+  it("does not treat a cap as a constraint on its own", () => {
+    expect(hardConstraintCount([target({ operator: "<=", nutrientId: "1253" })])).toBe(0);
+  });
+
+  it("ignores paused goals, which filter nothing", () => {
+    expect(hardConstraintCount([target({ hard: true, active: false })])).toBe(0);
   });
 });

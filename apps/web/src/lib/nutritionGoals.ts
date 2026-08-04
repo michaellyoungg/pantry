@@ -3,6 +3,7 @@ import type {
   NutritionTarget,
   NutritionTargetEvaluation,
   NutritionTargetStatus,
+  RecommendationUnverifiedConstraint,
 } from "@pantry/types";
 
 /**
@@ -116,4 +117,33 @@ export function goalSummary(evaluations: readonly NutritionTargetEvaluation[]): 
   const judged = evaluations.length - unknown;
   const met = evaluations.filter((e) => e.status === "met").length;
   return { met, judged, unknown, onTrack: judged > 0 && unknown === 0 && met === judged };
+}
+
+/**
+ * Names a hard constraint a recommendation could not be checked against
+ * (BL-0040).
+ *
+ * The service sends a nutrient id rather than a rendered string because only the
+ * client holds the nutrient catalog, so the fallback chain matters: the user's
+ * own label for the goal, then the catalog's name, then the bare id. It never
+ * degrades to silence — an unchecked constraint that renders as nothing reads
+ * exactly like one that passed.
+ */
+export function unverifiedLabel(constraint: RecommendationUnverifiedConstraint): string {
+  return (
+    constraint.label ??
+    nutrientMeta(constraint.nutrientId)?.label ??
+    `Nutrient ${constraint.nutrientId}`
+  );
+}
+
+/**
+ * How many active goals are hard constraints — i.e. how many are removing
+ * recipes from the suggestions rather than merely reordering them.
+ *
+ * Worth saying out loud on screen: a filter that silently shrinks a list is
+ * indistinguishable from having nothing to suggest.
+ */
+export function hardConstraintCount(targets: readonly NutritionTarget[]): number {
+  return targets.filter((t) => t.active && t.hard === true).length;
 }

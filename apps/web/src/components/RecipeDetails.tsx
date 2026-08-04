@@ -1,12 +1,27 @@
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
+import { useEffect, useState } from "react";
 import { COOKING_METHOD_LABELS } from "../lib/cookingMethods";
 import { formatDuration, humanizeSlug } from "../lib/discovery";
 import { equipmentName } from "../lib/useEquipmentCatalog";
+import { RecipePrep } from "./RecipePrep";
 
 function ingredientLine(ing: Ingredient): string {
   const qty = Number.isFinite(ing.quantity) && ing.quantity > 0 ? String(ing.quantity) : "";
   const head = [qty, ing.unit, ing.item].filter(Boolean).join(" ");
   return ing.note ? `${head}, ${ing.note}` : head;
+}
+
+/**
+ * Show the host, not the full URL: a recipe link is often a paragraph of
+ * tracking parameters, and the host is the part that answers "who wrote this?".
+ * Falls back to the raw string if it somehow will not parse.
+ */
+function sourceLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 // RecipeDetails is the read-only view of a saved recipe: its ingredients and,
@@ -16,7 +31,9 @@ function ingredientLine(ing: Ingredient): string {
 export function RecipeDetails({
   recipe,
   catalog = [],
-  open = false,
+  // Aliased so the prop stays `open` for callers while the live expansion
+  // state below can own that name internally.
+  open: defaultOpen = false,
 }: {
   recipe: Recipe;
   /** Equipment catalog, for resolving tag slugs to names. */
@@ -28,6 +45,17 @@ export function RecipeDetails({
    */
   open?: boolean;
 }) {
+  // Whether the row is actually expanded right now, seeded from defaultOpen.
+  // Tracked in state — not just handed to <details open> — because prep
+  // derivation is a network round trip per recipe and is deferred until the row
+  // is open. A native <details> keeps its children mounted while collapsed,
+  // which would otherwise fire one request for every recipe in the list on
+  // first render.
+  const [open, setOpen] = useState(defaultOpen);
+  // The prop can flip on an ALREADY MOUNTED row: opening the provenance sheet
+  // for a second recipe re-points `openRecipeId` without remounting the list, so
+  // seeding state once would leave that row stubbornly closed (BL-0019).
+  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   const steps = recipe.steps ?? [];
   const equipment = recipe.equipment ?? [];
   const methods = recipe.methods ?? [];
@@ -46,9 +74,15 @@ export function RecipeDetails({
   }
 
   return (
-    <details open={open} className="text-sm text-muted">
+    <details
+      open={open}
+      className="text-sm text-muted"
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="cursor-pointer select-none hover:text-text">View recipe</summary>
       <div className="mt-2 flex flex-col gap-3 pl-1">
+        {/* Discovery metadata (BL-0020) reads as a header strip: it is what the
+            catalog's chips filter on, so it belongs where the eye lands first. */}
         {(recipe.totalMinutes !== undefined || recipe.cuisine || tags.length > 0) && (
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {recipe.totalMinutes !== undefined && (
@@ -71,6 +105,9 @@ export function RecipeDetails({
             )}
           </p>
         )}
+        {/* Lead-time prep (BL-0042), derived from the tags and ingredients
+            below rather than authored on the recipe. */}
+        {open && <RecipePrep recipeId={recipe.id} />}
         {methods.length > 0 && (
           <p>
             <span className="font-medium text-text">Method: </span>
@@ -130,17 +167,4 @@ export function RecipeDetails({
       </div>
     </details>
   );
-}
-
-/**
- * Show the host, not the full URL: a recipe link is often a paragraph of
- * tracking parameters, and the host is the part that answers "who wrote this?".
- * Falls back to the raw string if it somehow will not parse.
- */
-function sourceLabel(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }

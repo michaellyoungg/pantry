@@ -1,0 +1,138 @@
+{
+  "version": "2026-08-03.1",
+  "rules": [
+    {
+      "id": "thaw_frozen_protein",
+      "when": { "category": "protein", "ingredientState": "frozen" },
+      "window": "night_before",
+      "text": "Move the {item} to the fridge to thaw",
+      "priority": 100
+    },
+    {
+      "id": "thaw_frozen_large_roast",
+      "when": { "category": "protein", "ingredientState": "frozen", "minQuantityLb": 8 },
+      "window": "three_days_before",
+      "text": "Move the {item} to the fridge — a roast this size needs days, not hours",
+      "priority": 200
+    },
+    {
+      "id": "thaw_frozen_ingredient",
+      "when": { "category": "frozen", "ingredientState": "frozen" },
+      "window": "night_before",
+      "text": "Move the {item} to the fridge to thaw",
+      "priority": 100
+    },
+    {
+      "id": "soften_butter",
+      "when": { "canonicalItem": "butter", "ingredientState": "softened" },
+      "window": "hour_before",
+      "text": "Set the butter out to soften",
+      "priority": 110
+    },
+    {
+      "id": "soften_cream_cheese",
+      "when": { "canonicalItem": "cream cheese", "ingredientState": "softened" },
+      "window": "hour_before",
+      "text": "Set the cream cheese out to soften",
+      "priority": 110
+    },
+    {
+      "id": "temper_dairy",
+      "when": { "category": "dairy", "ingredientState": "room_temperature" },
+      "window": "hour_before",
+      "text": "Set the {item} out to come to room temperature",
+      "priority": 100
+    },
+    {
+      "id": "soak_dried_legume",
+      "when": { "category": "legume", "ingredientState": "dried" },
+      "window": "night_before",
+      "text": "Put the {item} in to soak overnight",
+      "priority": 100
+    },
+    {
+      "id": "proof_yeast_dough",
+      "when": { "canonicalItem": "yeast" },
+      "window": "morning_of",
+      "text": "Mix the dough early — yeast needs hours to rise",
+      "priority": 100
+    },
+    {
+      "id": "marinate_overnight",
+      "when": { "method": "marinate" },
+      "window": "night_before",
+      "text": "Get the marinade on tonight so it has overnight",
+      "priority": 100
+    },
+    {
+      "id": "start_slow_cooker",
+      "when": { "method": "slow_cook" },
+      "window": "morning_of",
+      "text": "Start the slow cooker in the morning — it needs most of the day",
+      "priority": 100
+    },
+    {
+      "id": "light_smoker",
+      "when": { "equipment": "smoker" },
+      "window": "hour_before",
+      "text": "Light the smoker and bring it up to temperature",
+      "priority": 100
+    },
+    {
+      "id": "light_grill",
+      "when": { "equipment": "grill" },
+      "window": "hour_before",
+      "text": "Light the grill and let it come up to temperature",
+      "priority": 100
+    },
+    {
+      "id": "heat_water_bath",
+      "when": { "equipment": "sous_vide_circulator" },
+      "window": "hour_before",
+      "text": "Set the water bath going and let it come up to temperature",
+      "priority": 100
+    },
+    {
+      "id": "preheat_pizza_stone",
+      "when": { "equipment": "pizza_stone" },
+      "window": "hour_before",
+      "text": "Put the pizza stone in and start preheating — it needs far longer than the oven",
+      "priority": 110
+    },
+    {
+      "id": "soak_skewers",
+      "when": { "equipment": "skewers" },
+      "window": "hour_before",
+      "text": "Soak the wooden skewers so they don't burn",
+      "priority": 100
+    },
+    {
+      "id": "preheat_oven",
+      "when": { "equipment": "oven" },
+      "window": "at_start",
+      "text": "Preheat the oven",
+      "priority": 100
+    },
+    {
+      "id": "preheat_oven_bake",
+      "when": { "method": "bake" },
+      "window": "at_start",
+      "text": "Preheat the oven",
+      "priority": 90
+    },
+    {
+      "id": "preheat_oven_roast",
+      "when": { "method": "roast" },
+      "window": "at_start",
+      "text": "Preheat the oven",
+      "priority": 90
+    },
+    {
+      "id": "boil_water",
+      "when": { "method": "boil" },
+      "window": "at_start",
+      "text": "Put a pot of water on to boil",
+      "priority": 100
+    }
+  ]
+}

@@ -44,6 +44,7 @@ export function NutritionGoals() {
   const add = useMutation(api.nutritionTargets.add);
   const remove = useMutation(api.nutritionTargets.remove);
   const setActive = useMutation(api.nutritionTargets.setActive);
+  const setHard = useMutation(api.nutritionTargets.setHard);
   const applyPreset = useMutation(api.nutritionTargets.applyPreset);
   const { run, error, pending } = useAsyncAction();
 
@@ -98,8 +99,28 @@ export function NutritionGoals() {
                               Paused
                             </span>
                           )}
+                          {/* A required goal does something categorically
+                              different from a preferred one — it removes
+                              recipes. That has to be visible on the row, not
+                              buried in the button that set it. */}
+                          {row.hard && row.active && (
+                            <span className="shrink-0 rounded-full bg-danger/10 px-2 py-0.5 text-xs text-danger">
+                              Required
+                            </span>
+                          )}
                         </span>
                         <span className="flex shrink-0 items-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-pressed={row.hard === true}
+                            title="Required goals remove recipes that break them from your suggestions"
+                            onClick={() =>
+                              void run(() => setHard({ id: row._id, hard: !row.hard }))
+                            }
+                          >
+                            {row.hard ? "Preferred" : "Require"}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -192,6 +213,11 @@ export function NutritionGoals() {
         <p className="mt-2 text-xs text-muted">
           Setting the same nutrient for the same window again re-tunes that goal rather than adding
           a second, contradictory one.
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Every goal starts as a preference: it moves suggestions up and down. Make one{" "}
+          <strong className="font-medium text-text">required</strong> and recipes that break it stop
+          being suggested at all. The rule you wrote does not decide that — you do.
         </p>
       </Card>
 

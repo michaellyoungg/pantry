@@ -348,6 +348,30 @@ export interface RecommendationPreferences {
   dislikedItems: string[];
 }
 
+/**
+ * One nutrition goal as the recommender sees it (BL-0040). Mirrors Go
+ * recommend.NutritionTarget — the stored `nutritionTargets` row minus `active`,
+ * because only active goals are ever sent.
+ */
+export interface RecommendationNutritionTarget {
+  nutrientId: string;
+  operator: NutritionTargetOperator;
+  value: number;
+  period: NutritionTargetPeriod;
+  label?: string;
+  hard?: boolean;
+}
+
+/**
+ * What the week's plan ALREADY commits, so a `week` target is scored on the gap
+ * that remains rather than on the whole goal. Mirrors Go recommend.PlanNutrition.
+ */
+export interface RecommendationPlanNutrition {
+  /** nutrientId -> amount, in the estimate's units. */
+  nutrients: Record<string, number>;
+  coverage: NutritionCoverage;
+}
+
 /** Mirrors Go recommend.UserContext. */
 export interface RecommendationRequest {
   pantry: PantryContextItem[];
@@ -356,11 +380,27 @@ export interface RecommendationRequest {
   savedRecipeIds?: string[];
   excludeRecipeIds?: string[];
   limit?: number;
+  /** ACTIVE goals only: a paused goal is not a goal. */
+  nutritionTargets?: RecommendationNutritionTarget[];
+  planNutrition?: RecommendationPlanNutrition | null;
 }
 
 export interface RecommendationMissingItem {
   canonicalItem: string;
   display: string;
+}
+
+/**
+ * A HARD constraint this candidate could not be checked against.
+ *
+ * It carries the nutrient id rather than a rendered string because only the
+ * client has the nutrient catalog to name it with. Its existence is the reason
+ * an unmeasured recipe can survive a filter without being presented as having
+ * passed it.
+ */
+export interface RecommendationUnverifiedConstraint {
+  nutrientId: string;
+  label?: string;
 }
 
 /** Mirrors Go recommend.Result. */
@@ -373,6 +413,13 @@ export interface Recommendation {
   reasons: string[];
   have: string[];
   missing: RecommendationMissingItem[];
+  /**
+   * 0..1 for how well this candidate closes the plan's remaining gap, or null
+   * when nothing could be measured. Null rather than 0: a data gap is not a bad
+   * score, and the two must never look alike.
+   */
+  nutritionFit?: number | null;
+  nutritionUnverified?: RecommendationUnverifiedConstraint[];
 }
 
 export interface RecommendationResponse {
@@ -447,6 +494,15 @@ export interface NutritionTarget {
   label?: string;
   /** Inactive targets are kept but never evaluated, so pausing a diet is not a delete. */
   active: boolean;
+  /**
+   * Marks this goal as a HARD constraint (BL-0040): recommendations REMOVE
+   * candidates that break it instead of merely ranking them lower.
+   *
+   * The operator cannot express this. `<= 200 mg cholesterol` is a preference
+   * for one person and a medical limit for another, and only they know which —
+   * so the distinction is a flag the user sets, never an inference we make.
+   */
+  hard?: boolean;
 }
 
 /**
@@ -488,4 +544,63 @@ export interface DietPreset {
   label: string;
   description: string;
   targets: Array<Omit<NutritionTarget, "active">>;
+}
+
+/**
+ * When, relative to the cook date, a piece of prep has to happen (BL-0042).
+ *
+ * Coarse by design — day granularity, no clock times — because the planner
+ * schedules meals onto days and nothing in it knows what time dinner is.
+ * Ordered coarsest lead time first, which is also the order tasks are shown in:
+ * the three-day thaw is both the most urgent to see and the easiest to miss.
+ */
+export type PrepWindow =
+  | "three_days_before"
+  | "two_days_before"
+  | "night_before"
+  | "morning_of"
+  | "hour_before"
+  | "at_start";
+
+/** Which producer emitted a task. `llm` and `manual` arrive with BL-0044. */
+export type PrepSource = "rule" | "llm" | "manual";
+
+/** One piece of lead-time work for one meal on one date. */
+export interface PrepTask {
+  /**
+   * Stable across re-derivation: `ruleId:subject`. Check-off is keyed on it, so
+   * editing a rule's text preserves the tick and changing a rule's id
+   * deliberately does not.
+   */
+  key: string;
+  ruleId: string;
+  /** The canonical ingredient, cooking method, or equipment slug the rule matched. */
+  subject: string;
+  window: PrepWindow;
+  text: string;
+  source: PrepSource;
+  /** ISO date the task is due: the cook date minus the window's lead time. */
+  dueOn: string;
+  /**
+   * The due date has already passed. A missed task is still returned — the
+   * whole point of lead time is that forgetting it is the failure worth
+   * reporting, not something to hide.
+   */
+  missed?: boolean;
+}
+
+/** Derived prep for one planned meal. */
+export interface PrepMeal {
+  recipeId: string;
+  title: string;
+  /** ISO date the meal is planned for. */
+  cookDate: string;
+  tasks: PrepTask[];
+}
+
+/** The POST /prep-tasks response. */
+export interface PrepTasksResponse {
+  /** Revision of the rule table that produced these tasks, for traceability. */
+  rulesVersion: string;
+  meals: PrepMeal[];
 }

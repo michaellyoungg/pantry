@@ -137,7 +137,33 @@ export default defineSchema({
     // Pausing a diet must not destroy the numbers the user tuned, so `active`
     // is a flag rather than a delete.
     active: v.boolean(),
+    // The ONE field BL-0040 adds to this table. A hard constraint REMOVES
+    // recipes from recommendations; a soft goal only reorders them. The
+    // operator cannot express the difference — "<= 200 mg cholesterol" is a
+    // preference for one person and a medical limit for another, and only they
+    // know which. Optional so every row written before BL-0040 stays valid, and
+    // so an unset flag reads as the safe default: rank, do not remove.
+    hard: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
+
+  // Prep task check-off (BL-0042). Mirrors groceryList.checked: the tasks
+  // themselves are derived on demand by recipe-service and never stored here,
+  // because a stored copy would freeze the rule set that produced it — the
+  // whole point of rules-as-data is that improving one improves every recipe
+  // that already exists. What IS user state is the tick, so that is all that
+  // lives here.
+  //
+  // Keyed on (taskKey, cookDate), not on a recipe id: taskKey is stable across
+  // re-derivation and recipe edits, and the same task for next week's dinner is
+  // a genuinely different tick from this week's.
+  prepTaskState: defineTable({
+    userId: v.string(),
+    taskKey: v.string(),
+    cookDate: v.string(), // ISO date of the meal this prep is for
+    done: v.boolean(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_task", ["userId", "taskKey", "cookDate"]),
 
   // Pantry (BL-0021 increment 1). Deliberately coarse: `state`, never a
   // quantity — numeric inventory drifts from reality within days. Keyed on the
