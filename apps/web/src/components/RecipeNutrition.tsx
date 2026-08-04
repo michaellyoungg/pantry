@@ -1,9 +1,12 @@
 import { api } from "@pantry/convex/api";
+import { nutritionFactsLabel } from "@pantry/core";
 import { useAsyncData } from "@pantry/core/react";
+import { useQuery } from "convex/react";
 import { useCallback } from "react";
 import { nutritionDisplay } from "../lib/nutrition";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { NutritionFactsPanel } from "./NutritionFactsPanel";
 import { RecipeGoalFit } from "./RecipeGoalFit";
 import { Button } from "./ui/Button";
 
@@ -20,6 +23,7 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
   const getNutrition = useTracedAction(api.recipes.nutrition, "recipes.nutrition");
   const load = useCallback(() => getNutrition({ id: recipeId }), [getNutrition, recipeId]);
   const { data, loading, error, reload } = useAsyncData(load, [recipeId]);
+  const targets = useQuery(api.nutritionTargets.list) ?? [];
 
   if (loading && !data) {
     return <p className="py-2 text-sm text-muted">Estimating nutrition…</p>;
@@ -60,31 +64,32 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
   // Per serving is the number a cook actually wants, so it leads when the recipe
   // has a yield. Without one (BL-0035 leaves servings optional) the whole-recipe
   // total is the only honest figure and stands alone.
-  const perServing = display.servings > 0;
+  //
+  // The server's own `perServing` is used rather than dividing `nutrients` here.
+  // It is absent exactly when the yield is unknown, so consuming it is what
+  // makes "never divide by a guess" structural instead of a rule this component
+  // has to remember.
+  const perServing = display.servings > 0 ? data.perServing : undefined;
+
+  const rows = nutritionFactsLabel(perServing ?? data.nutrients, {
+    targets,
+    // A `meal` target is written against one serving. Scoring it against a whole
+    // recipe would report a four-serving casserole as four times over the goal,
+    // so a recipe with no yield gets the panel with no personal column at all.
+    period: perServing ? "meal" : undefined,
+  });
 
   return (
     <div className="py-2">
       {/* The verdict leads: a cook scanning the list wants "does this fit?"
-          before they want eight numbers. */}
+          before they want fifteen numbers. */}
       <RecipeGoalFit estimate={data} />
-      <p className="mb-2 mt-1 text-xs uppercase tracking-wide text-muted">
-        {perServing ? `Estimated · per serving of ${display.servings}` : "Estimated · whole recipe"}
-        {display.coveragePercent < 100 &&
-          ` · ${display.coveragePercent}% of ingredients accounted for`}
-      </p>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
-        {display.rows.map((row) => (
-          <div key={row.id} className="flex flex-col">
-            <dt className="text-xs text-muted">{row.label}</dt>
-            <dd className="text-sm font-medium text-text">
-              {perServing && row.perServing ? row.perServing : row.total}
-              {perServing && row.perServing && (
-                <span className="ml-1 font-normal text-xs text-muted">({row.total} total)</span>
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <NutritionFactsPanel
+        className="mt-2"
+        rows={rows}
+        servingsLabel={perServing ? servingsLabel(display.servings) : "Entire recipe"}
+        coveragePercent={display.coveragePercent}
+      />
       {display.missing.length > 0 && (
         <div className="mt-2 text-sm text-muted">
           <MissingNote items={display.missing} />
@@ -92,6 +97,11 @@ export function RecipeNutrition({ recipeId }: { recipeId: string }) {
       )}
     </div>
   );
+}
+
+/** "4 servings per recipe" — a count, which is all we know. */
+function servingsLabel(servings: number): string {
+  return `${servings} ${servings === 1 ? "serving" : "servings"} per recipe`;
 }
 
 function MissingNote({ items }: { items: string[] }) {
