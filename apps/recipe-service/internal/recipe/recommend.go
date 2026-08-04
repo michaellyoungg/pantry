@@ -24,14 +24,32 @@ func (h *handlers) recommendPantry(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusInternalServerError, "could not load recipes", err)
 		return
 	}
-	candidates = h.withNutrition(r.Context(), uc, candidates, recipes)
 
-	results := recommend.RankPantry(uc, candidates)
+	results := recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes))
+
+	// Generation runs only against a thin corpus, and only when it is
+	// configured at all (BL-0034). Everything it produces re-enters the SAME
+	// pool and is re-ranked by the SAME call, so the avoid list and every other
+	// filter apply to it identically — see generate.go.
+	generated := []GeneratedRecipe{}
+	if h.shouldGenerate(results) {
+		if drafts := h.generateDrafts(r.Context(), uc); len(drafts) > 0 {
+			for _, rec := range generatedRecipes(drafts) {
+				candidates = append(candidates, toCandidates([]Recipe{rec}, SourceGenerated)...)
+				// Registered so a generated candidate can be nutrition-estimated
+				// on the same terms as a stored one.
+				recipes[rec.ID] = rec
+			}
+			results = recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes))
+			generated = draftsInResults(drafts, results)
+		}
+	}
+
 	// Encode as [] rather than null so clients can render without a nil check.
 	if results == nil {
 		results = []recommend.Result{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"results": results})
+	writeJSON(w, http.StatusOK, map[string]any{"results": results, "generated": generated})
 }
 
 // recommendCandidates assembles the scoring pool: the user's own recipes plus
