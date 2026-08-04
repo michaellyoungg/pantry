@@ -1,7 +1,7 @@
 ---
 id: BL-0051
 title: Seed the recipe catalog in the e2e environment
-status: in-progress
+status: done
 area: infra
 effort: S
 related_specs: [2026-07-12-seeded-recipe-catalog-design.md, 2026-08-03-recommendations-design.md]
@@ -40,6 +40,32 @@ Note that seeding changes the starting state for every spec: `/recipes` and any
 count-based assertion will see catalog rows that were not there before. The
 existing specs are all scoped to per-run unique titles, so this should be inert,
 but it wants a full suite run to confirm rather than an assumption.
+
+## Outcome
+
+Done.
+
+- `scripts/e2e.sh` runs the existing one-shot seed job
+  (`docker compose run --rm --build -T seed`) right after the stack comes up and
+  before the convex-backend health wait, so it overlaps the backend's boot and
+  costs no wall clock in the common case. The job connects straight to Postgres
+  and applies `schema.sql` itself, so it does not wait on recipe-service, and it
+  upserts by stable id, so a re-run against a warm `./.data/postgres` is inert.
+- New spec `apps/web/e2e/catalog.spec.ts`: browse `/recipes/catalog`, add a
+  catalog recipe to the basket, plan it, generate the list, and assert both the
+  aggregated line for an ingredient unique to the catalog copy (`baguette`) and
+  the provenance sheet naming the catalog recipe. This is the coverage the item
+  was actually about — a user-scoped recipe lookup on this path aggregates to an
+  empty list, which has already shipped once.
+- The BL-0005 use-up spec keeps its own candidate (so its `Uses up:` assertion
+  stays independent of catalog contents) and gains one assertion that a seeded
+  catalog recipe surfaces alongside it, covering the catalog leg of
+  `recommendCandidates`.
+
+Verified by hiding the catalog rows and re-running: `catalog.spec.ts` and the new
+recommendations assertion both fail, while every pre-existing assertion still
+passes — so the seed and the coverage are genuinely coupled. Full spec set: 8
+passed, and the new spec adds ~1s to the suite.
 
 ## Alternatives considered
 

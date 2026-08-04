@@ -114,10 +114,12 @@ pnpm test:e2e
 ```
 
 `pnpm test:e2e` runs [`scripts/e2e.sh`](scripts/e2e.sh), which brings up the
-stack, provisions the Convex deployment (admin key, auth JWT keys, recipe-service
-wiring), pushes the Convex functions, and then runs Playwright — which starts the
-Vite dev server itself. Each run signs up a fresh unique account, so it is
-self-isolating. It is **deliberately not part of `pnpm test`** (which stays
+stack, seeds the shared recipe catalog, provisions the Convex deployment (admin
+key, auth JWT keys, recipe-service wiring), pushes the Convex functions, and then
+runs Playwright — which starts the Vite dev server itself. Each run signs up a
+fresh unique account, so it is self-isolating; the seeded catalog is the one
+piece of shared state every account sees, which is what lets the suite cover
+browsing and planning a recipe the signed-in user did not write. It is **deliberately not part of `pnpm test`** (which stays
 unit-only and fast) or the per-PR CI gate — it needs Docker, Go, and a browser.
 Set `E2E_KEEP_STACK=1` to leave the stack up for debugging; pass extra flags
 through to Playwright, e.g. `pnpm test:e2e --headed`.
