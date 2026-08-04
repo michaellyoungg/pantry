@@ -105,6 +105,26 @@ export default defineSchema({
     sources: v.optional(
       v.array(v.object({ recipeId: v.string(), title: v.string(), quantity: v.number() })),
     ),
+    // What to actually buy for this line, and how much of the pack outlives
+    // the recipes that wanted it (BL-0032). Denormalized onto the row for the
+    // same reason shelfLifeDays is: the number has to be in the database when
+    // the box is ticked, because check-off is a mutation and cannot fetch.
+    // Absent whenever recipe-service has no pack data for the item, which is
+    // most of the list.
+    purchase: v.optional(
+      v.object({
+        quantity: v.number(),
+        unit: v.string(),
+        residue: v.optional(v.number()),
+        residueUnit: v.optional(v.string()),
+      }),
+    ),
+    // What the user said about the leftover we inferred for this line. Absent
+    // means "not asked yet, or asked and not answered" — which is exactly the
+    // set the proposal card shows. The decision lives on the grocery line
+    // rather than the pantry row because it is a fact about ONE shop: the same
+    // ingredient bought again next week gets asked again.
+    leftoverDecision: v.optional(v.union(v.literal("kept"), v.literal("dismissed"))),
     // True for a line the user typed in themselves. It is what keeps
     // mergeGroceryList from deleting the line on the next generation: a manual
     // line has no recipe backing it, so it can never appear in an aggregated

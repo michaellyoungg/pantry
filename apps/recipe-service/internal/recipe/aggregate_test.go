@@ -40,7 +40,12 @@ func TestAggregate_CombinesConvertibleUnits(t *testing.T) {
 		r("a", Ingredient{Quantity: 4, Unit: "tbsp", Item: "butter"}),
 		r("b", Ingredient{Quantity: 0.5, Unit: "cup", Item: "butter"}),
 	})
-	want := []GroceryLine{{Item: "Butter", CanonicalItem: "butter", Unit: "cup", Quantity: 0.75, Aisle: "dairy"}}
+	// Butter comes in half-cup sticks, so 3/4 cup is two of them with a quarter
+	// cup left in the fridge.
+	want := []GroceryLine{{
+		Item: "Butter", CanonicalItem: "butter", Unit: "cup", Quantity: 0.75, Aisle: "dairy",
+		Purchase: &GroceryPurchase{Quantity: 2, Unit: "stick", Residue: 4, ResidueUnit: "tbsp"},
+	}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
@@ -82,7 +87,12 @@ func TestAggregate_SortsByAisleThenFirstSeen(t *testing.T) {
 		r("b", Ingredient{Quantity: 2, Unit: "", Item: "unobtainium"}),
 	})
 	want := []GroceryLine{
-		{Item: "Milk", CanonicalItem: "milk", Unit: "cup", Quantity: 1, Aisle: "dairy"},
+		// Milk is sold by the quart, so the line also carries what to buy: one
+		// quart, of which a cup is wanted and three cups survive the recipe.
+		{
+			Item: "Milk", CanonicalItem: "milk", Unit: "cup", Quantity: 1, Aisle: "dairy",
+			Purchase: &GroceryPurchase{Quantity: 1, Unit: "quart", Residue: 3, ResidueUnit: "cup"},
+		},
 		{Item: "unobtainium", CanonicalItem: "unobtainium", Unit: "", Quantity: 3, Aisle: "other"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -245,5 +255,43 @@ func TestAggregate_RecipeWithoutIDContributesNoSource(t *testing.T) {
 	})
 	if got[0].Sources != nil {
 		t.Fatalf("sources = %+v, want nil for an id-less recipe", got[0].Sources)
+	}
+}
+
+func TestAggregate_TwoRecipesShareOnePack(t *testing.T) {
+	// Pack arithmetic runs on the SUMMED line, so two recipes each wanting
+	// 2 tbsp of parsley buy one bunch between them, not one each.
+	got := Aggregate([]Recipe{
+		r("a", Ingredient{Quantity: 2, Unit: "tbsp", Item: "parsley"}),
+		r("b", Ingredient{Quantity: 2, Unit: "tbsp", Item: "fresh parsley"}),
+	})
+	if len(got) != 1 {
+		t.Fatalf("got %d lines, want 1", len(got))
+	}
+	p := got[0].Purchase
+	if p == nil || p.Quantity != 1 || p.Unit != "bunch" {
+		t.Fatalf("purchase = %+v, want 1 bunch", p)
+	}
+	// The line still states the NEED — provenance and pricing are built on it.
+	if got[0].Quantity != 0.25 || got[0].Unit != "cup" {
+		t.Fatalf("need = %v %s, want 0.25 cup", got[0].Quantity, got[0].Unit)
+	}
+	if p.Residue != 4 || p.ResidueUnit != "tbsp" {
+		t.Fatalf("residue = %v %s, want 4 tbsp", p.Residue, p.ResidueUnit)
+	}
+}
+
+func TestAggregate_ScalingUpABatchCanBuyASecondPack(t *testing.T) {
+	// The residue is a function of the plan, not the recipe: doubling the batch
+	// crosses the pack boundary and the list has to say so.
+	single := Aggregate([]Recipe{r("a", Ingredient{Quantity: 0.4, Unit: "cup", Item: "parsley"})})
+	double := AggregateScaled([]ScaledRecipe{
+		{Recipe: r("a", Ingredient{Quantity: 0.4, Unit: "cup", Item: "parsley"}), Multiplier: 2},
+	})
+	if single[0].Purchase.Quantity != 1 {
+		t.Fatalf("single batch buys %v bunches, want 1", single[0].Purchase.Quantity)
+	}
+	if double[0].Purchase.Quantity != 2 {
+		t.Fatalf("double batch buys %v bunches, want 2", double[0].Purchase.Quantity)
 	}
 }

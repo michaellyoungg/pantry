@@ -1,6 +1,6 @@
 import type { PlannedItem } from "@pantry/core";
 import type { NutritionEstimate, NutritionRecipeCoverage } from "@pantry/types";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { actionMock, goals } = vi.hoisted(() => ({
@@ -232,5 +232,70 @@ describe("PlanNutrition", () => {
     const chip = await screen.findByText(/Calories ≤ 100 kcal/);
     expect(chip.closest("li")?.dataset.status).toBe("over");
     expect(actionMock).toHaveBeenCalledTimes(1);
+  });
+
+  // BL-0049. A day is the period the Daily Value is defined against, so the day
+  // rollup is the one plan surface the panel belongs on; the week keeps its
+  // compact grid, because a percentage of seven daily values is not a figure
+  // anyone reads on a label.
+  describe("the day's Nutrition Facts panel", () => {
+    it("opens a day's panel on demand and reports the day's own total", async () => {
+      actionMock.mockResolvedValue({
+        days: [
+          {
+            weekday: 0,
+            estimate: estimate({
+              nutrients: {
+                "1008": { nutrientId: "1008", amount: 1800, unit: "kcal" },
+                "1093": { nutrientId: "1093", amount: 2300, unit: "mg" },
+              },
+            }),
+          },
+        ],
+        week: estimate(),
+      });
+
+      render(<PlanNutrition items={items} />);
+      const toggle = await screen.findByRole("button", { name: "Nutrition Facts" });
+      expect(screen.queryByRole("table")).toBeNull();
+
+      fireEvent.click(toggle);
+
+      expect(screen.getByText("Monday · whole day")).toBeTruthy();
+      // No divisor: a whole day's sodium is a whole day's Daily Value.
+      const sodium = screen.getByRole("rowheader", { name: "Sodium" }).closest("tr");
+      expect(sodium?.textContent).toContain("2300 mg");
+      expect(sodium?.textContent).toContain("100%");
+    });
+
+    it("offers no panel for a day it will not put a number on", async () => {
+      actionMock.mockResolvedValue({
+        days: [
+          {
+            weekday: 0,
+            estimate: estimate({
+              coverage: { resolvedMassFraction: 0.4, resolvedCount: 1, totalCount: 3 },
+            }),
+          },
+        ],
+        week: estimate(),
+      });
+
+      render(<PlanNutrition items={items} />);
+      expect(await screen.findByText(/Not enough identified to estimate/)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Nutrition Facts" })).toBeNull();
+    });
+
+    it("leaves the week on its compact grid", async () => {
+      actionMock.mockResolvedValue({
+        days: [{ weekday: 0, estimate: estimate() }],
+        week: estimate(),
+      });
+
+      render(<PlanNutrition items={items} />);
+      await screen.findByText(/across 1 planned day/);
+      // Exactly one toggle — the day's. The week has none.
+      expect(screen.getAllByRole("button", { name: "Nutrition Facts" })).toHaveLength(1);
+    });
   });
 });

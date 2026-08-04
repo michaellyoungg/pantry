@@ -44,6 +44,27 @@ type itemDef struct {
 	// coarse to drive a scoring penalty. Absent means NOT a staple, which is the
 	// conservative default — an unknown ingredient counts against a recipe.
 	Staple bool `json:"staple,omitempty"`
+	// Purchase is how the item is actually SOLD, as opposed to how a recipe
+	// measures it (BL-0032). Nobody sells 2 tbsp of parsley; you buy a bunch.
+	//
+	// Deliberately partial, for the same reason Category is: an entry here is a
+	// claim about a typical pack on a typical shelf, and one we cannot defend is
+	// worse than none — it would put a confidently wrong "buy 3 cans" on the
+	// list. Absent means the line is emitted in recipe units exactly as before.
+	Purchase *purchaseDef `json:"purchase,omitempty"`
+}
+
+// purchaseDef is one item's typical pack: what it is called on the shelf, and
+// how much is in it expressed in a unit the converter already knows.
+//
+// Size/SizeUnit are what make the arithmetic possible — "1 bunch" alone cannot
+// be compared against "2 tbsp". SizeUnit must be a convertible unit from
+// `units`; loadNormalizer rejects the dataset otherwise, because a typo here
+// would otherwise fail silently as "this item just never gets a purchase unit".
+type purchaseDef struct {
+	Unit     string  `json:"unit"`
+	Size     float64 `json:"size"`
+	SizeUnit string  `json:"sizeUnit"`
 }
 
 // allergenDef is one coarse allergen family: the common allergens people
@@ -128,12 +149,23 @@ type ItemDetails struct {
 	// (BL-0052) — "peanut" removing peanut butter — which an exact match on the
 	// canonical key alone can never do.
 	Allergens []string `json:"allergens,omitempty"`
+	// Pack is the typical purchase size, when the dataset knows one. Nil means
+	// "sold however the recipe measures it, as far as we know" — see
+	// itemDef.Purchase on why that is common and deliberate.
+	Pack *PurchasePack `json:"purchase,omitempty"`
 	// Known reports whether the dataset actually recognized the item. Unknown
 	// items still get a CanonicalItem — the normalized raw text — so callers
 	// can group by it, but nothing else about them is asserted. Callers that
 	// need to tell "we know this is bread" from "we have never seen this word"
 	// must read this rather than inferring it from an "other" aisle.
 	Known bool `json:"known"`
+}
+
+// PurchasePack is the wire shape of an item's typical pack: "bunch", 0.5 cup.
+type PurchasePack struct {
+	Unit     string  `json:"unit"`
+	Size     float64 `json:"size"`
+	SizeUnit string  `json:"sizeUnit"`
 }
 
 // displayUnit is one rung of a dimension's friendly-display ladder.
@@ -181,6 +213,24 @@ func loadNormalizer(raw []byte) (*Normalizer, error) {
 	mods := make(map[string]bool, len(d.Modifiers))
 	for _, m := range d.Modifiers {
 		mods[strings.ToLower(strings.TrimSpace(m))] = true
+	}
+	// Pack sizes are only useful if they can be compared against a recipe's
+	// quantity, so a pack whose sizeUnit the converter does not know is a
+	// dataset error rather than an item that quietly opts out.
+	for name, it := range d.Items {
+		p := it.Purchase
+		if p == nil {
+			continue
+		}
+		if strings.TrimSpace(p.Unit) == "" {
+			return nil, fmt.Errorf("item %q: purchase.unit is empty", name)
+		}
+		if p.Size <= 0 {
+			return nil, fmt.Errorf("item %q: purchase.size must be > 0, got %v", name, p.Size)
+		}
+		if _, ok := d.Units[strings.ToLower(strings.TrimSpace(p.SizeUnit))]; !ok {
+			return nil, fmt.Errorf("item %q: purchase.sizeUnit %q is not a convertible unit", name, p.SizeUnit)
+		}
 	}
 	itemAllergens, allergenByName, err := loadAllergens(d)
 	if err != nil {
@@ -364,6 +414,10 @@ func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
 	if shelf == 0 {
 		shelf = n.data.AisleShelfLife[it.Aisle] // 0 when the aisle has no default
 	}
+	var pack *PurchasePack
+	if it.Purchase != nil {
+		pack = &PurchasePack{Unit: it.Purchase.Unit, Size: it.Purchase.Size, SizeUnit: it.Purchase.SizeUnit}
+	}
 	return ItemDetails{
 		CanonicalItem: canonical,
 		Display:       it.Display,
@@ -372,8 +426,65 @@ func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
 		Category:      it.Category,
 		Staple:        it.Staple,
 		Allergens:     n.itemAllergens[canonical],
+		Pack:          pack,
 		Known:         true,
 	}
+}
+
+// packEpsilon absorbs float noise when deciding how many packs a need takes: a
+// need of 118.28999999 ml against a 118.294 ml bunch is one bunch, not two.
+const packEpsilon = 1e-9
+
+// purchaseFor turns "how much the recipes want" into "what you actually buy",
+// plus the surplus that survives the cooking (BL-0032).
+//
+// Two shapes of need are answerable, and a third deliberately is not:
+//
+//   - The line is in a convertible unit of the pack's dimension ("2 tbsp
+//     parsley" against a half-cup bunch). Divide, round UP — you cannot buy
+//     four fifths of a bunch — and the remainder is the residue.
+//   - The recipe already counted in the pack's own unit ("2 bunches parsley").
+//     Then buying is just rounding up to whole packs, in that same unit.
+//   - Anything else — a mass need against a volume pack, "3 cloves" against a
+//     bunch — returns nil. Guessing a density to bridge the two would put a
+//     confident number on the list that nothing in this dataset supports.
+//
+// baseQty is the line's total in base units of `dim` (empty `dim` means the
+// line's unit is non-convertible, and needQty/needUnit are then the whole story).
+func (n *Normalizer) purchaseFor(canonical, dim string, baseQty, needQty float64, needUnit string) *GroceryPurchase {
+	it, ok := n.data.Items[canonical]
+	if !ok || it.Purchase == nil {
+		return nil
+	}
+	p := it.Purchase
+	packDim, packToBase, ok := n.Unit(p.SizeUnit)
+	if !ok {
+		return nil // unreachable: loadNormalizer rejects an unknown sizeUnit
+	}
+
+	if dim != "" && dim == packDim {
+		packBase := p.Size * packToBase
+		packs := math.Max(1, math.Ceil(baseQty/packBase-packEpsilon))
+		residueBase := packs*packBase - baseQty
+		out := &GroceryPurchase{Quantity: packs, Unit: p.Unit}
+		// A residue smaller than float noise is no residue: a recipe that wants
+		// exactly one carton leaves nothing over, and saying otherwise would put
+		// a phantom "0 ml stock" into the leftovers prompt.
+		if residueBase > packBase*1e-6 {
+			out.Residue, out.ResidueUnit = n.Friendly(dim, residueBase)
+		}
+		return out
+	}
+
+	if dim == "" && needUnit == strings.ToLower(strings.TrimSpace(p.Unit)) {
+		packs := math.Max(1, math.Ceil(needQty-packEpsilon))
+		out := &GroceryPurchase{Quantity: packs, Unit: p.Unit}
+		if residue := packs - needQty; residue > 1e-6 {
+			out.Residue, out.ResidueUnit = snapNice(residue), p.Unit
+		}
+		return out
+	}
+	return nil
 }
 
 // Categories returns every category the dataset asserts. It exists so the prep

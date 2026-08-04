@@ -13,6 +13,11 @@ vi.mock("./GroceryAddItem", () => ({
   GroceryAddItem: () => <div data-testid="add-item" />,
 }));
 
+// Same for the leftovers prompt: it runs its own query and has its own suite.
+vi.mock("./LeftoverProposals", () => ({
+  LeftoverProposals: () => <div data-testid="leftover-proposals" />,
+}));
+
 // The provenance sheet links through to a recipe, which needs a router.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>,
@@ -303,5 +308,41 @@ describe("lines the plan has dropped (BL-0018)", () => {
     render(<GroceryList />);
     fireEvent.click(screen.getByRole("button", { name: /dismiss kale/i }));
     await waitFor(() => expect(mutationMock).toHaveBeenCalledWith({ id: "g2" }));
+  });
+});
+
+describe("GroceryList purchase units", () => {
+  beforeEach(() => {
+    state.lines = [
+      {
+        _id: "g9",
+        userId: "dev-user",
+        item: "Parsley",
+        canonicalItem: "parsley",
+        unit: "tbsp",
+        quantity: 2,
+        aisle: "produce",
+        checked: false,
+        purchase: { quantity: 1, unit: "bunch", residue: 6, residueUnit: "tbsp" },
+        _creationTime: 0,
+      },
+    ];
+  });
+
+  it("asks for what the shop sells, not what the recipe measured", () => {
+    render(<GroceryList />);
+    expect(screen.getByText(/1 bunch/)).toBeTruthy();
+  });
+
+  it("keeps the recipes' measure visible beside it", () => {
+    render(<GroceryList />);
+    expect(screen.getByText(/needs 2 tbsp/)).toBeTruthy();
+  });
+
+  it("falls back to the recipe's own measure with no pack data", () => {
+    state.lines = [{ ...state.lines[0], purchase: undefined }];
+    render(<GroceryList />);
+    expect(screen.getByText(/2 tbsp Parsley/)).toBeTruthy();
+    expect(screen.queryByText(/needs/)).toBeNull();
   });
 });

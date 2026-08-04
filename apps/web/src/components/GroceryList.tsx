@@ -1,5 +1,11 @@
 import { api } from "@pantry/convex/api";
-import { formatQuantity, groupByAisle, partitionRemoved, titleCase } from "@pantry/core";
+import {
+  formatQuantity,
+  groupByAisle,
+  partitionRemoved,
+  purchaseText,
+  titleCase,
+} from "@pantry/core";
 import {
   clearGroceryListOptimistic,
   needItAnywayOptimistic,
@@ -11,6 +17,7 @@ import { useState } from "react";
 import { ErrorText } from "./ErrorText";
 import { GroceryAddItem } from "./GroceryAddItem";
 import { ProvenanceButton, ProvenanceSheet } from "./GroceryProvenance";
+import { LeftoverProposals } from "./LeftoverProposals";
 import { PricingSummary } from "./PricingSummary";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -64,63 +71,71 @@ export function GroceryList() {
               {titleCase(group.aisle)}
             </h3>
             <ul className="flex flex-col gap-1">
-              {group.lines.map((line) => (
-                <li key={line._id}>
-                  <div className="flex items-center gap-2">
-                    <label
-                      className={`flex flex-1 items-center gap-2 text-sm ${
-                        line.checked
-                          ? "text-muted line-through"
-                          : line.alreadyHave
-                            ? "text-muted"
-                            : "text-text"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[var(--color-primary)]"
-                        checked={line.checked}
-                        onChange={(e) =>
-                          run(() => toggle({ id: line._id, checked: e.target.checked }))
-                        }
-                      />
-                      <span>
-                        {formatQuantity(line.quantity)} {line.unit} {line.item}
-                      </span>
-                    </label>
-                    <ProvenanceButton
-                      sources={line.sources}
-                      onOpen={() => setShowingSourcesFor(line._id)}
-                    />
-                    {/* Only manual lines can be removed — a generated one comes
-                        back on the next generation, so "remove" would be a lie. */}
-                    {line.manual && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Remove ${line.item}`}
-                        onClick={() => run(() => removeItem({ id: line._id }))}
+              {group.lines.map((line) => {
+                // What the shop sells comes first — it is what the shopper has
+                // to find and put in the basket. The recipes' measure is kept
+                // beside it, quieter: it is why the line exists, and dropping
+                // it would make the list unverifiable against the plan.
+                const { buy, need } = purchaseText(line, formatQuantity);
+                return (
+                  <li key={line._id}>
+                    <div className="flex items-center gap-2">
+                      <label
+                        className={`flex flex-1 items-center gap-2 text-sm ${
+                          line.checked
+                            ? "text-muted line-through"
+                            : line.alreadyHave
+                              ? "text-muted"
+                              : "text-text"
+                        }`}
                       >
-                        Remove
-                      </Button>
-                    )}
-                    {line.alreadyHave && (
-                      <>
-                        <span className="rounded-full bg-border px-2 py-0.5 text-xs text-muted">
-                          already have
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[var(--color-primary)]"
+                          checked={line.checked}
+                          onChange={(e) =>
+                            run(() => toggle({ id: line._id, checked: e.target.checked }))
+                          }
+                        />
+                        <span>
+                          {buy} {line.item}
+                          {need && <span className="ml-1 text-xs text-muted">needs {need}</span>}
                         </span>
+                      </label>
+                      <ProvenanceButton
+                        sources={line.sources}
+                        onOpen={() => setShowingSourcesFor(line._id)}
+                      />
+                      {/* Only manual lines can be removed — a generated one comes
+                        back on the next generation, so "remove" would be a lie. */}
+                      {line.manual && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => run(() => needItAnyway({ id: line._id }))}
+                          aria-label={`Remove ${line.item}`}
+                          onClick={() => run(() => removeItem({ id: line._id }))}
                         >
-                          Need it anyway
+                          Remove
                         </Button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              ))}
+                      )}
+                      {line.alreadyHave && (
+                        <>
+                          <span className="rounded-full bg-border px-2 py-0.5 text-xs text-muted">
+                            already have
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => run(() => needItAnyway({ id: line._id }))}
+                          >
+                            Need it anyway
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}
@@ -153,6 +168,9 @@ export function GroceryList() {
           </ul>
         </div>
       )}
+      {/* Sits below the walk and above the total: it only has anything to say
+          once lines have been checked off, which is the end of a shop. */}
+      <LeftoverProposals />
       {/* Priced over the active half only: a flagged line is already bought, so
           folding it into "what this trip costs" would double-count it. */}
       <PricingSummary lines={active} />

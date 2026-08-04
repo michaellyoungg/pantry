@@ -793,3 +793,177 @@ describe("addManualItem", () => {
     ).rejects.toThrow(/Not authenticated/);
   });
 });
+
+describe("purchase units and inferred leftovers", () => {
+  // "2 tbsp parsley" needed, one half-cup bunch bought, 6 tbsp left over.
+  const parsley = {
+    item: "Parsley",
+    canonicalItem: "parsley",
+    unit: "tbsp",
+    quantity: 2,
+    aisle: "produce",
+    purchase: { quantity: 1, unit: "bunch", residue: 6, residueUnit: "tbsp" },
+  };
+
+  async function generate(t: ReturnType<typeof convexTest>, lines = [parsley]) {
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    return rows[0];
+  }
+
+  it("persists what to buy alongside what the recipes need", async () => {
+    const t = convexTest(schema, modules);
+    const row = await generate(t);
+
+    expect(row.purchase).toEqual(parsley.purchase);
+    // The need is untouched: provenance and pricing are built on it.
+    expect(row.quantity).toBe(2);
+    expect(row.unit).toBe("tbsp");
+  });
+
+  it("refreshes the pack count when the plan grows", async () => {
+    const t = convexTest(schema, modules);
+    await generate(t);
+    const row = await generate(t, [
+      { ...parsley, quantity: 12, purchase: { quantity: 2, unit: "bunch", residue: 4 } },
+    ]);
+
+    expect(row.purchase).toEqual({ quantity: 2, unit: "bunch", residue: 4 });
+  });
+
+  it("proposes nothing until the line is actually bought", async () => {
+    const t = convexTest(schema, modules);
+    await generate(t);
+
+    const proposals = await t.withIdentity(identity).query(api.groceryList.leftoverProposals, {});
+    expect(proposals).toEqual([]);
+  });
+
+  it("proposes the leftover once the line is checked off", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+
+    const proposals = await asUser.query(api.groceryList.leftoverProposals, {});
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toMatchObject({
+      item: "Parsley",
+      purchase: { residue: 6, residueUnit: "tbsp" },
+      quantity: 2,
+      unit: "tbsp",
+    });
+  });
+
+  it("proposes nothing for a line whose pack was an exact fit", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t, [
+      { ...parsley, quantity: 8, purchase: { quantity: 1, unit: "bunch" } },
+    ]);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+
+  it("proposes nothing for a bought line the plan has since dropped", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+    // The recipe left the plan, so it never ran and its residue is fiction.
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [] });
+
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+
+  it("writes useItUp through to the pantry when the user confirms", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+
+    await asUser.mutation(api.groceryList.resolveLeftover, { id: row._id, keep: true });
+
+    const pantry = await asUser.query(api.pantry.list, {});
+    expect(pantry).toHaveLength(1);
+    expect(pantry[0]).toMatchObject({ canonicalItem: "parsley", useItUp: true, state: "have" });
+    // Answered, so it stops being asked.
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+
+  it("leaves the pantry alone when the user dismisses", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+
+    await asUser.mutation(api.groceryList.resolveLeftover, { id: row._id, keep: false });
+
+    const pantry = await asUser.query(api.pantry.list, {});
+    // The check-off row is still there — the user owns parsley — but nothing
+    // claims there is a usable leftover.
+    expect(pantry[0].useItUp).toBeUndefined();
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+
+  it("re-asks after the line is un-checked and bought again", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+    await asUser.mutation(api.groceryList.resolveLeftover, { id: row._id, keep: false });
+    // Un-checking says the purchase never happened, so the answer about its
+    // leftovers is about a shop that no longer exists.
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: false });
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toHaveLength(1);
+  });
+
+  it("survives a re-generation without re-asking a question already answered", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const row = await generate(t);
+    await asUser.mutation(api.groceryList.toggleItem, { id: row._id, checked: true });
+    await asUser.mutation(api.groceryList.resolveLeftover, { id: row._id, keep: true });
+
+    await generate(t);
+
+    expect(await asUser.query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+
+  it("rejects resolving another user's line (IDOR guard)", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.run(async (ctx) =>
+      ctx.db.insert("groceryList", {
+        userId: "someone-else",
+        item: "Parsley",
+        canonicalItem: "parsley",
+        unit: "tbsp",
+        quantity: 2,
+        aisle: "produce",
+        checked: true,
+        purchase: { quantity: 1, unit: "bunch", residue: 6, residueUnit: "tbsp" },
+      }),
+    );
+
+    await expect(
+      t.withIdentity(identity).mutation(api.groceryList.resolveLeftover, { id, keep: true }),
+    ).rejects.toThrow(/not found/i);
+  });
+
+  it("keeps another household's proposals out of the list", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: "someone-else",
+      lines: [parsley],
+    });
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("groceryList").collect();
+      await ctx.db.patch(rows[0]._id, { checked: true });
+    });
+
+    expect(await t.withIdentity(identity).query(api.groceryList.leftoverProposals, {})).toEqual([]);
+  });
+});

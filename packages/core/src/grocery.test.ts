@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { groupByAisle, partitionRemoved, titleCase } from "./grocery";
+import {
+  groupByAisle,
+  partitionRemoved,
+  pluralizeUnit,
+  purchaseText,
+  residueText,
+  titleCase,
+} from "./grocery";
 
 const line = (aisle: string, item: string) => ({ aisle, item });
 
@@ -68,5 +75,61 @@ describe("partitionRemoved", () => {
     const { active, removed } = partitionRemoved<Line>([{ item: "milk", removed: false }]);
     expect(active).toHaveLength(1);
     expect(removed).toHaveLength(0);
+  });
+});
+
+describe("pluralizeUnit", () => {
+  it("leaves a single pack singular", () => {
+    expect(pluralizeUnit("bunch", 1)).toBe("bunch");
+  });
+
+  it("takes -es after a sibilant", () => {
+    expect(pluralizeUnit("bunch", 2)).toBe("bunches");
+    expect(pluralizeUnit("box", 2)).toBe("boxes");
+  });
+
+  it("takes a plain -s otherwise", () => {
+    expect(pluralizeUnit("can", 3)).toBe("cans");
+    expect(pluralizeUnit("quart", 2)).toBe("quarts");
+  });
+
+  it("pluralizes a fractional count, which is not one pack", () => {
+    expect(pluralizeUnit("bunch", 1.5)).toBe("bunches");
+  });
+
+  it("leaves an empty unit empty rather than inventing an 's'", () => {
+    expect(pluralizeUnit("", 3)).toBe("");
+  });
+});
+
+describe("purchaseText", () => {
+  const fmt = (n: number) => String(n);
+
+  it("says what the shop sells, and what the recipes wanted", () => {
+    expect(
+      purchaseText({ quantity: 2, unit: "tbsp", purchase: { quantity: 1, unit: "bunch" } }, fmt),
+    ).toEqual({ buy: "1 bunch", need: "2 tbsp" });
+  });
+
+  it("falls back to the recipe's own measure with no pack data", () => {
+    expect(purchaseText({ quantity: 3, unit: "cloves" }, fmt)).toEqual({ buy: "3 cloves" });
+  });
+
+  it("drops the empty unit an unquantified line carries", () => {
+    expect(purchaseText({ quantity: 2, unit: "" }, fmt)).toEqual({ buy: "2" });
+  });
+});
+
+describe("residueText", () => {
+  const fmt = (n: number) => String(n);
+
+  it("names the surplus", () => {
+    expect(residueText({ quantity: 1, unit: "bunch", residue: 6, residueUnit: "tbsp" }, fmt)).toBe(
+      "6 tbsp",
+    );
+  });
+
+  it("is empty when the pack was an exact fit", () => {
+    expect(residueText({ quantity: 1, unit: "bunch" }, fmt)).toBe("");
   });
 });

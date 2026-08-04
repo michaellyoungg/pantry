@@ -342,18 +342,46 @@
     "garlic": { "display": "Garlic", "aisle": "produce", "shelfLifeDays": 90 },
     "onion": { "display": "Onion", "aisle": "produce", "shelfLifeDays": 30 },
     "red onion": { "display": "Red onion", "aisle": "produce", "shelfLifeDays": 30 },
-    "green onion": { "display": "Green onion", "aisle": "produce", "shelfLifeDays": 10 },
+    "green onion": {
+      "display": "Green onion",
+      "aisle": "produce",
+      "shelfLifeDays": 10,
+      "purchase": { "unit": "bunch", "size": 1, "sizeUnit": "cup" }
+    },
     "shallot": { "display": "Shallot", "aisle": "produce", "shelfLifeDays": 30 },
     "leek": { "display": "Leek", "aisle": "produce", "shelfLifeDays": 14 },
     "potato": { "display": "Potato", "aisle": "produce", "shelfLifeDays": 30 },
     "sweet potato": { "display": "Sweet potato", "aisle": "produce", "shelfLifeDays": 21 },
     "carrot": { "display": "Carrot", "aisle": "produce", "shelfLifeDays": 21 },
-    "celery": { "display": "Celery", "aisle": "produce", "shelfLifeDays": 14 },
+    "celery": {
+      "display": "Celery",
+      "aisle": "produce",
+      "shelfLifeDays": 14,
+      "purchase": { "unit": "bunch", "size": 8, "sizeUnit": "cup" }
+    },
     "lettuce": { "display": "Lettuce", "aisle": "produce" },
-    "romaine": { "display": "Romaine", "aisle": "produce" },
-    "spinach": { "display": "Spinach", "aisle": "produce", "shelfLifeDays": 5 },
-    "kale": { "display": "Kale", "aisle": "produce" },
-    "arugula": { "display": "Arugula", "aisle": "produce", "shelfLifeDays": 4 },
+    "romaine": {
+      "display": "Romaine",
+      "aisle": "produce",
+      "purchase": { "unit": "head", "size": 6, "sizeUnit": "cup" }
+    },
+    "spinach": {
+      "display": "Spinach",
+      "aisle": "produce",
+      "shelfLifeDays": 5,
+      "purchase": { "unit": "container", "size": 5, "sizeUnit": "cup" }
+    },
+    "kale": {
+      "display": "Kale",
+      "aisle": "produce",
+      "purchase": { "unit": "bunch", "size": 4, "sizeUnit": "cup" }
+    },
+    "arugula": {
+      "display": "Arugula",
+      "aisle": "produce",
+      "shelfLifeDays": 4,
+      "purchase": { "unit": "container", "size": 5, "sizeUnit": "cup" }
+    },
     "cabbage": { "display": "Cabbage", "aisle": "produce", "shelfLifeDays": 30 },
     "broccoli": { "display": "Broccoli", "aisle": "produce" },
     "cauliflower": { "display": "Cauliflower", "aisle": "produce" },
@@ -384,15 +412,58 @@
     "grape": { "display": "Grapes", "aisle": "produce" },
     "pineapple": { "display": "Pineapple", "aisle": "produce", "shelfLifeDays": 5 },
     "ginger": { "display": "Ginger", "aisle": "produce", "shelfLifeDays": 21 },
-    "basil": { "display": "Basil", "aisle": "produce", "shelfLifeDays": 5 },
-    "cilantro": { "display": "Cilantro", "aisle": "produce" },
-    "parsley": { "display": "Parsley", "aisle": "produce", "shelfLifeDays": 10 },
-    "mint": { "display": "Mint", "aisle": "produce" },
-    "dill": { "display": "Dill", "aisle": "produce", "shelfLifeDays": 5 },
-    "sage": { "display": "Sage", "aisle": "produce", "shelfLifeDays": 10 },
-    "rosemary": { "display": "Rosemary", "aisle": "produce", "shelfLifeDays": 14 },
-    "thyme": { "display": "Thyme", "aisle": "produce", "shelfLifeDays": 14 },
-    "salad greens": { "display": "Salad greens", "aisle": "produce", "shelfLifeDays": 5 },
+    "basil": {
+      "display": "Basil",
+      "aisle": "produce",
+      "shelfLifeDays": 5,
+      "purchase": { "unit": "bunch", "size": 1, "sizeUnit": "cup" }
+    },
+    "cilantro": {
+      "display": "Cilantro",
+      "aisle": "produce",
+      "purchase": { "unit": "bunch", "size": 0.5, "sizeUnit": "cup" }
+    },
+    "parsley": {
+      "display": "Parsley",
+      "aisle": "produce",
+      "shelfLifeDays": 10,
+      "purchase": { "unit": "bunch", "size": 0.5, "sizeUnit": "cup" }
+    },
+    "mint": {
+      "display": "Mint",
+      "aisle": "produce",
+      "purchase": { "unit": "bunch", "size": 0.5, "sizeUnit": "cup" }
+    },
+    "dill": {
+      "display": "Dill",
+      "aisle": "produce",
+      "shelfLifeDays": 5,
+      "purchase": { "unit": "bunch", "size": 0.25, "sizeUnit": "cup" }
+    },
+    "sage": {
+      "display": "Sage",
+      "aisle": "produce",
+      "shelfLifeDays": 10,
+      "purchase": { "unit": "package", "size": 0.25, "sizeUnit": "cup" }
+    },
+    "rosemary": {
+      "display": "Rosemary",
+      "aisle": "produce",
+      "shelfLifeDays": 14,
+      "purchase": { "unit": "package", "size": 0.25, "sizeUnit": "cup" }
+    },
+    "thyme": {
+      "display": "Thyme",
+      "aisle": "produce",
+      "shelfLifeDays": 14,
+      "purchase": { "unit": "package", "size": 0.25, "sizeUnit": "cup" }
+    },
+    "salad greens": {
+      "display": "Salad greens",
+      "aisle": "produce",
+      "shelfLifeDays": 5,
+      "purchase": { "unit": "container", "size": 5, "sizeUnit": "cup" }
+    },
     "fennel": { "display": "Fennel", "aisle": "produce", "shelfLifeDays": 10 },
     "radish": { "display": "Radishes", "aisle": "produce", "shelfLifeDays": 10 },
     "parsnip": { "display": "Parsnips", "aisle": "produce", "shelfLifeDays": 21 },
@@ -404,8 +475,18 @@
     "snow pea": { "display": "Snow peas", "aisle": "produce", "shelfLifeDays": 5 },
     "artichoke": { "display": "Artichokes", "aisle": "produce", "shelfLifeDays": 7 },
     "okra": { "display": "Okra", "aisle": "produce", "shelfLifeDays": 4 },
-    "collard greens": { "display": "Collard greens", "aisle": "produce", "shelfLifeDays": 7 },
-    "swiss chard": { "display": "Swiss chard", "aisle": "produce", "shelfLifeDays": 5 },
+    "collard greens": {
+      "display": "Collard greens",
+      "aisle": "produce",
+      "shelfLifeDays": 7,
+      "purchase": { "unit": "bunch", "size": 4, "sizeUnit": "cup" }
+    },
+    "swiss chard": {
+      "display": "Swiss chard",
+      "aisle": "produce",
+      "shelfLifeDays": 5,
+      "purchase": { "unit": "bunch", "size": 4, "sizeUnit": "cup" }
+    },
     "acorn squash": { "display": "Acorn squash", "aisle": "produce", "shelfLifeDays": 30 },
     "spaghetti squash": { "display": "Spaghetti squash", "aisle": "produce", "shelfLifeDays": 30 },
     "pumpkin": { "display": "Pumpkin", "aisle": "produce", "shelfLifeDays": 30 },
@@ -435,8 +516,18 @@
     "blackberry": { "display": "Blackberries", "aisle": "produce", "shelfLifeDays": 3 },
     "cranberry": { "display": "Cranberries", "aisle": "produce", "shelfLifeDays": 14 },
     "pomegranate": { "display": "Pomegranate", "aisle": "produce", "shelfLifeDays": 21 },
-    "tarragon": { "display": "Tarragon", "aisle": "produce", "shelfLifeDays": 10 },
-    "chive": { "display": "Chives", "aisle": "produce", "shelfLifeDays": 10 },
+    "tarragon": {
+      "display": "Tarragon",
+      "aisle": "produce",
+      "shelfLifeDays": 10,
+      "purchase": { "unit": "package", "size": 0.25, "sizeUnit": "cup" }
+    },
+    "chive": {
+      "display": "Chives",
+      "aisle": "produce",
+      "shelfLifeDays": 10,
+      "purchase": { "unit": "bunch", "size": 0.5, "sizeUnit": "cup" }
+    },
 
     "chicken": { "display": "Chicken", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "chicken breast": {
@@ -455,13 +546,15 @@
       "display": "Ground beef",
       "aisle": "meat",
       "shelfLifeDays": 2,
-      "category": "protein"
+      "category": "protein",
+      "purchase": { "unit": "package", "size": 454, "sizeUnit": "g" }
     },
     "ground turkey": {
       "display": "Ground turkey",
       "aisle": "meat",
       "shelfLifeDays": 2,
-      "category": "protein"
+      "category": "protein",
+      "purchase": { "unit": "package", "size": 454, "sizeUnit": "g" }
     },
     "ground pork": {
       "display": "Ground pork",
@@ -488,8 +581,19 @@
       "shelfLifeDays": 4,
       "category": "protein"
     },
-    "bacon": { "display": "Bacon", "aisle": "meat", "shelfLifeDays": 7, "category": "protein" },
-    "sausage": { "display": "Sausage", "aisle": "meat", "category": "protein" },
+    "bacon": {
+      "display": "Bacon",
+      "aisle": "meat",
+      "shelfLifeDays": 7,
+      "category": "protein",
+      "purchase": { "unit": "package", "size": 340, "sizeUnit": "g" }
+    },
+    "sausage": {
+      "display": "Sausage",
+      "aisle": "meat",
+      "category": "protein",
+      "purchase": { "unit": "package", "size": 454, "sizeUnit": "g" }
+    },
     "ham": { "display": "Ham", "aisle": "meat", "shelfLifeDays": 5, "category": "protein" },
     "prosciutto": {
       "display": "Prosciutto",
@@ -498,7 +602,13 @@
       "category": "protein"
     },
     "salmon": { "display": "Salmon", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "shrimp": { "display": "Shrimp", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
+    "shrimp": {
+      "display": "Shrimp",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein",
+      "purchase": { "unit": "bag", "size": 454, "sizeUnit": "g" }
+    },
     "cod": { "display": "Cod", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "tilapia": { "display": "Tilapia", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
 
@@ -596,42 +706,75 @@
     "tempeh": { "display": "Tempeh", "aisle": "meat", "shelfLifeDays": 14, "category": "protein" },
     "tofu": { "display": "Tofu", "aisle": "produce", "shelfLifeDays": 7, "category": "protein" },
 
-    "milk": { "display": "Milk", "aisle": "dairy", "shelfLifeDays": 7, "category": "dairy" },
-    "butter": { "display": "Butter", "aisle": "dairy", "shelfLifeDays": 30, "category": "dairy" },
+    "milk": {
+      "display": "Milk",
+      "aisle": "dairy",
+      "shelfLifeDays": 7,
+      "category": "dairy",
+      "purchase": { "unit": "quart", "size": 946, "sizeUnit": "ml" }
+    },
+    "butter": {
+      "display": "Butter",
+      "aisle": "dairy",
+      "shelfLifeDays": 30,
+      "category": "dairy",
+      "purchase": { "unit": "stick", "size": 0.5, "sizeUnit": "cup" }
+    },
     "egg": { "display": "Eggs", "aisle": "dairy", "shelfLifeDays": 28, "category": "dairy" },
-    "heavy cream": { "display": "Heavy cream", "aisle": "dairy", "category": "dairy" },
+    "heavy cream": {
+      "display": "Heavy cream",
+      "aisle": "dairy",
+      "category": "dairy",
+      "purchase": { "unit": "pint", "size": 473, "sizeUnit": "ml" }
+    },
     "half and half": {
       "display": "Half and half",
       "aisle": "dairy",
       "shelfLifeDays": 7,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "pint", "size": 473, "sizeUnit": "ml" }
     },
     "buttermilk": {
       "display": "Buttermilk",
       "aisle": "dairy",
       "shelfLifeDays": 14,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "quart", "size": 946, "sizeUnit": "ml" }
     },
     "sour cream": {
       "display": "Sour cream",
       "aisle": "dairy",
       "shelfLifeDays": 14,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 473, "sizeUnit": "ml" }
     },
-    "yogurt": { "display": "Yogurt", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
+    "yogurt": {
+      "display": "Yogurt",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 946, "sizeUnit": "ml" }
+    },
     "greek yogurt": {
       "display": "Greek yogurt",
       "aisle": "dairy",
       "shelfLifeDays": 14,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 946, "sizeUnit": "ml" }
     },
     "cream cheese": {
       "display": "Cream cheese",
       "aisle": "dairy",
       "shelfLifeDays": 14,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "block", "size": 226, "sizeUnit": "g" }
     },
-    "cottage cheese": { "display": "Cottage cheese", "aisle": "dairy", "category": "dairy" },
+    "cottage cheese": {
+      "display": "Cottage cheese",
+      "aisle": "dairy",
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 473, "sizeUnit": "ml" }
+    },
     "cheddar cheese": {
       "display": "Cheddar cheese",
       "aisle": "dairy",
@@ -650,7 +793,13 @@
       "shelfLifeDays": 14,
       "category": "dairy"
     },
-    "feta": { "display": "Feta", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
+    "feta": {
+      "display": "Feta",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 226, "sizeUnit": "g" }
+    },
     "ghee": { "display": "Ghee", "aisle": "dairy", "shelfLifeDays": 180, "category": "dairy" },
     "mascarpone": {
       "display": "Mascarpone",
@@ -675,7 +824,8 @@
       "display": "Goat cheese",
       "aisle": "dairy",
       "shelfLifeDays": 14,
-      "category": "dairy"
+      "category": "dairy",
+      "purchase": { "unit": "log", "size": 113, "sizeUnit": "g" }
     },
     "blue cheese": {
       "display": "Blue cheese",
@@ -689,7 +839,13 @@
       "shelfLifeDays": 21,
       "category": "dairy"
     },
-    "ricotta": { "display": "Ricotta", "aisle": "dairy", "shelfLifeDays": 7, "category": "dairy" },
+    "ricotta": {
+      "display": "Ricotta",
+      "aisle": "dairy",
+      "shelfLifeDays": 7,
+      "category": "dairy",
+      "purchase": { "unit": "container", "size": 443, "sizeUnit": "ml" }
+    },
 
     "bread": { "display": "Bread", "aisle": "bakery" },
     "sourdough": { "display": "Sourdough", "aisle": "bakery" },
@@ -798,30 +954,68 @@
     "breadcrumbs": { "display": "Breadcrumbs", "aisle": "pantry", "shelfLifeDays": 180 },
     "peanut butter": { "display": "Peanut butter", "aisle": "pantry", "shelfLifeDays": 180 },
     "jam": { "display": "Jam", "aisle": "pantry" },
-    "canned tomato": { "display": "Canned tomatoes", "aisle": "pantry", "shelfLifeDays": 730 },
-    "tomato paste": { "display": "Tomato paste", "aisle": "pantry", "shelfLifeDays": 730 },
-    "tomato sauce": { "display": "Tomato sauce", "aisle": "pantry", "shelfLifeDays": 730 },
-    "chicken stock": { "display": "Chicken stock", "aisle": "pantry", "shelfLifeDays": 540 },
-    "vegetable stock": { "display": "Vegetable stock", "aisle": "pantry", "shelfLifeDays": 540 },
-    "beef stock": { "display": "Beef stock", "aisle": "pantry", "shelfLifeDays": 540 },
-    "coconut milk": { "display": "Coconut milk", "aisle": "pantry", "shelfLifeDays": 730 },
+    "canned tomato": {
+      "display": "Canned tomatoes",
+      "aisle": "pantry",
+      "shelfLifeDays": 730,
+      "purchase": { "unit": "can", "size": 411, "sizeUnit": "g" }
+    },
+    "tomato paste": {
+      "display": "Tomato paste",
+      "aisle": "pantry",
+      "shelfLifeDays": 730,
+      "purchase": { "unit": "can", "size": 163, "sizeUnit": "ml" }
+    },
+    "tomato sauce": {
+      "display": "Tomato sauce",
+      "aisle": "pantry",
+      "shelfLifeDays": 730,
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "ml" }
+    },
+    "chicken stock": {
+      "display": "Chicken stock",
+      "aisle": "pantry",
+      "shelfLifeDays": 540,
+      "purchase": { "unit": "carton", "size": 946, "sizeUnit": "ml" }
+    },
+    "vegetable stock": {
+      "display": "Vegetable stock",
+      "aisle": "pantry",
+      "shelfLifeDays": 540,
+      "purchase": { "unit": "carton", "size": 946, "sizeUnit": "ml" }
+    },
+    "beef stock": {
+      "display": "Beef stock",
+      "aisle": "pantry",
+      "shelfLifeDays": 540,
+      "purchase": { "unit": "carton", "size": 946, "sizeUnit": "ml" }
+    },
+    "coconut milk": {
+      "display": "Coconut milk",
+      "aisle": "pantry",
+      "shelfLifeDays": 730,
+      "purchase": { "unit": "can", "size": 400, "sizeUnit": "ml" }
+    },
     "black bean": {
       "display": "Black beans",
       "aisle": "pantry",
       "shelfLifeDays": 1095,
-      "category": "legume"
+      "category": "legume",
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "g" }
     },
     "kidney bean": {
       "display": "Kidney beans",
       "aisle": "pantry",
       "shelfLifeDays": 1095,
-      "category": "legume"
+      "category": "legume",
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "g" }
     },
     "chickpea": {
       "display": "Chickpeas",
       "aisle": "pantry",
       "shelfLifeDays": 1095,
-      "category": "legume"
+      "category": "legume",
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "g" }
     },
     "lentil": {
       "display": "Lentils",
@@ -829,7 +1023,12 @@
       "shelfLifeDays": 730,
       "category": "legume"
     },
-    "canned tuna": { "display": "Canned tuna", "aisle": "pantry", "shelfLifeDays": 1095 },
+    "canned tuna": {
+      "display": "Canned tuna",
+      "aisle": "pantry",
+      "shelfLifeDays": 1095,
+      "purchase": { "unit": "can", "size": 142, "sizeUnit": "g" }
+    },
     "ketchup": { "display": "Ketchup", "aisle": "pantry", "shelfLifeDays": 180 },
     "mustard": { "display": "Mustard", "aisle": "pantry" },
     "mayonnaise": { "display": "Mayonnaise", "aisle": "pantry", "shelfLifeDays": 90 },
@@ -963,13 +1162,15 @@
       "display": "Cannellini beans",
       "aisle": "pantry",
       "shelfLifeDays": 1095,
-      "category": "legume"
+      "category": "legume",
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "g" }
     },
     "pinto bean": {
       "display": "Pinto beans",
       "aisle": "pantry",
       "shelfLifeDays": 1095,
-      "category": "legume"
+      "category": "legume",
+      "purchase": { "unit": "can", "size": 425, "sizeUnit": "g" }
     },
     "refried beans": {
       "display": "Refried beans",
@@ -1129,19 +1330,22 @@
       "display": "Frozen peas",
       "aisle": "frozen",
       "shelfLifeDays": 240,
-      "category": "frozen"
+      "category": "frozen",
+      "purchase": { "unit": "bag", "size": 454, "sizeUnit": "g" }
     },
     "frozen corn": {
       "display": "Frozen corn",
       "aisle": "frozen",
       "shelfLifeDays": 240,
-      "category": "frozen"
+      "category": "frozen",
+      "purchase": { "unit": "bag", "size": 454, "sizeUnit": "g" }
     },
     "frozen spinach": {
       "display": "Frozen spinach",
       "aisle": "frozen",
       "shelfLifeDays": 240,
-      "category": "frozen"
+      "category": "frozen",
+      "purchase": { "unit": "package", "size": 283, "sizeUnit": "g" }
     },
     "frozen broccoli": {
       "display": "Frozen broccoli",
@@ -1153,7 +1357,8 @@
       "display": "Frozen berries",
       "aisle": "frozen",
       "shelfLifeDays": 240,
-      "category": "frozen"
+      "category": "frozen",
+      "purchase": { "unit": "bag", "size": 340, "sizeUnit": "g" }
     },
     "frozen pizza": { "display": "Frozen pizza", "aisle": "frozen" },
     "puff pastry": {

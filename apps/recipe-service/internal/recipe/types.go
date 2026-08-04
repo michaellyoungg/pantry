@@ -126,6 +126,30 @@ type GroceryLine struct {
 	// Sources are the recipes this line was aggregated from, in first-seen
 	// order. Nil when nothing traceable contributed (see GroceryLineSource).
 	Sources []GroceryLineSource `json:"sources,omitempty"`
+	// Purchase is what to actually buy for this line, when the dataset knows how
+	// the item is sold (BL-0032). Nil for everything else, which is most of the
+	// list — see itemDef.Purchase.
+	Purchase *GroceryPurchase `json:"purchase,omitempty"`
+}
+
+// GroceryPurchase is the shopping half of a grocery line: whole packs to put in
+// the basket, and what will be left once the recipes have taken their share.
+//
+// It rides ALONGSIDE the line's quantity rather than replacing it. The line's
+// quantity is the need — what the recipes add up to — and provenance,
+// don't-rebuy and pricing are all built on that number. Overwriting it with a
+// pack count would make "¼ from Cookies, ½ from Toast" stop adding up, so the
+// purchase quantity is a second, separate claim: buy this, need that.
+type GroceryPurchase struct {
+	// Quantity is whole packs — you cannot buy four fifths of a bunch.
+	Quantity float64 `json:"quantity"`
+	// Unit is the pack's own name ("bunch", "can"), singular. Clients pluralize.
+	Unit string `json:"unit"`
+	// Residue is the surplus: packs bought minus recipes' need, in whatever
+	// display unit reads best. Zero (and ResidueUnit empty) when the need
+	// happens to land on a whole pack.
+	Residue     float64 `json:"residue,omitempty"`
+	ResidueUnit string  `json:"residueUnit,omitempty"`
 }
 
 // GroceryLineSource is one recipe's contribution to an aggregated grocery line:

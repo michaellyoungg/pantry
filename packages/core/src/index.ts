@@ -22,8 +22,12 @@ export {
   type AisleGroup,
   type AisleLine,
   groupByAisle,
+  type PurchasedLine,
   partitionRemoved,
+  pluralizeUnit,
+  purchaseText,
   type RemovableLine,
+  residueText,
   titleCase,
 } from "./grocery";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
@@ -37,6 +41,15 @@ export {
   nutrientRows,
   unresolvedItems,
 } from "./nutrition";
+export {
+  DAILY_VALUES,
+  type DailyValue,
+  hasTargetColumn,
+  type NutritionFactsGroup,
+  type NutritionFactsOptions,
+  type NutritionFactsRow,
+  nutritionFactsLabel,
+} from "./nutritionFacts";
 export {
   type DayExclusionReason,
   type DayPoint,

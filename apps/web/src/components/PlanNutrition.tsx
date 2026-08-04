@@ -3,14 +3,18 @@ import {
   type DayNutritionSummary,
   type NutritionGaps,
   type NutritionSummary,
+  nutritionFactsLabel,
   type PlannedItem,
   planNutritionSignature,
   rollUpWeekNutrition,
 } from "@pantry/core";
 import { useAsyncData } from "@pantry/core/react";
-import { useCallback } from "react";
+import type { NutritionEstimate } from "@pantry/types";
+import { useQuery } from "convex/react";
+import { useCallback, useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
+import { NutritionFactsPanel } from "./NutritionFactsPanel";
 import { PlanGoals } from "./PlanGoals";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -62,6 +66,7 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
   }
 
   const planned = rollup.days.filter((d) => d.summary.kind !== "empty");
+  const estimateByDay = new Map(data.days.map((d) => [d.weekday, d.estimate]));
 
   return (
     <Card title="Estimated nutrition">
@@ -73,7 +78,7 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
         />
         <ul className="flex flex-col divide-y divide-border">
           {planned.map((day) => (
-            <DayRow key={day.weekday} day={day} />
+            <DayRow key={day.weekday} day={day} estimate={estimateByDay.get(day.weekday)} />
           ))}
         </ul>
         {/* Goal status against the very same rollup (BL-0038). Sharing the
@@ -130,8 +135,17 @@ function WeekSummary({
   );
 }
 
-function DayRow({ day }: { day: DayNutritionSummary }) {
+function DayRow({
+  day,
+  estimate,
+}: {
+  day: DayNutritionSummary;
+  estimate: NutritionEstimate | undefined;
+}) {
   const { summary } = day;
+  const [open, setOpen] = useState(false);
+  const targets = useQuery(api.nutritionTargets.list) ?? [];
+
   return (
     <li className="flex flex-col gap-1 py-2">
       <div className="flex flex-wrap items-baseline gap-x-2">
@@ -146,8 +160,27 @@ function DayRow({ day }: { day: DayNutritionSummary }) {
             {summary.kind === "unavailable" && ` (about ${summary.coveragePercent}%)`}
           </span>
         )}
+        {/* Only a day we would put a number on gets a panel. The coverage rule
+            decides that, in exactly one place, for every nutrition surface —
+            a quasi-official label over figures the rest of the app has agreed
+            not to trust is the artifact this whole track exists to prevent. */}
+        {summary.kind === "estimate" && estimate && (
+          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+            {open ? "Hide Nutrition Facts" : "Nutrition Facts"}
+          </Button>
+        )}
       </div>
       {summary.kind !== "empty" && <GapNote gaps={summary.gaps} />}
+      {open && summary.kind === "estimate" && estimate && (
+        <NutritionFactsPanel
+          className="mt-1 max-w-md"
+          // A day is the period the Daily Value is defined against, so the day's
+          // own total is the figure — no divisor, and no per-serving idea here.
+          rows={nutritionFactsLabel(estimate.nutrients, { targets, period: "day" })}
+          servingsLabel={`${day.fullLabel} · whole day`}
+          coveragePercent={summary.coveragePercent}
+        />
+      )}
     </li>
   );
 }
