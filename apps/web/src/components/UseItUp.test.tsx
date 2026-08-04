@@ -154,6 +154,24 @@ describe("UseItUp", () => {
     expect(screen.queryByText(/Use soon/)).toBeNull();
   });
 
+  // Regression: the refetch key once omitted `useItUp`, so marking an item to
+  // use up left the suggestions stale — which reads exactly like the flag doing
+  // nothing, on the signal the ranker weights most heavily.
+  it("re-asks the ranker when an item is marked to use up", async () => {
+    // useBy is PINNED across both renders so the only thing that changes is the
+    // flag. Letting row() default it to Date.now()+2d would move the key on its
+    // own and the assertion would pass even with the bug present.
+    const useBy = Date.now() + 2 * DAY;
+    state.pantry = [row({ useBy, useItUp: false })];
+    const { rerender } = render(<UseItUp variant="page" />);
+    await waitFor(() => expect(state.recommend).toHaveBeenCalledTimes(1));
+
+    state.pantry = [row({ useBy, useItUp: true })];
+    rerender(<UseItUp variant="page" />);
+
+    await waitFor(() => expect(state.recommend).toHaveBeenCalledTimes(2));
+  });
+
   it("stays quiet when no recipe matches instead of showing a dead link", async () => {
     state.pantry = [row()];
     render(<UseItUp />);

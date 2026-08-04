@@ -55,8 +55,11 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
   // The pantry is carried through the dependency list as a serialized string:
   // the rows are a fresh reference every render, which would re-request
   // forever, and a string compares by value.
+  // `useItUp` MUST be in the key: it is the strongest signal the ranker reads,
+  // so marking an item to use up has to re-ask. Leaving it out looks like the
+  // flag doing nothing.
   const pantryKey = JSON.stringify(
-    rows.map((r) => `${r.canonicalItem}:${r.state}:${r.useBy ?? ""}`),
+    rows.map((r) => `${r.canonicalItem}:${r.state}:${r.useBy ?? ""}:${r.useItUp ?? false}`),
   );
   const load = useCallback(() => {
     // Referenced so the fetch re-runs when the pantry changes; the action reads

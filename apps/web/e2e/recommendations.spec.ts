@@ -54,13 +54,16 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
 
   // The pantry now holds garlic. Mark it to use up.
+  //
+  // Targeted by the BUTTON's own label rather than by finding a listitem that
+  // mentions garlic: since BL-0050 the suggestions card sits ABOVE the
+  // inventory and its recipe rows are listitems mentioning garlic too, so
+  // `.first()` on a text filter picks a suggestion, which has no such button.
+  // Only inventory rows carry "Mark … to use up", so this is unambiguous.
   await navigateTo(page, "Pantry");
-  const pantryRow = page
-    .getByRole("listitem")
-    .filter({ hasText: /garlic/i })
-    .first();
-  await expect(pantryRow).toBeVisible();
-  await pantryRow.getByRole("button", { name: /Mark .* to use up/ }).click();
+  const markUseUp = page.getByRole("button", { name: /Mark .*garlic.* to use up/i });
+  await expect(markUseUp).toBeVisible();
+  await markUseUp.click();
 
   // Ask for suggestions. Assert on the "Uses up:" reason specifically, not just
   // any reason: it is the one string only the useItUp feature can produce, so it
