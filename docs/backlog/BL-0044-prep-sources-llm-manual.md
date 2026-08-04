@@ -1,7 +1,7 @@
 ---
 id: BL-0044
 title: Prep task sources — LLM-derived and hand-authored, merged with rule output
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-08-03-cooking-guidance-design.md]
