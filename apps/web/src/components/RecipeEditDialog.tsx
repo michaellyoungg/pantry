@@ -1,13 +1,19 @@
+import { api } from "@pantry/convex/api";
+import { useAsyncData } from "@pantry/core/react";
 import type {
   CookingMethod,
   EquipmentDef,
   Ingredient,
+  PrepTaskInput,
   Recipe,
   RecipeEquipment,
 } from "@pantry/types";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toISODate } from "../lib/prep";
 import { formatServings, parseServings } from "../lib/servings";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { EquipmentEditor } from "./EquipmentEditor";
+import { PrepEditor } from "./PrepEditor";
 import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
@@ -30,6 +36,7 @@ export function RecipeEditDialog({
     steps: string[],
     equipment: RecipeEquipment[],
     methods: CookingMethod[],
+    prepTasks: PrepTaskInput[],
   ) => Promise<void>;
   onClose: () => void;
 }) {
@@ -44,7 +51,26 @@ export function RecipeEditDialog({
   const [steps, setSteps] = useState<string[]>(recipe.steps ?? []);
   const [equipment, setEquipment] = useState<RecipeEquipment[]>(recipe.equipment ?? []);
   const [methods, setMethods] = useState<CookingMethod[]>(recipe.methods ?? []);
+  // Only the user's own tasks are editable here. Model-derived ones are stored
+  // too but are not this form's to rewrite — they are offered for override
+  // below, like rule-derived ones, which is what keeps provenance honest.
+  const [prepTasks, setPrepTasks] = useState<PrepTaskInput[]>(() =>
+    (recipe.prepTasks ?? [])
+      .filter((task) => task.source === "manual")
+      .map((task) => ({ key: task.key, window: task.window, text: task.text })),
+  );
   const [busy, setBusy] = useState(false);
+
+  // What this recipe currently derives, so a rule the user disagrees with can
+  // be overridden rather than merely worked around. A recipe being edited has
+  // no cook date, so today stands in and the dates are never shown.
+  const forRecipe = useTracedAction(api.prepTasks.forRecipe, "prepTasks.forRecipe");
+  const cookDate = toISODate(new Date());
+  const loadPrep = useCallback(
+    () => forRecipe({ recipeId: recipe.id, cookDate }),
+    [forRecipe, recipe.id, cookDate],
+  );
+  const { data: derivedPrep } = useAsyncData(loadPrep);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -66,6 +92,7 @@ export function RecipeEditDialog({
         steps.map((s) => s.trim()).filter((s) => s !== ""),
         equipment,
         methods,
+        prepTasks,
       );
     } finally {
       setBusy(false);
@@ -116,6 +143,7 @@ export function RecipeEditDialog({
           + ingredient
         </Button>
         <StepsEditor steps={steps} onChange={setSteps} />
+        <PrepEditor tasks={prepTasks} onChange={setPrepTasks} derived={derivedPrep?.tasks ?? []} />
         <EquipmentEditor
           catalog={catalog}
           equipment={equipment}

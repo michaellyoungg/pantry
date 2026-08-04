@@ -137,6 +137,10 @@ describe("draftSubmission", () => {
       servings: "4",
       equipment: [{ id: "toaster_oven", required: true }],
       methods: ["bake"],
+      prepTasks: [
+        { window: "night_before", text: "Set the bread out" },
+        { window: "at_start", text: "   " },
+      ],
       steps: ["  Toast the bread  ", "   ", ""],
       ingredients: [
         { quantity: 2, unit: "slice", item: "bread" },
@@ -151,6 +155,8 @@ describe("draftSubmission", () => {
       steps: ["Toast the bread"],
       equipment: [{ id: "toaster_oven", required: true }],
       methods: ["bake"],
+      // Blank prep rows are scaffolding, exactly like blank ingredient rows.
+      prepTasks: [{ window: "night_before", text: "Set the bread out" }],
     });
   });
 });

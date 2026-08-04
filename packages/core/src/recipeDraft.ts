@@ -1,4 +1,4 @@
-import type { CookingMethod, Ingredient, RecipeEquipment } from "@pantry/types";
+import type { CookingMethod, Ingredient, PrepTaskInput, RecipeEquipment } from "@pantry/types";
 
 // The import-review draft: the state a recipe sits in between "parsed from a
 // URL" (or typed by hand) and "saved". Every transition is a pure function of
@@ -23,6 +23,12 @@ export type RecipeDraft = {
    */
   equipment: RecipeEquipment[];
   methods: CookingMethod[];
+  /**
+   * Prep tasks to save with the recipe (BL-0044): the ones the cook typed, and
+   * — when the importer's model tagging is configured — the ones it matched.
+   * Each carries its own `source`; a task with none is the user's.
+   */
+  prepTasks: PrepTaskInput[];
   /** The URL being imported from; empty for a hand-typed recipe. */
   url: string;
 };
@@ -36,6 +42,7 @@ export type ImportedRecipe = {
   servings?: string;
   equipment?: RecipeEquipment[];
   methods?: CookingMethod[];
+  prepTasks?: PrepTaskInput[];
 };
 
 /** The payload a draft saves as; `servings` is still the raw field text. */
@@ -46,6 +53,7 @@ export type RecipeSubmission = {
   steps: string[];
   equipment: RecipeEquipment[];
   methods: CookingMethod[];
+  prepTasks: PrepTaskInput[];
 };
 
 /** The row the editor always shows at least one of, so there's a place to type. */
@@ -61,6 +69,7 @@ export function emptyDraft(): RecipeDraft {
     steps: [],
     equipment: [],
     methods: [],
+    prepTasks: [],
     url: "",
   };
 }
@@ -79,7 +88,12 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
     steps: imported.steps ?? [],
     equipment: imported.equipment ?? [],
     methods: imported.methods ?? [],
+    prepTasks: imported.prepTasks ?? [],
   };
+}
+
+export function withPrepTasks(draft: RecipeDraft, prepTasks: PrepTaskInput[]): RecipeDraft {
+  return { ...draft, prepTasks };
 }
 
 export function withSteps(draft: RecipeDraft, steps: string[]): RecipeDraft {
@@ -130,6 +144,9 @@ export function draftSubmission(draft: RecipeDraft): RecipeSubmission | null {
     // scaffolding to drop, and an empty list is a meaningful "nothing detected".
     equipment: draft.equipment,
     methods: draft.methods,
+    // Blank rows ARE scaffolding here, exactly like ingredients: "+ prep task"
+    // leaves an empty one behind whenever the user changes their mind.
+    prepTasks: draft.prepTasks.filter((task) => task.text.trim() !== ""),
   };
 }
 

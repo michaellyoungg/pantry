@@ -2,7 +2,13 @@ import { api } from "@pantry/convex/api";
 import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
-import type { CookingMethod, Ingredient, Recipe, RecipeEquipment } from "@pantry/types";
+import type {
+  CookingMethod,
+  Ingredient,
+  PrepTaskInput,
+  Recipe,
+  RecipeEquipment,
+} from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
@@ -93,13 +99,23 @@ export function RecipeList({
     steps: string[],
     equipment: RecipeEquipment[],
     methods: CookingMethod[],
+    prepTasks: PrepTaskInput[],
   ) {
     if (!editing) return;
     const id = editing.id;
     const saved = await run(async () => {
       // update replaces the whole recipe, so servings must be sent every time —
       // omitting it clears the stored yield.
-      await updateRecipe({ id, title, servings, ingredients, steps, equipment, methods });
+      await updateRecipe({
+        id,
+        title,
+        servings,
+        ingredients,
+        steps,
+        equipment,
+        methods,
+        prepTasks,
+      });
       return true;
     });
     if (!saved) return;

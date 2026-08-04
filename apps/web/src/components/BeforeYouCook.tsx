@@ -2,6 +2,7 @@ import { useAsyncAction } from "@pantry/core/react";
 import { dueByToday, formatDueOn, stateKey } from "../lib/prep";
 import { usePlanPrep } from "../lib/usePlanPrep";
 import { ErrorText } from "./ErrorText";
+import { PrepSourceBadge } from "./PrepSourceBadge";
 
 /**
  * "Before you cook" (BL-0042): the lead-time prep due today for this week's
@@ -58,7 +59,11 @@ export function BeforeYouCook() {
               <span className="text-sm">
                 <span className={checked ? "text-muted line-through" : "text-text"}>
                   {d.task.text}
-                </span>{" "}
+                </span>
+                {/* Provenance (BL-0044). A derived task that is wrong for this
+                    recipe is fixable on the recipe form; unlabelled, it just
+                    looks like the app being wrong. */}
+                <PrepSourceBadge source={d.task.source} />{" "}
                 <span className="text-muted">
                   for {d.title} —{" "}
                   {/* A missed window is called out, never hidden. Finding out at

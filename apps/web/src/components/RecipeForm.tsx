@@ -1,11 +1,12 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
-import type { Recipe } from "@pantry/types";
+import type { PrepTaskInput, Recipe } from "@pantry/types";
 import { formatServings, parseServings } from "../lib/servings";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { EquipmentEditor } from "./EquipmentEditor";
 import { ErrorText } from "./ErrorText";
+import { PrepEditor } from "./PrepEditor";
 import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
@@ -27,6 +28,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     setSteps,
     setEquipment,
     setMethods,
+    setPrepTasks,
     applyImported,
     reset,
     submission,
@@ -46,8 +48,24 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     // The import fills servings in when the page's recipeYield reads as a
     // serving count; otherwise it stays blank for the user to supply. Equipment
     // and methods arrive already guessed from the step text; the editor below is
-    // where a wrong guess gets corrected before saving.
-    if (preview) applyImported({ ...preview, servings: formatServings(preview.servings) });
+    // where a wrong guess gets corrected before saving. Prep tasks arrive only
+    // when the importer's model tagging is configured, and carry source "llm"
+    // so they stay distinguishable from anything typed here.
+    if (preview) {
+      applyImported({
+        ...preview,
+        servings: formatServings(preview.servings),
+        // A preview can only carry storable prep — the importer's model tagging
+        // produces `llm` tasks. Rule-derived prep is computed on read and is
+        // never stored, so anything claiming to be one is dropped rather than
+        // saved back as a frozen copy of a rule that may since have changed.
+        prepTasks: (preview.prepTasks ?? []).flatMap<PrepTaskInput>((task) =>
+          task.source === "rule"
+            ? []
+            : [{ key: task.key, window: task.window, text: task.text, source: task.source }],
+        ),
+      });
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -61,6 +79,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         steps: submission.steps,
         equipment: submission.equipment,
         methods: submission.methods,
+        prepTasks: submission.prepTasks,
       }),
     );
     if (created) {
@@ -114,6 +133,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
           + ingredient
         </Button>
         <StepsEditor steps={draft.steps} onChange={setSteps} />
+        <PrepEditor tasks={draft.prepTasks} onChange={setPrepTasks} />
         <EquipmentEditor
           catalog={catalog}
           equipment={draft.equipment}
