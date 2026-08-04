@@ -5,17 +5,27 @@ import { UseItUpSuggestions } from "./UseItUpSuggestions";
 
 const recommend = vi.fn();
 const addToBasket = vi.fn();
+/** The user's goal rows, as `api.nutritionTargets.list` would return them. */
+let goals: unknown[] = [];
 
 vi.mock("convex/react", () => ({
   useAction: () => recommend,
   useMutation: () => addToBasket,
+  useQuery: () => goals,
 }));
 vi.mock("@pantry/convex/api", () => ({
-  api: { recommendations: { pantry: "rec" }, basket: { add: "add" } },
+  api: {
+    recommendations: { pantry: "rec" },
+    basket: { add: "add" },
+    nutritionTargets: { list: "targets" },
+  },
 }));
 
 describe("UseItUpSuggestions", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    goals = [];
+  });
 
   it("renders results with their reasons", async () => {
     recommend.mockResolvedValue([
@@ -104,5 +114,78 @@ describe("UseItUpSuggestions", () => {
     await waitFor(() =>
       expect(addToBasket).toHaveBeenCalledWith({ recipeId: "r1", title: "Tomato Soup" }),
     );
+  });
+
+  // BL-0040. A hard constraint shortens this list, and a list that silently
+  // shrank looks exactly like one with nothing to suggest.
+  it("says when required goals are removing recipes", () => {
+    goals = [
+      { nutrientId: "1253", operator: "<=", value: 200, period: "meal", active: true, hard: true },
+      { nutrientId: "1003", operator: ">=", value: 150, period: "day", active: true },
+    ];
+
+    render(<UseItUpSuggestions />);
+
+    expect(screen.getByText(/Hiding recipes that break your required goal\b/)).toBeTruthy();
+  });
+
+  it("stays quiet when every goal is only a preference", () => {
+    goals = [
+      { nutrientId: "1003", operator: ">=", value: 150, period: "day", active: true },
+      // Paused, and hard — a paused goal filters nothing.
+      { nutrientId: "1253", operator: "<=", value: 200, period: "meal", active: false, hard: true },
+    ];
+
+    render(<UseItUpSuggestions />);
+
+    expect(screen.queryByText(/Hiding recipes/)).toBeNull();
+  });
+
+  // The coverage-honesty rule, at the surface: an unmapped recipe is still
+  // suggested, but never as though it had cleared a limit nobody checked.
+  it("marks a suggestion that could not be checked against a required goal", async () => {
+    goals = [
+      { nutrientId: "1253", operator: "<=", value: 200, period: "meal", active: true, hard: true },
+    ];
+    recommend.mockResolvedValue([
+      {
+        recipeId: "r1",
+        title: "Mystery Bowl",
+        source: "catalog",
+        score: 0.5,
+        reasons: [],
+        have: ["rice"],
+        missing: [],
+        nutritionFit: null,
+        nutritionUnverified: [{ nutrientId: "1253" }],
+      },
+    ]);
+
+    render(<UseItUpSuggestions />);
+    fireEvent.click(screen.getByRole("button", { name: "What can I make?" }));
+
+    expect(await screen.findByText(/Not checked against: Cholesterol/)).toBeTruthy();
+  });
+
+  it("says nothing about nutrition for a recipe that was measured", async () => {
+    recommend.mockResolvedValue([
+      {
+        recipeId: "r1",
+        title: "Rice Bowl",
+        source: "catalog",
+        score: 0.9,
+        reasons: ["Fits your nutrition goals"],
+        have: ["rice"],
+        missing: [],
+        nutritionFit: 0.9,
+        nutritionUnverified: [],
+      },
+    ]);
+
+    render(<UseItUpSuggestions />);
+    fireEvent.click(screen.getByRole("button", { name: "What can I make?" }));
+
+    expect(await screen.findByText("Rice Bowl")).toBeTruthy();
+    expect(screen.queryByText(/Not checked against/)).toBeNull();
   });
 });

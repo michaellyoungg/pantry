@@ -30,18 +30,35 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 		if len(m.have) == 0 {
 			continue
 		}
+
+		// Nutrition is a hard filter and a ranking signal from the SAME
+		// assessment, which is the point of BL-0040: the two can never disagree
+		// about a candidate because there is only one judgement.
+		na := assess(uc.NutritionTargets, c.Nutrition, uc.PlanNutrition)
+		if na.violates {
+			continue
+		}
+
+		features := append(pantryFeatures(m, view, w), nutritionFeature(na, w))
+		reasons := pantryReasons(m)
+		if r := nutritionReason(na); r != "" {
+			reasons = append(reasons, r)
+		}
+
 		results = append(results, Result{
 			RecipeID: c.RecipeID,
 			Title:    c.Title,
 			Source:   c.Source,
-			Score:    combine(pantryFeatures(m, view, w)),
+			Score:    combine(features),
 			// Every slice here MUST be non-nil: encoding/json renders a nil
 			// slice as `null`, and the web client's non-nullable TS types
 			// (e.g. `r.missing.length`) then throw on a fully-covered recipe
 			// — the primary success path, not an edge case.
-			Reasons: nonNilStrings(pantryReasons(m)),
-			Have:    nonNilStrings(m.have),
-			Missing: nonNilMissing(m.missing),
+			Reasons:             nonNilStrings(reasons),
+			Have:                nonNilStrings(m.have),
+			Missing:             nonNilMissing(m.missing),
+			NutritionFit:        fitOrNil(na),
+			NutritionUnverified: nonNilUnverified(na.unverified),
 		})
 	}
 
@@ -65,6 +82,51 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 		results = results[:limit]
 	}
 	return results
+}
+
+// Shortlist ranks on the pantry signal ALONE and returns the top n candidates.
+//
+// It exists so a caller can pay for expensive per-candidate data — a nutrition
+// estimate is a lookup per ingredient line — on a bounded set instead of the
+// whole corpus. Nutrition is deliberately ignored here: consulting it would
+// require the very data this call exists to avoid fetching.
+//
+// The trade-off is stated rather than hidden. Because a hard constraint can only
+// REMOVE candidates, a very restrictive diet can return fewer than the caller's
+// limit even when the corpus holds more recipes that would have qualified. n
+// should therefore be comfortably larger than the limit.
+func Shortlist(uc UserContext, candidates []Candidate, n int) []Candidate {
+	if n <= 0 {
+		return nil
+	}
+	base := uc
+	base.NutritionTargets = nil
+	base.PlanNutrition = nil
+	base.Limit = n
+
+	byID := make(map[string]Candidate, len(candidates))
+	for _, c := range candidates {
+		byID[c.RecipeID] = c
+	}
+
+	ranked := rankPantryWith(base, candidates, DefaultPantryWeights)
+	out := make([]Candidate, 0, len(ranked))
+	for _, r := range ranked {
+		if c, ok := byID[r.RecipeID]; ok {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// fitOrNil keeps "we could not measure this" distinguishable from "it scored
+// zero". A pointer is the only encoding that survives the JSON boundary.
+func fitOrNil(a nutritionAssessment) *float64 {
+	if a.scored == 0 {
+		return nil
+	}
+	fit := a.fit
+	return &fit
 }
 
 func containsAvoided(c Candidate, avoid map[string]bool) bool {

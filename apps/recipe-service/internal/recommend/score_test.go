@@ -55,6 +55,7 @@ func TestDefaultPantryWeightsArePinned(t *testing.T) {
 		MissingNonStaple: 1.0,
 		Affinity:         1.0,
 		RecentlyPlanned:  1.0,
+		NutritionFit:     2.0,
 	}
 	if DefaultPantryWeights != want {
 		t.Fatalf("pantry weights changed: got %+v, want %+v\n"+

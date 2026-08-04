@@ -1,13 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { state, addMock, removeMock, setActiveMock, applyPresetMock } = vi.hoisted(() => ({
-  state: { rows: [] as Array<Record<string, unknown>> },
-  addMock: vi.fn(() => Promise.resolve("t1")),
-  removeMock: vi.fn(() => Promise.resolve()),
-  setActiveMock: vi.fn(() => Promise.resolve()),
-  applyPresetMock: vi.fn(() => Promise.resolve()),
-}));
+const { state, addMock, removeMock, setActiveMock, setHardMock, applyPresetMock } = vi.hoisted(
+  () => ({
+    state: { rows: [] as Array<Record<string, unknown>> },
+    addMock: vi.fn(() => Promise.resolve("t1")),
+    removeMock: vi.fn(() => Promise.resolve()),
+    setActiveMock: vi.fn(() => Promise.resolve()),
+    setHardMock: vi.fn(() => Promise.resolve()),
+    applyPresetMock: vi.fn(() => Promise.resolve()),
+  }),
+);
 
 vi.mock("convex/react", () => ({
   useQuery: () => state.rows,
@@ -16,6 +19,7 @@ vi.mock("convex/react", () => ({
     const pick = () => {
       if (name.includes("applyPreset")) return applyPresetMock;
       if (name.includes("setActive")) return setActiveMock;
+      if (name.includes("setHard")) return setHardMock;
       if (name.includes("remove")) return removeMock;
       return addMock;
     };
@@ -36,6 +40,7 @@ vi.mock("@pantry/convex/api", () => ({
       add: "nutritionTargets:add",
       remove: "nutritionTargets:remove",
       setActive: "nutritionTargets:setActive",
+      setHard: "nutritionTargets:setHard",
       applyPreset: "nutritionTargets:applyPreset",
     },
   },
@@ -174,5 +179,38 @@ describe("NutritionGoals — diet presets", () => {
   it("explains what a preset will do before it is applied", () => {
     render(<NutritionGoals />);
     expect(screen.getByText(/Under 50 g of carbohydrate a day/i)).toBeTruthy();
+  });
+
+  // BL-0040. The operator cannot say whether breaking a goal should disqualify a
+  // recipe, so the user says it — and every goal starts out as a preference.
+  it("lets a goal be required, and starts every goal as a preference", () => {
+    state.rows = [proteinGoal];
+
+    render(<NutritionGoals />);
+    expect(screen.queryByText("Required")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Require" }));
+
+    expect(setHardMock).toHaveBeenCalledWith({ id: "t1", hard: true });
+  });
+
+  it("shows a required goal as required, and offers to demote it", () => {
+    state.rows = [{ ...proteinGoal, hard: true }];
+
+    render(<NutritionGoals />);
+
+    expect(screen.getByText("Required")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Preferred" }));
+    expect(setHardMock).toHaveBeenCalledWith({ id: "t1", hard: false });
+  });
+
+  // A paused goal filters nothing, so claiming it is "Required" on screen would
+  // describe an effect it is not having.
+  it("does not badge a paused goal as required", () => {
+    state.rows = [{ ...proteinGoal, hard: true, active: false }];
+
+    render(<NutritionGoals />);
+
+    expect(screen.queryByText("Required")).toBeNull();
   });
 });

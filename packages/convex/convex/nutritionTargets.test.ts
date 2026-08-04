@@ -213,3 +213,60 @@ describe("nutritionTargets.applyPreset", () => {
     ).rejects.toThrow(/authenticated/i);
   });
 });
+
+describe("nutritionTargets.setHard (BL-0040)", () => {
+  it("defaults a new goal to a preference, not a constraint", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity(identity).mutation(api.nutritionTargets.add, targetArgs());
+
+    const [row] = await t.withIdentity(identity).query(api.nutritionTargets.list, {});
+    // Unset, not false — but either way it must not remove recipes. Requiring a
+    // goal is a decision the user makes, never one we infer from the operator.
+    expect(row.hard ?? false).toBe(false);
+  });
+
+  it("promotes a goal to a hard constraint and back", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.withIdentity(identity).mutation(api.nutritionTargets.add, targetArgs());
+
+    await t.withIdentity(identity).mutation(api.nutritionTargets.setHard, { id, hard: true });
+    expect((await t.withIdentity(identity).query(api.nutritionTargets.list, {}))[0].hard).toBe(
+      true,
+    );
+
+    await t.withIdentity(identity).mutation(api.nutritionTargets.setHard, { id, hard: false });
+    expect((await t.withIdentity(identity).query(api.nutritionTargets.list, {}))[0].hard).toBe(
+      false,
+    );
+  });
+
+  // Re-tuning the number on a medical limit must not quietly demote it to a
+  // suggestion — a Convex patch with an absent field would delete it.
+  it("keeps the flag when the goal is re-tuned without mentioning it", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t
+      .withIdentity(identity)
+      .mutation(api.nutritionTargets.add, targetArgs({ nutrientId: CHOLESTEROL, operator: "<=" }));
+    await t.withIdentity(identity).mutation(api.nutritionTargets.setHard, { id, hard: true });
+
+    await t
+      .withIdentity(identity)
+      .mutation(
+        api.nutritionTargets.add,
+        targetArgs({ nutrientId: CHOLESTEROL, operator: "<=", value: 180 }),
+      );
+
+    const [row] = await t.withIdentity(identity).query(api.nutritionTargets.list, {});
+    expect(row.value).toBe(180);
+    expect(row.hard).toBe(true);
+  });
+
+  it("refuses to touch another user's goal", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.withIdentity(identity).mutation(api.nutritionTargets.add, targetArgs());
+
+    await expect(
+      t.withIdentity(other).mutation(api.nutritionTargets.setHard, { id, hard: true }),
+    ).rejects.toThrow(/Target not found/);
+  });
+});
