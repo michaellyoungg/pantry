@@ -1,6 +1,9 @@
 package recipe
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCanonicalItem_KnownSynonymResolvesToDisplayAndAisle(t *testing.T) {
 	canon, display, aisle := normalizer.CanonicalItem(" Garlic Cloves ")
@@ -246,5 +249,128 @@ func TestStaplesAreAllShelfStable(t *testing.T) {
 		if it.Staple && it.Aisle != "pantry" {
 			t.Errorf("%q is flagged staple but sits in the %q aisle", key, it.Aisle)
 		}
+	}
+}
+
+// --- purchase units and residue (BL-0032) ---
+
+func TestPurchasePacksAreWellFormed(t *testing.T) {
+	// The dataset guard, restated as a test so a bad pack fails CI rather than
+	// only the process that happens to boot the normalizer next.
+	for key, it := range normalizer.data.Items {
+		p := it.Purchase
+		if p == nil {
+			continue
+		}
+		if strings.TrimSpace(p.Unit) == "" {
+			t.Errorf("%q: purchase.unit is empty", key)
+		}
+		if p.Size <= 0 {
+			t.Errorf("%q: purchase.size = %v, want > 0", key, p.Size)
+		}
+		if _, _, ok := normalizer.Unit(p.SizeUnit); !ok {
+			t.Errorf("%q: purchase.sizeUnit %q is not convertible", key, p.SizeUnit)
+		}
+	}
+}
+
+func TestLoadNormalizerRejectsUnknownPackUnit(t *testing.T) {
+	// A typo'd sizeUnit is otherwise invisible: the item would simply never get
+	// a purchase unit, which looks exactly like "we have no pack data for it".
+	raw := `{"units":{"cup":{"dimension":"volume","toBase":236.588}},
+	         "items":{"parsley":{"display":"Parsley","aisle":"produce",
+	           "purchase":{"unit":"bunch","size":0.5,"sizeUnit":"cupp"}}}}`
+	if _, err := loadNormalizer([]byte(raw)); err == nil {
+		t.Fatal("loadNormalizer accepted a pack whose sizeUnit is not a unit")
+	}
+}
+
+func TestPurchaseFor_RoundsUpToWholePacksAndReportsResidue(t *testing.T) {
+	// The item's own example: 2 tbsp of parsley still costs you a whole bunch,
+	// and most of that bunch outlives the recipe that bought it.
+	_, toBase, _ := normalizer.Unit("tbsp")
+	got := normalizer.purchaseFor("parsley", "volume", 2*toBase, 2, "tbsp")
+	if got == nil {
+		t.Fatal("no purchase for parsley")
+	}
+	if got.Quantity != 1 || got.Unit != "bunch" {
+		t.Fatalf("buy %v %s, want 1 bunch", got.Quantity, got.Unit)
+	}
+	// Half a cup is 8 tbsp; 2 are used.
+	if got.Residue != 6 || got.ResidueUnit != "tbsp" {
+		t.Fatalf("residue = %v %s, want 6 tbsp", got.Residue, got.ResidueUnit)
+	}
+}
+
+func TestPurchaseFor_NeedOverAPackBuysTwo(t *testing.T) {
+	_, toBase, _ := normalizer.Unit("cup")
+	got := normalizer.purchaseFor("parsley", "volume", 0.75*toBase, 0.75, "cup")
+	if got == nil || got.Quantity != 2 {
+		t.Fatalf("got %+v, want 2 bunches for a three-quarter-cup need", got)
+	}
+	if got.Residue != 4 || got.ResidueUnit != "tbsp" {
+		t.Fatalf("residue = %v %s, want 4 tbsp", got.Residue, got.ResidueUnit)
+	}
+}
+
+func TestPurchaseFor_ExactPackLeavesNoResidue(t *testing.T) {
+	// One quart of buttermilk is one carton and nothing left over. A phantom
+	// residue here would put "0 ml buttermilk" into the leftovers prompt.
+	got := normalizer.purchaseFor("buttermilk", "volume", 946, 946, "ml")
+	if got == nil || got.Quantity != 1 || got.Unit != "quart" {
+		t.Fatalf("got %+v, want 1 quart", got)
+	}
+	if got.Residue != 0 || got.ResidueUnit != "" {
+		t.Fatalf("residue = %v %s, want none", got.Residue, got.ResidueUnit)
+	}
+}
+
+func TestPurchaseFor_CountingInThePacksOwnUnit(t *testing.T) {
+	// "2 bunches parsley" is already a purchase quantity; buying is just
+	// rounding up to whole packs.
+	got := normalizer.purchaseFor("parsley", "", 0, 1.5, "bunch")
+	if got == nil || got.Quantity != 2 || got.Unit != "bunch" {
+		t.Fatalf("got %+v, want 2 bunches", got)
+	}
+	if got.Residue != 0.5 || got.ResidueUnit != "bunch" {
+		t.Fatalf("residue = %v %s, want 0.5 bunch", got.Residue, got.ResidueUnit)
+	}
+}
+
+func TestPurchaseFor_UnanswerableNeedsStaySilent(t *testing.T) {
+	cases := []struct {
+		name      string
+		canonical string
+		dim       string
+		baseQty   float64
+		needQty   float64
+		needUnit  string
+	}{
+		// No pack data at all: the line stays exactly as it was.
+		{"no pack", "tomato", "volume", 500, 2, "cup"},
+		// Mass need against a volume pack: bridging it needs a density nothing
+		// in this dataset supplies.
+		{"wrong dimension", "parsley", "mass", 30, 30, "g"},
+		// A non-convertible unit that isn't the pack's own.
+		{"foreign count unit", "parsley", "", 0, 3, "sprig"},
+		// Unknown items have no record to carry a pack.
+		{"unknown item", "unobtainium", "volume", 500, 2, "cup"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizer.purchaseFor(tc.canonical, tc.dim, tc.baseQty, tc.needQty, tc.needUnit); got != nil {
+				t.Fatalf("got %+v, want nil", got)
+			}
+		})
+	}
+}
+
+func TestDetailsExposesThePack(t *testing.T) {
+	d := normalizer.Details("Flat-leaf parsley")
+	if d.Pack == nil || d.Pack.Unit != "bunch" {
+		t.Fatalf("pack = %+v, want a bunch — a synonym must resolve to it too", d.Pack)
+	}
+	if normalizer.Details("tomato").Pack != nil {
+		t.Error("an item with no pack data must report none rather than a zero pack")
 	}
 }

@@ -45,3 +45,58 @@ export function partitionRemoved<T extends RemovableLine>(
   for (const line of lines) (line.removed ? removed : active).push(line);
   return { active, removed };
 }
+
+/** The purchase half of a grocery line — see `GroceryPurchase` in @pantry/types. */
+export type PurchasedLine = {
+  quantity: number;
+  unit: string;
+  purchase?: { quantity: number; unit: string; residue?: number; residueUnit?: string };
+};
+
+/**
+ * Pluralizes a pack unit for a quantity ("bunch" -> "bunches").
+ *
+ * Pack units are stored singular because the dataset states a fact about one
+ * pack, and this is the presentation rule every client shares — a naive `+ "s"`
+ * in one UI would read "2 bunchs" while another read it correctly. The sibilant
+ * rule (-s/-x/-ch/-sh take -es) covers every unit the dataset uses; anything
+ * needing an irregular plural does not belong in it.
+ */
+export function pluralizeUnit(unit: string, quantity: number): string {
+  if (unit === "" || quantity === 1) return unit;
+  return /(?:s|x|ch|sh)$/.test(unit) ? `${unit}es` : `${unit}s`;
+}
+
+/**
+ * How to say what to buy for a line: the pack when we know it, the recipe's own
+ * measure when we do not.
+ *
+ * `need` is only returned when it differs from what is being bought — repeating
+ * "1 bunch (needs 1 bunch)" is noise, and the whole reason to show the need at
+ * all is that it does not match what the shop sells.
+ */
+export function purchaseText(
+  line: PurchasedLine,
+  format: (n: number) => string,
+): { buy: string; need?: string } {
+  const measure = `${format(line.quantity)} ${line.unit}`.trim();
+  if (!line.purchase) return { buy: measure };
+  const { quantity, unit } = line.purchase;
+  return { buy: `${format(quantity)} ${pluralizeUnit(unit, quantity)}`.trim(), need: measure };
+}
+
+/**
+ * "6 tbsp" — the surplus a confirmed leftover is about. Empty when there is none.
+ *
+ * The residue is expressed in a MEASURE unit (tbsp, cup, g), which is an
+ * abbreviation and never pluralizes — unlike the pack unit above. The one case
+ * where the two coincide is a residue counted in packs ("½ bunch"), and a
+ * fraction of a pack is still singular there.
+ */
+export function residueText(
+  purchase: PurchasedLine["purchase"],
+  format: (n: number) => string,
+): string {
+  if (!purchase?.residue) return "";
+  return `${format(purchase.residue)} ${purchase.residueUnit ?? ""}`.trim();
+}

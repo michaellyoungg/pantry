@@ -3,7 +3,7 @@ import type { GroceryLine } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
-import { removeAutoRow, upsertFromCheckoff } from "./pantry";
+import { markUseItUp, removeAutoRow, upsertFromCheckoff } from "./pantry";
 import { type NormalizedItem, recipeServiceFetch } from "./recipes";
 
 // How many "recent" chips the manual-add field offers. Enough to be useful on a
@@ -24,6 +24,16 @@ export const groceryLineValidator = v.object({
   // GroceryLineSource in @pantry/types.
   sources: v.optional(
     v.array(v.object({ recipeId: v.string(), title: v.string(), quantity: v.number() })),
+  ),
+  // What to buy, as opposed to what the recipes need (BL-0032). Optional
+  // because the normalization dataset only knows how *some* items are packed.
+  purchase: v.optional(
+    v.object({
+      quantity: v.number(),
+      unit: v.string(),
+      residue: v.optional(v.number()),
+      residueUnit: v.optional(v.string()),
+    }),
   ),
 });
 
@@ -106,6 +116,13 @@ export const mergeGroceryList = internalMutation({
           canonicalItem: line.canonicalItem,
           shelfLifeDays,
           sources: line.sources,
+          // Refreshed with the quantity, and for the same reason: adding a
+          // recipe that wants more parsley can push the line onto a second
+          // bunch, which changes both what to buy and what will be left over.
+          // `leftoverDecision` is deliberately NOT cleared here — an answer the
+          // user has already given is theirs to keep until they un-check the
+          // line, which is the only event that means "this shop didn't happen".
+          purchase: line.purchase,
           // Back in the plan, so it is no longer a leftover of an older one.
           // Clearing rather than ignoring matters: a flagged line whose recipe
           // returns must go back to being an ordinary line, tick intact.
@@ -123,6 +140,7 @@ export const mergeGroceryList = internalMutation({
           alreadyHave: owned.has(line.canonicalItem),
           shelfLifeDays,
           sources: line.sources,
+          purchase: line.purchase,
         });
       }
       seen.add(k);
@@ -177,7 +195,90 @@ export const toggleItem = mutation({
       });
     } else {
       await removeAutoRow(ctx, { userId, canonicalItem: row.canonicalItem });
+      // Un-checking says the purchase didn't happen, so any answer about its
+      // leftovers is about a shop that no longer exists. Clearing it puts the
+      // line back in front of the user next time they do buy it.
+      if (row.leftoverDecision !== undefined) {
+        await ctx.db.patch(id, { leftoverDecision: undefined });
+      }
     }
+  },
+});
+
+// --- inferred leftovers (BL-0032) ---
+//
+// The residue on a checked-off line is a *guess*: we know the typical pack and
+// what the recipes wanted, not what the shop actually stocked or how heavy the
+// cook's hand was. So it is proposed, never asserted. Silently writing these
+// into the pantry would corrupt the don't-rebuy signal BL-0021 built — the list
+// would stop asking for things the user does not actually have.
+//
+// The confirmation tap is also the outflow signal, collected at the one moment
+// the user is already thinking about that ingredient.
+
+/**
+ * Lines whose leftovers we would like to ask about: bought (checked off), with
+ * a residue we can name, and not yet answered.
+ *
+ * `removed` lines are excluded — they were dropped from the plan, so their
+ * recipes never ran and their residue describes cooking that did not happen.
+ */
+export const leftoverProposals = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const rows = await ctx.db
+      .query("groceryList")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    return rows
+      .filter(
+        (row) =>
+          row.checked &&
+          !row.removed &&
+          row.leftoverDecision === undefined &&
+          row.canonicalItem !== undefined &&
+          row.purchase !== undefined &&
+          (row.purchase.residue ?? 0) > 0,
+      )
+      .map((row) => ({
+        _id: row._id,
+        item: row.item,
+        aisle: row.aisle,
+        purchase: row.purchase,
+        // What the recipes wanted, so the proposal can show its own reasoning:
+        // "a bunch, of which 2 tbsp got used".
+        quantity: row.quantity,
+        unit: row.unit,
+      }));
+  },
+});
+
+/**
+ * The user's answer about one line's leftover. Per item, never in bulk: an
+ * inferred leftover is a separate guess for each ingredient, and a single
+ * "yes to all" would be the frictionless-but-wrong path this design rejects.
+ *
+ * `keep` writes `useItUp` through to the pantry row check-off already created.
+ * The row is (re)created if it is missing, which happens when the pantry row
+ * was deleted between the check-off and the answer.
+ */
+export const resolveLeftover = mutation({
+  args: { id: v.id("groceryList"), keep: v.boolean() },
+  handler: async (ctx, { id, keep }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const row = await ctx.db.get(id);
+    if (row === null || row.userId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, { leftoverDecision: keep ? "kept" : "dismissed" });
+    if (!keep || row.canonicalItem === undefined) return;
+    await markUseItUp(ctx, {
+      userId,
+      canonicalItem: row.canonicalItem,
+      display: row.item,
+      aisle: row.aisle,
+    });
   },
 });
 
