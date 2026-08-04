@@ -134,3 +134,31 @@ export function removePantryItemOptimistic(
     cur.filter((p) => p._id !== args.id),
   );
 }
+
+/**
+ * Prep task check-off (BL-0042). Like My Kitchen's checkboxes, done is a row
+ * and not-done is the absence of one, so this inserts or filters rather than
+ * flipping a flag — mirroring the mutation exactly.
+ *
+ * Without this the box is a controlled input whose `checked` cannot change
+ * until the mutation round-trips, so tapping it appears to do nothing and then
+ * jumps. The state is keyed on (taskKey, cookDate): the same task for next
+ * week's dinner is a different tick and must not move with this one.
+ */
+export function setPrepTaskDoneOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { taskKey: string; cookDate: string; done: boolean },
+): void {
+  const cur = localStore.getQuery(api.prepTasks.states, {});
+  if (cur === undefined) return;
+  const others = cur.filter((s) => !(s.taskKey === args.taskKey && s.cookDate === args.cookDate));
+  localStore.setQuery(
+    api.prepTasks.states,
+    {},
+    // Idempotent in both directions, like the server: a double-tap must not
+    // stack two rows into the local cache.
+    args.done
+      ? [...others, { taskKey: args.taskKey, cookDate: args.cookDate, done: true }]
+      : others,
+  );
+}

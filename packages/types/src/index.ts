@@ -442,3 +442,62 @@ export interface DietPreset {
   description: string;
   targets: Array<Omit<NutritionTarget, "active">>;
 }
+
+/**
+ * When, relative to the cook date, a piece of prep has to happen (BL-0042).
+ *
+ * Coarse by design — day granularity, no clock times — because the planner
+ * schedules meals onto days and nothing in it knows what time dinner is.
+ * Ordered coarsest lead time first, which is also the order tasks are shown in:
+ * the three-day thaw is both the most urgent to see and the easiest to miss.
+ */
+export type PrepWindow =
+  | "three_days_before"
+  | "two_days_before"
+  | "night_before"
+  | "morning_of"
+  | "hour_before"
+  | "at_start";
+
+/** Which producer emitted a task. `llm` and `manual` arrive with BL-0044. */
+export type PrepSource = "rule" | "llm" | "manual";
+
+/** One piece of lead-time work for one meal on one date. */
+export interface PrepTask {
+  /**
+   * Stable across re-derivation: `ruleId:subject`. Check-off is keyed on it, so
+   * editing a rule's text preserves the tick and changing a rule's id
+   * deliberately does not.
+   */
+  key: string;
+  ruleId: string;
+  /** The canonical ingredient, cooking method, or equipment slug the rule matched. */
+  subject: string;
+  window: PrepWindow;
+  text: string;
+  source: PrepSource;
+  /** ISO date the task is due: the cook date minus the window's lead time. */
+  dueOn: string;
+  /**
+   * The due date has already passed. A missed task is still returned — the
+   * whole point of lead time is that forgetting it is the failure worth
+   * reporting, not something to hide.
+   */
+  missed?: boolean;
+}
+
+/** Derived prep for one planned meal. */
+export interface PrepMeal {
+  recipeId: string;
+  title: string;
+  /** ISO date the meal is planned for. */
+  cookDate: string;
+  tasks: PrepTask[];
+}
+
+/** The POST /prep-tasks response. */
+export interface PrepTasksResponse {
+  /** Revision of the rule table that produced these tasks, for traceability. */
+  rulesVersion: string;
+  meals: PrepMeal[];
+}

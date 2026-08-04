@@ -34,6 +34,11 @@ vi.mock("convex/react", async () => {
   };
 });
 
+// Derived prep (BL-0042) is a Convex action plus a mutation of its own and has
+// its own test; stubbed here so its load doesn't land on this file's action
+// dispatcher. This file is about the weekly-loop state machine.
+vi.mock("./BeforeYouCook", () => ({ BeforeYouCook: () => null }));
+
 const { Home } = await import("./Home");
 
 async function renderHome() {

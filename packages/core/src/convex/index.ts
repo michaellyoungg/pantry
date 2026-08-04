@@ -10,5 +10,6 @@ export {
   removePantryItemOptimistic,
   setEquipmentOwnedOptimistic,
   setPantryStateOptimistic,
+  setPrepTaskDoneOptimistic,
   toggleItemOptimistic,
 } from "./optimistic";
