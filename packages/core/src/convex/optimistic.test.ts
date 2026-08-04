@@ -6,6 +6,7 @@ import {
   removeFromBasketOptimistic,
   removePantryItemOptimistic,
   setPantryStateOptimistic,
+  setPrepTaskDoneOptimistic,
   toggleItemOptimistic,
 } from "./optimistic";
 
@@ -161,6 +162,63 @@ describe("removePantryItemOptimistic", () => {
   it("no-ops when the query is not in the cache", () => {
     const { store } = fakeStore(undefined);
     removePantryItemOptimistic(store as never, { id: "p1" as never });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("setPrepTaskDoneOptimistic", () => {
+  const row = (taskKey: string, cookDate: string) => ({ taskKey, cookDate, done: true });
+
+  it("adds a row when the task is ticked", () => {
+    const { store, state } = fakeStore([]);
+    setPrepTaskDoneOptimistic(store as never, {
+      taskKey: "thaw:turkey",
+      cookDate: "2026-08-05",
+      done: true,
+    });
+    expect(state.value).toEqual([row("thaw:turkey", "2026-08-05")]);
+  });
+
+  it("removes the row when unticked, because absence IS not-done", () => {
+    const { store, state } = fakeStore([row("thaw:turkey", "2026-08-05")]);
+    setPrepTaskDoneOptimistic(store as never, {
+      taskKey: "thaw:turkey",
+      cookDate: "2026-08-05",
+      done: false,
+    });
+    expect(state.value).toEqual([]);
+  });
+
+  // A double-tap must not stack two rows into the cache and make the list
+  // flicker when the server confirms.
+  it("is idempotent when ticked twice", () => {
+    const { store, state } = fakeStore([row("thaw:turkey", "2026-08-05")]);
+    setPrepTaskDoneOptimistic(store as never, {
+      taskKey: "thaw:turkey",
+      cookDate: "2026-08-05",
+      done: true,
+    });
+    expect(state.value).toEqual([row("thaw:turkey", "2026-08-05")]);
+  });
+
+  // The same task for two dinners is two independent ticks.
+  it("leaves the same task on another cook date alone", () => {
+    const { store, state } = fakeStore([row("thaw:turkey", "2026-08-12")]);
+    setPrepTaskDoneOptimistic(store as never, {
+      taskKey: "thaw:turkey",
+      cookDate: "2026-08-05",
+      done: false,
+    });
+    expect(state.value).toEqual([row("thaw:turkey", "2026-08-12")]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    setPrepTaskDoneOptimistic(store as never, {
+      taskKey: "thaw:turkey",
+      cookDate: "2026-08-05",
+      done: true,
+    });
     expect(store.setQuery).not.toHaveBeenCalled();
   });
 });

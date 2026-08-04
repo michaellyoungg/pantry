@@ -13,7 +13,17 @@ const { actionMock, mutationMock, states } = vi.hoisted(() => ({
 // transport or the derivation (that is covered in Go).
 vi.mock("convex/react", () => ({
   useAction: () => actionMock,
-  useMutation: () => mutationMock,
+  // The mutation carries .withOptimisticUpdate (the tick is optimistic), so the
+  // mock has to be callable AND carry that method or the hook throws on render.
+  useMutation: () => {
+    const fn = ((...args: unknown[]) =>
+      (mutationMock as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
+      (...a: unknown[]): Promise<unknown>;
+      withOptimisticUpdate: (u: unknown) => typeof fn;
+    };
+    fn.withOptimisticUpdate = () => fn;
+    return fn;
+  },
   useQuery: () => states.rows,
 }));
 

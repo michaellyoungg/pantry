@@ -1,4 +1,5 @@
 import { api } from "@pantry/convex/api";
+import { setPrepTaskDoneOptimistic } from "@pantry/core/convex";
 import { useAsyncData } from "@pantry/core/react";
 import type { PrepMeal } from "@pantry/types";
 import { useMutation, useQuery } from "convex/react";
@@ -22,7 +23,11 @@ export function usePlanPrep(now: Date = new Date()) {
   const weekStart = weekStartISO(now);
 
   const forPlan = useTracedAction(api.prepTasks.forPlan, "prepTasks.forPlan");
-  const setDoneMutation = useMutation(api.prepTasks.setDone);
+  // Optimistic: the box is a controlled input, so without this a tap cannot
+  // change it until the mutation round-trips and the click appears to do nothing.
+  const setDoneMutation = useMutation(api.prepTasks.setDone).withOptimisticUpdate(
+    setPrepTaskDoneOptimistic,
+  );
   const states = useQuery(api.prepTasks.states) ?? [];
   // The plan itself, only to know when to re-derive. Convex dedupes identical
   // queries, so subscribing here costs nothing on surfaces that already read it.
