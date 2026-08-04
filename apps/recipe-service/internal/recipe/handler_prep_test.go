@@ -25,9 +25,11 @@ func postPrepTasks(t *testing.T, srv, body string) PrepTasksResponse {
 // big enough to need the three-day thaw.
 func seedThawRecipe(t *testing.T, store Store, userID, title string) Recipe {
 	t.Helper()
-	rec, err := store.CreateRecipe(t.Context(), userID, title, nil,
-		[]Ingredient{{Quantity: 12, Unit: "lb", Item: "frozen turkey"}},
-		nil, nil, []string{"roast"})
+	rec, err := store.CreateRecipe(t.Context(), userID, RecipeInput{
+		Title:       title,
+		Ingredients: []Ingredient{{Quantity: 12, Unit: "lb", Item: "frozen turkey"}},
+		Methods:     []string{"roast"},
+	})
 	if err != nil {
 		t.Fatalf("create recipe: %v", err)
 	}

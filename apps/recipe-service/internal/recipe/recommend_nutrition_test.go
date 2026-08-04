@@ -54,7 +54,7 @@ func titles(out recNutritionResponse) []string {
 
 func seedWithServings(t *testing.T, store Store, title string, servings *int, ings ...Ingredient) {
 	t.Helper()
-	if _, err := store.CreateRecipe(context.Background(), "user-a", title, servings, ings, nil, nil, nil); err != nil {
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: title, Servings: servings, Ingredients: ings}); err != nil {
 		t.Fatalf("create %q: %v", title, err)
 	}
 }

@@ -45,11 +45,11 @@ func getNutrition(t *testing.T, srv *httptest.Server, id, userID string) (*http.
 
 func TestGetRecipeNutrition(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, []Ingredient{
+	rec, err := store.CreateRecipe(context.Background(), "u1", RecipeInput{Title: "Pancakes", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
 		{Quantity: 2, Unit: "", Item: "eggs"},
 		{Quantity: 1, Unit: "pinch", Item: "salt"},
-	}, nil, nil, nil)
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,10 +92,10 @@ func TestGetRecipeNutrition(t *testing.T) {
 func TestGetRecipeNutritionPerServing(t *testing.T) {
 	store := NewMemoryStore()
 	servings := 4
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", &servings, []Ingredient{
+	rec, err := store.CreateRecipe(context.Background(), "u1", RecipeInput{Title: "Pancakes", Servings: &servings, Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
 		{Quantity: 2, Unit: "", Item: "eggs"},
-	}, nil, nil, nil)
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,9 +155,9 @@ func TestGetRecipeNutritionNotFound(t *testing.T) {
 // A recipe belonging to someone else must not leak through the catalog fallback.
 func TestGetRecipeNutritionIsUserScoped(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Private", nil, []Ingredient{
+	rec, err := store.CreateRecipe(context.Background(), "u1", RecipeInput{Title: "Private", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "cup", Item: "flour"},
-	}, nil, nil, nil)
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestGetRecipeNutritionRequiresTheServiceSecret(t *testing.T) {
 // looks like the recipe is missing.
 func TestGetRecipeNutritionUnconfigured(t *testing.T) {
 	store := NewMemoryStore()
-	rec, err := store.CreateRecipe(context.Background(), "u1", "Pancakes", nil, nil, nil, nil, nil)
+	rec, err := store.CreateRecipe(context.Background(), "u1", RecipeInput{Title: "Pancakes"})
 	if err != nil {
 		t.Fatal(err)
 	}

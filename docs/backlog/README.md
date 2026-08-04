@@ -57,7 +57,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0017](BL-0017-home-dashboard-weekly-handoff.md) | Home dashboard — state-aware "what do I do now?" + shopping-day handoff | done | web | M |
 | [BL-0018](BL-0018-meal-planner-week.md) | Meal planner — basket becomes a dinner-first week plan | done | meal-planning | L |
 | [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping | in-progress | grocery-list | L |
-| [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | in-progress | recipes | M |
+| [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | done | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | done | pantry | L |
 | [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps | done | recipes | M |
 | [BL-0023](BL-0023-grocery-pricing-cost-estimation.md) | Grocery pricing — cost estimation, then sale-aware meal recommendations | done | pricing | L |

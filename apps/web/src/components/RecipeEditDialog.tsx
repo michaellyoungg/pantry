@@ -1,19 +1,27 @@
-import type {
-  CookingMethod,
-  EquipmentDef,
-  Ingredient,
-  Recipe,
-  RecipeEquipment,
-} from "@pantry/types";
+import type { EquipmentDef, Recipe } from "@pantry/types";
 import { useEffect, useRef, useState } from "react";
+import { formatTags, formatTotalMinutes, parseTags, parseTotalMinutes } from "../lib/discovery";
 import { formatServings, parseServings } from "../lib/servings";
-import { EquipmentEditor } from "./EquipmentEditor";
-import { ServingsField } from "./ServingsField";
-import { StepsEditor } from "./StepsEditor";
+import { emptyIngredient, RecipeFields, type RecipeFieldsValue } from "./RecipeFields";
 import { Button } from "./ui/Button";
-import { Input } from "./ui/Input";
 
-const emptyIngredient = (): Ingredient => ({ quantity: 1, unit: "", item: "" });
+/**
+ * What the dialog hands back on save. An object rather than a positional
+ * argument list: with ten fields, a caller mixing up two adjacent strings is a
+ * bug the compiler cannot see.
+ */
+export interface RecipeEdit {
+  title: string;
+  servings: number | undefined;
+  ingredients: Recipe["ingredients"];
+  steps: string[];
+  equipment: Recipe["equipment"];
+  methods: Recipe["methods"];
+  cuisine: string;
+  totalMinutes: number | undefined;
+  tags: string[];
+  sourceUrl: string | undefined;
+}
 
 export function RecipeEditDialog({
   recipe,
@@ -23,50 +31,48 @@ export function RecipeEditDialog({
 }: {
   recipe: Recipe;
   catalog: EquipmentDef[];
-  onSave: (
-    title: string,
-    servings: number | undefined,
-    ingredients: Ingredient[],
-    steps: string[],
-    equipment: RecipeEquipment[],
-    methods: CookingMethod[],
-  ) => Promise<void>;
+  onSave: (edit: RecipeEdit) => Promise<void>;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [title, setTitle] = useState(recipe.title);
-  // Seeded from the stored yield so saving an unrelated edit does not clear it —
-  // update replaces the whole recipe.
-  const [servings, setServings] = useState(formatServings(recipe.servings));
-  const [ingredients, setIngredients] = useState<Ingredient[]>(
-    recipe.ingredients.length ? recipe.ingredients : [emptyIngredient()],
-  );
-  const [steps, setSteps] = useState<string[]>(recipe.steps ?? []);
-  const [equipment, setEquipment] = useState<RecipeEquipment[]>(recipe.equipment ?? []);
-  const [methods, setMethods] = useState<CookingMethod[]>(recipe.methods ?? []);
+  // Seeded from the stored recipe so saving an unrelated edit does not clear
+  // the rest — update replaces the whole recipe, so anything not sent is lost.
+  const [fields, setFields] = useState<RecipeFieldsValue>(() => ({
+    title: recipe.title,
+    servings: formatServings(recipe.servings),
+    ingredients: recipe.ingredients.length ? recipe.ingredients : [emptyIngredient()],
+    steps: recipe.steps ?? [],
+    equipment: recipe.equipment ?? [],
+    methods: recipe.methods ?? [],
+    cuisine: recipe.cuisine ?? "",
+    totalMinutes: formatTotalMinutes(recipe.totalMinutes),
+    tags: formatTags(recipe.tags),
+  }));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
   }, []);
 
-  function update(i: number, patch: Partial<Ingredient>) {
-    setIngredients((prev) => prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing)));
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!fields.title.trim()) return;
     setBusy(true);
     try {
-      await onSave(
-        title.trim(),
-        parseServings(servings),
-        ingredients.filter((ing) => ing.item.trim() !== ""),
-        steps.map((s) => s.trim()).filter((s) => s !== ""),
-        equipment,
-        methods,
-      );
+      await onSave({
+        title: fields.title.trim(),
+        servings: parseServings(fields.servings),
+        ingredients: fields.ingredients.filter((ing) => ing.item.trim() !== ""),
+        steps: fields.steps.map((s) => s.trim()).filter((s) => s !== ""),
+        equipment: fields.equipment,
+        methods: fields.methods,
+        cuisine: fields.cuisine.trim(),
+        totalMinutes: parseTotalMinutes(fields.totalMinutes),
+        tags: parseTags(fields.tags),
+        // Attribution is not editable here, but it must be echoed back or the
+        // wholesale update would silently drop where the recipe came from.
+        sourceUrl: recipe.sourceUrl,
+      });
     } finally {
       setBusy(false);
     }
@@ -81,47 +87,10 @@ export function RecipeEditDialog({
     >
       <form onSubmit={submit} className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Edit recipe</h2>
-        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <ServingsField value={servings} onChange={setServings} />
-        <div className="flex flex-col gap-2">
-          {ingredients.map((ing, i) => (
-            <div key={i} className="flex gap-2">
-              <Input
-                type="number"
-                className="w-16"
-                value={ing.quantity}
-                onChange={(e) => update(i, { quantity: Number(e.target.value) })}
-              />
-              <Input
-                placeholder="unit"
-                className="w-24"
-                value={ing.unit}
-                onChange={(e) => update(i, { unit: e.target.value })}
-              />
-              <Input
-                placeholder="item"
-                className="flex-1"
-                value={ing.item}
-                onChange={(e) => update(i, { item: e.target.value })}
-              />
-            </div>
-          ))}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIngredients((p) => [...p, emptyIngredient()])}
-          className="self-start"
-        >
-          + ingredient
-        </Button>
-        <StepsEditor steps={steps} onChange={setSteps} />
-        <EquipmentEditor
+        <RecipeFields
+          value={fields}
+          onChange={(patch) => setFields((prev) => ({ ...prev, ...patch }))}
           catalog={catalog}
-          equipment={equipment}
-          methods={methods}
-          onEquipmentChange={setEquipment}
-          onMethodsChange={setMethods}
         />
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>

@@ -36,7 +36,7 @@ func postRollup(t *testing.T, srv *httptest.Server, userID, body string) (*http.
 
 func mustRecipe(t *testing.T, store Store, userID, title string, ings []Ingredient) Recipe {
 	t.Helper()
-	rec, err := store.CreateRecipe(context.Background(), userID, title, nil, ings, nil, nil, nil)
+	rec, err := store.CreateRecipe(context.Background(), userID, RecipeInput{Title: title, Ingredients: ings})
 	if err != nil {
 		t.Fatal(err)
 	}
