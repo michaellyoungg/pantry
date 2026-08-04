@@ -113,6 +113,48 @@ export async function removeAutoRow(
   await ctx.db.delete(existing._id);
 }
 
+/**
+ * Flag a pantry item as something to use up, creating its row if the pantry has
+ * none (BL-0032). Called when the user CONFIRMS an inferred leftover — never
+ * from inference alone, which is the whole point of proposing rather than
+ * asserting: a guessed row would silently un-suppress don't-rebuy.
+ *
+ * The row is normally already there, because checking the line off created it.
+ * It is inserted rather than skipped when missing so the confirmation is never
+ * a no-op the user cannot see the result of.
+ *
+ * `source` on an existing row is left alone for the same reason
+ * `upsertFromCheckoff` leaves it: provenance, once manual, stays manual.
+ */
+export async function markUseItUp(
+  ctx: MutationCtx,
+  args: { userId: string; canonicalItem: string; display: string; aisle: string },
+): Promise<void> {
+  const existing = await ctx.db
+    .query("pantryItems")
+    .withIndex("by_user_item", (q) =>
+      q.eq("userId", args.userId).eq("canonicalItem", args.canonicalItem),
+    )
+    .unique();
+  const now = Date.now();
+  if (existing === null) {
+    await ctx.db.insert("pantryItems", {
+      userId: args.userId,
+      canonicalItem: args.canonicalItem,
+      display: args.display,
+      aisle: args.aisle,
+      state: "have",
+      source: "auto",
+      useItUp: true,
+      updatedAt: now,
+    });
+    return;
+  }
+  // Confirming a leftover is also a statement that the item is in the kitchen,
+  // so a row stepped down by a cook-decrement comes back to "have".
+  await ctx.db.patch(existing._id, { useItUp: true, state: "have", updatedAt: now });
+}
+
 // --- outflow: cook-decrement (BL-0028) ---
 
 /**

@@ -171,6 +171,24 @@ export interface GroceryLineSource {
   quantity: number;
 }
 
+/**
+ * What to actually buy for a line, and what survives the cooking (BL-0032).
+ *
+ * This rides ALONGSIDE the line's quantity rather than replacing it: the
+ * quantity is the need the recipes add up to, and provenance, don't-rebuy and
+ * pricing are all built on that number. The purchase is a second claim — buy
+ * this, need that — because nobody sells 2 tbsp of parsley.
+ */
+export interface GroceryPurchase {
+  /** Whole packs: you cannot buy four fifths of a bunch. */
+  quantity: number;
+  /** The pack's own name ("bunch", "can"), singular — clients pluralize. */
+  unit: string;
+  /** Surplus left once the recipes take their share; absent on an exact fit. */
+  residue?: number;
+  residueUnit?: string;
+}
+
 export interface GroceryLine {
   item: string;
   /** Normalized ingredient key ("green onion"); the identity the pantry joins on. */
@@ -183,6 +201,11 @@ export interface GroceryLine {
    * manually added lines and for lines generated before BL-0019.
    */
   sources?: GroceryLineSource[];
+  /**
+   * How this item is sold, when the normalization dataset knows. Absent for
+   * most of the list — see `GroceryPurchase`.
+   */
+  purchase?: GroceryPurchase;
 }
 
 /**

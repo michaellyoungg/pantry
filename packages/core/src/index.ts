@@ -22,8 +22,12 @@ export {
   type AisleGroup,
   type AisleLine,
   groupByAisle,
+  type PurchasedLine,
   partitionRemoved,
+  pluralizeUnit,
+  purchaseText,
   type RemovableLine,
+  residueText,
   titleCase,
 } from "./grocery";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
