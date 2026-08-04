@@ -1,14 +1,53 @@
 package recommend
 
+const dayMS = 86_400_000
+
+// expiryHorizonDays is how far ahead a use-by date still counts as urgent. It
+// MIRRORS EXPIRY_HORIZON_DAYS in apps/web/src/lib/expiry.ts, which decides which
+// items the card lists as "to use this week". The two must agree, or the card
+// would name items the ranker scored as fine and vice versa.
+const expiryHorizonDays = 7
+
+// urgencyFor maps a use-by date onto [0, 1]: 1 for anything due today or already
+// overdue, 0 at or beyond the horizon, linear in between.
+//
+// Overdue saturates at 1 rather than growing without bound — a week-old yogurt
+// is not twice as urgent as a day-old one, it is simply the thing to deal with,
+// and an unbounded value would let one forgotten row dominate every score.
+func urgencyFor(useBy, now int64) float64 {
+	days := float64(useBy-now) / float64(dayMS)
+	if days <= 0 {
+		return 1
+	}
+	if days >= expiryHorizonDays {
+		return 0
+	}
+	return 1 - days/expiryHorizonDays
+}
+
 // pantryView is the user's pantry indexed for lookup, computed once per request
 // rather than per candidate.
 type pantryView struct {
 	owned   map[string]bool // state "have" or "low"
 	useItUp map[string]bool // owned AND flagged to use up
+	// urgency holds only items with a KNOWN use-by; an item absent from this map
+	// has an unknown shelf life, which is not the same as a long one.
+	urgency map[string]float64
+	useBy   map[string]int64
+	// hasExpiry is request-level, not per-candidate. Deciding availability per
+	// candidate would normalize two rows of the same response by different weight
+	// denominators, making their scores incomparable — the exact failure
+	// combine() exists to prevent.
+	hasExpiry bool
 }
 
-func newPantryView(items []PantryItem) pantryView {
-	v := pantryView{owned: map[string]bool{}, useItUp: map[string]bool{}}
+func newPantryView(items []PantryItem, now int64) pantryView {
+	v := pantryView{
+		owned:   map[string]bool{},
+		useItUp: map[string]bool{},
+		urgency: map[string]float64{},
+		useBy:   map[string]int64{},
+	}
 	for _, it := range items {
 		// "out" means the user told us it is gone. Only "have"/"low" count.
 		if it.State != "have" && it.State != "low" {
@@ -17,6 +56,13 @@ func newPantryView(items []PantryItem) pantryView {
 		v.owned[it.CanonicalItem] = true
 		if it.UseItUp {
 			v.useItUp[it.CanonicalItem] = true
+		}
+		// No clock means no opinion about time: without a caller timestamp there
+		// is no honest way to turn a date into urgency.
+		if it.UseBy != nil && now > 0 {
+			v.urgency[it.CanonicalItem] = urgencyFor(*it.UseBy, now)
+			v.useBy[it.CanonicalItem] = *it.UseBy
+			v.hasExpiry = true
 		}
 	}
 	return v
@@ -28,6 +74,15 @@ type match struct {
 	missing    []MissingItem
 	useItUpHit []string
 	total      int
+	// urgency is the MAX over the ingredients this recipe uses, never the sum.
+	// A sum would rank a recipe using four mildly-aging things above the one
+	// recipe that saves the spinach dying tomorrow — inverting the signal exactly
+	// when it matters most. The question is "how urgent is the most urgent thing
+	// this clears", and max is that question.
+	urgency float64
+	// mostUrgent is the ingredient that produced `urgency`, carried so the card
+	// can name it. nil when nothing this recipe uses has a known date.
+	mostUrgent *Urgency
 }
 
 // matchCandidate walks a candidate's ingredients once, de-duplicating by
@@ -49,6 +104,19 @@ func matchCandidate(c Candidate, v pantryView) match {
 			m.have = append(m.have, ing.CanonicalItem)
 		default:
 			m.missing = append(m.missing, MissingItem(ing))
+			// A missing ingredient cannot be going off in the user's fridge, so it
+			// never contributes urgency.
+			continue
+		}
+		// Strictly greater keeps the FIRST ingredient at a tied urgency, so the
+		// named item follows the recipe's own ingredient order deterministically.
+		if u, ok := v.urgency[ing.CanonicalItem]; ok && (m.mostUrgent == nil || u > m.urgency) {
+			m.urgency = u
+			m.mostUrgent = &Urgency{
+				CanonicalItem: ing.CanonicalItem,
+				Display:       ing.Display,
+				UseBy:         v.useBy[ing.CanonicalItem],
+			}
 		}
 	}
 	return m
@@ -76,6 +144,16 @@ func pantryFeatures(m match, v pantryView, w Weights) []feature {
 	}
 
 	return []feature{
+		// Highest weight, and the reason the two pantry cards merged (BL-0050).
+		// Unavailable — not zero — when no owned row has a use-by date, so a user
+		// whose ingredients the shelf-life table doesn't recognize is ranked
+		// exactly as they were before expiry existed.
+		{
+			name:      "expiryUrgency",
+			value:     m.urgency,
+			weight:    w.ExpiryUrgency,
+			available: v.hasExpiry,
+		},
 		{
 			name:      "useItUpHits",
 			value:     useItUpValue,

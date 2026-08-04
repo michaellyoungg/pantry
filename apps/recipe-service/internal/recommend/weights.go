@@ -4,6 +4,7 @@ package recommend
 // tuning change is a single visible diff, and they are pinned by
 // TestDefaultPantryWeightsArePinned so the change has to be deliberate.
 type Weights struct {
+	ExpiryUrgency    float64
 	UseItUpHits      float64
 	Coverage         float64
 	MissingNonStaple float64
@@ -17,11 +18,23 @@ type Weights struct {
 // ingredients, and clearing what the user explicitly flagged is the point of
 // the pantry intent.
 //
+// ExpiryUrgency sits narrowly ABOVE UseItUpHits (BL-0050), because the two
+// signals fail differently. "You'd like this" is a prediction about taste and
+// being wrong costs a scroll; "this spoils in two days" is a deadline in the
+// physical world and being wrong costs food in the bin, with no way to recover
+// tomorrow. Ranking by which error is recoverable puts the deadline first.
+//
+// The gap is small on purpose. Urgency and the use-it-up flag only ever disagree
+// when the user flagged one thing while a DIFFERENT thing is quietly going off,
+// and there the user's explicit instruction is meant to be narrowly outweighed
+// by a fact they may not have noticed — not overruled.
+//
 // MissingNonStaple, Affinity and RecentlyPlanned have weights here but their
 // features report UNAVAILABLE in increment 1 (no staple flag, no event log, no
 // plan history), so they contribute to neither the numerator nor the
 // denominator. See combine().
 var DefaultPantryWeights = Weights{
+	ExpiryUrgency:    3.5,
 	UseItUpHits:      3.0,
 	Coverage:         2.0,
 	MissingNonStaple: 1.0,
