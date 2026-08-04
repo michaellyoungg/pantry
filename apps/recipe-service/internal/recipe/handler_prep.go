@@ -89,11 +89,15 @@ func (h *handlers) prepTasks(w http.ResponseWriter, r *http.Request) {
 		// Parsed in UTC and used only for date arithmetic — the value never
 		// represents an instant, so no timezone is being asserted here.
 		cookDate, _ := time.Parse(isoDate, m.CookDate)
+		// Three producers, one stream (BL-0044): the rule table derived on the
+		// fly, plus whatever the model and the cook stored on the recipe, with
+		// the stored ones overriding the rule they share a key with.
+		tasks := MergePrepTasks(DerivePrepTasks(rec, cookDate), rec.PrepTasks, cookDate)
 		meals = append(meals, PrepMeal{
 			RecipeID: m.RecipeID,
 			Title:    rec.Title,
 			CookDate: m.CookDate,
-			Tasks:    MarkMissed(DerivePrepTasks(rec, cookDate), req.Today),
+			Tasks:    MarkMissed(tasks, req.Today),
 		})
 	}
 	// A plan can outlive the recipe it points at. Dropping the entry is right —

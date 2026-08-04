@@ -59,8 +59,7 @@ CREATE TABLE IF NOT EXISTS recipe_methods (
 -- DerivePrepTasks from prep_rules.json, so improving a rule improves every
 -- recipe at once instead of requiring a backfill. This table is for the two
 -- sources that cannot be recomputed — a task the model wrote at import time and
--- a task the user typed. It exists now so those sources need no migration, and
--- is empty until then.
+-- a task the user typed.
 --
 -- `prep_window`, NOT `window`: WINDOW is a reserved word in Postgres and
 -- `CREATE TABLE t (window TEXT)` is a syntax error. Only the column is renamed;
@@ -71,8 +70,23 @@ CREATE TABLE IF NOT EXISTS recipe_prep_tasks (
     position     INT  NOT NULL,
     prep_window  TEXT NOT NULL,
     text         TEXT NOT NULL,
-    source       TEXT NOT NULL          -- "llm" | "manual"
+    source       TEXT NOT NULL,         -- "llm" | "manual"
+    -- The merge identity (BL-0044). A row that overrides a derived task carries
+    -- that task's key verbatim, which is how precedence manual > llm > rule
+    -- collapses three producers into one task instead of three.
+    task_key     TEXT NOT NULL DEFAULT ''
 );
+
+-- Added after the table shipped in BL-0042; see the note on `recipes.servings`.
+ALTER TABLE recipe_prep_tasks ADD COLUMN IF NOT EXISTS task_key TEXT NOT NULL DEFAULT '';
+
+-- One row per (recipe, source, key): re-saving the form must land on the row it
+-- landed on last time rather than growing a second copy of the same task. The
+-- source is part of the key on purpose — a model-derived task and the manual
+-- task that overrides it are two rows with one key, and it is the merge, not
+-- the database, that decides which of them the cook is shown.
+CREATE UNIQUE INDEX IF NOT EXISTS recipe_prep_tasks_recipe_source_key_idx
+    ON recipe_prep_tasks(recipe_id, source, task_key);
 
 CREATE INDEX IF NOT EXISTS ingredients_recipe_id_idx ON ingredients(recipe_id);
 CREATE INDEX IF NOT EXISTS recipe_prep_tasks_recipe_id_idx ON recipe_prep_tasks(recipe_id);

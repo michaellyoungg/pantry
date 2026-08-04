@@ -33,8 +33,13 @@ type Recipe struct {
 	Equipment []RecipeEquipment `json:"equipment"`
 	// Methods are members of the closed cooking-method enum. Closed because
 	// BL-0042's prep rules key on them.
-	Methods   []string  `json:"methods"`
-	CreatedAt time.Time `json:"createdAt"`
+	Methods []string `json:"methods"`
+	// PrepTasks are the prep tasks that cannot be re-derived: hand-authored and
+	// model-derived (BL-0044). Rule-derived prep is absent here on purpose — it
+	// is computed on read by DerivePrepTasks and merged with these, precedence
+	// manual > llm > rule. Usually empty.
+	PrepTasks []StoredPrepTask `json:"prepTasks"`
+	CreatedAt time.Time        `json:"createdAt"`
 }
 
 // RecipeMatch is a recipe that uses at least one of a requested set of

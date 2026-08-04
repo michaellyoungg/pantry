@@ -32,6 +32,14 @@ type Store interface {
 	DeleteRecipe(ctx context.Context, id, userID string) error
 	UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error)
 	UpsertRecipe(ctx context.Context, rec Recipe) error
+	// ReplacePrepTasks swaps out one producer's stored prep for a recipe
+	// (BL-0044), leaving the other producer's rows alone.
+	//
+	// Scoped by source rather than replacing the whole table for the recipe
+	// because the two producers write at different times and neither owns the
+	// other's rows: saving the edit form must not delete what the model tagged
+	// at import, and re-importing must not delete what the cook typed.
+	ReplacePrepTasks(ctx context.Context, recipeID, source string, tasks []StoredPrepTask) error
 }
 
 // normSlice replaces a nil slice with an empty one so recipes always marshal
@@ -74,6 +82,7 @@ func (s *MemoryStore) CreateRecipe(_ context.Context, userID, title string, serv
 		Steps:       normSteps(steps),
 		Equipment:   normEquipment(equip),
 		Methods:     normMethods(methods),
+		PrepTasks:   []StoredPrepTask{},
 		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
 	s.byID[rec.ID] = rec
@@ -132,8 +141,23 @@ func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID, title string, 
 	rec.Steps = normSteps(steps)
 	rec.Equipment = normEquipment(equip)
 	rec.Methods = normMethods(methods)
+	// PrepTasks are deliberately untouched: they are written through
+	// ReplacePrepTasks, per source, so an ordinary recipe edit cannot wipe them.
+	rec.PrepTasks = normPrepTasks(rec.PrepTasks)
 	s.byID[id] = rec
 	return rec, nil
+}
+
+func (s *MemoryStore) ReplacePrepTasks(_ context.Context, recipeID, source string, tasks []StoredPrepTask) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rec, ok := s.byID[recipeID]
+	if !ok {
+		return ErrNotFound
+	}
+	rec.PrepTasks = replacePrepSource(rec.PrepTasks, source, tasks)
+	s.byID[recipeID] = rec
+	return nil
 }
 
 func (s *MemoryStore) GetRecipesByIDs(_ context.Context, userID string, ids []string) ([]Recipe, error) {
@@ -159,10 +183,12 @@ func (s *MemoryStore) UpsertRecipe(_ context.Context, rec Recipe) error {
 	rec.Steps = normSteps(rec.Steps)
 	rec.Equipment = normEquipment(rec.Equipment)
 	rec.Methods = normMethods(rec.Methods)
+	rec.PrepTasks = normPrepTasks(rec.PrepTasks)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if existing, ok := s.byID[rec.ID]; ok {
 		rec.CreatedAt = existing.CreatedAt
+		rec.PrepTasks = overlayPrepBySource(existing.PrepTasks, rec.PrepTasks)
 	} else {
 		if rec.CreatedAt.IsZero() {
 			rec.CreatedAt = time.Now().UTC().Truncate(time.Microsecond)
