@@ -23,6 +23,22 @@ export type RecipeDraft = {
    */
   equipment: RecipeEquipment[];
   methods: CookingMethod[];
+  /**
+   * Discovery metadata (BL-0020). `cuisine` and `tags` are free text here and
+   * are slugified server-side, so the draft never has to know the vocabulary.
+   * `totalMinutes` is raw field text for the same reason `servings` is: blank
+   * means unknown, and parsing belongs to the client that owns the widget.
+   */
+  cuisine: string;
+  totalMinutes: string;
+  tags: string[];
+  /**
+   * Where the recipe came from, for attribution and re-import. Filled in by an
+   * import and then carried through the save. Distinct from `url`, which is
+   * whatever is currently typed in the import box — that one is scratch input,
+   * this one is the provenance of the recipe being reviewed.
+   */
+  sourceUrl: string;
   /** The URL being imported from; empty for a hand-typed recipe. */
   url: string;
 };
@@ -36,9 +52,17 @@ export type ImportedRecipe = {
   servings?: string;
   equipment?: RecipeEquipment[];
   methods?: CookingMethod[];
+  cuisine?: string;
+  /** Already rendered for the field; blank when the page stated no time. */
+  totalMinutes?: string;
+  tags?: string[];
+  sourceUrl?: string;
 };
 
-/** The payload a draft saves as; `servings` is still the raw field text. */
+/**
+ * The payload a draft saves as; `servings` and `totalMinutes` are still raw
+ * field text.
+ */
 export type RecipeSubmission = {
   title: string;
   servings: string;
@@ -46,6 +70,10 @@ export type RecipeSubmission = {
   steps: string[];
   equipment: RecipeEquipment[];
   methods: CookingMethod[];
+  cuisine: string;
+  totalMinutes: string;
+  tags: string[];
+  sourceUrl: string;
 };
 
 /** The row the editor always shows at least one of, so there's a place to type. */
@@ -61,6 +89,10 @@ export function emptyDraft(): RecipeDraft {
     steps: [],
     equipment: [],
     methods: [],
+    cuisine: "",
+    totalMinutes: "",
+    tags: [],
+    sourceUrl: "",
     url: "",
   };
 }
@@ -79,6 +111,10 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
     steps: imported.steps ?? [],
     equipment: imported.equipment ?? [],
     methods: imported.methods ?? [],
+    cuisine: imported.cuisine ?? "",
+    totalMinutes: imported.totalMinutes ?? "",
+    tags: imported.tags ?? [],
+    sourceUrl: imported.sourceUrl ?? "",
   };
 }
 
@@ -98,6 +134,18 @@ export function withMethods(draft: RecipeDraft, methods: CookingMethod[]): Recip
   return { ...draft, methods };
 }
 
+export function withCuisine(draft: RecipeDraft, cuisine: string): RecipeDraft {
+  return { ...draft, cuisine };
+}
+
+export function withTotalMinutes(draft: RecipeDraft, totalMinutes: string): RecipeDraft {
+  return { ...draft, totalMinutes };
+}
+
+export function withTags(draft: RecipeDraft, tags: string[]): RecipeDraft {
+  return { ...draft, tags };
+}
+
 export function withIngredientPatch(
   draft: RecipeDraft,
   index: number,
@@ -107,6 +155,15 @@ export function withIngredientPatch(
     ...draft,
     ingredients: draft.ingredients.map((ing, i) => (i === index ? { ...ing, ...patch } : ing)),
   };
+}
+
+/**
+ * Replace the whole ingredient list. The per-index patch and the append helper
+ * remain for callers that think in single edits; a client whose editor reports
+ * the entire array (see RecipeFields) uses this instead of trying to diff it.
+ */
+export function withIngredients(draft: RecipeDraft, ingredients: Ingredient[]): RecipeDraft {
+  return { ...draft, ingredients };
 }
 
 export function withExtraIngredient(draft: RecipeDraft): RecipeDraft {
@@ -130,6 +187,10 @@ export function draftSubmission(draft: RecipeDraft): RecipeSubmission | null {
     // scaffolding to drop, and an empty list is a meaningful "nothing detected".
     equipment: draft.equipment,
     methods: draft.methods,
+    cuisine: draft.cuisine.trim(),
+    totalMinutes: draft.totalMinutes,
+    tags: draft.tags,
+    sourceUrl: draft.sourceUrl.trim(),
   };
 }
 
