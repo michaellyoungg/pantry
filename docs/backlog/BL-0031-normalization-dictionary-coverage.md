@@ -1,7 +1,7 @@
 ---
 id: BL-0031
 title: Normalization dictionary coverage + staple flag
-status: proposed
+status: in-progress
 area: grocery-list
 effort: M
 related_specs: [2026-08-03-recommendations-design.md, 2026-07-12-ingredient-normalization-design.md]
