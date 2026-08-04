@@ -3,6 +3,7 @@ import { useAsyncData } from "@pantry/core/react";
 import { useCallback } from "react";
 import { PREP_WINDOW_LABELS, toISODate } from "../lib/prep";
 import { useTracedAction } from "../telemetry/useTracedAction";
+import { PrepSourceBadge } from "./PrepSourceBadge";
 
 /**
  * "Before you start" on recipe detail (BL-0042).
@@ -37,6 +38,10 @@ export function RecipePrep({ recipeId }: { recipeId: string }) {
           <li key={task.key}>
             <span className="text-text">{task.text}</span>{" "}
             <span className="text-muted">— {PREP_WINDOW_LABELS[task.window] ?? task.window}</span>
+            {/* Where it came from (BL-0044): a rule's guess and a task the cook
+                wrote are trusted differently, and only the labelled one reads
+                as something you are invited to override. */}
+            <PrepSourceBadge source={task.source} />
           </li>
         ))}
       </ul>

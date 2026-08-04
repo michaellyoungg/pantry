@@ -107,6 +107,13 @@ export interface Recipe {
    * Present only on recipes that came from the catalog.
    */
   sourceRecipeId?: string;
+  /**
+   * Prep tasks stored on the recipe: hand-authored and model-derived (BL-0044).
+   * Rule-derived prep is absent here — it is computed on read from the rule
+   * table and merged with these, precedence `manual > llm > rule`. Usually
+   * empty.
+   */
+  prepTasks: StoredPrepTask[];
   createdAt: string; // ISO-8601
 }
 
@@ -571,8 +578,57 @@ export type PrepWindow =
   | "hour_before"
   | "at_start";
 
-/** Which producer emitted a task. `llm` and `manual` arrive with BL-0044. */
+/**
+ * Which producer emitted a task (BL-0044).
+ *
+ * Three producers, one stream, one precedence order: `manual > llm > rule`,
+ * applied per task key. A hand-authored task therefore *replaces* the rule task
+ * it shares a key with rather than appearing beside it.
+ *
+ * - `rule` — derived on read from the versioned rule table. Never stored, so
+ *   improving a rule improves every recipe at once.
+ * - `llm` — the model matched a rule the deterministic scan missed. The text is
+ *   still the rule's; the model chose the match, not the words.
+ * - `manual` — the user wrote it.
+ */
 export type PrepSource = "rule" | "llm" | "manual";
+
+/**
+ * A prep task stored on a recipe: the two producers whose output cannot be
+ * recomputed. Carries no rule id and no due date — it is not derived, and its
+ * due date depends on the meal it is scheduled for.
+ */
+export interface StoredPrepTask {
+  /**
+   * The merge identity, shared with {@link PrepTask.key}.
+   *
+   * A task written to *override* a derived one carries that task's key
+   * verbatim; that is how "this rule is wrong for this recipe" is expressed. A
+   * task written fresh gets a key from its own text
+   * (`manual:take-the-turkey-out`), assigned by the server.
+   */
+  key: string;
+  window: PrepWindow;
+  text: string;
+  source: PrepSource;
+}
+
+/**
+ * A prep task on its way *to* the server.
+ *
+ * `key` is omitted when authoring something new and echoed back verbatim when
+ * editing or overriding. `source` is omitted entirely: the server stamps the
+ * producer it is writing for, so a client cannot label its own guess as
+ * something the user wrote. (Create accepts an explicit `llm` for tasks a fresh
+ * import produced, since the import preview is never persisted server-side.)
+ */
+export interface PrepTaskInput {
+  key?: string;
+  window: PrepWindow;
+  text: string;
+  /** Never `rule`: rule-derived prep is computed, never stored. */
+  source?: Exclude<PrepSource, "rule">;
+}
 
 /** One piece of lead-time work for one meal on one date. */
 export interface PrepTask {

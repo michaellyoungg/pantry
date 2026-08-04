@@ -5,6 +5,8 @@ import type {
   GroceryLine,
   Ingredient,
   NutritionEstimate,
+  PrepTaskInput,
+  PrepWindow,
   Recipe,
 } from "@pantry/types";
 import { type Infer, v } from "convex/values";
@@ -50,12 +52,46 @@ const COOKING_METHODS = [
 
 const cookingMethodValidator = v.union(...COOKING_METHODS.map((m) => v.literal(m)));
 
+// The prep window enum (BL-0042), duplicated here for the same reason as
+// COOKING_METHODS above and guarded the same way.
+const PREP_WINDOWS = [
+  "three_days_before",
+  "two_days_before",
+  "night_before",
+  "morning_of",
+  "hour_before",
+  "at_start",
+] as const;
+
+const prepWindowValidator = v.union(...PREP_WINDOWS.map((w) => v.literal(w)));
+
+// A prep task on its way to the service (BL-0044).
+//
+// `key` is absent when the user authors something new and echoed back verbatim
+// when they edit or override — that is what makes an override *replace* the
+// rule task it shadows instead of doubling it. `source` is absent from an
+// ordinary edit: recipe-service stamps the producer, so nothing here can label
+// a guess as something the user wrote. Create additionally accepts "llm" for
+// tasks a fresh import produced, because the import preview is handed to the
+// client rather than persisted.
+const prepTaskInputValidator = v.object({
+  key: v.optional(v.string()),
+  window: prepWindowValidator,
+  text: v.string(),
+  source: v.optional(v.union(v.literal("manual"), v.literal("llm"))),
+});
+
 type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Fails to compile if ingredientValidator and @pantry/types Ingredient drift,
 // mirroring the guard on groceryList.ts's groceryLineValidator.
 export const _ingredientInSync: Equals<Infer<typeof ingredientValidator>, Ingredient> = true;
 // Same guard for the method enum: fails to compile if the local COOKING_METHODS
 // list stops covering @pantry/types' CookingMethod union exactly.
+export const _prepWindowInSync: Equals<Infer<typeof prepWindowValidator>, PrepWindow> = true;
+export const _prepTaskInputInSync: Equals<
+  Infer<typeof prepTaskInputValidator>,
+  PrepTaskInput
+> = true;
 export const _cookingMethodInSync: Equals<
   Infer<typeof cookingMethodValidator>,
   CookingMethod
@@ -149,6 +185,11 @@ const recipeWriteArgs = {
   totalMinutes: v.optional(v.number()),
   tags: v.optional(v.array(v.string())),
   sourceUrl: v.optional(v.string()),
+  // Prep tasks (BL-0044). ABSENT and [] mean different things here, unlike
+  // every field above: absent leaves the recipe's stored prep alone, [] clears
+  // the user's own tasks. Two producers write prep and neither owns the
+  // other's rows, so a client with nothing to say must be able to say nothing.
+  prepTasks: v.optional(v.array(prepTaskInputValidator)),
 };
 
 /** The recipe-service request body for a write. Absent optionals stay absent. */
@@ -163,6 +204,7 @@ function recipeWriteBody(args: {
   totalMinutes?: number;
   tags?: string[];
   sourceUrl?: string;
+  prepTasks?: PrepTaskInput[];
 }) {
   return {
     title: args.title,
@@ -175,6 +217,8 @@ function recipeWriteBody(args: {
     totalMinutes: args.totalMinutes,
     tags: args.tags ?? [],
     sourceUrl: args.sourceUrl ?? "",
+    // Deliberately NOT defaulted to []: see recipeWriteArgs.
+    prepTasks: args.prepTasks,
   };
 }
 
