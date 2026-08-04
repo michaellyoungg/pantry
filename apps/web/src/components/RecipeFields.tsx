@@ -1,7 +1,15 @@
-import type { CookingMethod, EquipmentDef, Ingredient, RecipeEquipment } from "@pantry/types";
+import type {
+  CookingMethod,
+  EquipmentDef,
+  Ingredient,
+  PrepTask,
+  PrepTaskInput,
+  RecipeEquipment,
+} from "@pantry/types";
 import { useId } from "react";
 import { MAX_TOTAL_MINUTES } from "../lib/discovery";
 import { EquipmentEditor } from "./EquipmentEditor";
+import { PrepEditor } from "./PrepEditor";
 import { ServingsField } from "./ServingsField";
 import { StepsEditor } from "./StepsEditor";
 import { Button } from "./ui/Button";
@@ -29,6 +37,8 @@ export interface RecipeFieldsValue {
   cuisine: string;
   totalMinutes: string;
   tags: string;
+  /** Hand-authored prep tasks (BL-0044). Empty for most recipes. */
+  prepTasks: PrepTaskInput[];
 }
 
 /**
@@ -48,12 +58,19 @@ export function RecipeFields({
   value,
   onChange,
   catalog,
+  derivedPrep = [],
 }: {
   value: RecipeFieldsValue;
   /** Receives only the changed keys; the caller merges. */
   onChange: (patch: Partial<RecipeFieldsValue>) => void;
   /** Equipment catalog, for the equipment picker. */
   catalog: EquipmentDef[];
+  /**
+   * What this recipe currently derives, so an unhelpful rule can be overridden
+   * (BL-0044). Empty while creating: a recipe that does not exist yet has
+   * nothing to derive against.
+   */
+  derivedPrep?: PrepTask[];
 }) {
   // Create and edit are both mounted on /recipes at once, so every label's
   // target has to be unique per instance.
@@ -156,6 +173,11 @@ export function RecipeFields({
       </Button>
 
       <StepsEditor steps={value.steps} onChange={(steps) => onChange({ steps })} />
+      <PrepEditor
+        tasks={value.prepTasks}
+        onChange={(prepTasks) => onChange({ prepTasks })}
+        derived={derivedPrep}
+      />
       <EquipmentEditor
         catalog={catalog}
         equipment={value.equipment}

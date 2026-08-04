@@ -80,14 +80,21 @@ func run() error {
 		return errors.New("RECIPE_SERVICE_SECRET is required")
 	}
 
+	// One key gates both LLM paths: extraction (parse a page the JSON-LD reader
+	// could not) and tagging (BL-0044 — equipment, methods and prep-rule
+	// matches for a recipe the keyword scan could not classify). Without it the
+	// service still imports, still tags deterministically, and still derives
+	// prep from the rule table; it only loses the gap-fillers.
 	var extractor recipe.Extractor
+	var importOpts []recipe.ImporterOption
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		extractor = recipe.NewClaudeExtractor(apiKey)
-		slog.Info("recipe import: LLM fallback enabled")
+		importOpts = append(importOpts, recipe.WithTagger(recipe.NewClaudeTagger(apiKey)))
+		slog.Info("recipe import: LLM fallback enabled", "paths", "extraction,tagging")
 	} else {
 		slog.Info("recipe import: LLM fallback disabled", "reason", "ANTHROPIC_API_KEY unset")
 	}
-	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor)
+	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor, importOpts...)
 
 	// Nutrition always runs. Without an FDC key it serves the checked-in
 	// snapshot alone, which covers common ingredients and reports honestly on

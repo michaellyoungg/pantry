@@ -1,6 +1,6 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
-import type { Recipe } from "@pantry/types";
+import type { PrepTaskInput, Recipe } from "@pantry/types";
 import { formatTags, formatTotalMinutes, parseTags, parseTotalMinutes } from "../lib/discovery";
 import { formatServings, parseServings } from "../lib/servings";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
@@ -28,6 +28,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     setCuisine,
     setTotalMinutes,
     setTags,
+    setPrepTasks,
     applyImported,
     reset,
     submission,
@@ -51,6 +52,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     cuisine: draft.cuisine,
     totalMinutes: draft.totalMinutes,
     tags: formatTags(draft.tags),
+    prepTasks: draft.prepTasks,
   };
 
   // Routed through the draft's individual pure transitions rather than a
@@ -65,6 +67,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     if (patch.totalMinutes !== undefined) setTotalMinutes(patch.totalMinutes);
     if (patch.tags !== undefined) setTags(parseTags(patch.tags));
     if (patch.ingredients !== undefined) setIngredients(patch.ingredients);
+    if (patch.prepTasks !== undefined) setPrepTasks(patch.prepTasks);
   }
 
   async function importRecipe() {
@@ -75,7 +78,9 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     // The import fills in whatever the page stated and leaves the rest blank
     // for the user to supply. Equipment, methods, cuisine and cook time arrive
     // already guessed; the editor below is where a wrong guess gets corrected
-    // before saving — never saved silently.
+    // before saving — never saved silently. Prep tasks arrive only when the
+    // importer's model tagging is configured, and carry source "llm" so they
+    // stay distinguishable from anything typed here.
     if (preview) {
       applyImported({
         ...preview,
@@ -84,6 +89,15 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         tags: preview.tags ?? [],
         cuisine: preview.cuisine ?? "",
         sourceUrl: preview.sourceUrl ?? "",
+        // A preview can only carry storable prep — the importer's model tagging
+        // produces `llm` tasks. Rule-derived prep is computed on read and never
+        // stored, so anything claiming to be one is dropped rather than saved
+        // back as a frozen copy of a rule that may since have changed.
+        prepTasks: (preview.prepTasks ?? []).flatMap<PrepTaskInput>((task) =>
+          task.source === "rule"
+            ? []
+            : [{ key: task.key, window: task.window, text: task.text, source: task.source }],
+        ),
       });
     }
   }
@@ -105,6 +119,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         // Attribution survives the review step, so an imported recipe keeps a
         // link back to where it came from and can be re-imported later.
         sourceUrl: submission.sourceUrl || undefined,
+        prepTasks: submission.prepTasks,
       }),
     );
     if (created) {

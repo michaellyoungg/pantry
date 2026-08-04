@@ -1,10 +1,15 @@
 ---
 id: BL-0050
 title: Unify the two pantry suggestion surfaces (expiry vs. recommendations)
-status: in-progress
+status: done
 area: pantry
 effort: M
-related_specs: [2026-08-03-recommendations-design.md, 2026-07-18-pantry-thin-loop-design.md]
+related_specs:
+  [
+    2026-08-03-unified-use-it-up-design.md,
+    2026-08-03-recommendations-design.md,
+    2026-07-18-pantry-thin-loop-design.md,
+  ]
 created: 2026-08-03
 ---
 
@@ -53,3 +58,25 @@ That is worse than either behavior alone.
   BL-0029 functionality.
 - **Drop `<UseItUpSuggestions />`** — loses preference filtering and the
   use-it-up flag, which is the differentiated half.
+
+## Outcome
+
+Shipped as the full proposal, not the "at minimum" fallback. See
+[the design](../superpowers/specs/2026-08-03-unified-use-it-up-design.md).
+
+- **`expiryUrgency` is live.** Shelf life (`useBy`) and the caller's clock ride
+  in the request body, so the ranker stays stateless and pure. Per candidate the
+  value is the MAX over its ingredients, and availability is decided per request
+  so scores in one response stay comparable.
+- **`POST /recipes/using` and `pantry.recipesToUse` are deleted**, not filtered.
+  Filtering them would have left an unfiltered-by-design search endpoint for the
+  next feature to find; now the only path applies the avoid list.
+- **One card**, `<UseItUp />`, on both `/pantry` and Home. Urgency leaves the
+  ranker as a structured field so "use this soon" renders distinctly from
+  "you'd like this" instead of being prefix-matched out of a reason string.
+
+**Which signal wins:** the avoid list beats everything (hard pre-filter, never a
+weight); below it urgency beats fit, because a wrong taste prediction costs a
+scroll and a missed deadline costs food. Urgency (3.5) sits narrowly above the
+explicit use-it-up flag (3.0) — a flag is a priority, a spoil date is a
+constraint.

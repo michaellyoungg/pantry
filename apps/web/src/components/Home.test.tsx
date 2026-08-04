@@ -17,7 +17,8 @@ const state = vi.hoisted(() => ({
   list: undefined as GroceryRow[] | undefined,
   pantry: [] as unknown[],
   generate: vi.fn(async () => ({ count: 3 })),
-  recipesToUse: vi.fn(async () => [] as unknown[]),
+  recommend: vi.fn(async () => [] as unknown[]),
+  addToBasket: vi.fn(async () => undefined),
 }));
 
 vi.mock("convex/react", async () => {
@@ -30,7 +31,10 @@ vi.mock("convex/react", async () => {
       return state.list;
     },
     useAction: (ref: Parameters<typeof getFunctionName>[0]) =>
-      getFunctionName(ref).startsWith("pantry") ? state.recipesToUse : state.generate,
+      getFunctionName(ref).startsWith("recommendations") ? state.recommend : state.generate,
+    // UseItUp offers "Add to plan" on each suggestion (BL-0050), so Home now
+    // pulls a mutation in through it.
+    useMutation: () => state.addToBasket,
   };
 });
 
@@ -75,7 +79,8 @@ beforeEach(() => {
   state.list = [];
   state.generate = vi.fn(async () => ({ count: 3 }));
   state.pantry = [];
-  state.recipesToUse = vi.fn(async () => []);
+  state.recommend = vi.fn(async () => []);
+  state.addToBasket = vi.fn(async () => undefined);
 });
 
 describe("Home next action", () => {

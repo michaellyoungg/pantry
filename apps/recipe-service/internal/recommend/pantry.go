@@ -7,10 +7,13 @@ const (
 	maxLimit     = 50
 )
 
-// RankPantry scores candidates for the "cook what I have" intent.
+// RankPantry scores candidates for the "cook what I have" intent — including
+// the expiry nudge, which routes through here rather than through a second
+// endpoint of its own (BL-0050).
 //
 // Order of operations matters: hard filters run BEFORE scoring, so no score can
-// surface an avoided ingredient.
+// surface an avoided ingredient. That ordering is what makes the avoid list beat
+// urgency: a recipe you cannot eat is not a use for spinach that is going off.
 func RankPantry(uc UserContext, candidates []Candidate) []Result {
 	return rankPantryWith(uc, candidates, DefaultPantryWeights)
 }
@@ -18,7 +21,7 @@ func RankPantry(uc UserContext, candidates []Candidate) []Result {
 func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result {
 	avoid := toSet(uc.Preferences.AvoidItems)
 	exclude := toSet(uc.ExcludeRecipeIDs)
-	view := newPantryView(uc.Pantry)
+	view := newPantryView(uc.Pantry, uc.Now)
 
 	results := make([]Result, 0, len(candidates))
 	for _, c := range candidates {
@@ -55,9 +58,13 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 			// slice as `null`, and the web client's non-nullable TS types
 			// (e.g. `r.missing.length`) then throw on a fully-covered recipe
 			// — the primary success path, not an edge case.
-			Reasons:             nonNilStrings(reasons),
-			Have:                nonNilStrings(m.have),
-			Missing:             nonNilMissing(m.missing),
+			Reasons: nonNilStrings(reasons),
+			Have:    nonNilStrings(m.have),
+			Missing: nonNilMissing(m.missing),
+			// Only reported when it is actually urgent. An ingredient with a
+			// date three months out is not news, and a "use soon" line on every
+			// row is the per-item nag BL-0029 exists to avoid.
+			Urgency:             urgentOrNil(m),
 			NutritionFit:        fitOrNil(na),
 			NutritionUnverified: nonNilUnverified(na.unverified),
 		})
@@ -128,6 +135,17 @@ func fitOrNil(a nutritionAssessment) *float64 {
 	}
 	fit := a.fit
 	return &fit
+}
+
+// urgentOrNil reports the recipe's most urgent ingredient only when that
+// ingredient is inside the expiry horizon — i.e. when urgencyFor gave it a
+// non-zero value. Outside the horizon the match still carries a date, but there
+// is nothing to say about it.
+func urgentOrNil(m match) *Urgency {
+	if m.mostUrgent == nil || m.urgency <= 0 {
+		return nil
+	}
+	return m.mostUrgent
 }
 
 func containsAvoided(c Candidate, avoid map[string]bool) bool {

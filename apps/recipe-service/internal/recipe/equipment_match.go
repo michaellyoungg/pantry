@@ -23,9 +23,8 @@ const (
 	FitUnknown  EquipmentFitStatus = "unknown"
 )
 
-// EquipmentMatch is a recipe plus how it fares against one inventory. Like
-// RecipeMatch it embeds Recipe, so a match decodes as an ordinary recipe with a
-// few extra fields.
+// EquipmentMatch is a recipe plus how it fares against one inventory. It embeds
+// Recipe, so a match decodes as an ordinary recipe with a few extra fields.
 type EquipmentMatch struct {
 	Recipe
 	Status EquipmentFitStatus `json:"status"`

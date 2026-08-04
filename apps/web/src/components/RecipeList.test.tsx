@@ -10,31 +10,44 @@ vi.mock("@pantry/convex/api", () => ({
       listEquipment: "recipes.listEquipment",
     },
     basket: { add: "basket.add", remove: "basket.remove", updateTitle: "basket.updateTitle" },
+    // The edit dialog loads the recipe's current prep so a derived task can be
+    // overridden (BL-0044).
+    prepTasks: { forRecipe: "prepTasks.forRecipe" },
     preferences: { get: "preferences.get" },
   },
 }));
 
-const { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation, household } =
-  vi.hoisted(() => {
-    const listRecipes = vi.fn();
-    const deleteRecipe = vi.fn();
-    const updateRecipe = vi.fn();
-    // The equipment catalog is reference data every RecipeList render loads.
-    const listEquipment = vi.fn(() => Promise.resolve([]));
-    const m = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
-      (...a: unknown[]): Promise<unknown>;
-      withOptimisticUpdate: ReturnType<typeof vi.fn>;
-    };
-    m.withOptimisticUpdate = vi.fn(() => m);
-    return {
-      listRecipes,
-      deleteRecipe,
-      updateRecipe,
-      listEquipment,
-      rejectingMutation: m,
-      household: { prefs: { householdSize: undefined } as { householdSize?: number } },
-    };
-  });
+const {
+  listRecipes,
+  deleteRecipe,
+  updateRecipe,
+  listEquipment,
+  prepForRecipe,
+  rejectingMutation,
+  household,
+} = vi.hoisted(() => {
+  const listRecipes = vi.fn();
+  const deleteRecipe = vi.fn();
+  const updateRecipe = vi.fn();
+  // The edit dialog derives the recipe's prep so a rule can be overridden.
+  const prepForRecipe = vi.fn(() => Promise.resolve({ tasks: [] }));
+  // The equipment catalog is reference data every RecipeList render loads.
+  const listEquipment = vi.fn(() => Promise.resolve([]));
+  const m = vi.fn(() => Promise.reject(new Error("basket backend down"))) as unknown as {
+    (...a: unknown[]): Promise<unknown>;
+    withOptimisticUpdate: ReturnType<typeof vi.fn>;
+  };
+  m.withOptimisticUpdate = vi.fn(() => m);
+  return {
+    listRecipes,
+    deleteRecipe,
+    updateRecipe,
+    listEquipment,
+    prepForRecipe,
+    rejectingMutation: m,
+    household: { prefs: { householdSize: undefined } as { householdSize?: number } },
+  };
+});
 
 vi.mock("convex/react", () => ({
   useAction: (ref: string) =>
@@ -44,7 +57,9 @@ vi.mock("convex/react", () => ({
         ? deleteRecipe
         : ref === "recipes.listEquipment"
           ? listEquipment
-          : updateRecipe,
+          : ref === "prepTasks.forRecipe"
+            ? prepForRecipe
+            : updateRecipe,
   useMutation: () => rejectingMutation,
   useQuery: () => household.prefs,
 }));

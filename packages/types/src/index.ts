@@ -107,6 +107,13 @@ export interface Recipe {
    * Present only on recipes that came from the catalog.
    */
   sourceRecipeId?: string;
+  /**
+   * Prep tasks stored on the recipe: hand-authored and model-derived (BL-0044).
+   * Rule-derived prep is absent here — it is computed on read from the rule
+   * table and merged with these, precedence `manual > llm > rule`. Usually
+   * empty.
+   */
+  prepTasks: StoredPrepTask[];
   createdAt: string; // ISO-8601
 }
 
@@ -339,6 +346,12 @@ export interface PantryContextItem {
   canonicalItem: string;
   state: "have" | "low" | "out";
   useItUp?: boolean;
+  /**
+   * Approximate spoil date, epoch ms (BL-0029). Absent when the shelf-life table
+   * doesn't recognize the item — which is not the same as "keeps forever", and
+   * is why the ranker treats absence as no signal rather than as a far-off date.
+   */
+  useBy?: number;
 }
 
 /** Ingredient-grounded preferences. `avoidItems` is a hard filter, not a weight. */
@@ -386,6 +399,12 @@ export interface RecommendationRequest {
    * dish can earn its place by sharing ingredients with the other dinners.
    */
   includeUnmatched?: boolean;
+  /**
+   * The caller's clock, epoch ms. Sent rather than read from the server clock so
+   * scoring stays a pure function of its input. Omitting it makes expiry
+   * unavailable — absent data degrades to "no signal", never to a guess.
+   */
+  now?: number;
   /** ACTIVE goals only: a paused goal is not a goal. */
   nutritionTargets?: RecommendationNutritionTarget[];
   planNutrition?: RecommendationPlanNutrition | null;
@@ -418,6 +437,20 @@ export interface RecommendationUnverifiedConstraint {
   label?: string;
 }
 
+/**
+ * The most-urgent expiring ingredient a recipe would clear (BL-0050).
+ *
+ * Typed rather than folded into `reasons` so the card can render "use this soon"
+ * distinctly from "you'd like this" — they are different kinds of claim, and
+ * telling them apart by prefix-matching a reason string would be brittle.
+ */
+export interface RecommendationUrgency {
+  canonicalItem: string;
+  display: string;
+  /** Epoch ms, so the card formats it with the same helper as its items strip. */
+  useBy: number;
+}
+
 /** Mirrors Go recommend.Result. */
 export interface Recommendation {
   recipeId: string;
@@ -428,6 +461,8 @@ export interface Recommendation {
   reasons: string[];
   have: string[];
   missing: RecommendationMissingItem[];
+  /** Absent when nothing this recipe uses is expiring within the horizon. */
+  urgency?: RecommendationUrgency;
   /**
    * 0..1 for how well this candidate closes the plan's remaining gap, or null
    * when nothing could be measured. Null rather than 0: a data gap is not a bad
@@ -577,8 +612,57 @@ export type PrepWindow =
   | "hour_before"
   | "at_start";
 
-/** Which producer emitted a task. `llm` and `manual` arrive with BL-0044. */
+/**
+ * Which producer emitted a task (BL-0044).
+ *
+ * Three producers, one stream, one precedence order: `manual > llm > rule`,
+ * applied per task key. A hand-authored task therefore *replaces* the rule task
+ * it shares a key with rather than appearing beside it.
+ *
+ * - `rule` — derived on read from the versioned rule table. Never stored, so
+ *   improving a rule improves every recipe at once.
+ * - `llm` — the model matched a rule the deterministic scan missed. The text is
+ *   still the rule's; the model chose the match, not the words.
+ * - `manual` — the user wrote it.
+ */
 export type PrepSource = "rule" | "llm" | "manual";
+
+/**
+ * A prep task stored on a recipe: the two producers whose output cannot be
+ * recomputed. Carries no rule id and no due date — it is not derived, and its
+ * due date depends on the meal it is scheduled for.
+ */
+export interface StoredPrepTask {
+  /**
+   * The merge identity, shared with {@link PrepTask.key}.
+   *
+   * A task written to *override* a derived one carries that task's key
+   * verbatim; that is how "this rule is wrong for this recipe" is expressed. A
+   * task written fresh gets a key from its own text
+   * (`manual:take-the-turkey-out`), assigned by the server.
+   */
+  key: string;
+  window: PrepWindow;
+  text: string;
+  source: PrepSource;
+}
+
+/**
+ * A prep task on its way *to* the server.
+ *
+ * `key` is omitted when authoring something new and echoed back verbatim when
+ * editing or overriding. `source` is omitted entirely: the server stamps the
+ * producer it is writing for, so a client cannot label its own guess as
+ * something the user wrote. (Create accepts an explicit `llm` for tasks a fresh
+ * import produced, since the import preview is never persisted server-side.)
+ */
+export interface PrepTaskInput {
+  key?: string;
+  window: PrepWindow;
+  text: string;
+  /** Never `rule`: rule-derived prep is computed, never stored. */
+  source?: Exclude<PrepSource, "rule">;
+}
 
 /** One piece of lead-time work for one meal on one date. */
 export interface PrepTask {

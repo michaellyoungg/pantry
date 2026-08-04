@@ -90,6 +90,10 @@ export const pantry = action({
         canonicalItem: row.canonicalItem,
         state: row.state,
         useItUp: row.useItUp ?? false,
+        // Shelf life rides along so expiry urgency can be scored here rather
+        // than on a second endpoint of its own (BL-0050). Rows the shelf-life
+        // table doesn't recognize carry no date and contribute no urgency.
+        useBy: row.useBy,
       })),
       preferences: {
         avoidItems: preferences.avoidItems,
@@ -100,6 +104,9 @@ export const pantry = action({
       // already on the week's plan is noise.
       excludeRecipeIds: basket.map((b: { recipeId: string }) => b.recipeId),
       limit: 20,
+      // The clock is sent, not read server-side, so the ranker stays a pure
+      // function of its request and its expiry scoring is table-testable.
+      now: Date.now(),
     };
 
     const res = await fetch(`${baseUrl}/recommendations/pantry`, {

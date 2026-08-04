@@ -14,6 +14,7 @@ function value(over: Partial<RecipeFieldsValue> = {}): RecipeFieldsValue {
     cuisine: "",
     totalMinutes: "",
     tags: "",
+    prepTasks: [],
     ...over,
   };
 }
@@ -63,6 +64,53 @@ describe("RecipeFields", () => {
 
     fireEvent.change(screen.getByLabelText(/tags/i), { target: { value: "vegan, quick" } });
     expect(onChange).toHaveBeenCalledWith({ tags: "vegan, quick" });
+  });
+
+  // Prep authoring rides on the SHARED surface (BL-0044 on top of BL-0020), so
+  // import review and the edit dialog get it from the same component rather
+  // than each growing their own copy — which is the drift this component was
+  // introduced to stop.
+  it("reports prep task edits like any other field", () => {
+    const onChange = renderFields({
+      prepTasks: [{ window: "night_before", text: "Make the pastry" }],
+    });
+    fireEvent.change(screen.getByDisplayValue("Make the pastry"), {
+      target: { value: "Make the pastry and chill it" },
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      prepTasks: [{ window: "night_before", text: "Make the pastry and chill it" }],
+    });
+  });
+
+  it("offers a derived task for override only when there is a recipe to derive from", () => {
+    const onChange = vi.fn();
+    const { unmount } = render(<RecipeFields value={value()} onChange={onChange} catalog={[]} />);
+    // Creating: nothing exists yet, so nothing is offered.
+    expect(screen.queryByRole("button", { name: /^Override:/ })).toBeNull();
+    unmount();
+
+    render(
+      <RecipeFields
+        value={value()}
+        onChange={onChange}
+        catalog={[]}
+        derivedPrep={[
+          {
+            key: "preheat_oven:bake",
+            ruleId: "preheat_oven",
+            subject: "bake",
+            window: "at_start",
+            text: "Preheat the oven",
+            source: "rule",
+            dueOn: "2026-08-10",
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Override: Preheat the oven" }));
+    expect(onChange).toHaveBeenCalledWith({
+      prepTasks: [{ key: "preheat_oven:bake", window: "at_start", text: "Preheat the oven" }],
+    });
   });
 
   it("shows the values it is given", () => {

@@ -141,6 +141,10 @@ describe("draftSubmission", () => {
       totalMinutes: "20",
       tags: ["vegetarian"],
       sourceUrl: " https://example.com/toast ",
+      prepTasks: [
+        { window: "night_before", text: "Set the bread out" },
+        { window: "at_start", text: "   " },
+      ],
       steps: ["  Toast the bread  ", "   ", ""],
       ingredients: [
         { quantity: 2, unit: "slice", item: "bread" },
@@ -159,6 +163,8 @@ describe("draftSubmission", () => {
       totalMinutes: "20",
       tags: ["vegetarian"],
       sourceUrl: "https://example.com/toast",
+      // Blank prep rows are scaffolding, exactly like blank ingredient rows.
+      prepTasks: [{ window: "night_before", text: "Set the bread out" }],
     });
   });
 });

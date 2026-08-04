@@ -57,8 +57,17 @@ type Recipe struct {
 	// the user already has instead of silently making another one. Set once at
 	// clone time and immutable afterwards — see UpdateRecipe, which deliberately
 	// does not write this column even though it replaces everything else.
-	SourceRecipeID string    `json:"sourceRecipeId,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
+	SourceRecipeID string `json:"sourceRecipeId,omitempty"`
+	// PrepTasks are the prep tasks that cannot be re-derived: hand-authored and
+	// model-derived (BL-0044). Rule-derived prep is absent here on purpose — it
+	// is computed on read by DerivePrepTasks and merged with these, precedence
+	// manual > llm > rule. Usually empty.
+	//
+	// Deliberately NOT part of RecipeInput: the two producers write it
+	// independently through ReplacePrepTasks, so it is not replaced wholesale
+	// by a recipe write the way every field above is.
+	PrepTasks []StoredPrepTask `json:"prepTasks"`
+	CreatedAt time.Time        `json:"createdAt"`
 }
 
 // RecipeInput is everything a client can set on a recipe. It exists because
@@ -103,15 +112,6 @@ func inputFrom(rec Recipe) RecipeInput {
 		// ENTRY, and copying the field blindly here would be how a user's own
 		// recipe inherits provenance it does not have. cloneOf sets it.
 	}
-}
-
-// RecipeMatch is a recipe that uses at least one of a requested set of
-// canonical items, plus which ones it hit. It backs the pantry's "use these up
-// → cook this" nudge (BL-0029). The embedded Recipe's fields are inlined on the
-// wire, so a match decodes as an ordinary recipe plus `matchedItems`.
-type RecipeMatch struct {
-	Recipe
-	MatchedItems []string `json:"matchedItems"`
 }
 
 type GroceryLine struct {

@@ -50,6 +50,9 @@ func TestCombineClampsToUnitInterval(t *testing.T) {
 // means a tuning change shows up as an intentional diff in review.
 func TestDefaultPantryWeightsArePinned(t *testing.T) {
 	want := Weights{
+		// Above UseItUpHits: a spoil date is a deadline, a use-up flag is a
+		// priority. See DefaultPantryWeights for why the gap is deliberately small.
+		ExpiryUrgency:    3.5,
 		UseItUpHits:      3.0,
 		Coverage:         2.0,
 		MissingNonStaple: 1.0,

@@ -80,8 +80,17 @@ test("checking an item off fills the pantry", async ({ page }) => {
   // the check-off mutation just fired above, which is the write this test is
   // actually verifying (the pantry upsert happens as a side effect of it).
   await navigateTo(page, "Pantry");
-  await expect(page.getByText(/garlic/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /is: have/i }).first()).toBeVisible();
+  // Scoped to the INVENTORY row, not to any text mentioning garlic: since
+  // BL-0050 /pantry also renders the use-it-up suggestions card, whose recipe
+  // rows can mention garlic too (a seeded catalog has several). Only inventory
+  // rows carry the state and use-up buttons, so this proves a pantry row exists
+  // rather than merely that the word appears on the page.
+  const pantryRow = page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("button", { name: /is: (have|low|out)/i }) })
+    .filter({ hasText: /garlic/i });
+  await expect(pantryRow).toBeVisible();
+  await expect(pantryRow.getByRole("button", { name: /is: have/i })).toBeVisible();
 
   expect(pageErrors, `Uncaught page errors during the loop:\n${pageErrors.join("\n")}`).toEqual([]);
 });
