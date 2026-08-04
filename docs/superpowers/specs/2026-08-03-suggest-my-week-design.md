@@ -155,12 +155,18 @@ proposal.
 
 ## Known limitations
 
-- **Every candidate ties at an empty pantry.** With nothing in the pantry the
-  coverage feature is 0 for everyone, so the first pick is decided by the
-  recipe-id tiebreak. The set terms still shape picks 2..n, so the *week* is
-  still coherent, but the entry point is arbitrary until there is pantry state or
-  a second available feature (BL-0031's `staple` flag revives
-  `missingNonStaple`, which would break the tie honestly).
+- **Every candidate ties at an empty pantry.** With nothing in the pantry,
+  coverage is 0 and the `missingNonStaple` penalty drives the weighted sum
+  negative, which `combine()` clamps to 0 — so every candidate scores exactly 0
+  and the *first* pick is decided by the recipe-id tiebreak. BL-0031 landing the
+  `staple` flag does not change this, contrary to what one might expect from it
+  reviving a second feature: a penalty-only feature cannot separate candidates
+  above the clamp. Pinned by
+  `TestRankPantryWithEmptyPantryReturnsCandidatesWhenAsked`.
+
+  The set-level terms still shape picks 2..n, so the *week* is coherent; only its
+  entry point is arbitrary. A positive-valued feature (affinity, from the
+  interaction event log) is what would break the tie honestly.
 - **Days are filled in calendar order**, best pick first. There is no notion of
   "quick dinner on a weeknight" — that needs BL-0030's cook-time metadata.
 - **A 50-candidate pool.** Greedy over the ranker's `maxLimit`; the corpus is

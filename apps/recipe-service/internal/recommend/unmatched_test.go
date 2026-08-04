@@ -38,6 +38,19 @@ func TestRankPantryWithEmptyPantryReturnsCandidatesWhenAsked(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("got %d results, want 2", len(got))
 	}
+	// Documenting a real limitation of set selection rather than asserting a
+	// desirable property: with nothing in the pantry, coverage is 0 and the
+	// missingNonStaple penalty drives the weighted sum negative, which combine()
+	// clamps to 0. Every candidate therefore ties, and the FIRST pick of a
+	// suggested week is decided by the recipe-id tiebreak. The set-level terms
+	// still shape picks 2..n, so the week is coherent; only its entry point is
+	// arbitrary. See docs/superpowers/specs/2026-08-03-suggest-my-week-design.md.
+	for _, r := range got {
+		if r.Score != 0 {
+			t.Fatalf("%s scored %v, want 0 — the empty-pantry tie is load-bearing "+
+				"for BL-0033's documented limitation", r.RecipeID, r.Score)
+		}
+	}
 }
 
 // Hard filters still run first. IncludeUnmatched widens the pool; it must never
