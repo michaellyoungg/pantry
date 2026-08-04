@@ -3,6 +3,7 @@ package recipe
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -130,6 +131,41 @@ func replacePrepSource(existing []StoredPrepTask, source string, tasks []StoredP
 // different one. That keeps provenance a fact about *who wrote the row* rather
 // than a client-supplied label, which matters because provenance is what the UI
 // uses to tell "your note" from "our guess".
+// NormalizePrepTasksBySource splits an authored batch by the producer each task
+// declares and normalizes each group, rejecting any producer not in allowed.
+//
+// A task that declares nothing belongs to allowed[0] — the caller's own
+// producer. This exists for one path: saving a recipe straight after an import,
+// where the payload legitimately carries both the model's tags and whatever the
+// user typed in the same form. Everywhere else takes a single source, which is
+// why `rule` is storable from nowhere at all.
+func NormalizePrepTasksBySource(tasks []StoredPrepTask, allowed ...string) (map[string][]StoredPrepTask, error) {
+	if len(allowed) == 0 {
+		return nil, fmt.Errorf("%w: no producer allowed here", ErrPrepTaskInvalid)
+	}
+	groups := map[string][]StoredPrepTask{}
+	for _, t := range tasks {
+		source := t.Source
+		if source == "" {
+			source = allowed[0]
+		}
+		if !slices.Contains(allowed, source) {
+			return nil, fmt.Errorf("%w: cannot write a %q task here", ErrPrepTaskInvalid, t.Source)
+		}
+		t.Source = source
+		groups[source] = append(groups[source], t)
+	}
+	out := make(map[string][]StoredPrepTask, len(groups))
+	for source, group := range groups {
+		norm, err := NormalizePrepTasks(group, source)
+		if err != nil {
+			return nil, err
+		}
+		out[source] = norm
+	}
+	return out, nil
+}
+
 func NormalizePrepTasks(tasks []StoredPrepTask, defaultSource string) ([]StoredPrepTask, error) {
 	if len(tasks) > maxPrepTasksPerRecipe {
 		return nil, fmt.Errorf("%w: at most %d prep tasks per recipe", ErrPrepTaskInvalid, maxPrepTasksPerRecipe)

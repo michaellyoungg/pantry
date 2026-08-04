@@ -3,6 +3,7 @@ package recipe
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -10,10 +11,26 @@ import (
 type Importer struct {
 	fetcher   Fetcher
 	extractor Extractor // may be nil: LLM fallback disabled
+	tagger    Tagger    // may be nil: LLM tagging fallback disabled (BL-0044)
 }
 
-func NewImporter(f Fetcher, e Extractor) *Importer {
-	return &Importer{fetcher: f, extractor: e}
+// ImporterOption configures optional import behaviour. Optional in the literal
+// sense: everything here is gated on an API key that may not be configured, and
+// the importer has to work without it.
+type ImporterOption func(*Importer)
+
+// WithTagger enables the model-derived equipment, method and prep tagging that
+// runs only when the deterministic keyword scan finds nothing (BL-0044).
+func WithTagger(t Tagger) ImporterOption {
+	return func(imp *Importer) { imp.tagger = t }
+}
+
+func NewImporter(f Fetcher, e Extractor, opts ...ImporterOption) *Importer {
+	imp := &Importer{fetcher: f, extractor: e}
+	for _, opt := range opts {
+		opt(imp)
+	}
+	return imp
 }
 
 // Import fetches the URL, extracts a recipe (JSON-LD first, LLM fallback), and
@@ -57,11 +74,10 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 	// Deterministic equipment/method tagging (BL-0041): schema.org cookingMethod
 	// mapped onto the closed enum, plus an alias scan over the step text. The
 	// title is deliberately not scanned — "grilled cheese" is not a grill recipe.
-	// An LLM tagger is BL-0044's job and is not wired here.
 	equip, methods := equipmentCatalog.DetectTags(steps)
 	methods = normMethods(append(equipmentCatalog.MethodsFromJSONLD(ldMethods), methods...))
 
-	return Recipe{
+	rec := Recipe{
 		UserID:      userID,
 		Title:       strings.TrimSpace(title),
 		Servings:    servings,
@@ -69,5 +85,27 @@ func (imp *Importer) Import(ctx context.Context, userID, rawURL string) (Recipe,
 		Steps:       steps,
 		Equipment:   equip,
 		Methods:     methods,
-	}, nil
+		PrepTasks:   []StoredPrepTask{},
+	}
+	imp.tagFallback(ctx, &rec)
+	return rec, nil
+}
+
+// tagFallback asks the model to tag a recipe the keyword scan could not
+// (BL-0044), and only then: a scan hit is deterministic, free, and improvable
+// for every recipe at once, so it always wins.
+//
+// Failure is not an import failure. The user asked for their recipe, and
+// handing them an error because an optional enrichment call timed out would
+// trade the thing they wanted for the thing they did not ask for.
+func (imp *Importer) tagFallback(ctx context.Context, rec *Recipe) {
+	if imp.tagger == nil || len(rec.Equipment) > 0 || len(rec.Methods) > 0 {
+		return
+	}
+	tags, err := imp.tagger.Tag(ctx, rec.Title, rec.Ingredients, rec.Steps)
+	if err != nil {
+		slog.WarnContext(ctx, "import: llm tagging failed, keeping the untagged recipe", "error", err)
+		return
+	}
+	applyTags(ctx, rec, tags)
 }

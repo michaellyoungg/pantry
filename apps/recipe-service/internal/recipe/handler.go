@@ -110,7 +110,13 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validated before the recipe is written: a rejected task must not leave a
 	// half-created recipe behind.
-	prep, err := NormalizePrepTasks(req.PrepTasks, PrepSourceManual)
+	//
+	// Create is the one write that accepts model-derived tasks, because saving
+	// a freshly imported recipe is the only moment they exist: the import
+	// preview is returned to the caller and persisted by it, so the tags the
+	// model produced come back in this payload or not at all. Update takes
+	// manual tasks only — see there.
+	prep, err := NormalizePrepTasksBySource(req.PrepTasks, PrepSourceManual, PrepSourceLLM)
 	if err != nil {
 		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
 		return
@@ -120,7 +126,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
 	}
-	if !h.saveManualPrep(w, r, &rec, req.PrepTasks, prep) {
+	if !h.savePrep(w, r, &rec, req.PrepTasks, prep, PrepSourceManual, PrepSourceLLM) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, rec)
@@ -208,7 +214,11 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
 		return
 	}
-	prep, err := NormalizePrepTasks(req.PrepTasks, PrepSourceManual)
+	// Manual only. An edit is the long-lived write path, and letting it stamp a
+	// task "llm" would let a client claim the app guessed something the user
+	// wrote. Overriding a model-derived task needs no such claim: reuse its key
+	// and precedence does the rest.
+	prep, err := NormalizePrepTasksBySource(req.PrepTasks, PrepSourceManual)
 	if err != nil {
 		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
 		return
@@ -222,28 +232,35 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusInternalServerError, "could not update recipe", err)
 		return
 	}
-	if !h.saveManualPrep(w, r, &rec, req.PrepTasks, prep) {
+	if !h.savePrep(w, r, &rec, req.PrepTasks, prep, PrepSourceManual) {
 		return
 	}
 	writeJSON(w, http.StatusOK, rec)
 }
 
-// saveManualPrep persists the hand-authored prep a recipe write carried and
-// folds it into the response, so the client gets back the keys the server
-// assigned instead of having to guess them.
+// savePrep persists the prep a recipe write carried and folds it into the
+// response, so the client gets back the keys the server assigned instead of
+// having to guess them.
 //
 // requested is the raw field: nil (absent or JSON null) means the client said
-// nothing about prep and the stored rows are left exactly as they are. Reports
-// whether the caller should keep writing the response.
-func (h *handlers) saveManualPrep(w http.ResponseWriter, r *http.Request, rec *Recipe, requested, normalized []StoredPrepTask) bool {
+// nothing about prep and every stored row is left exactly as it is. Otherwise
+// each producer in `sources` is replaced — including with nothing, since
+// deleting the last task you wrote has to be possible. Producers not listed are
+// never touched by this write.
+//
+// Reports whether the caller should keep writing the response.
+func (h *handlers) savePrep(w http.ResponseWriter, r *http.Request, rec *Recipe, requested []StoredPrepTask, normalized map[string][]StoredPrepTask, sources ...string) bool {
 	if requested == nil {
 		return true
 	}
-	if err := h.store.ReplacePrepTasks(r.Context(), rec.ID, PrepSourceManual, normalized); err != nil {
-		writeErr(w, r, http.StatusInternalServerError, "could not save prep tasks", err)
-		return false
+	for _, source := range sources {
+		if err := h.store.ReplacePrepTasks(r.Context(), rec.ID, source, normalized[source]); err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "could not save prep tasks", err)
+			return false
+		}
+		rec.PrepTasks = replacePrepSource(rec.PrepTasks, source, normalized[source])
 	}
-	rec.PrepTasks = normPrepTasks(replacePrepSource(rec.PrepTasks, PrepSourceManual, normalized))
+	rec.PrepTasks = normPrepTasks(rec.PrepTasks)
 	return true
 }
 

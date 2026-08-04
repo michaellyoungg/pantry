@@ -141,8 +141,11 @@ func TestCreateRecipe_RejectsInvalidPrep(t *testing.T) {
 	srv, _ := newTestServer(t)
 	cases := map[string]string{
 		"unknown window":   `{"window":"someday","text":"Do the thing"}`,
-		"claimed source":   `{"window":"at_start","text":"Do the thing","source":"llm"}`,
 		"no window at all": `{"text":"Do the thing"}`,
+		// Rule-derived prep is never stored — it is re-derived on every read —
+		// so a client claiming to have written one is always a bug.
+		"claimed rule source": `{"window":"at_start","text":"Do the thing","source":"rule"}`,
+		"invented source":     `{"window":"at_start","text":"Do the thing","source":"vibes"}`,
 	}
 	for name, task := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -150,6 +153,41 @@ func TestCreateRecipe_RejectsInvalidPrep(t *testing.T) {
 				`{"title":"Pie","ingredients":[],"prepTasks":[`+task+`]}`, http.StatusBadRequest)
 		})
 	}
+}
+
+// Saving a freshly imported recipe is the one moment model-derived tasks exist:
+// the preview is handed to the caller, so the tags come back on the create or
+// they are lost.
+func TestCreateRecipe_AcceptsImportedLLMPrepAlongsideManual(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	rec := writeRecipe(t, srv.URL, http.MethodPost, srv.URL+"/recipes", `{
+		"title":"Pie","ingredients":[{"quantity":1,"unit":"","item":"flour"}],
+		"prepTasks":[
+			{"window":"at_start","text":"Blind bake the shell","source":"llm"},
+			{"window":"night_before","text":"Make the pastry"}
+		]
+	}`, http.StatusCreated)
+
+	bySource := map[string]string{}
+	for _, task := range rec.PrepTasks {
+		bySource[task.Source] = task.Text
+	}
+	if bySource[PrepSourceLLM] != "Blind bake the shell" || bySource[PrepSourceManual] != "Make the pastry" {
+		t.Errorf("prep = %+v, want one task from each producer", rec.PrepTasks)
+	}
+}
+
+// An edit is the long-lived write path. Letting it stamp a task "llm" would let
+// a client tell the user the app guessed something they wrote themselves.
+func TestUpdateRecipe_RefusesToStampATaskLLM(t *testing.T) {
+	srv, store := newTestServer(t)
+	rec := seedThawRecipe(t, store, "user-a", "Roast turkey")
+
+	writeRecipe(t, srv.URL, http.MethodPut, srv.URL+"/recipes/"+rec.ID, `{
+		"title":"Roast turkey","ingredients":[{"quantity":12,"unit":"lb","item":"frozen turkey"}],
+		"prepTasks":[{"window":"at_start","text":"Do the thing","source":"llm"}]
+	}`, http.StatusBadRequest)
 }
 
 // A rejected task must not leave a recipe behind: validation runs before the
