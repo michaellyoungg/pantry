@@ -136,51 +136,176 @@
     "thyme": { "display": "Thyme", "aisle": "produce", "shelfLifeDays": 14 },
 
     "chicken": { "display": "Chicken", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "chicken breast": { "display": "Chicken breast", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "chicken thigh": { "display": "Chicken thighs", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "ground beef": { "display": "Ground beef", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "ground turkey": { "display": "Ground turkey", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "ground pork": { "display": "Ground pork", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "ground lamb": { "display": "Ground lamb", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
+    "chicken breast": {
+      "display": "Chicken breast",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "chicken thigh": {
+      "display": "Chicken thighs",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "ground beef": {
+      "display": "Ground beef",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "ground turkey": {
+      "display": "Ground turkey",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "ground pork": {
+      "display": "Ground pork",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "ground lamb": {
+      "display": "Ground lamb",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
     "steak": { "display": "Steak", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "pork chop": { "display": "Pork chops", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "pork tenderloin": { "display": "Pork tenderloin", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
+    "pork chop": {
+      "display": "Pork chops",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
+    "pork tenderloin": {
+      "display": "Pork tenderloin",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
     "bacon": { "display": "Bacon", "aisle": "meat", "shelfLifeDays": 7, "category": "protein" },
     "sausage": { "display": "Sausage", "aisle": "meat", "category": "protein" },
     "ham": { "display": "Ham", "aisle": "meat", "shelfLifeDays": 5, "category": "protein" },
-    "prosciutto": { "display": "Prosciutto", "aisle": "meat", "shelfLifeDays": 14, "category": "protein" },
+    "prosciutto": {
+      "display": "Prosciutto",
+      "aisle": "meat",
+      "shelfLifeDays": 14,
+      "category": "protein"
+    },
     "salmon": { "display": "Salmon", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "shrimp": { "display": "Shrimp", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "cod": { "display": "Cod", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "tilapia": { "display": "Tilapia", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
 
     "turkey": { "display": "Turkey", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "whole chicken": { "display": "Whole chicken", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "beef roast": { "display": "Beef roast", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "pork shoulder": { "display": "Pork shoulder", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
+    "whole chicken": {
+      "display": "Whole chicken",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "beef roast": {
+      "display": "Beef roast",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
+    "pork shoulder": {
+      "display": "Pork shoulder",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
     "brisket": { "display": "Brisket", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "short rib": { "display": "Short ribs", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "leg of lamb": { "display": "Leg of lamb", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
-    "lamb chop": { "display": "Lamb chops", "aisle": "meat", "shelfLifeDays": 4, "category": "protein" },
+    "short rib": {
+      "display": "Short ribs",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
+    "leg of lamb": {
+      "display": "Leg of lamb",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
+    "lamb chop": {
+      "display": "Lamb chops",
+      "aisle": "meat",
+      "shelfLifeDays": 4,
+      "category": "protein"
+    },
     "duck": { "display": "Duck", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "scallop": { "display": "Scallops", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
-    "tuna steak": { "display": "Tuna steak", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
+    "scallop": {
+      "display": "Scallops",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
+    "tuna steak": {
+      "display": "Tuna steak",
+      "aisle": "meat",
+      "shelfLifeDays": 2,
+      "category": "protein"
+    },
     "tofu": { "display": "Tofu", "aisle": "produce", "shelfLifeDays": 7, "category": "protein" },
 
     "milk": { "display": "Milk", "aisle": "dairy", "shelfLifeDays": 7, "category": "dairy" },
     "butter": { "display": "Butter", "aisle": "dairy", "shelfLifeDays": 30, "category": "dairy" },
     "egg": { "display": "Eggs", "aisle": "dairy", "shelfLifeDays": 28, "category": "dairy" },
     "heavy cream": { "display": "Heavy cream", "aisle": "dairy", "category": "dairy" },
-    "half and half": { "display": "Half and half", "aisle": "dairy", "shelfLifeDays": 7, "category": "dairy" },
-    "buttermilk": { "display": "Buttermilk", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
-    "sour cream": { "display": "Sour cream", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
+    "half and half": {
+      "display": "Half and half",
+      "aisle": "dairy",
+      "shelfLifeDays": 7,
+      "category": "dairy"
+    },
+    "buttermilk": {
+      "display": "Buttermilk",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy"
+    },
+    "sour cream": {
+      "display": "Sour cream",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy"
+    },
     "yogurt": { "display": "Yogurt", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
-    "greek yogurt": { "display": "Greek yogurt", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
-    "cream cheese": { "display": "Cream cheese", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
+    "greek yogurt": {
+      "display": "Greek yogurt",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy"
+    },
+    "cream cheese": {
+      "display": "Cream cheese",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy"
+    },
     "cottage cheese": { "display": "Cottage cheese", "aisle": "dairy", "category": "dairy" },
-    "cheddar cheese": { "display": "Cheddar cheese", "aisle": "dairy", "shelfLifeDays": 21, "category": "dairy" },
-    "parmesan": { "display": "Parmesan", "aisle": "dairy", "shelfLifeDays": 45, "category": "dairy" },
-    "mozzarella": { "display": "Mozzarella", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
+    "cheddar cheese": {
+      "display": "Cheddar cheese",
+      "aisle": "dairy",
+      "shelfLifeDays": 21,
+      "category": "dairy"
+    },
+    "parmesan": {
+      "display": "Parmesan",
+      "aisle": "dairy",
+      "shelfLifeDays": 45,
+      "category": "dairy"
+    },
+    "mozzarella": {
+      "display": "Mozzarella",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy"
+    },
     "feta": { "display": "Feta", "aisle": "dairy", "shelfLifeDays": 14, "category": "dairy" },
     "ricotta": { "display": "Ricotta", "aisle": "dairy", "shelfLifeDays": 7, "category": "dairy" },
 
@@ -234,10 +359,30 @@
     "vegetable stock": { "display": "Vegetable stock", "aisle": "pantry", "shelfLifeDays": 540 },
     "beef stock": { "display": "Beef stock", "aisle": "pantry", "shelfLifeDays": 540 },
     "coconut milk": { "display": "Coconut milk", "aisle": "pantry", "shelfLifeDays": 730 },
-    "black bean": { "display": "Black beans", "aisle": "pantry", "shelfLifeDays": 1095, "category": "legume" },
-    "kidney bean": { "display": "Kidney beans", "aisle": "pantry", "shelfLifeDays": 1095, "category": "legume" },
-    "chickpea": { "display": "Chickpeas", "aisle": "pantry", "shelfLifeDays": 1095, "category": "legume" },
-    "lentil": { "display": "Lentils", "aisle": "pantry", "shelfLifeDays": 730, "category": "legume" },
+    "black bean": {
+      "display": "Black beans",
+      "aisle": "pantry",
+      "shelfLifeDays": 1095,
+      "category": "legume"
+    },
+    "kidney bean": {
+      "display": "Kidney beans",
+      "aisle": "pantry",
+      "shelfLifeDays": 1095,
+      "category": "legume"
+    },
+    "chickpea": {
+      "display": "Chickpeas",
+      "aisle": "pantry",
+      "shelfLifeDays": 1095,
+      "category": "legume"
+    },
+    "lentil": {
+      "display": "Lentils",
+      "aisle": "pantry",
+      "shelfLifeDays": 730,
+      "category": "legume"
+    },
     "canned tuna": { "display": "Canned tuna", "aisle": "pantry", "shelfLifeDays": 1095 },
     "ketchup": { "display": "Ketchup", "aisle": "pantry", "shelfLifeDays": 180 },
     "mustard": { "display": "Mustard", "aisle": "pantry" },
@@ -267,13 +412,43 @@
     "coffee": { "display": "Coffee", "aisle": "pantry", "shelfLifeDays": 180 },
     "tea": { "display": "Tea", "aisle": "pantry", "shelfLifeDays": 730 },
 
-    "frozen pea": { "display": "Frozen peas", "aisle": "frozen", "shelfLifeDays": 240, "category": "frozen" },
-    "frozen corn": { "display": "Frozen corn", "aisle": "frozen", "shelfLifeDays": 240, "category": "frozen" },
-    "frozen spinach": { "display": "Frozen spinach", "aisle": "frozen", "shelfLifeDays": 240, "category": "frozen" },
-    "frozen broccoli": { "display": "Frozen broccoli", "aisle": "frozen", "shelfLifeDays": 240, "category": "frozen" },
-    "frozen berry": { "display": "Frozen berries", "aisle": "frozen", "shelfLifeDays": 240, "category": "frozen" },
+    "frozen pea": {
+      "display": "Frozen peas",
+      "aisle": "frozen",
+      "shelfLifeDays": 240,
+      "category": "frozen"
+    },
+    "frozen corn": {
+      "display": "Frozen corn",
+      "aisle": "frozen",
+      "shelfLifeDays": 240,
+      "category": "frozen"
+    },
+    "frozen spinach": {
+      "display": "Frozen spinach",
+      "aisle": "frozen",
+      "shelfLifeDays": 240,
+      "category": "frozen"
+    },
+    "frozen broccoli": {
+      "display": "Frozen broccoli",
+      "aisle": "frozen",
+      "shelfLifeDays": 240,
+      "category": "frozen"
+    },
+    "frozen berry": {
+      "display": "Frozen berries",
+      "aisle": "frozen",
+      "shelfLifeDays": 240,
+      "category": "frozen"
+    },
     "frozen pizza": { "display": "Frozen pizza", "aisle": "frozen" },
-    "puff pastry": { "display": "Puff pastry", "aisle": "frozen", "shelfLifeDays": 365, "category": "frozen" },
+    "puff pastry": {
+      "display": "Puff pastry",
+      "aisle": "frozen",
+      "shelfLifeDays": 365,
+      "category": "frozen"
+    },
     "ice cream": { "display": "Ice cream", "aisle": "frozen", "shelfLifeDays": 60 }
   },
   "aisleOrder": ["produce", "meat", "dairy", "bakery", "pantry", "frozen", "other"]
