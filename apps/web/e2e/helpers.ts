@@ -39,6 +39,19 @@ export async function navigateTo(page: Page, label: string): Promise<void> {
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: label }).click();
 }
 
+/**
+ * Switch tabs inside the Recipes section ("My recipes" / "Browse catalog" /
+ * "My kitchen"). Its sub-nav is a second <nav>, labelled "Recipes", so it needs
+ * its own scope — `navigateTo` targets the app-level "Main" navigation and
+ * would not find these links. Client-side for the same reason as `navigateTo`.
+ */
+export async function navigateToRecipesTab(page: Page, label: string): Promise<void> {
+  await page
+    .getByRole("navigation", { name: "Recipes" })
+    .getByRole("link", { name: label })
+    .click();
+}
+
 /** Create a manual recipe with one ingredient row and add it to the basket. */
 export async function createRecipeAndAddToBasket(
   page: Page,
