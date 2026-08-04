@@ -301,6 +301,30 @@ export interface RecommendationPreferences {
   dislikedItems: string[];
 }
 
+/**
+ * One nutrition goal as the recommender sees it (BL-0040). Mirrors Go
+ * recommend.NutritionTarget — the stored `nutritionTargets` row minus `active`,
+ * because only active goals are ever sent.
+ */
+export interface RecommendationNutritionTarget {
+  nutrientId: string;
+  operator: NutritionTargetOperator;
+  value: number;
+  period: NutritionTargetPeriod;
+  label?: string;
+  hard?: boolean;
+}
+
+/**
+ * What the week's plan ALREADY commits, so a `week` target is scored on the gap
+ * that remains rather than on the whole goal. Mirrors Go recommend.PlanNutrition.
+ */
+export interface RecommendationPlanNutrition {
+  /** nutrientId -> amount, in the estimate's units. */
+  nutrients: Record<string, number>;
+  coverage: NutritionCoverage;
+}
+
 /** Mirrors Go recommend.UserContext. */
 export interface RecommendationRequest {
   pantry: PantryContextItem[];
@@ -309,11 +333,27 @@ export interface RecommendationRequest {
   savedRecipeIds?: string[];
   excludeRecipeIds?: string[];
   limit?: number;
+  /** ACTIVE goals only: a paused goal is not a goal. */
+  nutritionTargets?: RecommendationNutritionTarget[];
+  planNutrition?: RecommendationPlanNutrition | null;
 }
 
 export interface RecommendationMissingItem {
   canonicalItem: string;
   display: string;
+}
+
+/**
+ * A HARD constraint this candidate could not be checked against.
+ *
+ * It carries the nutrient id rather than a rendered string because only the
+ * client has the nutrient catalog to name it with. Its existence is the reason
+ * an unmeasured recipe can survive a filter without being presented as having
+ * passed it.
+ */
+export interface RecommendationUnverifiedConstraint {
+  nutrientId: string;
+  label?: string;
 }
 
 /** Mirrors Go recommend.Result. */
@@ -326,6 +366,13 @@ export interface Recommendation {
   reasons: string[];
   have: string[];
   missing: RecommendationMissingItem[];
+  /**
+   * 0..1 for how well this candidate closes the plan's remaining gap, or null
+   * when nothing could be measured. Null rather than 0: a data gap is not a bad
+   * score, and the two must never look alike.
+   */
+  nutritionFit?: number | null;
+  nutritionUnverified?: RecommendationUnverifiedConstraint[];
 }
 
 export interface RecommendationResponse {
@@ -400,6 +447,15 @@ export interface NutritionTarget {
   label?: string;
   /** Inactive targets are kept but never evaluated, so pausing a diet is not a delete. */
   active: boolean;
+  /**
+   * Marks this goal as a HARD constraint (BL-0040): recommendations REMOVE
+   * candidates that break it instead of merely ranking them lower.
+   *
+   * The operator cannot express this. `<= 200 mg cholesterol` is a preference
+   * for one person and a medical limit for another, and only they know which —
+   * so the distinction is a flag the user sets, never an inference we make.
+   */
+  hard?: boolean;
 }
 
 /**

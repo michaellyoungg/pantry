@@ -30,6 +30,14 @@ type UserContext struct {
 	SavedRecipeIDs   []string           `json:"savedRecipeIds"`
 	ExcludeRecipeIDs []string           `json:"excludeRecipeIds"`
 	Limit            int                `json:"limit"`
+
+	// NutritionTargets are the caller's ACTIVE nutrition goals (BL-0038/0040).
+	// Paused rows are filtered out before they get here: a paused goal is not a
+	// goal, and the ranker should not have to know that.
+	NutritionTargets []NutritionTarget `json:"nutritionTargets,omitempty"`
+	// PlanNutrition is what the week's plan already commits, so a `week` target
+	// is scored on the gap that remains rather than on the whole goal.
+	PlanNutrition *PlanNutrition `json:"planNutrition,omitempty"`
 }
 
 // CandidateIngredient is one ingredient reduced to what scoring needs.
@@ -45,6 +53,10 @@ type Candidate struct {
 	Title       string
 	Source      string // "catalog" | "user"
 	Ingredients []CandidateIngredient
+	// Nutrition is this recipe's per-serving nutrient vector (BL-0040), or nil
+	// when nobody has estimated it. Nil is UNMEASURED, never zero — see
+	// nutrition.go for why that distinction is the whole feature.
+	Nutrition *CandidateNutrition
 }
 
 // MissingItem is an ingredient the recipe needs that the user does not have.
@@ -63,4 +75,13 @@ type Result struct {
 	Reasons  []string      `json:"reasons"`
 	Have     []string      `json:"have"`
 	Missing  []MissingItem `json:"missing"`
+
+	// NutritionFit is 0..1 for how well this candidate closes the plan's
+	// REMAINING gap, or nil when nothing could be measured. Nil rather than 0:
+	// a data gap is not a bad score, and the two must never look alike.
+	NutritionFit *float64 `json:"nutritionFit"`
+	// NutritionUnverified names hard constraints this candidate was never
+	// checked against. It is the reason an unmeasured recipe can survive a
+	// filter without being presented as having passed it.
+	NutritionUnverified []UnverifiedConstraint `json:"nutritionUnverified"`
 }

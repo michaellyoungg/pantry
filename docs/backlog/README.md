@@ -77,7 +77,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0037](BL-0037-nutrition-plan-rollup.md) | Nutrition plan rollup — day and week totals on the planner | done | nutrition | M |
 | [BL-0038](BL-0038-nutrition-targets-goals.md) | Nutrition targets — declarative goals, evaluation, and diet presets | done | nutrition | M |
 | [BL-0039](BL-0039-nutrition-habit-review.md) | Nutrition habit review — eating history and retrospective | done | nutrition | M |
-| [BL-0040](BL-0040-nutrition-aware-recommendations.md) | Nutrition-aware recommendations — targets as a scoring dimension | in-progress | recommendations | M |
+| [BL-0040](BL-0040-nutrition-aware-recommendations.md) | Nutrition-aware recommendations — targets as a scoring dimension | done | recommendations | M |
 | [BL-0041](BL-0041-equipment-catalog-recipe-tagging.md) | Equipment catalog + recipe equipment/method tagging (with import detection) | done | recipes | M |
 | [BL-0042](BL-0042-prep-rule-engine.md) | Prep rule engine — derived lead-time tasks (thaw, soften, preheat) on Home | done | recipes | L |
 | [BL-0043](BL-0043-equipment-inventory-discovery.md) | Equipment inventory — "can I make this?" + new-device recipe discovery | done | recipes | M |
@@ -88,5 +88,5 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0048](BL-0048-convex-admin-key-rotation.md) | Convex admin-key rotation procedure (verified, not assumed) | done | infra | S |
 | [BL-0049](BL-0049-nutrition-facts-label.md) | Nutrition Facts panel — show estimates as the US Daily Value label people already know | proposed | nutrition | M |
 | [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | in-progress | pantry | M |
-| [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | proposed | infra | S |
+| [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | in-progress | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | proposed | recommendations | M |
