@@ -119,3 +119,101 @@ export const pantry = action({
     return payload.results ?? [];
   },
 });
+
+/**
+ * How wide a pool "Suggest my week" selects from.
+ *
+ * Greedy selection is only as good as what it can choose between: it fills up to
+ * seven days and re-scores after each pick, so a pool the size of the week gives
+ * it no room to trade a slightly better dish for one that shares a chicken. This
+ * is the ranker's `maxLimit`, deliberately — the corpus is small enough that
+ * asking for all of it costs nothing.
+ */
+const WEEK_CANDIDATE_LIMIT = 50;
+
+/**
+ * The candidate pool for the week suggester (BL-0033).
+ *
+ * Deliberately NOT the same request as `pantry` above, in three ways, each of
+ * which is a requirement of set selection rather than a tweak:
+ *
+ *   - `includeUnmatched` keeps recipes that share nothing with the pantry. They
+ *     are noise on a "cook what you have" card and essential here, because a
+ *     dish can earn its place by sharing ingredients with the OTHER dinners —
+ *     and because a new user with an empty pantry would otherwise be told there
+ *     is no week to suggest.
+ *   - Planned recipes are NOT excluded. The suggester needs their ingredients to
+ *     score against the week the user actually has; it is the client's job not
+ *     to re-propose them, and `suggestWeek` does exactly that.
+ *   - A wider limit, so greedy selection has something to be greedy about.
+ *
+ * It returns candidates, not a plan. Selection is pure and lives in
+ * `@pantry/core`, so the client can re-run it instantly as the user edits the
+ * proposal instead of paying a round trip per edit.
+ */
+export const weekCandidates = action({
+  args: {},
+  handler: async (ctx): Promise<Recommendation[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const baseUrl = process.env.RECIPE_SERVICE_URL;
+    if (!baseUrl) throw new Error("RECIPE_SERVICE_URL is not set on the deployment");
+    const secret = process.env.RECIPE_SERVICE_SECRET;
+    if (!secret) throw new Error("RECIPE_SERVICE_SECRET is not set on the deployment");
+
+    const [pantryRows, preferences, targetRows] = await Promise.all([
+      ctx.runQuery(api.pantry.list, {}),
+      ctx.runQuery(api.preferences.get, {}),
+      ctx.runQuery(api.nutritionTargets.list, {}),
+    ]);
+
+    const nutritionTargets: RecommendationNutritionTarget[] = targetRows
+      .filter((t) => t.active)
+      .map(({ nutrientId, operator, value, period, label, hard }) => ({
+        nutrientId,
+        operator,
+        value,
+        period,
+        label,
+        hard,
+      }));
+
+    const body: RecommendationRequest = {
+      nutritionTargets,
+      // A week goal is scored against what the plan already commits, exactly as
+      // on the pantry surface — the dinners this call is about to propose are
+      // not committed to anything yet.
+      planNutrition: await committedWeek(ctx, nutritionTargets),
+      pantry: pantryRows.map((row) => ({
+        canonicalItem: row.canonicalItem,
+        state: row.state,
+        useItUp: row.useItUp ?? false,
+      })),
+      preferences: {
+        avoidItems: preferences.avoidItems,
+        likedItems: preferences.likedItems,
+        dislikedItems: preferences.dislikedItems,
+      },
+      excludeRecipeIds: [],
+      includeUnmatched: true,
+      limit: WEEK_CANDIDATE_LIMIT,
+    };
+
+    const res = await fetch(`${baseUrl}/recommendations/pantry`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Service-Secret": secret,
+        "X-User-Id": userId,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(`recipe-service POST /recommendations/pantry failed: ${res.status}`);
+    }
+    const payload = (await res.json()) as RecommendationResponse;
+    return payload.results ?? [];
+  },
+});

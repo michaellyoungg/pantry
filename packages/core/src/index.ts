@@ -100,3 +100,12 @@ export {
   withSteps,
 } from "./recipeDraft";
 export { DAY_FULL, DAYS } from "./week";
+export {
+  type SuggestedPick,
+  type SuggestionCandidate,
+  type SuggestWeekInput,
+  suggestWeek,
+  VARIETY_SIMILARITY_THRESHOLD,
+  WEEK_SUGGESTION_WEIGHTS,
+  type WeekSuggestion,
+} from "./weekSuggestion";

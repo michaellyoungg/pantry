@@ -26,8 +26,9 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 			continue
 		}
 		m := matchCandidate(c, view)
-		// Nothing in common with the pantry means nothing to say about it.
-		if len(m.have) == 0 {
+		// Nothing in common with the pantry means nothing to say about it — but
+		// only for the pantry surface. See UserContext.IncludeUnmatched.
+		if len(m.have) == 0 && !uc.IncludeUnmatched {
 			continue
 		}
 

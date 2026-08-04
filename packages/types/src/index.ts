@@ -333,6 +333,12 @@ export interface RecommendationRequest {
   savedRecipeIds?: string[];
   excludeRecipeIds?: string[];
   limit?: number;
+  /**
+   * Keep candidates that share nothing with the pantry (BL-0033). The "cook what
+   * you have" surface drops them as noise; set selection needs them, because a
+   * dish can earn its place by sharing ingredients with the other dinners.
+   */
+  includeUnmatched?: boolean;
   /** ACTIVE goals only: a paused goal is not a goal. */
   nutritionTargets?: RecommendationNutritionTarget[];
   planNutrition?: RecommendationPlanNutrition | null;

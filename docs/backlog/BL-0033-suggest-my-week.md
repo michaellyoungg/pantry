@@ -1,10 +1,10 @@
 ---
 id: BL-0033
 title: "Suggest my week" — set-level meal plan optimization
-status: in-progress
+status: done
 area: recommendations
 effort: L
-related_specs: [2026-08-03-recommendations-design.md, 2026-07-12-full-app-ux-plan.md]
+related_specs: [2026-08-03-suggest-my-week-design.md, 2026-08-03-recommendations-design.md, 2026-07-12-full-app-ux-plan.md]
 created: 2026-08-03
 ---
 

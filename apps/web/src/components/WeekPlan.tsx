@@ -21,6 +21,7 @@ import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { MealPrepBadge } from "./MealPrepBadge";
 import { PlanNutrition } from "./PlanNutrition";
+import { SuggestWeek } from "./SuggestWeek";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -80,8 +81,12 @@ export function WeekPlan() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
         {week.map((day) => {
           return (
-            <div
+            // A named region per day: the grid is seven peers with identical
+            // markup, so the weekday is the only thing that tells them apart —
+            // for a screen reader and for anything else addressing one day.
+            <section
               key={day.label}
+              aria-label={day.fullLabel}
               className="flex min-h-24 flex-col gap-2 rounded-xl border border-border bg-surface p-3"
             >
               <div className="text-sm font-medium text-text">{day.fullLabel}</div>
@@ -206,10 +211,14 @@ export function WeekPlan() {
                   })}
                 </ul>
               )}
-            </div>
+            </section>
           );
         })}
       </div>
+
+      {/* One action for a whole week (BL-0033). It proposes; it never applies,
+          and it never touches a day that is already planned. */}
+      <SuggestWeek items={items} />
 
       {/* What the planned week comes to (BL-0037). */}
       <PlanNutrition items={items} />
