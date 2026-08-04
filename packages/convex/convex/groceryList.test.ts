@@ -185,6 +185,83 @@ describe("mergeGroceryList (increment 2)", () => {
   });
 });
 
+describe("removed lines (BL-0018 diff-merge rule 3)", () => {
+  const checkedMilk = {
+    userId: USER_ID,
+    item: "Milk",
+    canonicalItem: "milk",
+    unit: "cup",
+    quantity: 1,
+    aisle: "dairy",
+    checked: true,
+  };
+  const bread = {
+    item: "Bread",
+    canonicalItem: "bread",
+    unit: "loaf",
+    quantity: 1,
+    aisle: "bakery",
+  };
+
+  it("flags a checked line the plan no longer wants instead of deleting it", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", checkedMilk));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [bread] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    const milk = rows.find((r) => r.item === "Milk");
+    expect(milk).toBeDefined();
+    expect(milk?.checked).toBe(true);
+    expect(milk?.removed).toBe(true);
+  });
+
+  it("clears the flag when the line returns to the plan, keeping the tick", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, removed: true }));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, {
+      userId: USER_ID,
+      lines: [{ item: "Milk", canonicalItem: "milk", unit: "cup", quantity: 3, aisle: "dairy" }],
+    });
+
+    const [milk] = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(milk.removed).toBeUndefined();
+    expect(milk.checked).toBe(true);
+    expect(milk.quantity).toBe(3);
+  });
+
+  it("still deletes an untouched line the plan no longer wants", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, checked: false }));
+
+    await t.mutation(internal.groceryList.mergeGroceryList, { userId: USER_ID, lines: [bread] });
+
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item)).toEqual(["Bread"]);
+  });
+
+  it("lets the shopper dismiss a flagged line", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", { ...checkedMilk, removed: true }));
+    const asUser = t.withIdentity(identity);
+    const [milk] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await asUser.mutation(api.groceryList.removeItem, { id: milk._id });
+
+    expect(await asUser.query(api.groceryList.getGroceryList, {})).toHaveLength(0);
+  });
+
+  it("still refuses to remove a generated line that is still in the plan", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => ctx.db.insert("groceryList", checkedMilk));
+    const asUser = t.withIdentity(identity);
+    const [milk] = await asUser.query(api.groceryList.getGroceryList, {});
+
+    await expect(asUser.mutation(api.groceryList.removeItem, { id: milk._id })).rejects.toThrow();
+  });
+});
+
 describe("don't-rebuy (BL-0021)", () => {
   async function seedPantry(
     t: ReturnType<typeof convexTest>,

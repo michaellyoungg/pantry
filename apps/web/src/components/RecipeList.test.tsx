@@ -10,11 +10,12 @@ vi.mock("@pantry/convex/api", () => ({
       listEquipment: "recipes.listEquipment",
     },
     basket: { add: "basket.add", remove: "basket.remove", updateTitle: "basket.updateTitle" },
+    preferences: { get: "preferences.get" },
   },
 }));
 
-const { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation } = vi.hoisted(
-  () => {
+const { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation, household } =
+  vi.hoisted(() => {
     const listRecipes = vi.fn();
     const deleteRecipe = vi.fn();
     const updateRecipe = vi.fn();
@@ -25,9 +26,15 @@ const { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutatio
       withOptimisticUpdate: ReturnType<typeof vi.fn>;
     };
     m.withOptimisticUpdate = vi.fn(() => m);
-    return { listRecipes, deleteRecipe, updateRecipe, listEquipment, rejectingMutation: m };
-  },
-);
+    return {
+      listRecipes,
+      deleteRecipe,
+      updateRecipe,
+      listEquipment,
+      rejectingMutation: m,
+      household: { prefs: { householdSize: undefined } as { householdSize?: number } },
+    };
+  });
 
 vi.mock("convex/react", () => ({
   useAction: (ref: string) =>
@@ -39,6 +46,7 @@ vi.mock("convex/react", () => ({
           ? listEquipment
           : updateRecipe,
   useMutation: () => rejectingMutation,
+  useQuery: () => household.prefs,
 }));
 
 import { RecipeList } from "./RecipeList";
@@ -218,6 +226,60 @@ describe("RecipeList edit preserves servings", () => {
 
     await waitFor(() =>
       expect(updateRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: undefined })),
+    );
+  });
+});
+
+// "Add to plan" is where household size earns its keep (BL-0018): the recipe's
+// yield is known here, and the planner's stepper is one screen away, so the
+// dial should already be right for the common case.
+describe("RecipeList seeds the servings dial from household size", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    household.prefs = { householdSize: undefined };
+  });
+
+  it("scales a recipe that feeds fewer than the household", async () => {
+    household.prefs = { householdSize: 4 };
+    listRecipes.mockResolvedValue([{ ...RECIPE, servings: 2 }]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(rejectingMutation).toHaveBeenCalledWith(
+        expect.objectContaining({ recipeId: "r1", servingsMultiplier: 2 }),
+      ),
+    );
+  });
+
+  it("sends no multiplier when the household size is unset", async () => {
+    listRecipes.mockResolvedValue([{ ...RECIPE, servings: 2 }]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(rejectingMutation).toHaveBeenCalledWith(
+        expect.objectContaining({ servingsMultiplier: undefined }),
+      ),
+    );
+  });
+
+  it("sends no multiplier when the recipe's yield is unknown", async () => {
+    household.prefs = { householdSize: 4 };
+    listRecipes.mockResolvedValue([RECIPE]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findByText("Garlic Bread");
+    fireEvent.click(screen.getByRole("button", { name: /add to basket/i }));
+
+    await waitFor(() =>
+      expect(rejectingMutation).toHaveBeenCalledWith(
+        expect.objectContaining({ servingsMultiplier: undefined }),
+      ),
     );
   });
 });

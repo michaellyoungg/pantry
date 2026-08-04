@@ -111,6 +111,46 @@ export interface Recipe {
 }
 
 /**
+ * Whether a recipe's hardware requirements are met by an equipment inventory
+ * (BL-0043).
+ *
+ * `unknown` is the important one: a recipe carrying no equipment tags has never
+ * been assessed, and presenting that as `makeable` would turn missing data into
+ * a green light. UI must render it as "we don't know", never as a yes.
+ */
+export type EquipmentFitStatus = "makeable" | "blocked" | "unknown";
+
+/**
+ * How one recipe fares against an inventory, without the recipe body — the
+ * compact shape the catalog joins onto recipes it already has.
+ */
+export interface EquipmentFit {
+  status: EquipmentFitStatus;
+  /** Required equipment slugs the user lacks. Empty unless status is "blocked". */
+  missing: string[];
+  /** Which newly acquired devices this recipe needed. Only set by a discovery query. */
+  unlockedBy: string[];
+}
+
+/** A recipe plus its fit — the shape POST /equipment/match returns. */
+export type EquipmentMatch = Recipe & EquipmentFit;
+
+/**
+ * Bucket sizes over every recipe considered — including recipes the narrowed
+ * list omits, so "N we can't assess" keeps an honest denominator.
+ */
+export interface EquipmentCounts {
+  makeable: number;
+  blocked: number;
+  unknown: number;
+}
+
+export interface EquipmentMatchResult {
+  recipes: EquipmentMatch[];
+  counts: EquipmentCounts;
+}
+
+/**
  * One recipe's contribution to an aggregated grocery line.
  *
  * `quantity` is in the *parent line's* unit, not the unit the recipe wrote, so
@@ -292,6 +332,51 @@ export interface CostEstimate {
   unpricedCount: number;
   lines: PricedLine[];
   basis: PriceBasis;
+}
+
+/** One pantry row as the recommender sees it. Mirrors Go recommend.PantryItem. */
+export interface PantryContextItem {
+  canonicalItem: string;
+  state: "have" | "low" | "out";
+  useItUp?: boolean;
+}
+
+/** Ingredient-grounded preferences. `avoidItems` is a hard filter, not a weight. */
+export interface RecommendationPreferences {
+  avoidItems: string[];
+  likedItems: string[];
+  dislikedItems: string[];
+}
+
+/** Mirrors Go recommend.UserContext. */
+export interface RecommendationRequest {
+  pantry: PantryContextItem[];
+  preferences: RecommendationPreferences;
+  affinities?: Record<string, number>;
+  savedRecipeIds?: string[];
+  excludeRecipeIds?: string[];
+  limit?: number;
+}
+
+export interface RecommendationMissingItem {
+  canonicalItem: string;
+  display: string;
+}
+
+/** Mirrors Go recommend.Result. */
+export interface Recommendation {
+  recipeId: string;
+  title: string;
+  /** "generated" is reserved for a future LLM candidate provider (BL-0034). */
+  source: "catalog" | "user" | "generated";
+  score: number;
+  reasons: string[];
+  have: string[];
+  missing: RecommendationMissingItem[];
+}
+
+export interface RecommendationResponse {
+  results: Recommendation[];
 }
 
 /**

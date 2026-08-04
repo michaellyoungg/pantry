@@ -60,8 +60,10 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
 	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
+	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
 	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
+	mux.HandleFunc("POST /recommendations/pantry", traced(h.recommendPantry))
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
@@ -436,6 +438,49 @@ func (h *handlers) recipesUsing(w http.ResponseWriter, r *http.Request) {
 		matches = matches[:maxRecipesUsing]
 	}
 	writeJSON(w, http.StatusOK, matches)
+}
+
+// equipmentMatch answers "can I make this?" for a whole recipe library at once.
+//
+// Inventory lives in Convex — it is reactive user state like the basket — and
+// the recipe tags live here, so the owned slugs arrive in the request body and
+// the join happens where the recipe data already is. That is the same split
+// POST /grocery-list and POST /recipes/using use.
+//
+// Like recipesUsing it searches the caller's recipes plus the shared catalog: a
+// new user owns no recipes, and an empty screen is not an answer.
+//
+// Note what this deliberately does NOT do: it never drops a recipe from the
+// classification. Blocked recipes come back flagged, and untagged ones come back
+// `unknown`, because BL-0043 flags and filters rather than hides — borrowing a
+// friend's smoker is a normal thing to do.
+func (h *handlers) equipmentMatch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Owned []string `json:"owned"`
+		// Acquired turns this into the new-device query. Its members must also
+		// appear in Owned — you cannot be unlocked by hardware you don't have.
+		Acquired []string `json:"acquired"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	userID := userIDFrom(r.Context())
+	recs, err := h.store.ListRecipes(r.Context(), userID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
+		return
+	}
+	if userID != CatalogUserID {
+		catRecs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+		if err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
+			return
+		}
+		recs = append(recs, catRecs...)
+	}
+
+	writeJSON(w, http.StatusOK, MatchRecipes(recs, req.Owned, req.Acquired))
 }
 
 // validServings rejects a serving count that cannot be a real yield. nil is

@@ -262,3 +262,46 @@ describe("GroceryList manual lines", () => {
     expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 });
+
+describe("lines the plan has dropped (BL-0018)", () => {
+  const removedLine = {
+    _id: "g2",
+    userId: "dev-user",
+    item: "kale",
+    unit: "bunch",
+    quantity: 1,
+    aisle: "produce",
+    checked: true,
+    removed: true,
+    _creationTime: 0,
+  };
+
+  it("keeps a flagged line out of the aisles still being shopped", () => {
+    state.lines = [...oneLine, removedLine];
+    render(<GroceryList />);
+    // Kale is the only produce line, so an aisle heading for it would mean the
+    // flagged line is still being walked past in the store.
+    expect(screen.queryByRole("heading", { name: /produce/i })).toBeNull();
+    expect(screen.getByRole("heading", { name: /other/i })).toBeTruthy();
+  });
+
+  it("shows flagged lines under their own heading so nothing vanishes silently", () => {
+    state.lines = [...oneLine, removedLine];
+    render(<GroceryList />);
+    expect(screen.getByText(/no longer in your plan/i)).toBeTruthy();
+    expect(screen.getByText(/kale/)).toBeTruthy();
+  });
+
+  it("says nothing about removals when the plan dropped nothing", () => {
+    state.lines = oneLine;
+    render(<GroceryList />);
+    expect(screen.queryByText(/no longer in your plan/i)).toBeNull();
+  });
+
+  it("dismisses a flagged line through the remove mutation", async () => {
+    state.lines = [...oneLine, removedLine];
+    render(<GroceryList />);
+    fireEvent.click(screen.getByRole("button", { name: /dismiss kale/i }));
+    await waitFor(() => expect(mutationMock).toHaveBeenCalledWith({ id: "g2" }));
+  });
+});

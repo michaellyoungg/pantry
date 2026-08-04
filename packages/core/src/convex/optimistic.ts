@@ -30,7 +30,7 @@ export function removeFromBasketOptimistic(
 
 export function addToBasketOptimistic(
   localStore: OptimisticLocalStore,
-  args: { recipeId: string; title: string },
+  args: { recipeId: string; title: string; servingsMultiplier?: number },
 ): void {
   const cur = localStore.getQuery(api.basket.list, {});
   if (cur === undefined) return;
@@ -45,7 +45,48 @@ export function addToBasketOptimistic(
       userId: "",
       recipeId: args.recipeId,
       title: args.title,
+      // The household default the caller derived, so the placeholder scales the
+      // same way the confirmed row will — otherwise the plan's nutrition and
+      // cost previews flicker between two different sizes of the same meal.
+      servingsMultiplier: args.servingsMultiplier,
     },
+  ]);
+}
+
+/**
+ * My Kitchen's checkboxes (BL-0043). Owning something is a row and not owning
+ * it is the absence of one, so this inserts or filters rather than flipping a
+ * flag — mirroring the mutation exactly.
+ *
+ * Idempotent in both directions, like the server: a double-tap must not stack
+ * two rows into the local cache and make the list flicker on confirmation.
+ */
+export function setEquipmentOwnedOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { equipmentId: string; owned: boolean },
+): void {
+  const cur = localStore.getQuery(api.equipment.list, {});
+  if (cur === undefined) return;
+  if (!args.owned) {
+    localStore.setQuery(
+      api.equipment.list,
+      {},
+      cur.filter((e) => e.equipmentId !== args.equipmentId),
+    );
+    return;
+  }
+  if (cur.some((e) => e.equipmentId === args.equipmentId)) return;
+  // Prepended, because the query is ordered newest-acquired first.
+  localStore.setQuery(api.equipment.list, {}, [
+    {
+      // Placeholder system/owner fields; overwritten when the server confirms.
+      _id: `optimistic-${args.equipmentId}` as Id<"equipmentInventory">,
+      _creationTime: 0,
+      userId: "",
+      equipmentId: args.equipmentId,
+      addedAt: Date.now(),
+    },
+    ...cur,
   ]);
 }
 

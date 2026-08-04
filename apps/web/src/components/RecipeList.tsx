@@ -1,10 +1,12 @@
 import { api } from "@pantry/convex/api";
+import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
 import type { Recipe } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
+import { useHouseholdSize } from "../lib/useHouseholdSize";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -28,6 +30,7 @@ export function RecipeList({
   const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
   const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
   const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
+  const householdSize = useHouseholdSize();
   const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
     removeFromBasketOptimistic,
   );
@@ -138,7 +141,15 @@ export function RecipeList({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
+                  onClick={() =>
+                    run(() =>
+                      addToBasket({
+                        recipeId: r.id,
+                        title: r.title,
+                        servingsMultiplier: defaultServingsMultiplier(householdSize, r.servings),
+                      }),
+                    )
+                  }
                 >
                   Add to basket
                 </Button>

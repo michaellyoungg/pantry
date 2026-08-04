@@ -307,8 +307,15 @@ export const listCatalog = action({
 // The clone step is idempotent server-side, so re-adding returns the copy the
 // user already has; basket.add is idempotent too, so the pair is safe to retry.
 export const addFromCatalog = action({
-  args: { catalogRecipeId: v.string(), traceCtx: v.optional(v.string()) },
-  handler: async (ctx, { catalogRecipeId, traceCtx }): Promise<Recipe> => {
+  args: {
+    catalogRecipeId: v.string(),
+    // The household default the client derived for this recipe (BL-0018), on
+    // the same contract as basket.add: it arrives from the client because a
+    // mutation cannot fetch, and the client already has the recipe in hand.
+    servingsMultiplier: v.optional(v.number()),
+    traceCtx: v.optional(v.string()),
+  },
+  handler: async (ctx, { catalogRecipeId, servingsMultiplier, traceCtx }): Promise<Recipe> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
     return withSpan("recipes.addFromCatalog", traceCtx, async (traceparent) => {
@@ -319,7 +326,11 @@ export const addFromCatalog = action({
         undefined,
         traceparent,
       );
-      await ctx.runMutation(api.basket.add, { recipeId: clone.id, title: clone.title });
+      await ctx.runMutation(api.basket.add, {
+        recipeId: clone.id,
+        title: clone.title,
+        servingsMultiplier,
+      });
       return clone;
     });
   },

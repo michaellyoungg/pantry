@@ -15,6 +15,8 @@ export type GroceryRow = {
   _id: string;
   item: string;
   checked: boolean;
+  /** Flagged by regeneration: bought already, but the plan no longer wants it. */
+  removed?: boolean;
 };
 
 export type HomeState =
@@ -46,10 +48,16 @@ export function deriveHomeState(
 
   const mealCount = countMeals(basket);
 
-  if (list.length > 0) {
-    const checked = list.filter((row) => row.checked).length;
-    if (checked === list.length) return { kind: "shopped", total: list.length, mealCount };
-    return { kind: "shopping", total: list.length, checked, remaining: list.length - checked };
+  // Lines the plan has dropped (BL-0018) are history, not shopping: they were
+  // already checked off before regeneration flagged them, so counting them
+  // would both inflate "23 items ready" and make the trip look further along
+  // than it is. They stay visible on /list, where they can be dismissed.
+  const active = list.filter((row) => !row.removed);
+
+  if (active.length > 0) {
+    const checked = active.filter((row) => row.checked).length;
+    if (checked === active.length) return { kind: "shopped", total: active.length, mealCount };
+    return { kind: "shopping", total: active.length, checked, remaining: active.length - checked };
   }
 
   // A plan of nothing but leftovers generates an empty list, so it isn't ready to build.

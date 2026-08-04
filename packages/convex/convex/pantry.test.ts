@@ -102,6 +102,37 @@ describe("pantry", () => {
     expect(rows[2]).toMatchObject({ aisle: "produce", display: "Apples" });
     expect(rows[3]).toMatchObject({ aisle: "produce", display: "Zucchini" });
   });
+
+  it("flags a row to use up", async () => {
+    const t = convexTest(schema, modules);
+    const id = await seed(t);
+
+    await t.withIdentity(identity).mutation(api.pantry.setUseItUp, { id, useItUp: true });
+
+    const rows = await t.withIdentity(identity).query(api.pantry.list, {});
+    expect(rows[0].useItUp).toBe(true);
+  });
+
+  it("clears the use-it-up flag", async () => {
+    const t = convexTest(schema, modules);
+    const id = await seed(t);
+    const client = t.withIdentity(identity);
+
+    await client.mutation(api.pantry.setUseItUp, { id, useItUp: true });
+    await client.mutation(api.pantry.setUseItUp, { id, useItUp: false });
+
+    const rows = await client.query(api.pantry.list, {});
+    expect(rows[0].useItUp).toBe(false);
+  });
+
+  it("refuses to flag another user's row", async () => {
+    const t = convexTest(schema, modules);
+    const id = await seed(t, { userId: "someone-else" });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.pantry.setUseItUp, { id, useItUp: true }),
+    ).rejects.toThrow("Not found");
+  });
 });
 
 describe("pantry inflow from check-off", () => {
