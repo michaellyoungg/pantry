@@ -59,6 +59,10 @@ func TestDefaultPantryWeightsArePinned(t *testing.T) {
 		Affinity:         1.0,
 		RecentlyPlanned:  1.0,
 		NutritionFit:     2.0,
+		// Below Coverage: a stated taste reorders suggestions, it does not
+		// outrank what is in the fridge. See DefaultPantryWeights.
+		CuisineMatch: 1.5,
+		TimeFit:      1.5,
 	}
 	if DefaultPantryWeights != want {
 		t.Fatalf("pantry weights changed: got %+v, want %+v\n"+

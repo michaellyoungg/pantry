@@ -3,6 +3,7 @@ import type {
   Recommendation,
   RecommendationNutritionTarget,
   RecommendationPlanNutrition,
+  RecommendationPreferences,
   RecommendationRequest,
   RecommendationResponse,
 } from "@pantry/types";
@@ -43,6 +44,34 @@ async function committedWeek(
     nutrients[nutrientId] = amount.amount;
   }
   return { nutrients, coverage: week.coverage };
+}
+
+/**
+ * The stored preference row reduced to what the ranker reads.
+ *
+ * Shared by both surfaces on purpose (BL-0030): the pantry page and week
+ * selection rank through the same endpoint, so a taste forwarded by only one of
+ * them would be a setting that half works — which is worse than one that does
+ * not work at all, because nothing on screen says which half.
+ *
+ * `maxMinutes` is passed through as-is, INCLUDING undefined. A cleared field
+ * must arrive absent rather than as 0: absent is "no opinion" and 0 is a limit
+ * no recipe can satisfy.
+ */
+function rankerPreferences(prefs: {
+  avoidItems: string[];
+  likedItems: string[];
+  dislikedItems: string[];
+  cuisines: string[];
+  maxMinutes?: number;
+}): RecommendationPreferences {
+  return {
+    avoidItems: prefs.avoidItems,
+    likedItems: prefs.likedItems,
+    dislikedItems: prefs.dislikedItems,
+    cuisines: prefs.cuisines,
+    maxMinutes: prefs.maxMinutes,
+  };
 }
 
 /**
@@ -95,11 +124,7 @@ export const pantry = action({
         // table doesn't recognize carry no date and contribute no urgency.
         useBy: row.useBy,
       })),
-      preferences: {
-        avoidItems: preferences.avoidItems,
-        likedItems: preferences.likedItems,
-        dislikedItems: preferences.dislikedItems,
-      },
+      preferences: rankerPreferences(preferences),
       // Already-planned recipes are excluded outright: suggesting what is
       // already on the week's plan is noise.
       excludeRecipeIds: basket.map((b: { recipeId: string }) => b.recipeId),
@@ -197,11 +222,7 @@ export const weekCandidates = action({
         state: row.state,
         useItUp: row.useItUp ?? false,
       })),
-      preferences: {
-        avoidItems: preferences.avoidItems,
-        likedItems: preferences.likedItems,
-        dislikedItems: preferences.dislikedItems,
-      },
+      preferences: rankerPreferences(preferences),
       excludeRecipeIds: [],
       includeUnmatched: true,
       limit: WEEK_CANDIDATE_LIMIT,

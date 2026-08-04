@@ -27,13 +27,24 @@ type catalogEntry struct {
 	Cuisine      string   `json:"cuisine"`
 	TotalMinutes *int     `json:"totalMinutes"`
 	Tags         []string `json:"tags"`
+	// SourceURL attributes an entry that came from somewhere (BL-0030). Most
+	// curated entries are hand-written and leave it out; it is never invented,
+	// because a fabricated attribution is worse than none.
+	SourceURL string `json:"sourceUrl"`
 }
 
 // LoadCatalog parses the embedded catalog dataset into system-owned recipes,
 // validating each entry. It does not touch any store.
 func LoadCatalog() ([]Recipe, error) {
+	return parseCatalog(catalogJSON)
+}
+
+// parseCatalog is LoadCatalog against arbitrary bytes, so the validation rules
+// can be tested against fixtures instead of only against whatever the shipped
+// seed file happens to contain today.
+func parseCatalog(data []byte) ([]Recipe, error) {
 	var entries []catalogEntry
-	if err := json.Unmarshal(catalogJSON, &entries); err != nil {
+	if err := json.Unmarshal(data, &entries); err != nil {
 		return nil, fmt.Errorf("parse catalog.json: %w", err)
 	}
 	seen := map[string]bool{}
@@ -57,7 +68,7 @@ func LoadCatalog() ([]Recipe, error) {
 		// Catalog entries go through the same validator as a client request, so
 		// a typo in the seed file fails the boot rather than shipping a chip
 		// nobody can match.
-		cuisine, tags, _, err := ValidateDiscovery(e.Cuisine, e.TotalMinutes, e.Tags, "")
+		cuisine, tags, sourceURL, err := ValidateDiscovery(e.Cuisine, e.TotalMinutes, e.Tags, e.SourceURL)
 		if err != nil {
 			return nil, fmt.Errorf("catalog entry %q: %w", e.ID, err)
 		}
@@ -73,6 +84,7 @@ func LoadCatalog() ([]Recipe, error) {
 			Cuisine:      cuisine,
 			TotalMinutes: e.TotalMinutes,
 			Tags:         tags,
+			SourceURL:    sourceURL,
 		})
 	}
 	return out, nil

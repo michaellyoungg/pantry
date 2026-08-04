@@ -157,6 +157,15 @@ func toCandidates(recs []Recipe, source string) []recommend.Candidate {
 			Title:       rec.Title,
 			Source:      source,
 			Ingredients: ings,
+			// The discovery facets (BL-0030). Carried across verbatim: they are
+			// already normalized to one spelling by ValidateDiscovery on every
+			// write path, so the ranker can compare them to a stored preference
+			// without owning a vocabulary of its own.
+			//
+			// An untagged recipe arrives here as "" / nil and stays that way —
+			// recommend treats both as unmeasured rather than as a bad score.
+			Cuisine:      rec.Cuisine,
+			TotalMinutes: rec.TotalMinutes,
 		})
 	}
 	return out

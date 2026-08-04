@@ -104,3 +104,64 @@ describe("recommendations.pantry request payload (BL-0050)", () => {
     await expect(t.action(api.recommendations.pantry, {})).rejects.toThrow(/Not authenticated/);
   });
 });
+
+// The discovery facets are stored on the recipe and the tastes are stored here,
+// but they only ever meet inside the ranker. A preference that never leaves
+// Convex is a setting the user can change with no observable effect (BL-0030).
+describe("recommendations request carries stated tastes (BL-0030)", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  async function seedTastes(
+    t: ReturnType<typeof convexTest>,
+    tastes: { cuisines?: string[]; maxMinutes?: number },
+  ) {
+    await t.withIdentity(identity).mutation(api.preferences.set, tastes);
+  }
+
+  it("forwards the cuisines and cook-time limit on the pantry surface", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+    await seedTastes(t, { cuisines: ["thai", "italian"], maxMinutes: 30 });
+
+    await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.cuisines).toEqual(["thai", "italian"]);
+    expect(prefs.maxMinutes).toBe(30);
+  });
+
+  // Week selection ranks through the same endpoint, so a taste that only
+  // reached one of the two surfaces would silently be half-applied.
+  it("forwards them on the week-candidates surface too", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+    await seedTastes(t, { cuisines: ["thai"], maxMinutes: 45 });
+
+    await t.withIdentity(identity).action(api.recommendations.weekCandidates, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.cuisines).toEqual(["thai"]);
+    expect(prefs.maxMinutes).toBe(45);
+  });
+
+  // An unset limit must arrive as absent, not as 0. Zero is a limit nothing
+  // satisfies; absent is the "no opinion" the ranker degrades to.
+  it("sends no cook-time limit when the user has not set one", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+
+    await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.maxMinutes).toBeUndefined();
+    expect(prefs.cuisines).toEqual([]);
+  });
+});
