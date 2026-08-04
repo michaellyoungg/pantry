@@ -1,4 +1,4 @@
-import type { Recommendation } from "@pantry/types";
+import type { GeneratedRecipeDraft, Recommendation } from "@pantry/types";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PantryRow } from "../lib/expiry";
@@ -7,15 +7,23 @@ const DAY = 86_400_000;
 
 const state = vi.hoisted(() => ({
   pantry: [] as unknown[],
-  recommend: vi.fn(async () => [] as unknown[]),
+  recommend: vi.fn(async () => ({ results: [], generated: [] }) as unknown),
+  accept: vi.fn(async () => ({ id: "saved-1", title: "Saved" }) as unknown),
   addToBasket: vi.fn(async () => undefined),
 }));
 
-vi.mock("convex/react", () => ({
-  useQuery: () => state.pantry,
-  useAction: () => state.recommend,
-  useMutation: () => state.addToBasket,
-}));
+// The component now uses TWO actions, so the mock has to tell them apart.
+// anyApi references are fresh proxies on every access, so identity comparison
+// would silently always pick the same branch; the function NAME is stable.
+vi.mock("convex/react", async () => {
+  const { getFunctionName } = await import("convex/server");
+  return {
+    useQuery: () => state.pantry,
+    useAction: (ref: Parameters<typeof import("convex/server").getFunctionName>[0]) =>
+      getFunctionName(ref) === "recommendations:acceptGenerated" ? state.accept : state.recommend,
+    useMutation: () => state.addToBasket,
+  };
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...rest }: { children: React.ReactNode }) => <a {...rest}>{children}</a>,
@@ -47,10 +55,16 @@ function rec(over: Partial<Recommendation> = {}): Recommendation {
   };
 }
 
+/** The action's response shape: ranked results plus any generated drafts. */
+function ranked(results: Recommendation[] = [], generated: GeneratedRecipeDraft[] = []) {
+  return async () => ({ results, generated });
+}
+
 describe("UseItUp", () => {
   beforeEach(() => {
     state.pantry = [];
-    state.recommend = vi.fn(async () => []);
+    state.recommend = vi.fn(ranked());
+    state.accept = vi.fn(async () => ({ id: "saved-1", title: "Saved" }));
     state.addToBasket = vi.fn(async () => undefined);
   });
 
@@ -108,7 +122,7 @@ describe("UseItUp", () => {
 
     it("loads suggestions without waiting for a button press", async () => {
       state.pantry = [row()];
-      state.recommend = vi.fn(async () => [rec()]);
+      state.recommend = vi.fn(ranked([rec()]));
       render(<UseItUp variant="page" />);
 
       expect(await screen.findByText("Creamed Spinach")).toBeTruthy();
@@ -118,7 +132,7 @@ describe("UseItUp", () => {
 
   it("offers the recipes it finds as the action", async () => {
     state.pantry = [row()];
-    state.recommend = vi.fn(async () => [rec()]);
+    state.recommend = vi.fn(ranked([rec()]));
     render(<UseItUp />);
 
     expect(await screen.findByText("Creamed Spinach")).toBeTruthy();
@@ -130,12 +144,14 @@ describe("UseItUp", () => {
   it("renders urgency as its own line, separate from the fit reasons", async () => {
     state.pantry = [row()];
     const useBy = Date.now() + 2 * DAY;
-    state.recommend = vi.fn(async () => [
-      rec({
-        urgency: { canonicalItem: "spinach", display: "Spinach", useBy },
-        reasons: ["Uses 2 things you have"],
-      }),
-    ]);
+    state.recommend = vi.fn(
+      ranked([
+        rec({
+          urgency: { canonicalItem: "spinach", display: "Spinach", useBy },
+          reasons: ["Uses 2 things you have"],
+        }),
+      ]),
+    );
     render(<UseItUp />);
 
     const urgent = await screen.findByText(/Use soon — Spinach/);
@@ -147,7 +163,7 @@ describe("UseItUp", () => {
 
   it("omits the urgency line when the ranker reports none", async () => {
     state.pantry = [row()];
-    state.recommend = vi.fn(async () => [rec()]);
+    state.recommend = vi.fn(ranked([rec()]));
     render(<UseItUp />);
 
     expect(await screen.findByText("Creamed Spinach")).toBeTruthy();
@@ -179,6 +195,86 @@ describe("UseItUp", () => {
     await waitFor(() => expect(state.recommend).toHaveBeenCalled());
     expect(screen.queryByRole("list", { name: /recipes/i })).toBeNull();
     expect(await screen.findByText(/no recipe/i)).toBeTruthy();
+  });
+
+  // ── Generated suggestions (BL-0034) ──────────────────────────────────────
+  //
+  // A generated suggestion is an idea a model invented, not a curated and
+  // tested recipe, and it does not exist as a row until the user takes it.
+  describe("generated suggestions", () => {
+    const draft: GeneratedRecipeDraft = {
+      recipeId: "gen-1",
+      title: "Spinach Fried Rice",
+      servings: 2,
+      ingredients: [{ quantity: 1, unit: "cup", item: "rice" }],
+      steps: ["Cook the rice."],
+    };
+    const generatedRec = rec({
+      recipeId: "gen-1",
+      title: "Spinach Fried Rice",
+      source: "generated",
+    });
+
+    it("says a suggestion was invented rather than curated", async () => {
+      state.pantry = [row()];
+      state.recommend = vi.fn(ranked([generatedRec], [draft]));
+      render(<UseItUp />);
+
+      expect(await screen.findByText("Spinach Fried Rice")).toBeTruthy();
+      expect(screen.getByText(/AI idea/i)).toBeTruthy();
+      expect(screen.getByText(/not a tested recipe/i)).toBeTruthy();
+    });
+
+    // A `gen-` id names no stored recipe, so a link to it would be a dead end.
+    it("does not link a generated suggestion to a recipe page", async () => {
+      state.pantry = [row()];
+      state.recommend = vi.fn(ranked([generatedRec], [draft]));
+      render(<UseItUp />);
+
+      await screen.findByText("Spinach Fried Rice");
+      expect(screen.queryByRole("link", { name: "Spinach Fried Rice" })).toBeNull();
+    });
+
+    // Accepting is the ONLY moment anything generated is stored. The plan holds
+    // recipe ids, so the draft has to become a real recipe first — planning the
+    // synthetic id would put a row on the week that resolves to nothing.
+    it("saves the draft first, then plans the recipe it created", async () => {
+      state.pantry = [row()];
+      state.recommend = vi.fn(ranked([generatedRec], [draft]));
+      render(<UseItUp />);
+
+      const button = await screen.findByRole("button", { name: /Add Spinach Fried Rice to plan/i });
+      button.click();
+
+      await waitFor(() => expect(state.accept).toHaveBeenCalledTimes(1));
+      expect(state.accept).toHaveBeenCalledWith({
+        title: "Spinach Fried Rice",
+        servings: 2,
+        ingredients: draft.ingredients,
+        steps: draft.steps,
+      });
+      await waitFor(() =>
+        expect(state.addToBasket).toHaveBeenCalledWith({ recipeId: "saved-1", title: "Saved" }),
+      );
+    });
+
+    // The ordinary path must not gain a save it never needed.
+    it("plans a corpus recipe directly, with no save step", async () => {
+      state.pantry = [row()];
+      state.recommend = vi.fn(ranked([rec()]));
+      render(<UseItUp />);
+
+      const button = await screen.findByRole("button", { name: /Add Creamed Spinach to plan/i });
+      button.click();
+
+      await waitFor(() =>
+        expect(state.addToBasket).toHaveBeenCalledWith({
+          recipeId: "r1",
+          title: "Creamed Spinach",
+        }),
+      );
+      expect(state.accept).not.toHaveBeenCalled();
+    });
   });
 
   // Recommendations are additive: a dead ranker must not take the expiry
