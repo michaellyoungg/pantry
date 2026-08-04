@@ -143,6 +143,10 @@ func AggregateScaled(entries []ScaledRecipe) []GroceryLine {
 			Quantity:      qty,
 			Aisle:         a.aisle,
 			Sources:       sources,
+			// Computed here, on the summed line, and never per recipe: two recipes
+			// each wanting 2 tbsp of parsley share one bunch, and pack arithmetic
+			// done before aggregation would have bought two.
+			Purchase: normalizer.purchaseFor(k.item, a.dim, a.base, qty, unit),
 		})
 	}
 
