@@ -212,6 +212,48 @@ from a curated seed set**, which the user sees and can edit. The facet becomes
 ingredient-grounded data at capture time and nothing is ever excluded invisibly.
 The label itself is stored for later facet scoring.
 
+##### Canonicalization on entry, and allergen families (BL-0052)
+
+Increment 1 shipped this as an exact match on a canonical key against an entry
+that had only been lowercased, which meant two silent failures. `scallion` never
+matched anything, because the dictionary calls it `green onion`; and `peanut`
+never removed peanut butter, because they are different canonical items. Both
+look identical to a working filter from the outside — and for a declared allergy,
+"looks like it worked" is the whole problem.
+
+**Entries are resolved before they are stored.** `preferences.addAvoidItems` is
+an *action* (a mutation cannot make the HTTP call) and resolves each entry
+through `POST /normalization/avoid` — a sibling of `/normalization/lookup` that
+answers one-to-one and in order, because lookup collapses duplicates and so
+cannot say what any particular entry became. Resolving at write time rather than
+at scoring time also keeps the stored row honest: `scallion` sitting in
+`avoidItems` reads as a filter to everything else that touches the table.
+
+The write **fails closed**, like the filter it feeds: if the dictionary cannot be
+reached, nothing is stored and the user is told to retry. Removing an entry needs
+no dictionary and stays a plain mutation.
+
+**Allergen families are a small, explicit grouping** in `normalization.json` —
+the common allergens (peanut, tree nut, milk, egg, fish, shellfish, wheat, soy,
+sesame), not a general ontology of what food is made of. Membership is listed per
+family rather than as a field per item, because items belong to more than one
+(egg noodles are egg *and* wheat) and because the only useful review question —
+"does this list miss a dairy product?" — cannot be asked of 300 scattered
+records. `Normalizer` refuses to load a family listing an item that does not
+exist, or a name two families claim: both are the same silent no-match in
+different clothes.
+
+Family names beat the identically-named item when resolving an entry, so `milk`
+means dairy and `peanut` means the family. That errs toward removing too much,
+which for an allergen is the survivable direction — and it is not invisible: the
+resolution comes back with the members it covers, and the settings screen states
+them. Which is the same rule diet seeds already follow.
+
+**Every entry reports what it matched**, including the ones that matched nothing.
+That case is stated in the UI rather than swallowed, for the reason the
+unrecognized-ingredient rule below gives, and doubles as dictionary-coverage
+feedback (BL-0031).
+
 #### Graceful degradation
 
 Both rankers share one scoring shape. Every feature reports a value *and*

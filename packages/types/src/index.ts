@@ -385,6 +385,33 @@ export interface RecommendationPreferences {
 }
 
 /**
+ * What one avoid-list entry turned out to be (BL-0052).
+ *
+ * - `item` — one canonical ingredient.
+ * - `allergen` — a whole family, which excludes every one of its `members`.
+ * - `unknown` — the dictionary has never seen this text, so the entry will
+ *   remove no recipe. That case is the reason this type exists: an avoid entry
+ *   that silently matches nothing is the bug, and for a declared allergy it is
+ *   not a cosmetic one.
+ *
+ * Mirrors Go recipe.AvoidResolution, the wire shape of POST /normalization/avoid.
+ */
+export type AvoidResolutionKind = "item" | "allergen" | "unknown";
+
+export interface AvoidResolution {
+  /** The text the user actually typed, so a client can say "scallion → green onion". */
+  input: string;
+  /** What gets STORED: a canonical item key, a family key, or the normalized text. */
+  canonicalItem: string;
+  display: string;
+  kind: AvoidResolutionKind;
+  /** Display names of everything an allergen family excludes. `allergen` only. */
+  members?: string[];
+  /** Families a single item belongs to — a nudge toward the broader entry. `item` only. */
+  families?: string[];
+}
+
+/**
  * One nutrition goal as the recommender sees it (BL-0040). Mirrors Go
  * recommend.NutritionTarget — the stored `nutritionTargets` row minus `active`,
  * because only active goals are ever sent.

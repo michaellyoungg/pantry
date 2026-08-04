@@ -14,6 +14,28 @@ export default defineSchema({
     // Ingredient-grounded — active now. avoidItems is a HARD FILTER: a recipe
     // containing one is removed, never merely down-weighted.
     avoidItems: v.array(v.string()),
+    // What each avoid entry RESOLVED to, keyed by the canonicalItem stored in
+    // avoidItems above (BL-0052). It is what lets the settings screen keep
+    // saying "you typed scallion; this removes green onion" — and, for an entry
+    // the dictionary does not recognize, "this matches nothing" — after a
+    // reload, when the resolution that produced it is long gone.
+    //
+    // Parallel to avoidItems rather than replacing it: avoidItems is what the
+    // ranker filters on and every other reader already understands, and a row
+    // written before this field existed must keep working. Absent means "we
+    // never recorded what this entry was", which the UI states as exactly that
+    // rather than dressing up as a match.
+    avoidResolutions: v.optional(
+      v.array(
+        v.object({
+          canonicalItem: v.string(),
+          input: v.string(),
+          display: v.string(),
+          kind: v.union(v.literal("item"), v.literal("allergen"), v.literal("unknown")),
+          members: v.optional(v.array(v.string())),
+        }),
+      ),
+    ),
     likedItems: v.array(v.string()),
     dislikedItems: v.array(v.string()),
     // Facets — captured, inert. Selecting a diet label PRE-FILLS avoidItems

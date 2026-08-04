@@ -116,6 +116,13 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
 
   // The peanut recipe: two ingredient rows, added with the "+ ingredient"
   // button. Never added to the basket, so it stays an eligible candidate.
+  //
+  // Its allergen ingredient is deliberately NOT the word the avoid entry uses:
+  // it says "creamy peanut butter", and the entry below says "peanut". Nothing
+  // matches on that pair unless the entry is canonicalized to the peanut
+  // allergen family and the recipe text is canonicalized to a member of it
+  // (BL-0052). The identity case — same word both sides — passed for years
+  // while the feature did not work.
   const title = `Peanut Garlic ${uniqueSuffix()}`;
   await navigateTo(page, "Recipes");
   await page.getByPlaceholder("Title").fill(title);
@@ -125,7 +132,7 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByRole("button", { name: "+ ingredient" }).click();
   await page.getByRole("spinbutton").last().fill("2");
   await page.getByPlaceholder("unit").last().fill("tbsp");
-  await page.getByPlaceholder("item").last().fill("peanut");
+  await page.getByPlaceholder("item").last().fill("creamy peanut butter");
   await page.getByRole("button", { name: "Create recipe" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
 
@@ -153,13 +160,50 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   // Scoped to the Preferences card: /settings also hosts BL-0038's nutrition
   // goals, whose "Add a goal" card has its own "Add" button, so an unscoped
   // getByRole("button", { name: "Add" }) matches two elements and throws.
-  await page.goto("/settings");
+  await navigateTo(page, "Settings");
   const prefs = page.locator("section").filter({ hasText: "Preferences" });
   await prefs.getByPlaceholder("Ingredient to avoid").fill("peanut");
   await prefs.getByRole("button", { name: "Add" }).click();
-  await expect(prefs.getByText("peanut")).toBeVisible();
+  // The entry is resolved through the dictionary before it is stored, so the
+  // chip carries the family's display name rather than the typed text, and the
+  // note says what the family covers. Both are the user-visible proof that
+  // something was actually matched.
+  await expect(
+    prefs
+      .getByRole("list", { name: "Ingredients you avoid" })
+      .getByRole("listitem")
+      .filter({ hasText: "Peanuts" }),
+  ).toBeVisible();
+  await expect(prefs.getByText(/also removes recipes with/i)).toBeVisible();
 
   await navigateTo(page, "Pantry");
   await expect(suggestions(page).getByText(control)).toBeVisible({ timeout: 15_000 });
   await expect(suggestions(page).getByText(title)).toHaveCount(0);
+});
+
+// The silent-no-match case, in a real browser against the real dictionary.
+//
+// It gets its own test rather than an assertion tacked onto the one above,
+// because it is the failure the whole feature turns on: an avoid entry that
+// matches nothing looked exactly like one that worked, and a user with an
+// allergy had no way to tell which they had.
+test("says plainly when an avoid entry matches no known ingredient", async ({ page }) => {
+  await signUp(page);
+  await navigateTo(page, "Settings");
+
+  const prefs = page.locator("section").filter({ hasText: "Preferences" });
+  await prefs.getByPlaceholder("Ingredient to avoid").fill("unobtainium");
+  await prefs.getByRole("button", { name: "Add" }).click();
+
+  await expect(prefs.getByText(/doesn’t match any ingredient we know/i)).toBeVisible();
+
+  // A typed synonym, by contrast, is resolved and says so.
+  await prefs.getByPlaceholder("Ingredient to avoid").fill("scallion");
+  await prefs.getByRole("button", { name: "Add" }).click();
+  await expect(
+    prefs
+      .getByRole("list", { name: "Ingredients you avoid" })
+      .getByRole("listitem")
+      .filter({ hasText: "Green onion" }),
+  ).toBeVisible();
 });

@@ -148,6 +148,15 @@ func urgentOrNil(m match) *Urgency {
 	return m.mostUrgent
 }
 
+// containsAvoided reports whether any ingredient is on the avoid list, matching
+// on two keys per ingredient: its canonical item, and each allergen family it
+// belongs to.
+//
+// The family arm is what makes the list mean what its UI says (BL-0052). An
+// entry is stored canonicalized, so "scallion" arrives here as "green onion" and
+// matches an ingredient written as "chopped scallions"; and an entry that names
+// a family — "peanut" — matches peanut butter, which no exact match on a
+// canonical key ever could.
 func containsAvoided(c Candidate, avoid map[string]bool) bool {
 	if len(avoid) == 0 {
 		return false
@@ -155,6 +164,11 @@ func containsAvoided(c Candidate, avoid map[string]bool) bool {
 	for _, ing := range c.Ingredients {
 		if avoid[ing.CanonicalItem] {
 			return true
+		}
+		for _, family := range ing.Allergens {
+			if avoid[family] {
+				return true
+			}
 		}
 	}
 	return false

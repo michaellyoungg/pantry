@@ -107,7 +107,16 @@ func matchCandidate(c Candidate, v pantryView) match {
 		case v.owned[ing.CanonicalItem]:
 			m.have = append(m.have, ing.CanonicalItem)
 		default:
-			m.missing = append(m.missing, MissingItem(ing))
+			// Spelled out field by field rather than converted between the two
+			// structs: a missing-ingredient line is a shopping errand, and it
+			// says only what the user has to buy. Allergen membership rides on
+			// CandidateIngredient for the hard filter and has no business in
+			// this list.
+			m.missing = append(m.missing, MissingItem{
+				CanonicalItem: ing.CanonicalItem,
+				Display:       ing.Display,
+				Staple:        ing.Staple,
+			})
 			if !ing.Staple {
 				m.missingNonStaple++
 			}

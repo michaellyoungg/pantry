@@ -146,6 +146,10 @@ func toCandidates(recs []Recipe, source string) []recommend.Candidate {
 				// errand (BL-0031). recommend deliberately owns no data, so the
 				// answer has to be attached here, at the edge that has it.
 				Staple: d.Staple,
+				// Same reasoning for allergen families (BL-0052): canonicalizing
+				// the recipe's text is what lets an avoid entry for "peanut"
+				// reach an ingredient line that says "creamy peanut butter".
+				Allergens: d.Allergens,
 			})
 		}
 		out = append(out, recommend.Candidate{

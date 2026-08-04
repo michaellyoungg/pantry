@@ -67,10 +67,37 @@ type purchaseDef struct {
 	SizeUnit string  `json:"sizeUnit"`
 }
 
+// allergenDef is one coarse allergen family: the common allergens people
+// actually declare, not a general ontology of what an ingredient is made of.
+//
+// Membership is listed HERE, family by family, rather than as a field on each
+// item record. Two reasons. An item can belong to more than one family — "egg
+// noodles" is egg and wheat — which a single field cannot express. And a family
+// is only reviewable as a whole: the question you have to be able to ask of this
+// data is "does this list miss a dairy product?", and that question is
+// unanswerable when the answer is spread over 300 item records.
+type allergenDef struct {
+	Display string `json:"display"`
+	// Names is the text a user might type that MEANS this family. Several of
+	// them ("egg", "milk", "peanut") are also canonical item keys; avoid-list
+	// resolution deliberately reads them as the family, because someone who
+	// types "milk" into a list whose stated job is removing recipes is far more
+	// likely to mean dairy than to mean the carton specifically. Nothing is
+	// hidden by that choice: the resolution reports every member it expanded to.
+	Names []string `json:"names"`
+	// Items are the canonical item keys in this family. Every one is checked
+	// against the item table at load time — a member that matches no item is
+	// exactly the silent-no-match failure this whole grouping exists to fix, so
+	// it must not be possible to ship one.
+	Items []string `json:"items"`
+}
+
 type normalizationData struct {
 	Units    map[string]unitDef `json:"units"`
 	Synonyms map[string]string  `json:"synonyms"`
 	Items    map[string]itemDef `json:"items"`
+	// Allergens is keyed by family key ("peanut", "tree nut"). See allergenDef.
+	Allergens map[string]allergenDef `json:"allergens"`
 	// Modifiers are words that describe how an ingredient was prepared, sized or
 	// graded WITHOUT changing what it is: "chopped", "large", "low-sodium". Real
 	// imported text is mostly modifiers ("1/4 cup chopped fresh cilantro"), and
@@ -113,6 +140,15 @@ type ItemDetails struct {
 	// Staple reports whether this is a keep-on-hand ingredient. False for every
 	// unknown item: we do not assume something we failed to recognize is one.
 	Staple bool `json:"staple,omitempty"`
+	// Allergens are the allergen families this item belongs to, sorted, or empty
+	// for an item in none (and for every unknown item — an ingredient we do not
+	// recognize is one whose allergens we cannot claim to know).
+	//
+	// It is a LIST because families overlap: egg noodles are both egg and wheat.
+	// Recommendations reads it to make avoiding a family exclude its members
+	// (BL-0052) — "peanut" removing peanut butter — which an exact match on the
+	// canonical key alone can never do.
+	Allergens []string `json:"allergens,omitempty"`
 	// Pack is the typical purchase size, when the dataset knows one. Nil means
 	// "sold however the recipe measures it, as far as we know" — see
 	// itemDef.Purchase on why that is common and deliberate.
@@ -146,6 +182,12 @@ type Normalizer struct {
 	ladders   map[string][]displayUnit // dimension -> rungs, smallest toBase first
 	aisleIdx  map[string]int
 	modifiers map[string]bool
+	// itemAllergens is the allergens table inverted: canonical item -> sorted
+	// family keys. Built once, because the lookup it serves runs per ingredient
+	// line of every candidate recipe on every recommendation request.
+	itemAllergens map[string][]string
+	// allergenByName maps every name a family answers to -> family key.
+	allergenByName map[string]string
 }
 
 func loadNormalizer(raw []byte) (*Normalizer, error) {
@@ -190,7 +232,67 @@ func loadNormalizer(raw []byte) (*Normalizer, error) {
 			return nil, fmt.Errorf("item %q: purchase.sizeUnit %q is not a convertible unit", name, p.SizeUnit)
 		}
 	}
-	return &Normalizer{data: d, ladders: ladders, aisleIdx: aisleIdx, modifiers: mods}, nil
+	itemAllergens, allergenByName, err := loadAllergens(d)
+	if err != nil {
+		return nil, err
+	}
+	return &Normalizer{
+		data:           d,
+		ladders:        ladders,
+		aisleIdx:       aisleIdx,
+		modifiers:      mods,
+		itemAllergens:  itemAllergens,
+		allergenByName: allergenByName,
+	}, nil
+}
+
+// loadAllergens inverts the allergen families into the two lookup tables the
+// normalizer serves, and REFUSES data that could not do its job.
+//
+// Both rejections are the same failure in different clothes: an allergen entry
+// that matches nothing. A member naming an item that does not exist, or two
+// families claiming the same name, would both leave a user with a declared
+// allergy silently unprotected — and neither shows up as an error at request
+// time, only as recipes that were never filtered. So they fail at load, which is
+// process start, which is CI.
+func loadAllergens(d normalizationData) (itemAllergens map[string][]string, byName map[string]string, err error) {
+	itemAllergens = map[string][]string{}
+	byName = map[string]string{}
+	for _, family := range sortedKeys(d.Allergens) {
+		def := d.Allergens[family]
+		for _, item := range def.Items {
+			if _, ok := d.Items[item]; !ok {
+				return nil, nil, fmt.Errorf(
+					"allergen family %q lists %q, which is not a canonical item: it would filter nothing",
+					family, item)
+			}
+			itemAllergens[item] = append(itemAllergens[item], family)
+		}
+		for _, name := range def.Names {
+			name = strings.ToLower(strings.TrimSpace(name))
+			if name == "" {
+				return nil, nil, fmt.Errorf("allergen family %q has an empty name", family)
+			}
+			if other, dup := byName[name]; dup {
+				return nil, nil, fmt.Errorf(
+					"allergen name %q is claimed by both %q and %q", name, other, family)
+			}
+			byName[name] = family
+		}
+	}
+	for item := range itemAllergens {
+		sort.Strings(itemAllergens[item])
+	}
+	return itemAllergens, byName, nil
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 var normalizer = mustLoadNormalizer()
@@ -323,6 +425,7 @@ func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
 		ShelfLifeDays: shelf,
 		Category:      it.Category,
 		Staple:        it.Staple,
+		Allergens:     n.itemAllergens[canonical],
 		Pack:          pack,
 		Known:         true,
 	}
