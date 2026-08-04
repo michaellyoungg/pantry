@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sort"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -58,7 +57,6 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
-	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
 	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
@@ -275,10 +273,6 @@ func (h *handlers) groceryList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, AggregateScaled(entries))
 }
 
-// maxRecipesUsing caps the "cook these" suggestions. The nudge is a prompt, not
-// a search results page — a long list is the nag BL-0029 exists to avoid.
-const maxRecipesUsing = 5
-
 // normalizationLookup exposes the shelf-life/aisle table to Convex, which
 // cannot hold a copy of it: canonicalization (synonyms, plural folding) lives
 // here, and a duplicated table would drift the moment either side is edited.
@@ -303,78 +297,14 @@ func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
 }
 
-// recipesUsing answers "what can I cook with these before they go off". It
-// searches the caller's recipes and the shared catalog — a new user's pantry
-// would otherwise match nothing — and ranks by how many of the items a recipe
-// uses, so the suggestion that clears the most is first.
-func (h *handlers) recipesUsing(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Items []string `json:"items"`
-	}
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-	wanted := make(map[string]bool, len(req.Items))
-	for _, raw := range req.Items {
-		if canonical, _, _ := normalizer.CanonicalItem(raw); canonical != "" {
-			wanted[canonical] = true
-		}
-	}
-	if len(wanted) == 0 {
-		writeJSON(w, http.StatusOK, []RecipeMatch{})
-		return
-	}
-
-	userID := userIDFrom(r.Context())
-	recs, err := h.store.ListRecipes(r.Context(), userID)
-	if err != nil {
-		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
-		return
-	}
-	if userID != CatalogUserID {
-		catRecs, err := h.store.ListRecipes(r.Context(), CatalogUserID)
-		if err != nil {
-			writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
-			return
-		}
-		recs = append(recs, catRecs...)
-	}
-
-	matches := make([]RecipeMatch, 0, len(recs))
-	for _, rec := range recs {
-		hit := map[string]bool{}
-		matched := []string{}
-		for _, ing := range rec.Ingredients {
-			canonical, _, _ := normalizer.CanonicalItem(ing.Item)
-			if wanted[canonical] && !hit[canonical] {
-				hit[canonical] = true
-				matched = append(matched, canonical)
-			}
-		}
-		if len(matched) > 0 {
-			matches = append(matches, RecipeMatch{Recipe: rec, MatchedItems: matched})
-		}
-	}
-	sort.SliceStable(matches, func(i, j int) bool {
-		if len(matches[i].MatchedItems) != len(matches[j].MatchedItems) {
-			return len(matches[i].MatchedItems) > len(matches[j].MatchedItems)
-		}
-		return matches[i].Title < matches[j].Title
-	})
-	if len(matches) > maxRecipesUsing {
-		matches = matches[:maxRecipesUsing]
-	}
-	writeJSON(w, http.StatusOK, matches)
-}
-
 // equipmentMatch answers "can I make this?" for a whole recipe library at once.
 //
 // Inventory lives in Convex — it is reactive user state like the basket — and
 // the recipe tags live here, so the owned slugs arrive in the request body and
 // the join happens where the recipe data already is. That is the same split
-// POST /grocery-list and POST /recipes/using use.
+// POST /grocery-list and POST /recommendations/pantry use.
 //
-// Like recipesUsing it searches the caller's recipes plus the shared catalog: a
+// Like the recommender it searches the caller's recipes plus the shared catalog: a
 // new user owns no recipes, and an empty screen is not an answer.
 //
 // Note what this deliberately does NOT do: it never drops a recipe from the
