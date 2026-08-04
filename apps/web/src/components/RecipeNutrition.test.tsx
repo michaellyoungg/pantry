@@ -46,12 +46,14 @@ describe("RecipeNutrition", () => {
 
     expect(await screen.findByText("950 kcal")).toBeTruthy();
     expect(screen.getByText("30.5 g")).toBeTruthy();
-    expect(screen.getByText(/Estimated · whole recipe/)).toBeTruthy();
+    // No yield (BL-0035 leaves it nullable) means no serving to divide by, and
+    // the panel says so rather than guessing one.
+    expect(screen.getByText("Entire recipe")).toBeTruthy();
     expect(actionMock).toHaveBeenCalledWith({ id: "r1" });
   });
 
-  // With a yield (BL-0035) the per-serving figure leads and the total follows.
-  it("leads with per-serving amounts when the recipe has a yield", async () => {
+  // With a yield (BL-0035) the panel reports per serving, as a real label does.
+  it("reports per-serving amounts when the recipe has a yield", async () => {
     actionMock.mockResolvedValue(
       estimate({
         servings: 4,
@@ -64,8 +66,32 @@ describe("RecipeNutrition", () => {
     render(<RecipeNutrition recipeId="r1" />);
 
     expect(await screen.findByText("238 kcal")).toBeTruthy();
-    expect(screen.getByText(/Estimated · per serving of 4/)).toBeTruthy();
-    expect(screen.getByText("(950 kcal total)")).toBeTruthy();
+    expect(screen.getByText("4 servings per recipe")).toBeTruthy();
+    // The server's own per-serving vector is what is shown; we never divide the
+    // whole-recipe total by a yield ourselves.
+    expect(screen.queryByText("950 kcal")).toBeNull();
+  });
+
+  it("renders the panel as the familiar Nutrition Facts label", async () => {
+    actionMock.mockResolvedValue(estimate());
+    render(<RecipeNutrition recipeId="r1" />);
+
+    expect(await screen.findByRole("table")).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "Calories" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "% Daily Value" })).toBeTruthy();
+    // No targets are mocked, so the personal column collapses away.
+    expect(screen.queryByRole("columnheader", { name: "% of your goal" })).toBeNull();
+  });
+
+  it("prints an em-dash for nutrients the estimate does not carry", async () => {
+    actionMock.mockResolvedValue(estimate());
+    render(<RecipeNutrition recipeId="r1" />);
+
+    const sodium = (await screen.findByRole("rowheader", { name: "Sodium" })).closest("tr");
+    expect(sodium?.textContent).toContain("—");
+    // Never a zero: this estimate has no sodium figure, which is not the same
+    // as a recipe with no sodium in it.
+    expect(sodium?.textContent).not.toContain("0 mg");
   });
 
   // The contract that matters: a low-coverage recipe must not show a number.
@@ -85,6 +111,10 @@ describe("RecipeNutrition", () => {
     expect(await screen.findByText(/Not enough of this recipe/)).toBeTruthy();
     expect(screen.getByText("gochujang, tempeh")).toBeTruthy();
     expect(screen.queryByText("950 kcal")).toBeNull();
+    // The panel is the surface that most looks like an official measurement, so
+    // the coverage threshold has to suppress the whole thing — not just blank
+    // its cells.
+    expect(screen.queryByRole("table")).toBeNull();
   });
 
   it("names skipped ingredients even when coverage is good", async () => {

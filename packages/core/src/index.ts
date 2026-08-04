@@ -42,6 +42,15 @@ export {
   unresolvedItems,
 } from "./nutrition";
 export {
+  DAILY_VALUES,
+  type DailyValue,
+  hasTargetColumn,
+  type NutritionFactsGroup,
+  type NutritionFactsOptions,
+  type NutritionFactsRow,
+  nutritionFactsLabel,
+} from "./nutritionFacts";
+export {
   type DayExclusionReason,
   type DayPoint,
   type DaySummary,

@@ -1,7 +1,7 @@
 ---
 id: BL-0049
 title: Nutrition Facts panel — show estimates as the US Daily Value label people already know
-status: in-progress
+status: done
 area: nutrition
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md]
