@@ -1,7 +1,7 @@
 ---
 id: BL-0040
 title: Nutrition-aware recommendations — targets as a scoring dimension
-status: in-progress
+status: done
 area: recommendations
 effort: M
 related_specs: [2026-08-03-nutrition-system-design.md]

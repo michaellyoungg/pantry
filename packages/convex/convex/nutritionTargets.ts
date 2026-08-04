@@ -25,6 +25,8 @@ const targetInput = {
   value: v.number(),
   period: periodValidator,
   label: v.optional(v.string()),
+  // BL-0040: whether breaking this goal disqualifies a recipe outright.
+  hard: v.optional(v.boolean()),
 };
 
 type TargetInput = {
@@ -33,6 +35,7 @@ type TargetInput = {
   value: number;
   period: Doc<"nutritionTargets">["period"];
   label?: string;
+  hard?: boolean;
 };
 
 async function requireUser(ctx: { auth: MutationCtx["auth"] }): Promise<string> {
@@ -76,7 +79,14 @@ async function upsert(
     .first();
 
   if (existing) {
-    await ctx.db.patch(existing._id, { ...input, active: true });
+    // `hard` survives an unmentioning re-set. Re-tuning the number on a
+    // constraint the user marked as hard must not quietly demote it to a
+    // suggestion — a patch with an absent field would delete it.
+    await ctx.db.patch(existing._id, {
+      ...input,
+      hard: input.hard ?? existing.hard,
+      active: true,
+    });
     return existing._id;
   }
   return await ctx.db.insert("nutritionTargets", { userId, ...input, active: true });
@@ -120,6 +130,23 @@ export const setActive = mutation({
     const userId = await requireUser(ctx);
     await ownedTarget(ctx, userId, id);
     await ctx.db.patch(id, { active });
+  },
+});
+
+/**
+ * Promote a goal to a hard constraint, or demote it back to a preference.
+ *
+ * Separate from `add` because it is a different decision: `add` is about the
+ * number, this is about what breaking it means. Keeping them apart is also what
+ * lets the goal editor offer it as a toggle on an existing row rather than
+ * making the user re-enter a target to change its severity.
+ */
+export const setHard = mutation({
+  args: { id: v.id("nutritionTargets"), hard: v.boolean() },
+  handler: async (ctx, { id, hard }) => {
+    const userId = await requireUser(ctx);
+    await ownedTarget(ctx, userId, id);
+    await ctx.db.patch(id, { hard });
   },
 });
 
