@@ -34,12 +34,40 @@ type itemDef struct {
 	// than a taxonomy invented to fill a column. Empty means "unclassified",
 	// which no category rule matches.
 	Category string `json:"category,omitempty"`
+	// Staple marks an ingredient a cook is assumed to keep on hand — salt,
+	// pepper, oil, flour, sugar, the dried spice rack. Recommendations reads it
+	// so a recipe is not penalized for a missing pinch of salt the way it is for
+	// missing chicken (BL-0005's missingNonStaple, unblocked by BL-0031).
+	//
+	// It is an explicit flag rather than an inference from the pantry aisle
+	// because that bucket holds flour and canned tomatoes side by side: too
+	// coarse to drive a scoring penalty. Absent means NOT a staple, which is the
+	// conservative default — an unknown ingredient counts against a recipe.
+	Staple bool `json:"staple,omitempty"`
 }
 
 type normalizationData struct {
 	Units    map[string]unitDef `json:"units"`
 	Synonyms map[string]string  `json:"synonyms"`
 	Items    map[string]itemDef `json:"items"`
+	// Modifiers are words that describe how an ingredient was prepared, sized or
+	// graded WITHOUT changing what it is: "chopped", "large", "low-sodium". Real
+	// imported text is mostly modifiers ("1/4 cup chopped fresh cilantro"), and
+	// they are what made dictionary coverage collapse on real recipes while
+	// looking healthy against tidy item names (BL-0031).
+	//
+	// Stripping them is guarded exactly like plural folding: the result is
+	// accepted ONLY when it is itself a known item or synonym, and only after a
+	// literal lookup has failed. That ordering is what keeps "crushed tomatoes"
+	// and "ground beef" — real, distinct items — from being stripped down to
+	// something else, and the guard is what keeps this from becoming the fuzzy
+	// matching the design rejected: it can never invent a canonical key.
+	//
+	// Words that CHANGE the item are deliberately absent, and must stay absent:
+	// "canned"/"frozen" (canned tomato and frozen pea are their own items),
+	// colours ("red onion", "white wine", "black bean"), nationalities ("italian
+	// seasoning") and "smoked" ("smoked salmon" is not salmon).
+	Modifiers []string `json:"modifiers"`
 	// AisleShelfLife is the per-aisle fallback for items with no explicit
 	// shelf life. "other" is deliberately absent: an item we failed to
 	// recognize is one whose shelf life we genuinely do not know, and
@@ -61,6 +89,9 @@ type ItemDetails struct {
 	// Category is the what-is-it axis prep rules match on; empty when the item
 	// is unclassified or unknown. See itemDef.Category.
 	Category string `json:"category,omitempty"`
+	// Staple reports whether this is a keep-on-hand ingredient. False for every
+	// unknown item: we do not assume something we failed to recognize is one.
+	Staple bool `json:"staple,omitempty"`
 	// Known reports whether the dataset actually recognized the item. Unknown
 	// items still get a CanonicalItem — the normalized raw text — so callers
 	// can group by it, but nothing else about them is asserted. Callers that
@@ -79,9 +110,10 @@ type displayUnit struct {
 // embedded normalization dataset. Built once via loadNormalizer; all methods are
 // pure reads.
 type Normalizer struct {
-	data     normalizationData
-	ladders  map[string][]displayUnit // dimension -> rungs, smallest toBase first
-	aisleIdx map[string]int
+	data      normalizationData
+	ladders   map[string][]displayUnit // dimension -> rungs, smallest toBase first
+	aisleIdx  map[string]int
+	modifiers map[string]bool
 }
 
 func loadNormalizer(raw []byte) (*Normalizer, error) {
@@ -104,7 +136,11 @@ func loadNormalizer(raw []byte) (*Normalizer, error) {
 	for i, a := range d.AisleOrder {
 		aisleIdx[a] = i
 	}
-	return &Normalizer{data: d, ladders: ladders, aisleIdx: aisleIdx}, nil
+	mods := make(map[string]bool, len(d.Modifiers))
+	for _, m := range d.Modifiers {
+		mods[strings.ToLower(strings.TrimSpace(m))] = true
+	}
+	return &Normalizer{data: d, ladders: ladders, aisleIdx: aisleIdx, modifiers: mods}, nil
 }
 
 var normalizer = mustLoadNormalizer()
@@ -127,13 +163,38 @@ func (n *Normalizer) CanonicalItem(raw string) (canonical, display, aisle string
 
 // Details is CanonicalItem plus shelf life. Resolution order is
 // per-item -> aisle default -> none.
+//
+// The order of the ATTEMPTS below is load-bearing. Each one is a guess about
+// text we did not literally recognize, so the least presumptuous runs first and
+// a literal hit always wins: "crushed tomatoes" is looked up before anything is
+// allowed to strip "crushed" off it.
 func (n *Normalizer) Details(raw string) ItemDetails {
 	norm := strings.ToLower(strings.TrimSpace(raw))
+	if d, ok := n.resolve(norm); ok {
+		return d
+	}
+	// Modifier stripping — the prepared/sized/graded words that real recipe
+	// lines are full of. Guarded the same way plural folding is: the remainder
+	// only counts if the table already knows it. See normalizationData.Modifiers.
+	for _, cand := range n.strippedCandidates(norm) {
+		if d, ok := n.resolve(cand); ok {
+			return d
+		}
+	}
+	// Unknown items still get a canonical key — the ORIGINAL normalized text,
+	// not a stripped guess — so callers can group by it and so the coverage
+	// report names the string a dictionary entry would have to match.
+	return ItemDetails{CanonicalItem: norm, Display: strings.TrimSpace(raw), Aisle: "other"}
+}
+
+// resolve looks up already-normalized text: literal, then guarded plural fold.
+// ok is false when the table knows nothing about it.
+func (n *Normalizer) resolve(norm string) (ItemDetails, bool) {
 	if syn, ok := n.data.Synonyms[norm]; ok {
 		norm = syn
 	}
 	if it, ok := n.data.Items[norm]; ok {
-		return n.detailsFor(norm, it)
+		return n.detailsFor(norm, it), true
 	}
 	// Guarded plural folding. Real ingredient text is overwhelmingly plural
 	// ("2 tomatoes", "3 eggs") while the table is keyed on singulars, so a
@@ -145,10 +206,55 @@ func (n *Normalizer) Details(raw string) ItemDetails {
 			cand = syn
 		}
 		if it, ok := n.data.Items[cand]; ok {
-			return n.detailsFor(cand, it)
+			return n.detailsFor(cand, it), true
 		}
 	}
-	return ItemDetails{CanonicalItem: norm, Display: strings.TrimSpace(raw), Aisle: "other"}
+	return ItemDetails{}, false
+}
+
+// strippedCandidates peels modifier words off the OUTSIDE of the text and
+// returns every form worth trying, least-aggressive first.
+//
+// Two properties earn their keep:
+//
+//   - Peeling from the edges only. A modifier in the middle is left alone,
+//     because the words around it are then part of a compound name we have no
+//     licence to take apart.
+//   - Least aggressive first, stopping at the first hit. "crumbled blue cheese"
+//     resolves to blue cheese by dropping "crumbled" alone; a single pass that
+//     dropped every modifier at once would also eat "cheese" and be left
+//     holding "blue". Trying the smallest edit first is what keeps the strip
+//     from overshooting a real item.
+//
+// The empty window is never produced: text made entirely of modifiers ("chopped
+// fresh") names no ingredient, and resolving it to whatever the empty key hit
+// would be exactly the confident-wrong-join this design exists to avoid.
+func (n *Normalizer) strippedCandidates(norm string) []string {
+	fields := strings.Fields(norm)
+	if len(fields) < 2 {
+		return nil
+	}
+	// A window [lo,hi) is reachable only if everything outside it is a modifier.
+	maxLo := 0
+	for maxLo < len(fields) && n.modifiers[fields[maxLo]] {
+		maxLo++
+	}
+	minHi := len(fields)
+	for minHi > 0 && n.modifiers[fields[minHi-1]] {
+		minHi--
+	}
+	var out []string
+	// Ordered by how much is removed: one word, then two, and so on.
+	for removed := 1; removed < len(fields); removed++ {
+		for lo := 0; lo <= maxLo && lo <= removed; lo++ {
+			hi := len(fields) - (removed - lo)
+			if hi < minHi || hi <= lo {
+				continue
+			}
+			out = append(out, strings.Join(fields[lo:hi], " "))
+		}
+	}
+	return out
 }
 
 func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
@@ -162,6 +268,7 @@ func (n *Normalizer) detailsFor(canonical string, it itemDef) ItemDetails {
 		Aisle:         it.Aisle,
 		ShelfLifeDays: shelf,
 		Category:      it.Category,
+		Staple:        it.Staple,
 		Known:         true,
 	}
 }

@@ -38,7 +38,7 @@ func TestNormalizationLookup_CanonicalizesRawTextAndReturnsShelfLife(t *testing.
 
 func TestNormalizationLookup_OmitsShelfLifeForUnknownItems(t *testing.T) {
 	srv, _ := newTestServer(t)
-	resp := postJSON(t, srv.URL+"/normalization/lookup", `{"items":["sriracha"]}`)
+	resp := postJSON(t, srv.URL+"/normalization/lookup", `{"items":["unobtainium"]}`)
 	defer resp.Body.Close()
 	var raw map[string][]map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {

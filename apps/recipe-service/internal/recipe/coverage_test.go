@@ -13,12 +13,14 @@ import (
 // They are floors rather than exact values: adding entries should be free, and
 // only a DROP is a regression. Raise them when coverage rises — that is the
 // ratchet.
-// These start at the measured BASELINE — what the dictionary managed before
-// BL-0031 touched it — so the first commit is green and the improvement shows up
-// as a raised floor in a later diff rather than as an unverifiable claim.
+// The BL-0031 dictionary work moved these from their measured baseline of 0.93
+// and 0.35. The three lines the corpus still misses are two that name TWO
+// ingredients in one string ("salt and pepper to taste") and one stacked
+// qualifier ("whole milk ricotta cheese") — a splitting problem and a parsing
+// problem, neither of which a dictionary entry can honestly fix.
 const (
-	catalogCoverageFloor = 0.93
-	importCoverageFloor  = 0.35
+	catalogCoverageFloor = 1.0
+	importCoverageFloor  = 0.98
 )
 
 func TestCatalogCoverage(t *testing.T) {
