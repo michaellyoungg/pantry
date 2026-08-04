@@ -1,7 +1,7 @@
 ---
 id: BL-0030
 title: Recipe discovery metadata (cuisine, tags, cook time, source URL)
-status: proposed
+status: in-progress
 area: recipes
 effort: M
 related_specs: [2026-08-03-recommendations-design.md, 2026-07-12-full-app-ux-plan.md]
