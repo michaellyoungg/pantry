@@ -388,6 +388,15 @@ export interface RecommendationRequest {
 export interface RecommendationMissingItem {
   canonicalItem: string;
   display: string;
+  /**
+   * A keep-on-hand ingredient — salt, oil, the spice rack (BL-0031).
+   *
+   * It lets a card say "you have everything but the salt" instead of listing
+   * salt beside chicken as though they were the same errand. Optional because
+   * a client may be reading a response from a service that predates the flag;
+   * absent means "not a staple", the conservative reading.
+   */
+  staple?: boolean;
 }
 
 /**

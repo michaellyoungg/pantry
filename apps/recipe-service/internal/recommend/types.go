@@ -44,6 +44,14 @@ type UserContext struct {
 type CandidateIngredient struct {
 	CanonicalItem string
 	Display       string
+	// Staple marks a keep-on-hand ingredient — salt, oil, the spice rack. The
+	// CALLER decides, from the normalization dictionary (BL-0031); recommend
+	// only reads the flag, in keeping with this package owning no data.
+	//
+	// False for anything the dictionary does not recognize, which is the
+	// conservative reading: an unknown ingredient is one we cannot promise the
+	// user has, so it counts against the recipe.
+	Staple bool
 }
 
 // Candidate is a recipe reduced to identity plus canonicalized ingredients.
@@ -63,6 +71,10 @@ type Candidate struct {
 type MissingItem struct {
 	CanonicalItem string `json:"canonicalItem"`
 	Display       string `json:"display"`
+	// Staple lets a client say "you have everything but the salt" instead of
+	// listing salt beside chicken as though they were the same problem. It
+	// carries the same value as the CandidateIngredient it came from.
+	Staple bool `json:"staple"`
 }
 
 // Result is one ranked recommendation, carrying the reasons that produced it so
