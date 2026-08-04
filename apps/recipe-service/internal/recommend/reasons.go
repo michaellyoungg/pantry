@@ -25,6 +25,13 @@ func pantryReasons(m match) []string {
 	switch {
 	case len(m.missing) == 0 && len(m.have) > 0:
 		out = append(out, "You have everything")
+	// Missing nothing but staples is much closer to "you have everything" than
+	// to "you need three things", and saying so is the visible half of the
+	// missingNonStaple feature (BL-0031). Without this the scoring change is
+	// real but invisible: the recipe ranks higher for a reason the card never
+	// gives.
+	case m.missingNonStaple == 0 && len(m.have) > 0:
+		out = append(out, "You have everything but pantry staples")
 	case len(m.have) == 1:
 		out = append(out, "Uses 1 thing you have")
 	case len(m.have) > 1:

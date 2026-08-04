@@ -58,6 +58,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
 	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
+	mux.HandleFunc("GET /normalization/coverage", traced(h.normalizationCoverage))
 	mux.HandleFunc("POST /recipes/using", traced(h.recipesUsing))
 	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
 	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
@@ -301,6 +302,36 @@ func (h *handlers) normalizationLookup(w http.ResponseWriter, r *http.Request) {
 		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, map[string][]ItemDetails{"items": out})
+}
+
+// normalizationCoverage reports how much of the ingredient text in real stored
+// recipes resolves to a canonical item, and names what did not.
+//
+// This is the operator surface BL-0031 asks for: an unresolved ingredient never
+// errors, it just quietly cannot join to anything, so the only way the
+// dictionary grows from real usage instead of guesswork is to be able to LOOK at
+// the misses. It reports over the caller's own recipes plus the shared catalog —
+// the same corpus the recommender ranks — so the number answers "how well does
+// the dictionary serve THIS user", which is the question that matters.
+func (h *handlers) normalizationCoverage(w http.ResponseWriter, r *http.Request) {
+	mine, err := h.store.ListRecipes(r.Context(), userIDFrom(r.Context()))
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list recipes", err)
+		return
+	}
+	catalog, err := h.store.ListRecipes(r.Context(), CatalogUserID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not list catalog", err)
+		return
+	}
+	c := NewCoverageCounter()
+	for _, rec := range mine {
+		c.AddRecipe(rec)
+	}
+	for _, rec := range catalog {
+		c.AddRecipe(rec)
+	}
+	writeJSON(w, http.StatusOK, c.Report())
 }
 
 // recipesUsing answers "what can I cook with these before they go off". It

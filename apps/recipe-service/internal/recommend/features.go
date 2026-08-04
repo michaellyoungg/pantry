@@ -28,6 +28,10 @@ type match struct {
 	missing    []MissingItem
 	useItUpHit []string
 	total      int
+	// missingNonStaple counts the missing items that are NOT assumed on hand.
+	// It is the whole difference between "you are out of chicken" and "you are
+	// out of salt", and it is what the missingNonStaple feature scores.
+	missingNonStaple int
 }
 
 // matchCandidate walks a candidate's ingredients once, de-duplicating by
@@ -49,6 +53,9 @@ func matchCandidate(c Candidate, v pantryView) match {
 			m.have = append(m.have, ing.CanonicalItem)
 		default:
 			m.missing = append(m.missing, MissingItem(ing))
+			if !ing.Staple {
+				m.missingNonStaple++
+			}
 		}
 	}
 	return m
@@ -75,6 +82,19 @@ func pantryFeatures(m match, v pantryView, w Weights) []feature {
 		coverage = float64(len(m.have)) / float64(m.total)
 	}
 
+	// missingNonStaple is a PENALTY, so its value is negative: the share of the
+	// recipe's ingredients you would actually have to go and buy.
+	//
+	// Scoring the non-staple share rather than the raw missing count is what
+	// makes the feature say something coverage does not. Coverage already knows
+	// how much you have; this knows how much of the remainder is a real errand.
+	// A recipe missing only salt scores 0 here — no penalty at all — while one
+	// missing chicken and rice out of eight ingredients scores -0.25.
+	var missingNonStaple float64
+	if m.total > 0 {
+		missingNonStaple = -float64(m.missingNonStaple) / float64(m.total)
+	}
+
 	return []feature{
 		{
 			name:      "useItUpHits",
@@ -85,10 +105,15 @@ func pantryFeatures(m match, v pantryView, w Weights) []feature {
 			// to read, so it must not count as a zero against every candidate.
 		},
 		{name: "coverage", value: coverage, weight: w.Coverage, available: m.total > 0},
+		// Live since BL-0031 shipped the `staple` flag it was waiting on.
+		{
+			name:      "missingNonStaple",
+			value:     missingNonStaple,
+			weight:    w.MissingNonStaple,
+			available: m.total > 0,
+		},
 
 		// --- wired, inert in increment 1 ---
-		// Needs a `staple` flag on canonical items (BL-0031).
-		{name: "missingNonStaple", value: 0, weight: w.MissingNonStaple, available: false},
 		// Needs the interaction event log (increment 2).
 		{name: "affinity", value: 0, weight: w.Affinity, available: false},
 		// Needs plan HISTORY; the basket is current-week only, and current-week

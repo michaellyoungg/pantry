@@ -19,6 +19,7 @@ type recResponse struct {
 		Missing  []struct {
 			CanonicalItem string `json:"canonicalItem"`
 			Display       string `json:"display"`
+			Staple        bool   `json:"staple"`
 		} `json:"missing"`
 	} `json:"results"`
 }
@@ -170,5 +171,62 @@ func TestRecommendPantryRequiresAuth(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// The end-to-end proof that BL-0031 actually unblocked BL-0005's dormant
+// feature: the staple flag has to travel from normalization.json, through
+// canonicalization here, into the ranker. Testing it at the HTTP boundary is
+// what catches the plumbing being wrong even though both halves are right.
+func TestRecommendPantryTreatsMissingStaplesAsCheap(t *testing.T) {
+	srv, store := newTestServer(t)
+	ctx := context.Background()
+	// Both recipes cover the pantry identically; only the third ingredient
+	// differs, and only in whether it is something you must go and buy.
+	if _, err := store.CreateRecipe(ctx, "user-a", "Needs Salt", nil, []Ingredient{
+		{Quantity: 1, Unit: "", Item: "tomato"},
+		{Quantity: 1, Unit: "", Item: "onion"},
+		{Quantity: 1, Unit: "tsp", Item: "kosher salt"},
+	}, nil, nil, nil); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := store.CreateRecipe(ctx, "user-a", "Needs Beef", nil, []Ingredient{
+		{Quantity: 1, Unit: "", Item: "tomato"},
+		{Quantity: 1, Unit: "", Item: "onion"},
+		{Quantity: 1, Unit: "lb", Item: "ground beef"},
+	}, nil, nil, nil); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	out := postRecommendations(t, srv.URL, map[string]any{
+		"pantry": []map[string]any{
+			{"canonicalItem": "tomato", "state": "have"},
+			{"canonicalItem": "onion", "state": "have"},
+		},
+	})
+
+	var salt, beef float64
+	var saltStaple, beefStaple bool
+	for _, r := range out.Results {
+		for _, m := range r.Missing {
+			switch m.CanonicalItem {
+			case "salt":
+				salt, saltStaple = r.Score, m.Staple
+			case "ground beef":
+				beef, beefStaple = r.Score, m.Staple
+			}
+		}
+	}
+	if salt == 0 || beef == 0 {
+		t.Fatalf("expected both recipes back with a missing item, got %+v", out.Results)
+	}
+	if !saltStaple {
+		t.Error(`"kosher salt" should resolve to the staple salt`)
+	}
+	if beefStaple {
+		t.Error("ground beef must not be a staple")
+	}
+	if salt <= beef {
+		t.Fatalf("missing salt scored %v, missing beef %v — the staple flag is not reaching the ranker", salt, beef)
 	}
 }
