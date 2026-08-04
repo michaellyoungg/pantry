@@ -31,9 +31,7 @@ func TestPostgres_TagsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Pulled Pork", nil, nil, []string{"Into the crock pot."},
-		[]RecipeEquipment{{ID: "tongs", Required: false}, {ID: "slow_cooker", Required: true}},
-		[]string{"slow_cook"})
+	created, err := s.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Pulled Pork", Steps: []string{"Into the crock pot."}, Equipment: []RecipeEquipment{{ID: "tongs", Required: false}, {ID: "slow_cooker", Required: true}}, Methods: []string{"slow_cook"}})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -66,14 +64,11 @@ func TestPostgres_UpdateReplacesTags(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil, nil,
-		[]RecipeEquipment{{ID: "oven", Required: true}, {ID: "roasting_pan", Required: true}},
-		[]string{"roast", "bake"})
+	created, err := s.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Roast", Equipment: []RecipeEquipment{{ID: "oven", Required: true}, {ID: "roasting_pan", Required: true}}, Methods: []string{"roast", "bake"}})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", "Smoked", nil, nil, nil,
-		[]RecipeEquipment{{ID: "smoker", Required: true}}, []string{"smoke"})
+	updated, err := s.UpdateRecipe(ctx, created.ID, "user-a", RecipeInput{Title: "Smoked", Equipment: []RecipeEquipment{{ID: "smoker", Required: true}}, Methods: []string{"smoke"}})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -89,8 +84,7 @@ func TestPostgres_DeleteCascadesTags(t *testing.T) {
 	ctx := context.Background()
 	s := newTestPostgres(t)
 
-	created, err := s.CreateRecipe(ctx, "user-a", "Roast", nil, nil, nil,
-		[]RecipeEquipment{{ID: "oven", Required: true}}, []string{"roast"})
+	created, err := s.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Roast", Equipment: []RecipeEquipment{{ID: "oven", Required: true}}, Methods: []string{"roast"}})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

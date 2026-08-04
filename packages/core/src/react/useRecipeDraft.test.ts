@@ -21,6 +21,10 @@ describe("useRecipeDraft", () => {
       steps: [],
       equipment: [],
       methods: [],
+      cuisine: "",
+      totalMinutes: "",
+      tags: [],
+      sourceUrl: "",
       prepTasks: [],
     });
   });
@@ -47,6 +51,10 @@ describe("useRecipeDraft", () => {
       steps: [],
       equipment: [],
       methods: [],
+      cuisine: "",
+      totalMinutes: "",
+      tags: [],
+      sourceUrl: "",
       prepTasks: [],
     });
   });
@@ -111,6 +119,43 @@ describe("useRecipeDraft", () => {
     expect(result.current.submission?.methods).toEqual(["smoke"]);
   });
 
+  it("holds the discovery metadata and carries it into the submission", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => result.current.setTitle("Pad Thai"));
+    act(() => result.current.setCuisine("Thai"));
+    act(() => result.current.setTotalMinutes("35"));
+    act(() => result.current.setTags(["weeknight", "gluten free"]));
+    expect(result.current.submission?.cuisine).toBe("Thai");
+    // Raw field text, like servings: parsing belongs to the client.
+    expect(result.current.submission?.totalMinutes).toBe("35");
+    expect(result.current.submission?.tags).toEqual(["weeknight", "gluten free"]);
+  });
+
+  it("carries an imported source url through to the submission", () => {
+    // Attribution has to survive the review step, or an imported recipe saves
+    // with no link back to where it came from.
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() =>
+      result.current.applyImported({
+        title: "Pad Thai",
+        ingredients: [],
+        cuisine: "thai",
+        totalMinutes: "35",
+        tags: ["weeknight"],
+        sourceUrl: "https://example.com/pad-thai",
+      }),
+    );
+    expect(result.current.submission?.sourceUrl).toBe("https://example.com/pad-thai");
+    expect(result.current.submission?.cuisine).toBe("thai");
+    expect(result.current.submission?.tags).toEqual(["weeknight"]);
+  });
+
+  it("replaces the whole ingredient list when the editor reports one", () => {
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => result.current.setIngredients([{ quantity: 2, unit: "cup", item: "flour" }]));
+    expect(result.current.draft.ingredients).toEqual([{ quantity: 2, unit: "cup", item: "flour" }]);
+  });
+
   it("reset returns to a fresh empty draft", () => {
     const { result } = renderHook(() => useRecipeDraft());
     act(() => {
@@ -126,6 +171,10 @@ describe("useRecipeDraft", () => {
       ingredients: [{ quantity: 1, unit: "", item: "" }],
       equipment: [],
       methods: [],
+      cuisine: "",
+      totalMinutes: "",
+      tags: [],
+      sourceUrl: "",
       prepTasks: [],
     });
   });

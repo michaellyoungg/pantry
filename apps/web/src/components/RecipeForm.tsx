@@ -1,33 +1,33 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
 import type { PrepTaskInput, Recipe } from "@pantry/types";
+import { formatTags, formatTotalMinutes, parseTags, parseTotalMinutes } from "../lib/discovery";
 import { formatServings, parseServings } from "../lib/servings";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
-import { EquipmentEditor } from "./EquipmentEditor";
 import { ErrorText } from "./ErrorText";
-import { PrepEditor } from "./PrepEditor";
-import { ServingsField } from "./ServingsField";
-import { StepsEditor } from "./StepsEditor";
+import { RecipeFields, type RecipeFieldsValue } from "./RecipeFields";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
 export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   // The import-review draft and its transitions live in @pantry/core (BL-0024);
-  // this component only renders them. `servings` stays the raw field text in the
-  // draft and is parsed on the way out, so the draft needs no notion of the
-  // input widget or of the wire format.
+  // this component only renders them. `servings`, `totalMinutes` and the tag
+  // list stay raw field text in the draft and are parsed on the way out, so the
+  // draft needs no notion of the input widgets or of the wire format.
   const {
     draft,
     setTitle,
     setUrl,
     setServings,
-    updateIngredient,
-    addIngredient,
+    setIngredients,
     setSteps,
     setEquipment,
     setMethods,
+    setCuisine,
+    setTotalMinutes,
+    setTags,
     setPrepTasks,
     applyImported,
     reset,
@@ -40,25 +40,59 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
   const { run, error, pending } = useAsyncAction();
   const importAction = useAsyncAction();
 
+  // The draft keeps tags as a list; the shared editor edits them as one comma
+  // separated field. Translating at this boundary keeps the list canonical.
+  const fields: RecipeFieldsValue = {
+    title: draft.title,
+    servings: draft.servings,
+    ingredients: draft.ingredients,
+    steps: draft.steps,
+    equipment: draft.equipment,
+    methods: draft.methods,
+    cuisine: draft.cuisine,
+    totalMinutes: draft.totalMinutes,
+    tags: formatTags(draft.tags),
+    prepTasks: draft.prepTasks,
+  };
+
+  // Routed through the draft's individual pure transitions rather than a
+  // blanket setState, so every edit still goes through @pantry/core.
+  function applyFields(patch: Partial<RecipeFieldsValue>) {
+    if (patch.title !== undefined) setTitle(patch.title);
+    if (patch.servings !== undefined) setServings(patch.servings);
+    if (patch.steps !== undefined) setSteps(patch.steps);
+    if (patch.equipment !== undefined) setEquipment(patch.equipment);
+    if (patch.methods !== undefined) setMethods(patch.methods);
+    if (patch.cuisine !== undefined) setCuisine(patch.cuisine);
+    if (patch.totalMinutes !== undefined) setTotalMinutes(patch.totalMinutes);
+    if (patch.tags !== undefined) setTags(parseTags(patch.tags));
+    if (patch.ingredients !== undefined) setIngredients(patch.ingredients);
+    if (patch.prepTasks !== undefined) setPrepTasks(patch.prepTasks);
+  }
+
   async function importRecipe() {
     if (!importUrl) return;
     const preview = (await importAction.run(() => importFromUrl({ url: importUrl }))) as
       | Recipe
       | undefined;
-    // The import fills servings in when the page's recipeYield reads as a
-    // serving count; otherwise it stays blank for the user to supply. Equipment
-    // and methods arrive already guessed from the step text; the editor below is
-    // where a wrong guess gets corrected before saving. Prep tasks arrive only
-    // when the importer's model tagging is configured, and carry source "llm"
-    // so they stay distinguishable from anything typed here.
+    // The import fills in whatever the page stated and leaves the rest blank
+    // for the user to supply. Equipment, methods, cuisine and cook time arrive
+    // already guessed; the editor below is where a wrong guess gets corrected
+    // before saving — never saved silently. Prep tasks arrive only when the
+    // importer's model tagging is configured, and carry source "llm" so they
+    // stay distinguishable from anything typed here.
     if (preview) {
       applyImported({
         ...preview,
         servings: formatServings(preview.servings),
+        totalMinutes: formatTotalMinutes(preview.totalMinutes),
+        tags: preview.tags ?? [],
+        cuisine: preview.cuisine ?? "",
+        sourceUrl: preview.sourceUrl ?? "",
         // A preview can only carry storable prep — the importer's model tagging
-        // produces `llm` tasks. Rule-derived prep is computed on read and is
-        // never stored, so anything claiming to be one is dropped rather than
-        // saved back as a frozen copy of a rule that may since have changed.
+        // produces `llm` tasks. Rule-derived prep is computed on read and never
+        // stored, so anything claiming to be one is dropped rather than saved
+        // back as a frozen copy of a rule that may since have changed.
         prepTasks: (preview.prepTasks ?? []).flatMap<PrepTaskInput>((task) =>
           task.source === "rule"
             ? []
@@ -79,6 +113,12 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
         steps: submission.steps,
         equipment: submission.equipment,
         methods: submission.methods,
+        cuisine: submission.cuisine,
+        totalMinutes: parseTotalMinutes(submission.totalMinutes),
+        tags: submission.tags,
+        // Attribution survives the review step, so an imported recipe keeps a
+        // link back to where it came from and can be re-imported later.
+        sourceUrl: submission.sourceUrl || undefined,
         prepTasks: submission.prepTasks,
       }),
     );
@@ -103,44 +143,7 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
       </div>
       <ErrorText message={importAction.error} />
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <Input placeholder="Title" value={draft.title} onChange={(e) => setTitle(e.target.value)} />
-        <ServingsField value={draft.servings} onChange={setServings} />
-        <div className="flex flex-col gap-2">
-          {draft.ingredients.map((ing, i) => (
-            <div key={i} className="flex gap-2">
-              <Input
-                type="number"
-                className="w-16"
-                value={ing.quantity}
-                onChange={(e) => updateIngredient(i, { quantity: Number(e.target.value) })}
-              />
-              <Input
-                placeholder="unit"
-                className="w-24"
-                value={ing.unit}
-                onChange={(e) => updateIngredient(i, { unit: e.target.value })}
-              />
-              <Input
-                placeholder="item"
-                className="flex-1"
-                value={ing.item}
-                onChange={(e) => updateIngredient(i, { item: e.target.value })}
-              />
-            </div>
-          ))}
-        </div>
-        <Button variant="ghost" size="sm" className="self-start" onClick={addIngredient}>
-          + ingredient
-        </Button>
-        <StepsEditor steps={draft.steps} onChange={setSteps} />
-        <PrepEditor tasks={draft.prepTasks} onChange={setPrepTasks} />
-        <EquipmentEditor
-          catalog={catalog}
-          equipment={draft.equipment}
-          methods={draft.methods}
-          onEquipmentChange={setEquipment}
-          onMethodsChange={setMethods}
-        />
+        <RecipeFields value={fields} onChange={applyFields} catalog={catalog} />
         <Button type="submit" disabled={pending} className="self-end">
           {pending ? "Saving…" : "Create recipe"}
         </Button>

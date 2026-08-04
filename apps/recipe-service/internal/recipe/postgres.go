@@ -64,13 +64,25 @@ func seedEquipment(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
-	ings = normIngredients(ings)
-	steps = normSteps(steps)
-	equip = normEquipment(equip)
-	methods = normMethods(methods)
-	id := newID()
-	createdAt := time.Now().UTC().Truncate(time.Microsecond)
+// recipeColumns is the recipes-table projection every read path shares, so a
+// new column is added in one place and scanRecipe stays in step with it.
+const recipeColumns = `id, user_id, title, servings, cuisine, total_minutes, source_url, source_recipe_id, created_at`
+
+// scanRecipe reads one recipeColumns row. Child rows (ingredients, steps, tags,
+// equipment, methods) are loaded separately.
+func scanRecipe(row pgx.Row, rec *Recipe) error {
+	return row.Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.Servings,
+		&rec.Cuisine, &rec.TotalMinutes, &rec.SourceURL, &rec.SourceRecipeID, &rec.CreatedAt)
+}
+
+func (s *PostgresStore) CreateRecipe(ctx context.Context, userID string, in RecipeInput) (Recipe, error) {
+	rec := Recipe{
+		ID:             newID(),
+		UserID:         userID,
+		SourceRecipeID: in.SourceRecipeID,
+		CreatedAt:      time.Now().UTC().Truncate(time.Microsecond),
+	}
+	applyInput(&rec, in)
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -79,34 +91,25 @@ func (s *PostgresStore) CreateRecipe(ctx context.Context, userID, title string, 
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO recipes (id, user_id, title, servings, created_at) VALUES ($1,$2,$3,$4,$5)`,
-		id, userID, title, servings, createdAt); err != nil {
+		`INSERT INTO recipes (id, user_id, title, servings, cuisine, total_minutes, source_url, source_recipe_id, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		rec.ID, rec.UserID, rec.Title, rec.Servings, rec.Cuisine, rec.TotalMinutes, rec.SourceURL,
+		rec.SourceRecipeID, rec.CreatedAt); err != nil {
 		return Recipe{}, err
 	}
-	if err := insertChildren(ctx, tx, id, ings, steps, equip, methods); err != nil {
+	if err := insertChildren(ctx, tx, rec.ID, rec.Ingredients, rec.Steps, rec.Equipment, rec.Methods, rec.Tags); err != nil {
 		return Recipe{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Recipe{}, err
 	}
-	return Recipe{
-		ID:          id,
-		UserID:      userID,
-		Title:       title,
-		Servings:    copyServings(servings),
-		Ingredients: ings,
-		Steps:       steps,
-		Equipment:   equip,
-		Methods:     methods,
-		CreatedAt:   createdAt,
-	}, nil
+	return rec, nil
 }
 
 func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recipe, error) {
 	rec := Recipe{}
-	err := s.pool.QueryRow(ctx,
-		`SELECT id, user_id, title, servings, created_at FROM recipes WHERE id = $1 AND user_id = $2`, id, userID).
-		Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.Servings, &rec.CreatedAt)
+	err := scanRecipe(s.pool.QueryRow(ctx,
+		`SELECT `+recipeColumns+` FROM recipes WHERE id = $1 AND user_id = $2`, id, userID), &rec)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Recipe{}, ErrNotFound
 	}
@@ -131,7 +134,7 @@ func (s *PostgresStore) GetRecipe(ctx context.Context, id, userID string) (Recip
 
 func (s *PostgresStore) ListRecipes(ctx context.Context, userID string) ([]Recipe, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, user_id, title, servings, created_at FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
+		`SELECT `+recipeColumns+` FROM recipes WHERE user_id = $1 ORDER BY created_at, id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +153,37 @@ func (s *PostgresStore) DeleteRecipe(ctx context.Context, id, userID string) err
 	return nil
 }
 
+func (s *PostgresStore) FindCloneOf(ctx context.Context, userID, sourceRecipeID string) (Recipe, error) {
+	if sourceRecipeID == "" {
+		return Recipe{}, ErrNotFound
+	}
+	rec := Recipe{}
+	err := scanRecipe(s.pool.QueryRow(ctx,
+		`SELECT `+recipeColumns+` FROM recipes
+		 WHERE user_id = $1 AND source_recipe_id = $2 ORDER BY created_at, id LIMIT 1`,
+		userID, sourceRecipeID), &rec)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Recipe{}, ErrNotFound
+	}
+	if err != nil {
+		return Recipe{}, err
+	}
+	ings, err := s.ingredientsFor(ctx, rec.ID)
+	if err != nil {
+		return Recipe{}, err
+	}
+	rec.Ingredients = ings
+	steps, err := s.stepsFor(ctx, rec.ID)
+	if err != nil {
+		return Recipe{}, err
+	}
+	rec.Steps = steps
+	if err := s.loadTags(ctx, &rec); err != nil {
+		return Recipe{}, err
+	}
+	return rec, nil
+}
+
 func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error) {
 	out := []Recipe{}
 	for _, id := range ids {
@@ -165,11 +199,10 @@ func (s *PostgresStore) GetRecipesByIDs(ctx context.Context, userID string, ids 
 	return out, nil
 }
 
-func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title string, servings *int, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) (Recipe, error) {
-	ings = normIngredients(ings)
-	steps = normSteps(steps)
-	equip = normEquipment(equip)
-	methods = normMethods(methods)
+func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID string, in RecipeInput) (Recipe, error) {
+	next := Recipe{}
+	applyInput(&next, in)
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Recipe{}, err
@@ -177,15 +210,16 @@ func (s *PostgresStore) UpdateRecipe(ctx context.Context, id, userID, title stri
 	defer tx.Rollback(ctx)
 
 	tag, err := tx.Exec(ctx,
-		`UPDATE recipes SET title = $1, servings = $2 WHERE id = $3 AND user_id = $4`,
-		title, servings, id, userID)
+		`UPDATE recipes SET title = $1, servings = $2, cuisine = $3, total_minutes = $4, source_url = $5
+		 WHERE id = $6 AND user_id = $7`,
+		next.Title, next.Servings, next.Cuisine, next.TotalMinutes, next.SourceURL, id, userID)
 	if err != nil {
 		return Recipe{}, err
 	}
 	if tag.RowsAffected() == 0 {
 		return Recipe{}, ErrNotFound
 	}
-	if err := replaceChildren(ctx, tx, id, ings, steps, equip, methods); err != nil {
+	if err := replaceChildren(ctx, tx, id, next.Ingredients, next.Steps, next.Equipment, next.Methods, next.Tags); err != nil {
 		return Recipe{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -201,10 +235,7 @@ func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
 	if rec.ID == "" {
 		return errors.New("upsert: recipe id is required")
 	}
-	ings := normIngredients(rec.Ingredients)
-	steps := normSteps(rec.Steps)
-	equip := normEquipment(rec.Equipment)
-	methods := normMethods(rec.Methods)
+	applyInput(&rec, inputFrom(rec))
 	createdAt := rec.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now().UTC().Truncate(time.Microsecond)
@@ -217,13 +248,18 @@ func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO recipes (id, user_id, title, servings, created_at) VALUES ($1,$2,$3,$4,$5)
+		`INSERT INTO recipes (id, user_id, title, servings, cuisine, total_minutes, source_url, source_recipe_id, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		 ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, title = EXCLUDED.title,
-		                                servings = EXCLUDED.servings`,
-		rec.ID, rec.UserID, rec.Title, rec.Servings, createdAt); err != nil {
+		                                servings = EXCLUDED.servings, cuisine = EXCLUDED.cuisine,
+		                                total_minutes = EXCLUDED.total_minutes,
+		                                source_url = EXCLUDED.source_url,
+		                                source_recipe_id = EXCLUDED.source_recipe_id`,
+		rec.ID, rec.UserID, rec.Title, rec.Servings, rec.Cuisine, rec.TotalMinutes, rec.SourceURL,
+		rec.SourceRecipeID, createdAt); err != nil {
 		return err
 	}
-	if err := replaceChildren(ctx, tx, rec.ID, ings, steps, equip, methods); err != nil {
+	if err := replaceChildren(ctx, tx, rec.ID, rec.Ingredients, rec.Steps, rec.Equipment, rec.Methods, rec.Tags); err != nil {
 		return err
 	}
 	// Per producer, and only for producers the caller actually supplied: a
@@ -243,21 +279,23 @@ func (s *PostgresStore) UpsertRecipe(ctx context.Context, rec Recipe) error {
 	return tx.Commit(ctx)
 }
 
-// replaceChildren clears a recipe's ingredient, step, equipment and method rows,
-// then re-inserts them — the write path shared by UpdateRecipe and UpsertRecipe.
-func replaceChildren(ctx context.Context, tx pgx.Tx, recipeID string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) error {
-	for _, table := range []string{"ingredients", "recipe_steps", "recipe_equipment", "recipe_methods"} {
+// replaceChildren clears a recipe's ingredient, step, equipment, method and tag
+// rows, then re-inserts them — the write path shared by UpdateRecipe and
+// UpsertRecipe.
+func replaceChildren(ctx context.Context, tx pgx.Tx, recipeID string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string, tags []string) error {
+	for _, table := range []string{"ingredients", "recipe_steps", "recipe_equipment", "recipe_methods", "recipe_tags"} {
 		if _, err := tx.Exec(ctx, `DELETE FROM `+table+` WHERE recipe_id = $1`, recipeID); err != nil {
 			return err
 		}
 	}
-	return insertChildren(ctx, tx, recipeID, ings, steps, equip, methods)
+	return insertChildren(ctx, tx, recipeID, ings, steps, equip, methods, tags)
 }
 
-// insertChildren writes ingredient, step, equipment and method rows for a
-// recipe, preserving ingredient/step order via the position column. Equipment
-// and methods are sets, so they carry no position and are read back sorted.
-func insertChildren(ctx context.Context, tx pgx.Tx, recipeID string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string) error {
+// insertChildren writes ingredient, step, equipment, method and tag rows for a
+// recipe, preserving ingredient/step/tag order via the position column.
+// Equipment and methods are sets, so they carry no position and are read back
+// sorted.
+func insertChildren(ctx context.Context, tx pgx.Tx, recipeID string, ings []Ingredient, steps []string, equip []RecipeEquipment, methods []string, tags []string) error {
 	for i, ing := range ings {
 		if _, err := tx.Exec(ctx,
 			`INSERT INTO ingredients (recipe_id, position, quantity, unit, item, note)
@@ -287,6 +325,13 @@ func insertChildren(ctx context.Context, tx pgx.Tx, recipeID string, ings []Ingr
 			return err
 		}
 	}
+	for i, t := range tags {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO recipe_tags (recipe_id, tag, position) VALUES ($1,$2,$3)`,
+			recipeID, t, i); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -294,7 +339,7 @@ func (s *PostgresStore) scanRecipesWithIngredients(ctx context.Context, rows pgx
 	out := []Recipe{}
 	for rows.Next() {
 		rec := Recipe{}
-		if err := rows.Scan(&rec.ID, &rec.UserID, &rec.Title, &rec.Servings, &rec.CreatedAt); err != nil {
+		if err := scanRecipe(rows, &rec); err != nil {
 			return nil, err
 		}
 		out = append(out, rec)
@@ -338,10 +383,10 @@ func (s *PostgresStore) ingredientsFor(ctx context.Context, recipeID string) ([]
 	return ings, rows.Err()
 }
 
-// loadTags fills a recipe's equipment and method sets, plus its stored prep
-// tasks. All three are always non-nil so the JSON contract stays [] rather than
-// null. It is the single hook both read paths go through, which is why the prep
-// tasks BL-0044 added need no change to either of them.
+// loadTags fills a recipe's equipment, method and discovery-tag sets, plus its
+// stored prep tasks. All are always non-nil so the JSON contract stays []
+// rather than null. It is the single hook both read paths go through, which is
+// why the prep tasks BL-0044 added need no change to either of them.
 func (s *PostgresStore) loadTags(ctx context.Context, rec *Recipe) error {
 	equip, err := s.equipmentFor(ctx, rec.ID)
 	if err != nil {
@@ -353,6 +398,11 @@ func (s *PostgresStore) loadTags(ctx context.Context, rec *Recipe) error {
 		return err
 	}
 	rec.Methods = methods
+	discoveryTags, err := s.tagsFor(ctx, rec.ID)
+	if err != nil {
+		return err
+	}
+	rec.Tags = discoveryTags
 	prep, err := s.prepTasksFor(ctx, rec.ID)
 	if err != nil {
 		return err
@@ -422,6 +472,25 @@ func replacePrepTasksTx(ctx context.Context, tx pgx.Tx, recipeID, source string,
 		}
 	}
 	return nil
+}
+
+// tagsFor reads a recipe's discovery tags in authored order.
+func (s *PostgresStore) tagsFor(ctx context.Context, recipeID string) ([]string, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT tag FROM recipe_tags WHERE recipe_id = $1 ORDER BY position`, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }
 
 func (s *PostgresStore) equipmentFor(ctx context.Context, recipeID string) ([]RecipeEquipment, error) {

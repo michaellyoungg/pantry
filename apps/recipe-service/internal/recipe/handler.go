@@ -52,6 +52,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
 	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
 	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
+	mux.HandleFunc("POST /catalog/{id}/add", traced(h.addFromCatalog))
 	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
@@ -80,32 +81,70 @@ func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Title string `json:"title"`
-		// Absent or null means "yield unknown" (BL-0035).
-		Servings    *int              `json:"servings"`
-		Ingredients []Ingredient      `json:"ingredients"`
-		Steps       []string          `json:"steps"`
-		Equipment   []RecipeEquipment `json:"equipment"`
-		Methods     []string          `json:"methods"`
-		// Hand-authored prep (BL-0044). Absent means "this client has nothing
-		// to say about prep" and leaves stored tasks alone; an empty array
-		// means "there are none" and clears them.
-		PrepTasks []StoredPrepTask `json:"prepTasks"`
-	}
-	if !decodeJSON(w, r, &req) {
-		return
-	}
+// recipeBody is the wire shape of a recipe write. Create and update accept
+// exactly the same fields — update replaces the recipe wholesale — so they share
+// one struct and one validator rather than drifting apart field by field.
+type recipeBody struct {
+	Title string `json:"title"`
+	// Absent or null means "yield unknown" (BL-0035).
+	Servings    *int              `json:"servings"`
+	Ingredients []Ingredient      `json:"ingredients"`
+	Steps       []string          `json:"steps"`
+	Equipment   []RecipeEquipment `json:"equipment"`
+	Methods     []string          `json:"methods"`
+	// Discovery metadata (BL-0020). Absent totalMinutes is "unknown", not zero.
+	Cuisine      string   `json:"cuisine"`
+	TotalMinutes *int     `json:"totalMinutes"`
+	Tags         []string `json:"tags"`
+	SourceURL    string   `json:"sourceUrl"`
+	// Prep tasks (BL-0044). Unlike every field above, an ABSENT value does not
+	// clear the stored rows: two producers write them independently, so a
+	// client that knows nothing about prep must not be able to delete what the
+	// model tagged at import. Send [] to clear.
+	PrepTasks []StoredPrepTask `json:"prepTasks"`
+}
+
+// validatedInput checks a decoded recipe body and turns it into the store's
+// input, writing the error response itself on failure. ok is false when the
+// caller should stop.
+func validatedInput(w http.ResponseWriter, r *http.Request, req recipeBody) (RecipeInput, bool) {
 	if strings.TrimSpace(req.Title) == "" {
 		writeError(w, r, http.StatusBadRequest, "title is required")
-		return
+		return RecipeInput{}, false
 	}
 	if !validServings(w, r, req.Servings) {
-		return
+		return RecipeInput{}, false
 	}
 	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
 		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+		return RecipeInput{}, false
+	}
+	cuisine, tags, sourceURL, err := ValidateDiscovery(req.Cuisine, req.TotalMinutes, req.Tags, req.SourceURL)
+	if err != nil {
+		writeErr(w, r, http.StatusBadRequest, err.Error(), err)
+		return RecipeInput{}, false
+	}
+	return RecipeInput{
+		Title:        req.Title,
+		Servings:     req.Servings,
+		Ingredients:  req.Ingredients,
+		Steps:        req.Steps,
+		Equipment:    req.Equipment,
+		Methods:      req.Methods,
+		Cuisine:      cuisine,
+		TotalMinutes: req.TotalMinutes,
+		Tags:         tags,
+		SourceURL:    sourceURL,
+	}, true
+}
+
+func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
+	var req recipeBody
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	in, ok := validatedInput(w, r, req)
+	if !ok {
 		return
 	}
 	// Validated before the recipe is written: a rejected task must not leave a
@@ -121,7 +160,7 @@ func (h *handlers) createRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
 		return
 	}
-	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
+	rec, err := h.store.CreateRecipe(r.Context(), userIDFrom(r.Context()), in)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "could not create recipe", err)
 		return
@@ -148,6 +187,56 @@ func (h *handlers) listCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
+}
+
+// addFromCatalog clones a shared catalog recipe into the caller's own recipes
+// (UX plan decision #6: clone, don't reference). Cloning rather than pointing at
+// the catalog row is what lets a user edit their copy — swap the butter, halve
+// the garlic — without mutating a recipe everyone else sees, and keeps their
+// copy working when a catalog entry is later retired from catalog.json.
+//
+// The read is scoped to CatalogUserID, NOT to the caller. Catalog recipes are
+// ordinary rows owned by a sentinel user, so looking one up with the caller's id
+// silently returns "not found" for every recipe in the catalog — the exact
+// mistake that once produced an empty grocery list.
+//
+// Idempotent: a second call returns the clone the caller already has (200)
+// instead of making another (201), so the catalog's add button is safe to
+// double-click and safe to press again next week.
+func (h *handlers) addFromCatalog(w http.ResponseWriter, r *http.Request) {
+	userID := userIDFrom(r.Context())
+	if userID == CatalogUserID {
+		writeError(w, r, http.StatusBadRequest, "the catalog cannot clone into itself")
+		return
+	}
+	sourceID := r.PathValue("id")
+
+	if existing, err := h.store.FindCloneOf(r.Context(), userID, sourceID); err == nil {
+		writeJSON(w, http.StatusOK, existing)
+		return
+	} else if !errors.Is(err, ErrNotFound) {
+		writeErr(w, r, http.StatusInternalServerError, "could not look up an existing copy", err)
+		return
+	}
+
+	source, err := h.store.GetRecipe(r.Context(), sourceID, CatalogUserID)
+	if errors.Is(err, ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "catalog recipe not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not read the catalog recipe", err)
+		return
+	}
+
+	in := inputFrom(source)
+	in.SourceRecipeID = source.ID
+	clone, err := h.store.CreateRecipe(r.Context(), userID, in)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not copy the catalog recipe", err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, clone)
 }
 
 // listEquipment serves the curated hardware catalog so clients can render
@@ -184,34 +273,15 @@ func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// updateRecipe replaces the whole recipe, so an absent field clears the stored
+// value rather than leaving it in place — callers echo back what they keep.
 func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Title string `json:"title"`
-		// Update replaces the whole recipe, so an absent servings clears a
-		// previously known yield rather than leaving it in place.
-		Servings    *int              `json:"servings"`
-		Ingredients []Ingredient      `json:"ingredients"`
-		Steps       []string          `json:"steps"`
-		Equipment   []RecipeEquipment `json:"equipment"`
-		Methods     []string          `json:"methods"`
-		// Unlike the fields above, absent prep does NOT clear stored tasks: the
-		// two producers write independently (BL-0044), so a client that knows
-		// nothing about prep must not be able to delete what the model tagged
-		// at import. Send [] to clear.
-		PrepTasks []StoredPrepTask `json:"prepTasks"`
-	}
+	var req recipeBody
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if strings.TrimSpace(req.Title) == "" {
-		writeError(w, r, http.StatusBadRequest, "title is required")
-		return
-	}
-	if !validServings(w, r, req.Servings) {
-		return
-	}
-	if err := ValidateTags(req.Equipment, req.Methods); err != nil {
-		writeErr(w, r, http.StatusBadRequest, "unknown equipment or cooking method", err)
+	in, ok := validatedInput(w, r, req)
+	if !ok {
 		return
 	}
 	// Manual only. An edit is the long-lived write path, and letting it stamp a
@@ -223,7 +293,7 @@ func (h *handlers) updateRecipe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusBadRequest, "invalid prep task", err)
 		return
 	}
-	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), req.Title, req.Servings, req.Ingredients, req.Steps, req.Equipment, req.Methods)
+	rec, err := h.store.UpdateRecipe(r.Context(), r.PathValue("id"), userIDFrom(r.Context()), in)
 	if errors.Is(err, ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "recipe not found")
 		return
