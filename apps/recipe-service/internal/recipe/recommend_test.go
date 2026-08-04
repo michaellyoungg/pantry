@@ -183,18 +183,18 @@ func TestRecommendPantryTreatsMissingStaplesAsCheap(t *testing.T) {
 	ctx := context.Background()
 	// Both recipes cover the pantry identically; only the third ingredient
 	// differs, and only in whether it is something you must go and buy.
-	if _, err := store.CreateRecipe(ctx, "user-a", "Needs Salt", nil, []Ingredient{
+	if _, err := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Needs Salt", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "", Item: "tomato"},
 		{Quantity: 1, Unit: "", Item: "onion"},
 		{Quantity: 1, Unit: "tsp", Item: "kosher salt"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := store.CreateRecipe(ctx, "user-a", "Needs Beef", nil, []Ingredient{
+	if _, err := store.CreateRecipe(ctx, "user-a", RecipeInput{Title: "Needs Beef", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "", Item: "tomato"},
 		{Quantity: 1, Unit: "", Item: "onion"},
 		{Quantity: 1, Unit: "lb", Item: "ground beef"},
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 

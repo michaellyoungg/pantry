@@ -139,11 +139,11 @@ func TestRecipesUsing_EmptyItemsYieldsEmptyList(t *testing.T) {
 
 func TestNormalizationCoverage_ReportsShareAndNamesTheMisses(t *testing.T) {
 	srv, store := newTestServer(t)
-	if _, err := store.CreateRecipe(context.Background(), "user-a", "Odd Bowl", nil, []Ingredient{
+	if _, err := store.CreateRecipe(context.Background(), "user-a", RecipeInput{Title: "Odd Bowl", Ingredients: []Ingredient{
 		{Quantity: 1, Unit: "", Item: "tomato"},
 		{Quantity: 1, Unit: "", Item: "unobtainium"},
 		{Quantity: 2, Unit: "", Item: "unobtainium"}, // same miss twice: counted, listed once
-	}, nil, nil, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
