@@ -3,8 +3,7 @@ import type { GroceryLine } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { MutationCtx } from "./_generated/server";
-import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
-import { withSpan } from "./lib/otel";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { recipeServiceFetch } from "./recipes";
 
 export const pantryStateValidator = v.union(v.literal("have"), v.literal("low"), v.literal("out"));
@@ -226,38 +225,15 @@ export const setState = mutation({
   },
 });
 
-/** What the "use these up → cook this" card needs. Deliberately not the whole recipe. */
-export interface RecipeToUse {
-  id: string;
-  title: string;
-  matchedItems: string[];
-}
-
-/**
- * Recipes that use the items about to expire — the action half of the batched
- * nudge (BL-0029). An expiry alert with nothing to do about it is the per-item
- * nag the design rules out, so this is what makes the card worth showing.
- *
- * An action, not a query, because only actions can reach recipe-service; the
- * ingredient→canonical matching has to happen there, where the normalization
- * table lives.
- */
-export const recipesToUse = action({
-  args: { items: v.array(v.string()), traceCtx: v.optional(v.string()) },
-  handler: async (ctx, { items, traceCtx }): Promise<RecipeToUse[]> => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Not authenticated");
-    if (items.length === 0) return [];
-    return withSpan("pantry.recipesToUse", traceCtx, async (traceparent) => {
-      const matches = await recipeServiceFetch<
-        { id: string; title: string; matchedItems: string[] }[]
-      >(userId, "POST", "/recipes/using", { items }, traceparent);
-      // Narrowed to what the card renders: the full recipe bodies would be a
-      // large payload for a prompt that only ever shows a title.
-      return matches.map((m) => ({ id: m.id, title: m.title, matchedItems: m.matchedItems }));
-    });
-  },
-});
+// `recipesToUse` lived here and is GONE (BL-0050). It answered "what can I cook
+// with these before they go off" by calling POST /recipes/using, which applied
+// no preference filtering — so the expiry card could suggest a recipe built on
+// an ingredient the user had told us to avoid, on the same screen where the
+// recommendations card was filtering that ingredient out.
+//
+// The expiry nudge now routes through `recommendations.pantry`, where the avoid
+// list is a hard pre-filter and expiry is a scoring feature. There is one path,
+// so the guarantee holds everywhere it is made.
 
 export const remove = mutation({
   args: { id: v.id("pantryItems") },

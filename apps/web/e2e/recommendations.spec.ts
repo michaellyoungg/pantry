@@ -2,15 +2,15 @@ import { expect, type Page, test } from "@playwright/test";
 import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
 
 /**
- * The recommendations card, scoped by its heading.
+ * The one "use it up" card on /pantry.
  *
- * Scoping matters: /pantry also renders BL-0029's expiry-driven "use it up"
- * card, which suggests recipes from a different endpoint. An unscoped locator
- * would match either card, so a passing assertion would not prove which one
- * produced the result (see BL-0050).
+ * BL-0050 merged the two cards that used to live here — the expiry-driven one
+ * and the preference-driven one — so this locator no longer has to disambiguate
+ * them. It stays scoped to the section because /pantry also renders the pantry
+ * inventory, whose rows mention the same ingredients.
  */
 function suggestions(page: Page) {
-  return page.locator("section").filter({ hasText: "Cook from what you have" });
+  return page.getByRole("region", { name: "Use it up" });
 }
 
 test("suggests a recipe for a pantry item marked to use up", async ({ page }) => {
@@ -53,18 +53,21 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
 
   // The pantry now holds garlic. Mark it to use up.
+  //
+  // Targeted by the BUTTON's own label rather than by finding a listitem that
+  // mentions garlic: since BL-0050 the suggestions card sits ABOVE the
+  // inventory and its recipe rows are listitems mentioning garlic too, so
+  // `.first()` on a text filter picks a suggestion, which has no such button.
+  // Only inventory rows carry "Mark … to use up", so this is unambiguous.
   await navigateTo(page, "Pantry");
-  const pantryRow = page
-    .getByRole("listitem")
-    .filter({ hasText: /garlic/i })
-    .first();
-  await expect(pantryRow).toBeVisible();
-  await pantryRow.getByRole("button", { name: /Mark .* to use up/ }).click();
+  const markUseUp = page.getByRole("button", { name: /Mark .*garlic.* to use up/i });
+  await expect(markUseUp).toBeVisible();
+  await markUseUp.click();
 
   // Ask for suggestions. Assert on the "Uses up:" reason specifically, not just
   // any reason: it is the one string only the useItUp feature can produce, so it
   // proves the use-up flag actually drove the score rather than plain overlap.
-  await page.getByRole("button", { name: "What can I make?" }).click();
+  // No button: the card loads on its own when /pantry opens (BL-0050).
   const row = suggestions(page).getByRole("listitem").filter({ hasText: title });
   await expect(row).toBeVisible({ timeout: 15_000 });
   await expect(row.getByText(/Uses up:/)).toBeVisible();
@@ -142,7 +145,6 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
 
   // BASELINE: with no avoid list, both recipes surface.
   await navigateTo(page, "Pantry");
-  await page.getByRole("button", { name: "What can I make?" }).click();
   await expect(suggestions(page).getByText(title)).toBeVisible({ timeout: 15_000 });
   await expect(suggestions(page).getByText(control)).toBeVisible();
 
@@ -158,7 +160,6 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await expect(prefs.getByText("peanut")).toBeVisible();
 
   await navigateTo(page, "Pantry");
-  await page.getByRole("button", { name: "What can I make?" }).click();
   await expect(suggestions(page).getByText(control)).toBeVisible({ timeout: 15_000 });
   await expect(suggestions(page).getByText(title)).toHaveCount(0);
 });

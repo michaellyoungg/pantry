@@ -18,6 +18,12 @@ export type PantryRow = {
   canonicalItem: string;
   state: "have" | "low" | "out";
   useBy?: number;
+  /**
+   * Not used by the expiry rules below, but part of the row every pantry surface
+   * reads: the use-it-up card keys its refetch on it, so marking an item to use
+   * up re-asks the ranker (BL-0050).
+   */
+  useItUp?: boolean;
 };
 
 /**

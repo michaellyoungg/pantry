@@ -114,15 +114,6 @@ func inputFrom(rec Recipe) RecipeInput {
 	}
 }
 
-// RecipeMatch is a recipe that uses at least one of a requested set of
-// canonical items, plus which ones it hit. It backs the pantry's "use these up
-// → cook this" nudge (BL-0029). The embedded Recipe's fields are inlined on the
-// wire, so a match decodes as an ordinary recipe plus `matchedItems`.
-type RecipeMatch struct {
-	Recipe
-	MatchedItems []string `json:"matchedItems"`
-}
-
 type GroceryLine struct {
 	Item string `json:"item"`
 	// CanonicalItem is the normalized ingredient key (lowercased, synonyms

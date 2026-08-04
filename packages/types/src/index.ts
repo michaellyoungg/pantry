@@ -346,6 +346,12 @@ export interface PantryContextItem {
   canonicalItem: string;
   state: "have" | "low" | "out";
   useItUp?: boolean;
+  /**
+   * Approximate spoil date, epoch ms (BL-0029). Absent when the shelf-life table
+   * doesn't recognize the item — which is not the same as "keeps forever", and
+   * is why the ranker treats absence as no signal rather than as a far-off date.
+   */
+  useBy?: number;
 }
 
 /** Ingredient-grounded preferences. `avoidItems` is a hard filter, not a weight. */
@@ -387,6 +393,12 @@ export interface RecommendationRequest {
   savedRecipeIds?: string[];
   excludeRecipeIds?: string[];
   limit?: number;
+  /**
+   * The caller's clock, epoch ms. Sent rather than read from the server clock so
+   * scoring stays a pure function of its input. Omitting it makes expiry
+   * unavailable — absent data degrades to "no signal", never to a guess.
+   */
+  now?: number;
   /** ACTIVE goals only: a paused goal is not a goal. */
   nutritionTargets?: RecommendationNutritionTarget[];
   planNutrition?: RecommendationPlanNutrition | null;
@@ -419,6 +431,20 @@ export interface RecommendationUnverifiedConstraint {
   label?: string;
 }
 
+/**
+ * The most-urgent expiring ingredient a recipe would clear (BL-0050).
+ *
+ * Typed rather than folded into `reasons` so the card can render "use this soon"
+ * distinctly from "you'd like this" — they are different kinds of claim, and
+ * telling them apart by prefix-matching a reason string would be brittle.
+ */
+export interface RecommendationUrgency {
+  canonicalItem: string;
+  display: string;
+  /** Epoch ms, so the card formats it with the same helper as its items strip. */
+  useBy: number;
+}
+
 /** Mirrors Go recommend.Result. */
 export interface Recommendation {
   recipeId: string;
@@ -429,6 +455,8 @@ export interface Recommendation {
   reasons: string[];
   have: string[];
   missing: RecommendationMissingItem[];
+  /** Absent when nothing this recipe uses is expiring within the horizon. */
+  urgency?: RecommendationUrgency;
   /**
    * 0..1 for how well this candidate closes the plan's remaining gap, or null
    * when nothing could be measured. Null rather than 0: a data gap is not a bad

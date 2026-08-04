@@ -188,6 +188,210 @@ func TestRankPantryHonoursLimit(t *testing.T) {
 	}
 }
 
+// --- expiry urgency (BL-0050) ---
+
+// testNow is an arbitrary fixed clock. Tests must never read the real one: the
+// whole reason UserContext carries Now is to keep scoring a pure function.
+const testNow int64 = 1_700_000_000_000
+
+func inDays(d float64) *int64 {
+	t := testNow + int64(d*float64(dayMS))
+	return &t
+}
+
+// expiring builds a pantry where the named item carries a use-by date and the
+// rest do not, which is the realistic shape: the shelf-life table knows some
+// ingredients and not others.
+func expiring(item string, useBy *int64, others ...string) []PantryItem {
+	out := []PantryItem{{CanonicalItem: item, State: "have", UseBy: useBy}}
+	for _, o := range others {
+		out = append(out, PantryItem{CanonicalItem: o, State: "have"})
+	}
+	return out
+}
+
+func TestUrgencyForCurve(t *testing.T) {
+	cases := []struct {
+		name string
+		days float64
+		want float64
+	}{
+		{"a week overdue saturates at 1", -7, 1},
+		{"due today", 0, 1},
+		{"mid-horizon", 3.5, 0.5},
+		{"at the horizon", 7, 0},
+		{"beyond the horizon", 90, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			closeTo(t, urgencyFor(*inDays(tc.days), testNow), tc.want)
+		})
+	}
+}
+
+// The headline BL-0050 behaviour: with two recipes of equal coverage, the one
+// clearing the item that is about to spoil ranks first.
+func TestRankPantryPrefersExpiringOverEqualCoverage(t *testing.T) {
+	uc := UserContext{
+		Now:    testNow,
+		Pantry: expiring("spinach", inDays(1), "rice"),
+	}
+	got := RankPantry(uc, []Candidate{
+		cand("rice", "Rice Bowl", "rice"),
+		cand("spinach", "Spinach Saute", "spinach"),
+	})
+	eq(t, ids(got), []string{"spinach", "rice"})
+}
+
+// Urgency is the MAX over a recipe's ingredients, never the sum: the recipe
+// saving the item that dies tomorrow must beat the one using three items that
+// are merely middle-aged. A sum would invert this.
+func TestRankPantryUrgencyIsMaxNotSum(t *testing.T) {
+	uc := UserContext{Now: testNow, Pantry: []PantryItem{
+		{CanonicalItem: "spinach", State: "have", UseBy: inDays(0.5)},
+		{CanonicalItem: "carrot", State: "have", UseBy: inDays(5)},
+		{CanonicalItem: "celery", State: "have", UseBy: inDays(5)},
+		{CanonicalItem: "leek", State: "have", UseBy: inDays(5)},
+	}}
+	got := RankPantry(uc, []Candidate{
+		cand("many", "Mirepoix", "carrot", "celery", "leek"),
+		cand("urgent", "Spinach Saute", "spinach"),
+	})
+	eq(t, ids(got), []string{"urgent", "many"})
+}
+
+// Rule 2 of the BL-0050 design, pinned: a spoil date narrowly outranks the
+// user's own use-it-up flag when the two point at DIFFERENT items.
+func TestRankPantryExpiryOutranksUseItUpFlag(t *testing.T) {
+	uc := UserContext{Now: testNow, Pantry: []PantryItem{
+		{CanonicalItem: "spinach", State: "have", UseBy: inDays(0)},
+		{CanonicalItem: "rice", State: "have", UseItUp: true},
+	}}
+	got := RankPantry(uc, []Candidate{
+		cand("flagged", "Rice Bowl", "rice"),
+		cand("expiring", "Spinach Saute", "spinach"),
+	})
+	eq(t, ids(got), []string{"expiring", "flagged"})
+}
+
+// Rule 1, and the correctness bug BL-0050 exists to close: the avoid list is a
+// hard pre-filter, so it removes a recipe even when that recipe clears the most
+// urgent thing in the fridge. No score may outrank an allergen.
+func TestRankPantryAvoidListBeatsMaximumUrgency(t *testing.T) {
+	uc := UserContext{
+		Now:         testNow,
+		Pantry:      expiring("peanut", inDays(-3), "rice"),
+		Preferences: Preferences{AvoidItems: []string{"peanut"}},
+	}
+	got := RankPantry(uc, []Candidate{
+		cand("peanut", "Peanut Noodles", "peanut"),
+		cand("rice", "Rice Bowl", "rice"),
+	})
+	eq(t, ids(got), []string{"rice"})
+}
+
+// The graceful-degradation guarantee: when no row carries a date the feature is
+// UNAVAILABLE, so it leaves both numerator and denominator alone and the order
+// is identical to a request with no expiry data at all.
+func TestRankPantryWithoutDatesRanksIdenticallyToNoExpiry(t *testing.T) {
+	candidates := []Candidate{
+		cand("low", "Low", "tomato", "beef", "wine"),
+		cand("high", "High", "tomato", "onion"),
+	}
+	baseline := RankPantry(UserContext{Pantry: have("tomato", "onion")}, candidates)
+	withClock := RankPantry(UserContext{Now: testNow, Pantry: have("tomato", "onion")}, candidates)
+
+	eq(t, ids(withClock), ids(baseline))
+	for i := range baseline {
+		closeTo(t, withClock[i].Score, baseline[i].Score)
+	}
+}
+
+// A date with no clock must degrade to "no signal", not to epoch zero — which
+// would read as fifty years overdue and mark everything maximally urgent.
+func TestRankPantryWithoutNowIgnoresDates(t *testing.T) {
+	candidates := []Candidate{
+		cand("rice", "Rice Bowl", "rice"),
+		cand("spinach", "Spinach Saute", "spinach"),
+	}
+	got := RankPantry(UserContext{Pantry: expiring("spinach", inDays(-30), "rice")}, candidates)
+	for _, r := range got {
+		if r.Urgency != nil {
+			t.Fatalf("%s reported urgency with no clock: %+v", r.RecipeID, r.Urgency)
+		}
+	}
+	// Tie on every available feature, so the recipeId tiebreak decides.
+	eq(t, ids(got), []string{"rice", "spinach"})
+}
+
+// Urgency rides as a STRUCTURED field, not as another reason string, so the
+// card can render "use this soon" differently from "you'd like this".
+func TestRankPantryReportsUrgencyAsAStructuredField(t *testing.T) {
+	uc := UserContext{Now: testNow, Pantry: expiring("spinach", inDays(2))}
+	got := RankPantry(uc, []Candidate{cand("spinach", "Spinach Saute", "spinach")})
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+	u := got[0].Urgency
+	if u == nil {
+		t.Fatal("expected urgency to be reported")
+	}
+	if u.CanonicalItem != "spinach" || u.UseBy != *inDays(2) {
+		t.Errorf("urgency = %+v, want spinach at the seeded date", u)
+	}
+	for _, r := range got[0].Reasons {
+		if strings.Contains(strings.ToLower(r), "spoil") || strings.Contains(r, "Use soon") {
+			t.Errorf("urgency leaked into reasons as %q; it must stay typed", r)
+		}
+	}
+}
+
+// Nothing inside the horizon means nothing to say: a date three months out must
+// not draw a "use soon" line on every row.
+func TestRankPantryOmitsUrgencyBeyondHorizon(t *testing.T) {
+	uc := UserContext{Now: testNow, Pantry: expiring("garlic", inDays(90))}
+	got := RankPantry(uc, []Candidate{cand("garlic", "Garlic Rice", "garlic")})
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+	if got[0].Urgency != nil {
+		t.Errorf("urgency = %+v, want nil for a date beyond the horizon", got[0].Urgency)
+	}
+}
+
+// A missing ingredient cannot be going off in the user's fridge, so it must not
+// lend its urgency to a recipe the user cannot currently cook.
+func TestRankPantryIgnoresUrgencyOfMissingIngredients(t *testing.T) {
+	uc := UserContext{Now: testNow, Pantry: []PantryItem{
+		{CanonicalItem: "rice", State: "have"},
+		// Marked out: the user says it is gone, so it is missing from the recipe's
+		// point of view and cannot be spoiling in their fridge.
+		{CanonicalItem: "spinach", State: "out", UseBy: inDays(0)},
+		// An unrelated owned item WITH a date, so the expiry feature is genuinely
+		// available for this request. Without it the assertion below would hold
+		// merely because expiry was switched off, proving nothing.
+		{CanonicalItem: "yogurt", State: "have", UseBy: inDays(3)},
+	}}
+	got := RankPantry(uc, []Candidate{cand("bowl", "Spinach Rice", "rice", "spinach")})
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+	if got[0].Urgency != nil {
+		t.Errorf("urgency = %+v, want nil — the expiring item is not on hand", got[0].Urgency)
+	}
+}
+
+// The wire contract the web card reads.
+func TestResultOmitsUrgencyKeyWhenAbsent(t *testing.T) {
+	buf, err := json.Marshal(Result{RecipeID: "r"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(buf), "urgency") {
+		t.Errorf("absent urgency should be omitted, got %s", buf)
+	}
+}
+
 // --- missingNonStaple, live since BL-0031 shipped the staple flag -----------
 
 // candStaples builds a candidate where the named items are pantry staples.
