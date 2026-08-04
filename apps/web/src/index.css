@@ -9,3 +9,49 @@ body {
   font-family: system-ui, sans-serif;
   margin: 0;
 }
+
+/* Grocery list motion (BL-0019).
+ *
+ * Two things happen to a row without anyone touching it, and both need to be
+ * *seen* or the list reads as glitching: a line you tick leaves for the "In
+ * cart" section, and a line someone else in the household changes updates under
+ * your thumb. Both are short — this is a list read in an aisle, not a
+ * presentation — and both are pure decoration, so `prefers-reduced-motion`
+ * turns them off entirely and the row simply appears where it belongs.
+ *
+ * The timing here is paired with CART_TRANSITION_MS in GroceryList.tsx: the row
+ * is held in place for exactly as long as the animation runs. */
+@keyframes grocery-leave {
+  to {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes grocery-flash {
+  from {
+    background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.grocery-leaving {
+  animation: grocery-leave 300ms ease-in forwards;
+}
+
+.grocery-remote {
+  animation: grocery-flash 1.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grocery-leaving,
+  .grocery-remote {
+    animation: none;
+  }
+
+  .grocery-leaving {
+    opacity: 0;
+  }
+}

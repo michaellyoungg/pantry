@@ -139,6 +139,24 @@ export default defineSchema({
     removed: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
+  // Who else is shopping this list right now (BL-0019). Convex already keeps
+  // two phones in sync, but silently: a line ticking itself off mid-aisle reads
+  // as the app glitching unless something says a second shopper is there.
+  //
+  // A row per live *session*, not per user, because the household shares one
+  // account — "someone else is on the list" is a statement about devices. It is
+  // soft state with no history: the heartbeat refreshes `lastSeenAt` in place
+  // and stale rows are swept by the next heartbeat, so a phone that goes into a
+  // pocket (or a tunnel) simply ages out rather than needing a goodbye that a
+  // closed tab can never send.
+  shoppingPresence: defineTable({
+    userId: v.string(),
+    sessionId: v.string(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_session", ["userId", "sessionId"]),
+
   // What hardware the user owns (BL-0043). One row per owned equipment slug;
   // absence is "doesn't own it", so un-checking a box deletes the row rather
   // than storing a false — there is no third state to represent.
