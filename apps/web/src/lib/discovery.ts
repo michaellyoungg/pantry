@@ -47,6 +47,29 @@ export function formatTags(tags: string[] | undefined): string {
 }
 
 /**
+ * Folds typed text into the slug the service stores: "South Indian" ->
+ * "south-indian".
+ *
+ * The inverse of humanizeSlug, and the exception to "recipe-service owns
+ * normalization" at the top of this file. It has to exist because a stated
+ * TASTE (BL-0030) is stored by Convex, which never sees the dictionary — so a
+ * cuisine typed here would be compared against a recipe's slug as raw text, and
+ * "South Indian" would match nothing at all.
+ *
+ * Mirrors slugify in apps/recipe-service/internal/recipe/discovery.go: lowercase,
+ * runs of separators collapsed to one hyphen, everything else dropped. Returns
+ * "" for input with no usable characters, which callers treat as "not a taste"
+ * rather than storing as an entry that can never match.
+ */
+export function slugifyFacet(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
  * Renders a slug for display: "gluten-free" -> "Gluten Free". Purely cosmetic —
  * the slug remains the identity, and nothing is ever matched on the label.
  */

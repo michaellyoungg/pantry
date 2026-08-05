@@ -382,6 +382,25 @@ export interface RecommendationPreferences {
   avoidItems: string[];
   likedItems: string[];
   dislikedItems: string[];
+  /**
+   * Cuisine slugs the cook says they like (BL-0030), from the same open
+   * vocabulary a recipe's single `cuisine` is stored in.
+   *
+   * A SET here against one value on the recipe: a cook likes several cuisines,
+   * a dish is one of them. Omitted or empty means no stated taste, which makes
+   * the ranker's `cuisineMatch` unavailable rather than making every recipe a
+   * miss.
+   */
+  cuisines?: string[];
+  /**
+   * The cook time the user is willing to spend, in minutes, or omitted for no
+   * opinion.
+   *
+   * A recipe whose `totalMinutes` is unknown is scored against this as
+   * UNMEASURED, never as fast — an untimed recipe winning "I have 20 minutes"
+   * is the failure this field is most likely to cause if read carelessly.
+   */
+  maxMinutes?: number;
 }
 
 /**

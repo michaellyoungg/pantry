@@ -25,6 +25,17 @@ type Preferences struct {
 	AvoidItems    []string `json:"avoidItems"`
 	LikedItems    []string `json:"likedItems"`
 	DislikedItems []string `json:"dislikedItems"`
+	// Cuisines are the cuisine slugs the user says they like (BL-0030). A SET
+	// here against a single value on the candidate: a cook likes several
+	// cuisines, a dish is one of them.
+	//
+	// Empty means no stated taste, which makes cuisineMatch unavailable rather
+	// than making every recipe a miss.
+	Cuisines []string `json:"cuisines,omitempty"`
+	// MaxMinutes is the cook time the user is willing to spend, or nil for no
+	// opinion. A POINTER because "no limit" and "a limit of zero" are different
+	// answers and only one of them is real — see matchDiscovery.
+	MaxMinutes *int `json:"maxMinutes,omitempty"`
 }
 
 // UserContext is everything the ranker knows about the caller for one request.
@@ -100,6 +111,14 @@ type Candidate struct {
 	// when nobody has estimated it. Nil is UNMEASURED, never zero — see
 	// nutrition.go for why that distinction is the whole feature.
 	Nutrition *CandidateNutrition
+	// Cuisine is the recipe's cuisine slug, or "" when nobody tagged it
+	// (BL-0030). Open vocabulary: the CALLER stores whatever an import or a cook
+	// supplied, normalized to one spelling.
+	Cuisine string
+	// TotalMinutes is wall-clock time to eating, or nil when unknown. Nil is the
+	// reason this is a pointer rather than an int: a zero would read as instant,
+	// and an untimed recipe is emphatically not a fast one. See discovery.go.
+	TotalMinutes *int
 }
 
 // MissingItem is an ingredient the recipe needs that the user does not have.

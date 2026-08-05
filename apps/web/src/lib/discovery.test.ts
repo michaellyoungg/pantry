@@ -7,6 +7,7 @@ import {
   MAX_TOTAL_MINUTES,
   parseTags,
   parseTotalMinutes,
+  slugifyFacet,
 } from "./discovery";
 
 describe("parseTotalMinutes", () => {
@@ -80,5 +81,24 @@ describe("formatDuration", () => {
 
   it("omits a zero minute part", () => {
     expect(formatDuration(120)).toBe("2 h");
+  });
+});
+
+// A stored taste is compared to a recipe's stored slug (BL-0030). A preference
+// typed as "South Indian" has to become the same string the recipe carries, or
+// it matches nothing and the setting silently does nothing.
+describe("slugifyFacet", () => {
+  it("folds a typed cuisine into the slug a recipe stores", () => {
+    expect(slugifyFacet("South Indian")).toBe("south-indian");
+  });
+
+  it("collapses separators and case the way the service does", () => {
+    expect(slugifyFacet("  Gluten_Free  ")).toBe("gluten-free");
+    expect(slugifyFacet("GLUTEN-FREE")).toBe("gluten-free");
+  });
+
+  it("returns empty for input with nothing usable, so callers can drop it", () => {
+    expect(slugifyFacet("   ")).toBe("");
+    expect(slugifyFacet("!!!")).toBe("");
   });
 });

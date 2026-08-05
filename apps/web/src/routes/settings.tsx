@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { HouseholdSize } from "../components/HouseholdSize";
 import { NutritionGoals } from "../components/NutritionGoals";
 import { Preferences } from "../components/Preferences";
+import { TastePreferences } from "../components/TastePreferences";
 import { Card } from "../components/ui/Card";
 
 /**
@@ -46,6 +47,11 @@ function SettingsPage() {
       </Card>
 
       <Preferences />
+
+      {/* Directly after the avoid list, because the two are constantly confused
+          and the contrast is the clearest way to explain either: above removes
+          recipes, this only reorders them (BL-0030). */}
+      <TastePreferences />
     </div>
   );
 }
