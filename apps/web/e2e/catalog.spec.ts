@@ -14,8 +14,11 @@ import { navigateTo, navigateToRecipesTab, scheduleAndGenerate, signUp } from ".
 //
 // Titles and ingredients below are taken verbatim from
 // apps/recipe-service/internal/recipe/catalog.json. `baguette` is deliberate:
-// it appears in exactly one catalog recipe and in no recipe any other spec
-// creates, so a line bearing it can only have come from the catalog.
+// no recipe any other spec creates uses it, so a line bearing it can only have
+// come from the catalog. Other catalog entries call for a baguette too (BL-0002
+// grew the corpus), but only the one recipe below is ever put in this basket,
+// and a grocery line is aggregated from BASKETED recipes alone — so the
+// single-source assertion at the end still holds.
 const CATALOG_RECIPE = "Garlic Bread";
 const CATALOG_ONLY_INGREDIENT = "baguette";
 
