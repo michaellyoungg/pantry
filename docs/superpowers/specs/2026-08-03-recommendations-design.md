@@ -414,9 +414,9 @@ X-Service-Secret, X-User-Id
 }
 ```
 
-- `source` is `"catalog" | "user"`, with `"generated"` reserved for a future LLM
-  candidate provider. This is the seam that makes decision 7 reversible without a
-  contract change.
+- `source` is `"catalog" | "user" | "generated"`. This is the seam that makes
+  decision 7 reversible without a contract change, and BL-0034 took it: see
+  [generated candidates](#generated-candidates-bl-0034) below.
 - `missing` powers "you need 2 more things" and is the natural hook for adding
   the gap straight to the grocery list.
 - Every contributing feature emits its own reason string; the top two or three
@@ -426,6 +426,55 @@ X-Service-Secret, X-User-Id
 Types live in `packages/types` with mirrored Go structs, matching how
 `GroceryListRequest` and `GroceryLine` are already shared. BL-0007's OpenAPI
 codegen would generate this pair eventually; it is `proposed` and not a blocker.
+
+### Generated candidates (BL-0034)
+
+Ranking a small corpus is a sort, not a recommender. When a user's own recipes
+plus the catalog produce almost nothing for the pantry they have, the shortfall
+is structural and no scoring change fixes it. A model can answer "what can I
+make with these five things" directly.
+
+It lands as a **candidate provider**, not as a second ranker:
+
+1. `POST /recommendations/pantry` ranks the corpus exactly as before.
+2. If that produced fewer than **3** results *and* the pantry has something in
+   it *and* a generator is configured, the service asks for up to **5** recipe
+   ideas, described by a brief of at most 40 canonical pantry items.
+3. Each idea is converted to a `recommend.Candidate` through the **same**
+   `normalizer.Details` path stored recipes use, appended to the pool, and the
+   **whole pool is re-ranked by the same `RankPantry` call**.
+
+Step 3 is the safety argument. The avoid list is a hard pre-filter inside
+`RankPantry`, matching a canonical item *and* its allergen families (BL-0052).
+Because a generated candidate is an ordinary candidate by then, a model that
+invents a peanut sauce for someone who avoids peanuts has its recipe dropped by
+the filter — prompt compliance is a cost optimization, never the mechanism. The
+same is true of every other rule: the unmatched-pantry drop, nutrition hard
+constraints, the result limit.
+
+Three consequences follow from "not stored until accepted":
+
+- The response carries a `generated` sidecar — the full text of every generated
+  candidate that **survived** ranking — because a `gen-` id names no row and
+  there is nothing to fetch it back with later. A draft the filter removed is
+  absent from `results` and from the sidecar: a draft the user could save is as
+  dangerous as a result they could see.
+- Accepting one writes it through the ordinary `POST /recipes`, tagged
+  `ai-generated`, and only then does it go on the plan. Suggestions nobody takes
+  are never written anywhere.
+- The UI labels it (`AI idea`, plus a line saying it is untested) and does not
+  link it to a recipe page it does not have.
+
+Configuration is one environment variable, `ANTHROPIC_API_KEY`, shared with the
+import and tagging fallbacks. **Unset — the default — there is no generator, no
+generated candidates and no errors: byte for byte the corpus-only behaviour.**
+That is the path that actually runs, so it has its own tests, as does a
+generator that fails mid-request.
+
+Cost is bounded by the gate (thin results only), the count (5), the brief (40
+items), and a 15-second budget on the model call. The caller's timeout sits
+above it; the generation wait only ever happens on the cold-start path, where
+the alternative on screen is an empty card.
 
 ### Error handling
 

@@ -1,6 +1,6 @@
 import { api } from "@pantry/convex/api";
 import { useAsyncData } from "@pantry/core/react";
-import type { Recommendation } from "@pantry/types";
+import type { GeneratedRecipeDraft, Recommendation } from "@pantry/types";
 import { Link } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
@@ -29,6 +29,12 @@ import { Button } from "./ui/Button";
  *
  * Urgency arrives as a structured field rather than as another reason string,
  * so telling the two apart is a property check, not a prefix match on English.
+ *
+ * A third kind of row can appear here: a GENERATED suggestion (BL-0034), which
+ * the server adds only when the corpus came up thin. It is an idea a model
+ * invented, not a curated and tested recipe, so it is labelled as such — and it
+ * exists nowhere until the user accepts it, which is why adding one saves it
+ * first and only then puts the real recipe on the plan.
  */
 
 type Variant = "nudge" | "page";
@@ -36,6 +42,7 @@ type Variant = "nudge" | "page";
 export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
   const rows = (useQuery(api.pantry.list) ?? []) as PantryRow[];
   const recommend = useAction(api.recommendations.pantry);
+  const acceptGenerated = useAction(api.recommendations.acceptGenerated);
   const addToBasket = useMutation(api.basket.add);
 
   const now = Date.now();
@@ -65,9 +72,43 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
     // Referenced so the fetch re-runs when the pantry changes; the action reads
     // the pantry itself, server-side, so nothing needs to be passed.
     void pantryKey;
-    return silent ? Promise.resolve<Recommendation[]>([]) : recommend({});
+    return silent
+      ? Promise.resolve<{ results: Recommendation[]; generated: GeneratedRecipeDraft[] }>({
+          results: [],
+          generated: [],
+        })
+      : recommend({});
   }, [pantryKey, recommend, silent]);
-  const { data: recipes, loading, error } = useAsyncData(load);
+  const { data, loading, error } = useAsyncData(load);
+  const recipes = data?.results;
+
+  // Generated suggestions carry their full text in a sidecar keyed by the same
+  // synthetic id, because a `gen-` id names no stored recipe — there is nothing
+  // to fetch it back with later.
+  const drafts = new Map((data?.generated ?? []).map((d) => [d.recipeId, d]));
+
+  /**
+   * Put a suggestion on the plan.
+   *
+   * A generated one has to become a real recipe first: the plan holds recipe
+   * ids, and a `gen-` id resolves to nothing. Saving on accept is also the only
+   * time anything generated is stored — suggestions nobody takes are never
+   * written anywhere.
+   */
+  const addRecipe = async (r: Recommendation) => {
+    const draft = drafts.get(r.recipeId);
+    if (draft === undefined) {
+      await addToBasket({ recipeId: r.recipeId, title: r.title });
+      return;
+    }
+    const saved = await acceptGenerated({
+      title: draft.title,
+      servings: draft.servings,
+      ingredients: draft.ingredients,
+      steps: draft.steps,
+    });
+    await addToBasket({ recipeId: saved.id, title: saved.title });
+  };
 
   if (silent) return null;
 
@@ -123,13 +164,34 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
               {recipes.map((r) => (
                 <li key={r.recipeId} className="flex items-start justify-between gap-2 py-2">
                   <div className="min-w-0">
-                    <Link
-                      to="/recipes"
-                      className="font-medium text-primary hover:underline"
-                      aria-label={r.title}
-                    >
-                      {r.title}
-                    </Link>
+                    {/* A generated idea has no recipe page to link to — it does
+                        not exist yet — so it renders as plain text with the
+                        badge instead of as a link that would 404. */}
+                    {r.source === "generated" ? (
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-text">
+                        {r.title}
+                        <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                          AI idea
+                        </span>
+                      </p>
+                    ) : (
+                      <Link
+                        to="/recipes"
+                        className="font-medium text-primary hover:underline"
+                        aria-label={r.title}
+                      >
+                        {r.title}
+                      </Link>
+                    )}
+
+                    {/* Said plainly, not just as a badge: this is the one row on
+                        the card that nobody has cooked or checked. */}
+                    {r.source === "generated" && (
+                      <p className="text-xs text-muted">
+                        Suggested by AI from your pantry — not a tested recipe. Check it before you
+                        cook.
+                      </p>
+                    )}
 
                     {/* Urgency reads as its own amber line, never mixed into the
                         muted fit reasons below: "this spoils in two days" is a
@@ -162,9 +224,11 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
                     variant="secondary"
                     size="sm"
                     aria-label={`Add ${r.title} to plan`}
-                    onClick={() => addToBasket({ recipeId: r.recipeId, title: r.title })}
+                    onClick={() => {
+                      void addRecipe(r);
+                    }}
                   >
-                    Add to plan
+                    {r.source === "generated" ? "Save & plan" : "Add to plan"}
                   </Button>
                 </li>
               ))}

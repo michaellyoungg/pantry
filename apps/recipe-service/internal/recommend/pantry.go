@@ -43,11 +43,21 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 			continue
 		}
 
+		d := matchDiscovery(c, uc.Preferences)
+
 		features := append(pantryFeatures(m, view, w), nutritionFeature(na, w))
+		features = append(features, discoveryFeatures(d, w)...)
+
+		// Reason order is a ranking of what matters, and the card shows only the
+		// first two or three. The pantry comes first (it is the intent of this
+		// surface), then a goal the user set, then the facets they said they
+		// like — a taste match is the nicest of the four to read and the least
+		// consequential to act on.
 		reasons := pantryReasons(m)
 		if r := nutritionReason(na); r != "" {
 			reasons = append(reasons, r)
 		}
+		reasons = append(reasons, discoveryReasons(d)...)
 
 		results = append(results, Result{
 			RecipeID: c.RecipeID,

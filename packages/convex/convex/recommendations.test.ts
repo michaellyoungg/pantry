@@ -15,13 +15,16 @@ const DAY = 86_400_000;
  * integration suite proves Go agrees; this proves the payload is assembled at
  * all, and it runs with no backend.
  */
-function stubService(): { url: string; body: Record<string, unknown> }[] {
+function stubService(payload: unknown = { results: [] }): {
+  url: string;
+  body: Record<string, unknown>;
+}[] {
   vi.stubEnv("RECIPE_SERVICE_URL", "http://recipe-service");
   vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
   const calls: { url: string; body: Record<string, unknown> }[] = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
-    return new Response(JSON.stringify({ results: [] }), {
+    return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
@@ -102,5 +105,140 @@ describe("recommendations.pantry request payload (BL-0050)", () => {
     const t = convexTest(schema, modules);
     stubService();
     await expect(t.action(api.recommendations.pantry, {})).rejects.toThrow(/Not authenticated/);
+  });
+});
+
+describe("generated candidates (BL-0034)", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  const draft = {
+    recipeId: "gen-abc",
+    title: "Garlic Fried Rice",
+    servings: 2,
+    ingredients: [{ quantity: 1, unit: "cup", item: "rice" }],
+    steps: ["Cook the rice."],
+  };
+
+  it("passes generated drafts through alongside the ranked results", async () => {
+    const t = convexTest(schema, modules);
+    stubService({
+      results: [{ recipeId: "gen-abc", title: "Garlic Fried Rice", source: "generated" }],
+      generated: [draft],
+    });
+    await seedPantry(t, { canonicalItem: "rice" });
+
+    const out = await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    expect(out.results[0].source).toBe("generated");
+    expect(out.generated).toEqual([draft]);
+  });
+
+  // The path that actually runs today: no API key means recipe-service sends no
+  // `generated` key at all, and the action must not turn that into undefined.
+  it("degrades to an empty list when the service sends no generated field", async () => {
+    const t = convexTest(schema, modules);
+    stubService({ results: [] });
+    await seedPantry(t, { canonicalItem: "rice" });
+
+    const out = await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    expect(out.generated).toEqual([]);
+  });
+
+  it("persists an accepted draft as a real recipe tagged ai-generated", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService({ id: "r1", title: draft.title });
+
+    await t.withIdentity(identity).action(api.recommendations.acceptGenerated, {
+      title: draft.title,
+      servings: draft.servings,
+      ingredients: draft.ingredients,
+      steps: draft.steps,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("http://recipe-service/recipes");
+    expect(calls[0].body.title).toBe("Garlic Fried Rice");
+    expect(calls[0].body.ingredients).toEqual(draft.ingredients);
+    // The row says where it came from long after the card that labelled it is gone.
+    expect(calls[0].body.tags).toEqual(["ai-generated"]);
+  });
+
+  it("refuses to persist a draft for an unauthenticated caller", async () => {
+    const t = convexTest(schema, modules);
+    stubService();
+    await expect(
+      t.action(api.recommendations.acceptGenerated, {
+        title: draft.title,
+        ingredients: draft.ingredients,
+        steps: draft.steps,
+      }),
+    ).rejects.toThrow(/Not authenticated/);
+  });
+});
+
+// The discovery facets are stored on the recipe and the tastes are stored here,
+// but they only ever meet inside the ranker. A preference that never leaves
+// Convex is a setting the user can change with no observable effect (BL-0030).
+describe("recommendations request carries stated tastes (BL-0030)", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  async function seedTastes(
+    t: ReturnType<typeof convexTest>,
+    tastes: { cuisines?: string[]; maxMinutes?: number },
+  ) {
+    await t.withIdentity(identity).mutation(api.preferences.set, tastes);
+  }
+
+  it("forwards the cuisines and cook-time limit on the pantry surface", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+    await seedTastes(t, { cuisines: ["thai", "italian"], maxMinutes: 30 });
+
+    await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.cuisines).toEqual(["thai", "italian"]);
+    expect(prefs.maxMinutes).toBe(30);
+  });
+
+  // Week selection ranks through the same endpoint, so a taste that only
+  // reached one of the two surfaces would silently be half-applied.
+  it("forwards them on the week-candidates surface too", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+    await seedTastes(t, { cuisines: ["thai"], maxMinutes: 45 });
+
+    await t.withIdentity(identity).action(api.recommendations.weekCandidates, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.cuisines).toEqual(["thai"]);
+    expect(prefs.maxMinutes).toBe(45);
+  });
+
+  // An unset limit must arrive as absent, not as 0. Zero is a limit nothing
+  // satisfies; absent is the "no opinion" the ranker degrades to.
+  it("sends no cook-time limit when the user has not set one", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+
+    await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    const prefs = calls[0].body.preferences as { cuisines?: string[]; maxMinutes?: number };
+    expect(prefs.maxMinutes).toBeUndefined();
+    expect(prefs.cuisines).toEqual([]);
   });
 });

@@ -55,7 +55,7 @@ describe("recommendations <-> recipe-service contract", () => {
     created.push(recipe.id);
     await seedPantryRice(t);
 
-    const results = await client.action(api.recommendations.pantry, {});
+    const { results } = await client.action(api.recommendations.pantry, {});
     const hit = results.find((r) => r.title === "Pantry Rice");
     expect(hit).toBeDefined();
     expect(hit?.have).toEqual(["rice"]);
@@ -79,7 +79,7 @@ describe("recommendations <-> recipe-service contract", () => {
     await seedPantryRice(t);
     await client.mutation(api.preferences.set, { avoidItems: ["peanut"] });
 
-    const results = await client.action(api.recommendations.pantry, {});
+    const { results } = await client.action(api.recommendations.pantry, {});
     expect(results.map((r) => r.title)).not.toContain("Peanut Rice");
   });
 });
