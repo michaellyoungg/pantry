@@ -370,6 +370,27 @@ describe("cook-decrement (BL-0028)", () => {
     ]);
   });
 
+  // Cooking a meal is the strongest taste signal the product has, and this is
+  // the ONE place that already knows the recipe's normalized ingredients — the
+  // affinity fold needs them and a mutation cannot fetch (BL-0005 increment 2).
+  it("records a cooked interaction with the resolved ingredients", async () => {
+    const t = convexTest(schema, modules);
+    stubIngredients(["butter", "spinach"]);
+    await seedPlanned(t);
+    await seed(t, { canonicalItem: "butter", display: "Butter", state: "have" });
+
+    await cook(t);
+
+    const events = await t.run(async (ctx) => ctx.db.query("recommendationEvents").collect());
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      userId: USER_ID,
+      recipeId: "r1",
+      action: "cooked",
+      canonicalItems: ["butter", "spinach"],
+    });
+  });
+
   it("never steps below out", async () => {
     const t = convexTest(schema, modules);
     stubIngredients(["butter"]);

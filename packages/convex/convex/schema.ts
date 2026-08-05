@@ -233,6 +233,53 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_item", ["userId", "canonicalItem"]),
 
+  // What the user did with the recommendations we showed them (BL-0005
+  // increment 2). This is the ONLY learned input the recommender has, and it
+  // lives here because Convex owns user state — recipe-service stays stateless
+  // and receives the DERIVED signal in each request body, never a handle on this
+  // table.
+  //
+  // Nothing here is ever folded into a stored score. Affinities are derived at
+  // request time by `lib/affinity.ts`; a per-user per-ingredient score table
+  // would be a second source of truth about these same rows, and there would be
+  // no way to tell which one had gone stale.
+  recommendationEvents: defineTable({
+    userId: v.string(),
+    recipeId: v.string(),
+    context: v.union(v.literal("pantry"), v.literal("discover")),
+    action: v.union(
+      // An impression. Worth ZERO as a taste signal — the user did not choose to
+      // be shown the card — and recorded anyway because the discovery ranker's
+      // `novelty` reads it, so a six-recipe catalog stops showing the same card
+      // forever. It is deduplicated per recipe per window on write, which is
+      // what keeps the impression rows from burying the intentional ones.
+      v.literal("shown"),
+      v.literal("accepted"),
+      v.literal("dismissed"),
+      // Written from the cook-decrement action (BL-0028), which is the one place
+      // that already knows a cooked recipe's normalized ingredients.
+      v.literal("cooked"),
+    ),
+    // The recipe's canonical ingredients AS THEY WERE at the time, denormalized
+    // for the same reason `nutritionLog.snapshot` is: an event is a historical
+    // fact, and re-deriving it from a recipe that has since been edited or
+    // deleted would silently rewrite what the user did. Convex cannot look them
+    // up on its own either — recipe bodies live in recipe-service, and a
+    // mutation cannot fetch.
+    //
+    // Optional: an event recorded without them still counts per RECIPE and
+    // simply contributes nothing per INGREDIENT.
+    canonicalItems: v.optional(v.array(v.string())),
+    // Explicit rather than leaning on `_creationTime`, because the fold decays
+    // by age and the window query filters on it — a derived-signal input should
+    // be a column the index can range over, not a system field.
+    createdAt: v.number(),
+  })
+    // The read path: one bounded recent window per request.
+    .index("by_user_created", ["userId", "createdAt"])
+    // The write path: deduplicating repeat impressions of the same recipe.
+    .index("by_user_recipe", ["userId", "recipeId"]),
+
   // Eating history (BL-0039). One row per recipe per calendar day.
   //
   // `source` is taken from the plan: a meal the user marked cooked (BL-0028's
