@@ -84,6 +84,47 @@ describe("preferences", () => {
     expect(prefs.cuisines).toEqual(["thai"]);
   });
 
+  // The merge-on-omit rule above has one casualty: an optional preference can
+  // be set but never unset, because omitting it means "keep". A cook who says
+  // "under 30 minutes" and later stops caring has to be able to say so, so 0 —
+  // never a real limit, and what a cleared select sends — is an explicit clear.
+  it("clears the cook-time limit when asked for a limit of zero", async () => {
+    const t = convexTest(schema, modules);
+    const client = t.withIdentity(identity);
+
+    await client.mutation(api.preferences.set, { maxMinutes: 30 });
+    await client.mutation(api.preferences.set, { maxMinutes: 0 });
+
+    const prefs = await client.query(api.preferences.get, {});
+    expect(prefs.maxMinutes).toBeUndefined();
+  });
+
+  // Clearing one taste must not clear the other.
+  it("keeps the cuisines when the cook-time limit is cleared", async () => {
+    const t = convexTest(schema, modules);
+    const client = t.withIdentity(identity);
+
+    await client.mutation(api.preferences.set, { cuisines: ["thai"], maxMinutes: 30 });
+    await client.mutation(api.preferences.set, { maxMinutes: 0 });
+
+    const prefs = await client.query(api.preferences.get, {});
+    expect(prefs.cuisines).toEqual(["thai"]);
+    expect(prefs.maxMinutes).toBeUndefined();
+  });
+
+  // An empty array is not nullish, so it already reads as "clear these" rather
+  // than "keep what you had". Pinned because the two fields clear differently.
+  it("clears the cuisines when handed an empty list", async () => {
+    const t = convexTest(schema, modules);
+    const client = t.withIdentity(identity);
+
+    await client.mutation(api.preferences.set, { cuisines: ["thai"] });
+    await client.mutation(api.preferences.set, { cuisines: [] });
+
+    const prefs = await client.query(api.preferences.get, {});
+    expect(prefs.cuisines).toEqual([]);
+  });
+
   it("rejects unauthenticated writes", async () => {
     const t = convexTest(schema, modules);
     await expect(t.mutation(api.preferences.set, { avoidItems: ["peanut"] })).rejects.toThrow(

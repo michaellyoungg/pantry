@@ -107,7 +107,14 @@ export const set = mutation({
       dislikedItems: canonicalize(args.dislikedItems ?? existing?.dislikedItems),
       dietLabels: args.dietLabels ?? existing?.dietLabels,
       cuisines: args.cuisines ?? existing?.cuisines,
-      maxMinutes: args.maxMinutes ?? existing?.maxMinutes,
+      // 0 is an explicit CLEAR, not a limit (BL-0030).
+      //
+      // Every other field here merges on omission, which leaves an optional
+      // preference settable but never unsettable — a cook who said "under 30
+      // minutes" and stopped caring would be stuck with it forever. 0 is safe to
+      // spend on this because it is not a limit any recipe could satisfy, and
+      // the ranker independently treats a non-positive limit as no preference.
+      maxMinutes: args.maxMinutes === 0 ? undefined : (args.maxMinutes ?? existing?.maxMinutes),
       householdSize: args.householdSize ?? existing?.householdSize,
       updatedAt: Date.now(),
     };

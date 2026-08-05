@@ -11,6 +11,8 @@ type Weights struct {
 	Affinity         float64
 	RecentlyPlanned  float64
 	NutritionFit     float64
+	CuisineMatch     float64
+	TimeFit          float64
 }
 
 // DefaultPantryWeights favours clearing flagged use-it-up items over raw
@@ -45,4 +47,14 @@ var DefaultPantryWeights = Weights{
 	// the suggestions, not overrule what is about to go off in their fridge.
 	// Hard constraints are unaffected by this number — they filter.
 	NutritionFit: 2.0,
+	// CuisineMatch and TimeFit (BL-0030) sit below Coverage on purpose. Both are
+	// stated tastes rather than facts about the food in the user's kitchen: on
+	// the "cook what I have" surface, liking Thai is a good reason to reorder
+	// suggestions and a bad reason to outrank the spinach going off tomorrow.
+	//
+	// They are equal to each other because neither dominates the other as an
+	// intent — "I feel like Thai" and "I have 20 minutes" are the same kind of
+	// ask, and a recipe answering both should beat one answering either.
+	CuisineMatch: 1.5,
+	TimeFit:      1.5,
 }
