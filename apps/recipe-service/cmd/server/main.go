@@ -80,19 +80,23 @@ func run() error {
 		return errors.New("RECIPE_SERVICE_SECRET is required")
 	}
 
-	// One key gates both LLM paths: extraction (parse a page the JSON-LD reader
-	// could not) and tagging (BL-0044 — equipment, methods and prep-rule
-	// matches for a recipe the keyword scan could not classify). Without it the
-	// service still imports, still tags deterministically, and still derives
-	// prep from the rule table; it only loses the gap-fillers.
+	// One key gates all three LLM paths: extraction (parse a page the JSON-LD
+	// reader could not), tagging (BL-0044 — equipment, methods and prep-rule
+	// matches for a recipe the keyword scan could not classify), and
+	// recommendation candidates (BL-0034 — invent ideas when the corpus is
+	// thin). Without it the service still imports, still tags deterministically,
+	// still derives prep from the rule table, and still recommends from the
+	// corpus; it only loses the gap-fillers.
 	var extractor recipe.Extractor
 	var importOpts []recipe.ImporterOption
+	var routerOpts []recipe.RouterOption
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		extractor = recipe.NewClaudeExtractor(apiKey)
 		importOpts = append(importOpts, recipe.WithTagger(recipe.NewClaudeTagger(apiKey)))
-		slog.Info("recipe import: LLM fallback enabled", "paths", "extraction,tagging")
+		routerOpts = append(routerOpts, recipe.WithGenerator(recipe.NewClaudeGenerator(apiKey)))
+		slog.Info("LLM paths enabled", "paths", "extraction,tagging,recommendation-candidates")
 	} else {
-		slog.Info("recipe import: LLM fallback disabled", "reason", "ANTHROPIC_API_KEY unset")
+		slog.Info("LLM paths disabled", "reason", "ANTHROPIC_API_KEY unset")
 	}
 	importer := recipe.NewImporter(recipe.NewHTTPFetcher(), extractor, importOpts...)
 
@@ -110,7 +114,8 @@ func run() error {
 		nutrition.NewProvider(nutritionCache, fdcKey),
 		nutrition.SnapshotNutrients(),
 	)
-	handler := recipe.NewRouterWithImporter(store, secret, importer, recipe.WithNutrition(estimator))
+	routerOpts = append(routerOpts, recipe.WithNutrition(estimator))
+	handler := recipe.NewRouterWithImporter(store, secret, importer, routerOpts...)
 
 	srv := &http.Server{
 		Addr:              ":" + port,

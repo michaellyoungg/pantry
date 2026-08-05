@@ -1,5 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type {
+  GeneratedRecipeDraft,
+  Recipe,
   Recommendation,
   RecommendationNutritionTarget,
   RecommendationPlanNutrition,
@@ -7,13 +9,34 @@ import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@pantry/types";
+import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { type ActionCtx, action } from "./_generated/server";
 import type { PlanNutritionResult } from "./nutrition";
+import { ingredientValidator, recipeServiceFetch } from "./recipes";
 
 // How long we wait on recipe-service before giving up. Recommendations are
 // additive — a slow ranker must never hang the Pantry page.
-const TIMEOUT_MS = 5_000;
+//
+// It is generous because generation (BL-0034) happens INSIDE this request when
+// the corpus came up thin, and a model call is seconds rather than milliseconds.
+// The budget only bites on the cold-start path, where the alternative on screen
+// is an empty card, and the card renders its local expiring-items strip while it
+// waits. recipe-service bounds its own generation call below this figure.
+const TIMEOUT_MS = 20_000;
+
+/**
+ * What the pantry surface returns: the ranked list, plus the full text of any
+ * generated candidate in it.
+ *
+ * The drafts are a SIDECAR rather than a field on each recommendation because
+ * `Recommendation` mirrors the Go ranker's own result type, and the ranker knows
+ * nothing about recipe bodies. Joining on `recipeId` keeps that boundary intact.
+ */
+export interface PantryRecommendations {
+  results: Recommendation[];
+  generated: GeneratedRecipeDraft[];
+}
 
 /**
  * What the week's plan already commits, for the set-level half of BL-0040.
@@ -80,10 +103,16 @@ function rankerPreferences(prefs: {
  * This is an ACTION, not a query, because Convex queries cannot do network I/O.
  * Results are therefore fetched rather than reactive — the caller refetches when
  * pantry contents change.
+ *
+ * When the corpus comes up thin, recipe-service may add generated candidates
+ * (BL-0034). They arrive in `results` like any other recommendation, marked
+ * `source: "generated"`, with their full text in `generated` so accepting one
+ * can persist it. Nothing here has to know whether generation is configured:
+ * unconfigured, the sidecar is simply empty.
  */
 export const pantry = action({
   args: {},
-  handler: async (ctx): Promise<Recommendation[]> => {
+  handler: async (ctx): Promise<PantryRecommendations> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
 
@@ -148,7 +177,48 @@ export const pantry = action({
       throw new Error(`recipe-service POST /recommendations/pantry failed: ${res.status}`);
     }
     const payload = (await res.json()) as RecommendationResponse;
-    return payload.results ?? [];
+    return { results: payload.results ?? [], generated: payload.generated ?? [] };
+  },
+});
+
+/**
+ * Turn an accepted generated suggestion into a real recipe the user owns.
+ *
+ * This is the only moment a generated recipe is stored (BL-0034). Candidates
+ * nobody accepts are forgotten when the request that produced them ends, which
+ * is why the draft has to travel back to the client and then back here — there
+ * is no server-side row to point at in between.
+ *
+ * The draft is written through the SAME `POST /recipes` every other recipe uses,
+ * so it is validated identically and ends up an ordinary, editable, plannable
+ * recipe. The one thing added is the `ai-generated` tag: the row should still
+ * say where it came from a month later, when the card that labelled it is long
+ * gone.
+ */
+const GENERATED_TAG = "ai-generated";
+
+export const acceptGenerated = action({
+  args: {
+    title: v.string(),
+    servings: v.optional(v.number()),
+    ingredients: v.array(ingredientValidator),
+    steps: v.array(v.string()),
+  },
+  handler: async (ctx, { title, servings, ingredients, steps }): Promise<Recipe> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    return recipeServiceFetch<Recipe>(userId, "POST", "/recipes", {
+      title,
+      servings,
+      ingredients,
+      steps,
+      equipment: [],
+      methods: [],
+      cuisine: "",
+      tags: [GENERATED_TAG],
+      sourceUrl: "",
+    });
   },
 });
 

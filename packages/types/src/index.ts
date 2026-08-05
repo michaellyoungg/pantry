@@ -524,7 +524,13 @@ export interface RecommendationUrgency {
 export interface Recommendation {
   recipeId: string;
   title: string;
-  /** "generated" is reserved for a future LLM candidate provider (BL-0034). */
+  /**
+   * Where the candidate came from. "generated" is an idea a model invented for
+   * this request (BL-0034) — NOT a curated, tested recipe, and the UI must say
+   * so. It carries a synthetic `gen-` recipeId that names no stored row until
+   * the user accepts it; its full draft rides in
+   * {@link RecommendationResponse.generated}.
+   */
   source: "catalog" | "user" | "generated";
   score: number;
   reasons: string[];
@@ -541,8 +547,36 @@ export interface Recommendation {
   nutritionUnverified?: RecommendationUnverifiedConstraint[];
 }
 
+/**
+ * A recipe a model invented for one request (BL-0034).
+ *
+ * It is a DRAFT: no row exists for it, and its `recipeId` is a synthetic `gen-`
+ * id that resolves to nothing. It rides back with the ranked results purely so
+ * that accepting a suggestion can persist exactly what the user was shown,
+ * instead of asking the model again and getting something slightly different.
+ *
+ * Only drafts whose candidate SURVIVED ranking appear here. One the avoid-list
+ * filter removed is absent from `results` and absent from this list too — a
+ * draft the user could save is as dangerous as a result they could see.
+ */
+export interface GeneratedRecipeDraft {
+  /** Joins to the `Recommendation` with the same id. */
+  recipeId: string;
+  title: string;
+  /** Absent when the model gave no usable yield — unknown, never zero. */
+  servings?: number;
+  ingredients: Ingredient[];
+  steps: string[];
+}
+
 export interface RecommendationResponse {
   results: Recommendation[];
+  /**
+   * The full text of every generated candidate in `results`. Always present and
+   * always an array — empty whenever generation is unconfigured, ungated or
+   * unproductive, which is the common case.
+   */
+  generated: GeneratedRecipeDraft[];
 }
 
 /**

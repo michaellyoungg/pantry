@@ -75,6 +75,10 @@ type handlers struct {
 	store     Store
 	importer  *Importer
 	nutrition NutritionEstimator
+	// generator invents recommendation candidates when the corpus is thin
+	// (BL-0034). Nil unless WithGenerator was passed, which is the default:
+	// no key, no generated candidates, no errors.
+	generator Generator
 }
 
 func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {

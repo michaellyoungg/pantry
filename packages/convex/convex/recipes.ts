@@ -14,7 +14,9 @@ import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { withSpan } from "./lib/otel";
 
-const ingredientValidator = v.object({
+// Exported so the generated-candidate accept path (BL-0034) writes exactly the
+// ingredient shape every other recipe write does.
+export const ingredientValidator = v.object({
   quantity: v.number(),
   unit: v.string(),
   item: v.string(),

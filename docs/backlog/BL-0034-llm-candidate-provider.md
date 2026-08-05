@@ -1,7 +1,7 @@
 ---
 id: BL-0034
 title: LLM candidate provider for recommendations
-status: in-progress
+status: done
 area: recommendations
 effort: M
 related_specs: [2026-08-03-recommendations-design.md]
