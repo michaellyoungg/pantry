@@ -96,7 +96,14 @@ test("a manual line can be removed and put back with undo", async ({ page }) => 
 
   // Removal is offered as an ordinary button — the swipe only ever accelerates
   // something already reachable.
-  await foil.getByRole("button", { name: /^Remove foil$/i }).click();
+  //
+  // Matched on "Remove …" rather than the exact item, because the item name is
+  // decided by two layers this test does not own: `parseManualEntry` only lifts
+  // out recipe-service's convertible units (so "rolls" stays part of the name),
+  // and the server then replaces the name with the normalization table's
+  // display form. Pinning the result here asserts their content, not this
+  // feature.
+  await foil.getByRole("button", { name: /^Remove / }).click();
   await expect(page.getByRole("listitem").filter({ hasText: /foil/i })).toHaveCount(0);
 
   // ...and it is undoable, with the line's own state intact.
