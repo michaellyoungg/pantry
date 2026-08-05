@@ -1,7 +1,7 @@
 ---
 id: BL-0005
 title: Recommendations / preference-lookup service
-status: in-progress
+status: done
 area: recommendations
 effort: L
 related_specs: [2026-06-29-recipe-to-grocery-list-design.md, 2026-08-03-recommendations-design.md]
@@ -98,5 +98,39 @@ so the catalog is empty for the whole suite and the assertion could never have
 passed. Both specs now build their own candidate recipe; the underlying coverage
 gap is [BL-0051](BL-0051-e2e-seeds-the-catalog.md).
 
-**Increment 2 — next.** `/recommendations/discover`, the `recommendationEvents`
-log, and derived ingredient affinities.
+**Increment 2 — delivered.** `POST /recommendations/discover`, the
+`recommendationEvents` log, derived ingredient affinities, and the "For you"
+card on `/recipes`.
+
+Four notes worth recording:
+
+- **The module boundary held.** `internal/recommend` still imports NOTHING. The
+  ranker never sees an event: Convex folds a recent window of them into an
+  ingredient→weight map and sends *that* in the request body, so the learned
+  half of the recommender arrived without giving the ranker any state at all.
+  Handler and candidate assembly stayed in `internal/recipe`.
+- **Affinities are derived at request time, never stored as a score.** A
+  per-user per-ingredient table would be a second source of truth about the same
+  events with no way to tell which had gone stale. This also means the amendment
+  above still holds: the ranker has acquired no derived storage, so the trigger
+  for extracting it into its own service has not fired.
+- **Cold start is the rule the whole feature turns on**, and it is now asserted
+  on both sides of the wire: `lib/affinity.ts` returns an empty map for a user
+  with no history, and `recommend.affinityView` reports UNAVAILABLE for an empty
+  map rather than scoring every candidate zero. Discovery weights affinity most
+  heavily of all features, so getting this wrong would have punished precisely
+  the users who have not used the product yet.
+- **`shown` events are recorded after all**, which the design doc argued against.
+  They earn their rows by feeding `novelty` — with a six-recipe catalog, "you
+  have seen this six times" is what stops the surface showing the same card
+  forever — and they are deduplicated per recipe per day on write, so they cannot
+  bury the intentional rows. They carry ZERO affinity weight: an impression is
+  not an opinion.
+
+Two discover-only scoring features arrived alongside the ones the design listed:
+`novelty` (from impressions) and `nearDuplicate` (threshold-gated Jaccard against
+the user's own recipes, gated because BL-0033 learned that an ungated similarity
+penalty fires on every pair and cancels the signals beside it).
+
+Still unavailable and still wired: `recentlyPlanned` (needs plan history; the
+basket is current-week only) and `costFit` (BL-0023).
