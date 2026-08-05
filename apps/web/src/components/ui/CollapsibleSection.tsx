@@ -31,10 +31,14 @@ export function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const contentId = useId();
+  const headingId = useId();
 
   return (
-    <section>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+    // Named by its own heading, which makes it a landmark a screen-reader user
+    // can jump between — and the only way to address one section of the list
+    // unambiguously, since the card wrapping them all is a <section> too.
+    <section aria-labelledby={headingId}>
+      <h3 id={headingId} className="text-xs font-semibold uppercase tracking-wide text-muted">
         <button
           type="button"
           aria-expanded={open}

@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, scheduleAndGenerate, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  scheduleAndGenerate,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 // BL-0019, the remaining increments: the grocery list is read one-handed in a
 // shop, so the top of it has to stay "what's left" and the trip has to be
@@ -23,7 +29,9 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
     item: "garlic",
   });
   await scheduleAndGenerate(page, [{ title: recipeTitle, day: "Monday" }]);
-  await page.goto("/list");
+  // Nav link, not page.goto(): goto tears down the Convex socket and would
+  // cancel the generate action fired on the line above.
+  await navigateTo(page, "List");
 
   // The aisle header is a real control, and it says how much is in the aisle.
   const aisle = page.getByRole("button", { name: /,\s*\d+ items? to buy$/ }).first();
@@ -45,7 +53,7 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
   await garlic.getByRole("checkbox").check();
   const inCart = page.getByRole("button", { name: /^In cart, \d+ items?$/ });
   await expect(inCart).toBeVisible();
-  const inCartSection = page.locator("section").filter({ has: inCart });
+  const inCartSection = page.getByRole("region", { name: /^In cart,/ });
   await expect(inCartSection.getByRole("listitem").filter({ hasText: "garlic" })).toBeVisible();
 
   // The thumb-zone bar tracks the trip.
@@ -60,8 +68,12 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
 
   await expect(page.getByRole("listitem").filter({ hasText: "garlic" })).toHaveCount(0);
 
-  // And it is a real delete, not a local one: a reload agrees.
-  await page.reload();
+  // Re-mounted from the server rather than reloaded: the assertion above is
+  // satisfied by the optimistic update, and a reload here would tear down the
+  // socket and cancel the very mutation being verified. Client-side navigation
+  // keeps it open, so coming back re-renders from what the server actually has.
+  await navigateTo(page, "Plan");
+  await navigateTo(page, "List");
   await expect(page.getByRole("listitem").filter({ hasText: "garlic" })).toHaveCount(0);
 
   expect(pageErrors, `Uncaught page errors:\n${pageErrors.join("\n")}`).toEqual([]);
