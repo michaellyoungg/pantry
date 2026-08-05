@@ -1,7 +1,7 @@
 ---
 id: BL-0019
 title: Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping
-status: in-progress
+status: done
 area: grocery-list
 effort: L
 related_specs: [2026-07-12-full-app-ux-plan.md]
@@ -44,20 +44,36 @@ Note for whoever picks this up next: an earlier PR titled "BL-0019: Grocery list
 UX polish" (#38) was the *claim* commit — it changed only the two backlog files.
 Nothing from the proposal had shipped before the increment above.
 
-**Remaining**, roughly in value order:
+**Increment 2 (the rest of the proposal) — done.**
 
-- **Collapsible aisle sections with counts** — sections render, but they are
-  plain headings; nothing collapses.
-- **"In cart" section** — checked lines strike through in place today; they do
-  not animate out into a separate section, so the top of the list is not yet
-  "what's left".
-- **"Done shopping" flow** — remove-purchased vs keep-unbought. Not started.
-- **Swipe-away delete with undo** — the accelerator half of the interaction.
-  Tap-to-check is in place and remains primary.
-- **One-handed ergonomics** — new controls are ≥44px, but add/check/"Done" are
-  not yet gathered into the bottom thumb zone.
-- **Live household sync polish** — presence + highlight on remote change. The
-  list is already reactive; this is the visible acknowledgement of a remote edit.
+- **Collapsible aisle sections with counts.** `CollapsibleSection` wraps each
+  aisle; the count lives on the header so a folded aisle still says how much of
+  it is left. The header is the hit target, ≥44px, and the section is labelled
+  by its own heading so it stays a landmark you can jump between.
+- **"In cart" section.** Ticking a line holds it in the walk for the length of
+  its leave animation and then re-partitions it into "In cart" (`partitionCart`
+  in `@pantry/core`, with an `isInCart` predicate so the client can do exactly
+  that). The top of the list is now only ever what is left.
+- **"Done shopping" flow.** A sheet asks the one question that matters — keep
+  what you didn't buy, or clear the list — and `groceryList.finishShopping`
+  deletes accordingly. It deliberately writes nothing to the pantry: BL-0021
+  already records inflow at check-off, so doing it again here would double it.
+- **Swipe-away delete with undo.** `SwipeAwayRow` + `trackSwipe`; a left swipe
+  past the commit distance removes the line. Every row it applies to also has a
+  plain "Remove <item>" button, so the swipe is only ever an accelerator. Undo
+  replays the line through `groceryList.restoreItem` rather than holding a
+  pending delete in the component, which would die when the phone is pocketed.
+- **One-handed ergonomics.** Add, the trip counter and "Done shopping" sit in a
+  sticky bottom bar above the mobile nav; the add field folds behind one
+  always-reachable control so the bar stays short.
+- **Live household sync polish.** `presence.heartbeat`/`shoppers` (a
+  `shoppingPresence` table with a TTL) drive "N others are on this list right
+  now", and a remote change flashes the affected line. Changes you made
+  yourself are registered before they land, so your own taps never flash.
+
+The Playwright spec `apps/web/e2e/grocery-list-ux.spec.ts` covers the seams the
+unit tests cannot: aisles built from the aggregator's real output, check-off
+round-tripping through Convex, and "Done shopping" surviving a re-mount.
 
 ## Alternatives considered
 
