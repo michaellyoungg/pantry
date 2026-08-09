@@ -20,9 +20,9 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
-    "knip": "^6.29.0",
-    "turbo": "^2.10.7",
+    "@biomejs/biome": "^2.5.7",
+    "knip": "^6.32.0",
+    "turbo": "^2.10.8",
     "typescript": "^7.0.2"
   }
 }
