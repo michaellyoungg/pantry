@@ -1,9 +1,5 @@
-import { api } from "@pantry/convex/api";
-import { parseManualEntry } from "@pantry/core";
-import { useAsyncAction } from "@pantry/core/react";
-import { useAction, useQuery } from "convex/react";
+import type { RecentItem } from "@pantry/core/data";
 import { useState } from "react";
-import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
@@ -12,27 +8,35 @@ import { Input } from "./ui/Input";
  *
  * A grocery list that only holds what the meal planner derived is not a grocery
  * list — foil, coffee and dish soap never come from a recipe. One field, not
- * three: in an aisle you type "2 lb butter", and `parseManualEntry` splits it
- * back apart. The aisle is resolved server-side from the same normalization
- * table the aggregator uses, so a typed "scallions" files itself next to a
- * recipe's "green onion" instead of landing in a catch-all.
+ * three: in an aisle you type "2 lb butter", and the data layer's
+ * `parseManualEntry` splits it back apart. The aisle is resolved server-side
+ * from the same normalization table the aggregator uses, so a typed
+ * "scallions" files itself next to a recipe's "green onion" instead of landing
+ * in a catch-all.
  *
  * The chips are the pantry's most recently touched items — the things this
  * household actually buys — which makes the common case one tap and no typing.
+ *
+ * Pure presentation since BL-0057: the subscription, the action and the parse
+ * all live in `useGroceryList()`, so the native add field drives the same code
+ * rather than a second copy of it. Failures surface through the list's own
+ * error line, because they are the same `useAsyncAction` now.
  */
-export function GroceryAddItem() {
+export function GroceryAddItem({
+  recent,
+  onAdd,
+}: {
+  recent: readonly RecentItem[];
+  /** Takes the raw text. Parsing it is the data layer's job, not the field's. */
+  onAdd: (typed: string) => void;
+}) {
   const [text, setText] = useState("");
-  const addItem = useAction(api.groceryList.addManualItem);
-  const recent = useQuery(api.groceryList.recentItems) ?? [];
-  const { run, error } = useAsyncAction();
 
-  async function add(raw: string) {
-    const entry = parseManualEntry(raw);
-    if (entry.item === "") return;
+  function add(raw: string) {
     // Clear optimistically: the field is the fastest thing on screen and waiting
     // for a round trip to empty it makes double-adds feel likely.
     setText("");
-    await run(() => addItem(entry));
+    onAdd(raw);
   }
 
   return (
@@ -70,7 +74,6 @@ export function GroceryAddItem() {
           ))}
         </div>
       )}
-      <ErrorText message={error} />
     </div>
   );
 }

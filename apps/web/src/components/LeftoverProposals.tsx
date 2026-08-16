@@ -1,8 +1,4 @@
-import { api } from "@pantry/convex/api";
-import { formatQuantity, purchaseText, residueText } from "@pantry/core";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
-import { ErrorText } from "./ErrorText";
+import { formatQuantity, type PurchasedLine, purchaseText, residueText } from "@pantry/core";
 import { Button } from "./ui/Button";
 
 /**
@@ -18,12 +14,21 @@ import { Button } from "./ui/Button";
  * frictionless-but-wrong path, and it is the per-item tap that carries the
  * information. It is also the outflow signal, collected at the one moment the
  * user is already thinking about that ingredient.
+ *
+ * Pure presentation since BL-0057 — the subscription and the mutation live in
+ * `useGroceryList()`, so the native prompt answers the same guesses.
  */
-export function LeftoverProposals() {
-  const proposals = useQuery(api.groceryList.leftoverProposals) ?? [];
-  const resolve = useMutation(api.groceryList.resolveLeftover);
-  const { run, error } = useAsyncAction();
 
+/** Only what the prompt draws — deliberately not the Convex document type. */
+export type LeftoverRow = PurchasedLine & { _id: string; item: string };
+
+export function LeftoverProposals<T extends LeftoverRow>({
+  proposals,
+  onResolve,
+}: {
+  proposals: readonly T[];
+  onResolve: (proposal: T, keep: boolean) => void;
+}) {
   if (proposals.length === 0) return null;
 
   return (
@@ -50,7 +55,7 @@ export function LeftoverProposals() {
               <Button
                 size="sm"
                 aria-label={`Keep ${row.item}`}
-                onClick={() => run(() => resolve({ id: row._id, keep: true }))}
+                onClick={() => onResolve(row, true)}
               >
                 Still have it
               </Button>
@@ -58,7 +63,7 @@ export function LeftoverProposals() {
                 variant="ghost"
                 size="sm"
                 aria-label={`Dismiss ${row.item}`}
-                onClick={() => run(() => resolve({ id: row._id, keep: false }))}
+                onClick={() => onResolve(row, false)}
               >
                 All used
               </Button>
@@ -66,7 +71,6 @@ export function LeftoverProposals() {
           );
         })}
       </ul>
-      <ErrorText message={error} />
     </section>
   );
 }
