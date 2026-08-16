@@ -1,7 +1,7 @@
 ---
 id: BL-0054
 title: Replace emoji icons with a shared icon set
-status: proposed
+status: in-progress
 area: web
 effort: S
 related_specs: [2026-08-16-mobile-client-parity-design.md, 2026-07-18-mobile-client-design.md]
