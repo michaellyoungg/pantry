@@ -1,7 +1,7 @@
 ---
 id: BL-0055
 title: "@pantry/core/data — push Convex wiring out of view components"
-status: proposed
+status: in-progress
 area: infra
 effort: L
 related_specs: [2026-08-16-mobile-client-parity-design.md]
