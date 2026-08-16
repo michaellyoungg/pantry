@@ -1,24 +1,7 @@
-import { api } from "@pantry/convex/api";
-import type { Doc } from "@pantry/convex/dataModel";
-import {
-  changedLineIds,
-  formatQuantity,
-  groupByAisle,
-  partitionCart,
-  partitionRemoved,
-  titleCase,
-} from "@pantry/core";
-import {
-  clearGroceryListOptimistic,
-  finishShoppingOptimistic,
-  needItAnywayOptimistic,
-  removeItemOptimistic,
-  toggleItemOptimistic,
-} from "@pantry/core/convex";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
-import { type RefObject, useEffect, useRef, useState } from "react";
-import { DoneShoppingSheet, type FinishChoice } from "./DoneShoppingSheet";
+import { formatQuantity, titleCase } from "@pantry/core";
+import { useGroceryList } from "@pantry/core/data";
+import { useState } from "react";
+import { DoneShoppingSheet } from "./DoneShoppingSheet";
 import { ErrorText } from "./ErrorText";
 import { GroceryAddItem } from "./GroceryAddItem";
 import { ProvenanceSheet } from "./GroceryProvenance";
@@ -32,243 +15,48 @@ import { Card } from "./ui/Card";
 import { CollapsibleSection } from "./ui/CollapsibleSection";
 import { useConfirm } from "./ui/useConfirm";
 
-type Line = Doc<"groceryList">;
-
-/** Paired with `.grocery-leaving` in index.css: the row is held in the walk for
- *  exactly as long as its animation out of it runs. */
-const CART_TRANSITION_MS = 300;
-
-/** Paired with `.grocery-remote`. */
-const REMOTE_HIGHLIGHT_MS = 1500;
-
-/** How long the undo offer stands after a line is swiped away. */
-const UNDO_MS = 8_000;
-
-/** What a delete takes with it, and `restoreItem` puts back. */
-type RestorableLine = {
-  item: string;
-  canonicalItem?: string;
-  unit: string;
-  quantity: number;
-  aisle: string;
-  checked: boolean;
-  alreadyHave?: boolean;
-  shelfLifeDays?: number;
-  sources?: { recipeId: string; title: string; quantity: number }[];
-  purchase?: { quantity: number; unit: string; residue?: number; residueUnit?: string };
-  leftoverDecision?: "kept" | "dismissed";
-  manual?: boolean;
-  removed?: boolean;
-};
-
 /**
- * Picked field by field rather than spread-minus-system-fields: the mutation
- * validator rejects anything it does not name, so a column added to the table
- * later must be added here deliberately rather than silently riding along and
- * breaking undo.
+ * The grocery list screen (BL-0055): presentation over `useGroceryList()`.
+ *
+ * Both subscriptions, the six mutations and their optimistic updates, the cart
+ * and dropped-line partitions, the two transient-highlight windows and the undo
+ * offer all live in `@pantry/core/data`, so the native grocery screen renders
+ * the same state rather than re-deriving it.
+ *
+ * What is left here is genuinely per-platform: `.grocery-leaving` and
+ * `.grocery-remote` are the web's rendering of `leaving`/`highlighted`, which
+ * sheet is open is view state, and the clear confirmation is a web dialog — the
+ * hook exposes `clear()` and lets each client ask in its own way.
  */
-function snapshotOf(line: Line): RestorableLine {
-  return {
-    item: line.item,
-    canonicalItem: line.canonicalItem,
-    unit: line.unit,
-    quantity: line.quantity,
-    aisle: line.aisle,
-    checked: line.checked,
-    alreadyHave: line.alreadyHave,
-    shelfLifeDays: line.shelfLifeDays,
-    sources: line.sources,
-    purchase: line.purchase,
-    leftoverDecision: line.leftoverDecision,
-    manual: line.manual,
-    removed: line.removed,
-  };
-}
-
-/**
- * Which lines are mid-flight from the aisle walk into the cart.
- *
- * A ticked line has to be seen leaving, or it simply teleports to a section
- * further down the page and the shopper cannot tell whether their tap landed on
- * the row they meant. Holding it in place for the length of the animation is
- * the whole trick.
- *
- * Timers are never cancelled on a re-run, only on unmount: two lines ticked
- * within the same 300ms would otherwise have the first one's timer cleared by
- * the second, stranding it in the walk permanently.
- */
-function useCartTransition(checkedIds: string[], ready: boolean): Set<string> {
-  const key = checkedIds.join("|");
-  const seen = useRef<Set<string> | null>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const [leaving, setLeaving] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      for (const timer of pending) clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    const next = new Set(key === "" ? [] : key.split("|"));
-    const previous = seen.current;
-    seen.current = next;
-    // The first list we are handed is not a list of things that just happened.
-    if (previous === null) return;
-    const fresh = [...next].filter((id) => !previous.has(id));
-    if (fresh.length === 0) return;
-
-    setLeaving((current) => new Set([...current, ...fresh]));
-    timers.current.push(
-      setTimeout(() => {
-        setLeaving((current) => {
-          const rest = new Set(current);
-          for (const id of fresh) rest.delete(id);
-          return rest;
-        });
-      }, CART_TRANSITION_MS),
-    );
-  }, [key, ready]);
-
-  return leaving;
-}
-
-/**
- * Lines somebody else changed just now.
- *
- * Convex has always kept two phones in a shop in sync, but silently — which on
- * a phone reads as the list mutating on its own. The caller registers every
- * edit it makes itself in `own`, and whatever is left over is by definition
- * somebody else's and gets flashed.
- *
- * An id is *consumed* from `own` the first time it explains a change, so a line
- * this device ticked stays eligible to be highlighted the next time the other
- * shopper touches it.
- */
-function useRemoteHighlight(
-  lines: readonly Line[],
-  own: RefObject<Set<string>>,
-  ready: boolean,
-): Set<string> {
-  const previous = useRef<Line[] | null>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const [highlighted, setHighlighted] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      for (const timer of pending) clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    const before = previous.current;
-    previous.current = [...lines];
-    if (before === null) return;
-    const remote = changedLineIds(before, lines).filter((id) => {
-      if (own.current.has(id)) {
-        own.current.delete(id);
-        return false;
-      }
-      return true;
-    });
-    if (remote.length === 0) return;
-
-    setHighlighted((current) => new Set([...current, ...remote]));
-    timers.current.push(
-      setTimeout(() => {
-        setHighlighted((current) => {
-          const rest = new Set(current);
-          for (const id of remote) rest.delete(id);
-          return rest;
-        });
-      }, REMOTE_HIGHLIGHT_MS),
-    );
-  }, [lines, own, ready]);
-
-  return highlighted;
-}
-
 export function GroceryList() {
-  const data = useQuery(api.groceryList.getGroceryList);
-  const lines = data ?? [];
-  // Shared with LeftoverProposals rather than re-derived: Convex dedupes the
-  // subscription, and the predicate for "still unanswered" belongs in one place.
-  const pendingLeftovers = useQuery(api.groceryList.leftoverProposals) ?? [];
+  const {
+    lines,
+    active,
+    removed,
+    inCart,
+    toBuy,
+    groups,
+    pendingLeftovers,
+    leaving,
+    highlighted,
+    undo,
+    error,
+    toggle,
+    remove,
+    undoRemove,
+    needItAnyway,
+    clear,
+    finish,
+  } = useGroceryList();
 
   // Which line's provenance sheet is open, by row id — not the row itself, so
   // the sheet keeps re-rendering from live data while it is open.
   const [showingSourcesFor, setShowingSourcesFor] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [undo, setUndo] = useState<RestorableLine | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const toggle = useMutation(api.groceryList.toggleItem).withOptimisticUpdate(toggleItemOptimistic);
-  const clearList = useMutation(api.groceryList.clearGroceryList).withOptimisticUpdate(
-    clearGroceryListOptimistic,
-  );
-  const needItAnyway = useMutation(api.groceryList.needItAnyway).withOptimisticUpdate(
-    needItAnywayOptimistic,
-  );
-  const removeItem = useMutation(api.groceryList.removeItem).withOptimisticUpdate(
-    removeItemOptimistic,
-  );
-  const restoreItem = useMutation(api.groceryList.restoreItem);
-  const finishShopping = useMutation(api.groceryList.finishShopping).withOptimisticUpdate(
-    finishShoppingOptimistic,
-  );
-  const { run, error } = useAsyncAction();
   const { confirm, confirmDialog } = useConfirm();
 
-  // Every id this device changed itself, so the highlight can tell a household
-  // member's edit from the user's own tap.
-  const ownEdits = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    return () => {
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-    };
-  }, []);
-
-  // Regeneration flags lines the plan dropped after they were checked off
-  // (BL-0018) rather than deleting them, so the store walk is the active half
-  // and the flagged half is shown apart, below, as something to acknowledge.
-  const { active, removed } = partitionRemoved(lines);
-  const leaving = useCartTransition(
-    active.filter((line) => line.checked).map((line) => line._id),
-    data !== undefined,
-  );
-  const highlighted = useRemoteHighlight(lines, ownEdits, data !== undefined);
-  // A line that has been ticked but is still animating stays in the walk.
-  const { toBuy, inCart } = partitionCart(active, (line) => line.checked && !leaving.has(line._id));
-  const groups = groupByAisle(toBuy);
   const showingSources = lines.find((line) => line._id === showingSourcesFor);
-
-  function onToggle(line: Line, checked: boolean) {
-    ownEdits.current.add(line._id);
-    run(() => toggle({ id: line._id, checked }));
-  }
-
-  // Delete now, undo later — rather than the usual trick of holding the delete
-  // behind a timer. A shopper who swipes and then pockets their phone must get
-  // what they asked for, and a pending delete that lives in a component dies
-  // with it.
-  function onRemove(line: Line) {
-    setUndo(snapshotOf(line));
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
-    run(() => removeItem({ id: line._id }));
-  }
-
-  function onUndo(line: RestorableLine) {
-    setUndo(null);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    run(() => restoreItem({ line }));
-  }
 
   async function onClear() {
     const cleared = await confirm({
@@ -278,12 +66,7 @@ export function GroceryList() {
       destructive: true,
     });
     if (!cleared) return;
-    run(() => clearList({}));
-  }
-
-  function onFinish(choice: FinishChoice) {
-    setFinishing(false);
-    run(() => finishShopping({ unbought: choice }));
+    clear();
   }
 
   return (
@@ -309,12 +92,12 @@ export function GroceryList() {
                   line={line}
                   leaving={leaving.has(line._id)}
                   highlighted={highlighted.has(line._id)}
-                  onToggle={(checked) => onToggle(line, checked)}
+                  onToggle={(checked) => toggle(line, checked)}
                   onOpenSources={() => setShowingSourcesFor(line._id)}
                   // Only manual lines can be removed — a generated one comes
                   // back on the next generation, so "remove" would be a lie.
-                  onRemove={line.manual ? () => onRemove(line) : undefined}
-                  onNeedItAnyway={() => run(() => needItAnyway({ id: line._id }))}
+                  onRemove={line.manual ? () => remove(line) : undefined}
+                  onNeedItAnyway={() => needItAnyway(line)}
                 />
               ))}
             </ul>
@@ -335,9 +118,9 @@ export function GroceryList() {
                   key={line._id}
                   line={line}
                   highlighted={highlighted.has(line._id)}
-                  onToggle={(checked) => onToggle(line, checked)}
+                  onToggle={(checked) => toggle(line, checked)}
                   onOpenSources={() => setShowingSourcesFor(line._id)}
-                  onRemove={line.manual ? () => onRemove(line) : undefined}
+                  onRemove={line.manual ? () => remove(line) : undefined}
                 />
               ))}
             </ul>
@@ -358,7 +141,7 @@ export function GroceryList() {
                   key={line._id}
                   removeLabel="Dismiss"
                   highlighted={highlighted.has(line._id)}
-                  onRemove={() => onRemove(line)}
+                  onRemove={() => remove(line)}
                 >
                   <span className="flex min-h-11 flex-1 items-center text-sm text-muted line-through">
                     {formatQuantity(line.quantity)} {line.unit} {line.item}
@@ -368,7 +151,7 @@ export function GroceryList() {
                     size="sm"
                     className="min-h-11"
                     aria-label={`Dismiss ${line.item}`}
-                    onClick={() => onRemove(line)}
+                    onClick={() => remove(line)}
                   >
                     Dismiss
                   </Button>
@@ -404,7 +187,7 @@ export function GroceryList() {
             className="mb-2 flex items-center gap-2 rounded-lg bg-border/60 px-3 py-2 text-sm text-text"
           >
             <span className="flex-1">Removed {undo.item}</span>
-            <Button variant="secondary" size="sm" className="min-h-11" onClick={() => onUndo(undo)}>
+            <Button variant="secondary" size="sm" className="min-h-11" onClick={undoRemove}>
               Undo
             </Button>
           </div>
@@ -452,7 +235,10 @@ export function GroceryList() {
           inCart={inCart.length}
           stillToBuy={toBuy.length}
           unansweredLeftovers={pendingLeftovers.length}
-          onChoose={onFinish}
+          onChoose={(choice) => {
+            setFinishing(false);
+            finish(choice);
+          }}
           onCancel={() => setFinishing(false)}
         />
       )}
