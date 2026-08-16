@@ -20,6 +20,34 @@ describe("AuthForm", () => {
     expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy();
   });
 
+  // Password managers pair a credential by the `username`/`current-password`
+  // autocomplete tokens, and key the saved entry on the field's id/name — so
+  // these attributes are load-bearing, not decoration.
+  it("labels the fields so a password manager can autofill them", () => {
+    render(<AuthForm />);
+    const email = screen.getByPlaceholderText("Email");
+    const password = screen.getByPlaceholderText("Password");
+
+    expect(email.getAttribute("autocomplete")).toBe("username");
+    expect(email.getAttribute("id")).toBe("email");
+    expect(email.getAttribute("name")).toBe("email");
+    expect(screen.getByLabelText("Email")).toBe(email);
+
+    expect(password.getAttribute("autocomplete")).toBe("current-password");
+    expect(password.getAttribute("id")).toBe("password");
+    expect(password.getAttribute("name")).toBe("password");
+    expect(screen.getByLabelText("Password")).toBe(password);
+  });
+
+  it("asks for a new password on the sign-up flow", () => {
+    render(<AuthForm />);
+    fireEvent.click(screen.getByRole("button", { name: /need an account/i }));
+
+    const password = screen.getByPlaceholderText("Password");
+    expect(password.getAttribute("autocomplete")).toBe("new-password");
+    expect(screen.getByPlaceholderText("Email").getAttribute("autocomplete")).toBe("username");
+  });
+
   it("toggles to sign up", () => {
     render(<AuthForm />);
     fireEvent.click(screen.getByRole("button", { name: /need an account/i }));

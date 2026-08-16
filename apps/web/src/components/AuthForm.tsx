@@ -24,19 +24,34 @@ export function AuthForm() {
   return (
     <Card title={flow === "signIn" ? "Sign in" : "Create account"}>
       <form data-testid="auth-form" onSubmit={submit} className="flex flex-col gap-3">
+        {/*
+          Password managers only offer to fill (and to save) a credential when
+          they can pair an identifier field with a password field. The pairing
+          token is `username` — not `email`, which marks a plain contact address
+          — and the saved entry is keyed on the stable id/name, so both are
+          load-bearing metadata rather than decoration. `new-password` on the
+          sign-up flow is what triggers the generate-a-strong-password offer.
+        */}
         <Input
+          id="email"
           name="email"
           type="email"
           placeholder="Email"
-          autoComplete="email"
+          aria-label="Email"
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <Input
+          id="password"
           name="password"
           type="password"
           placeholder="Password"
+          aria-label="Password"
           autoComplete={flow === "signIn" ? "current-password" : "new-password"}
           required
           value={password}
