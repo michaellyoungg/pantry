@@ -1,11 +1,11 @@
 /**
- * The seven tabs, generated from `NAV_ITEMS` so the bar cannot drift from the
- * list the drift test checks against web.
+ * The seven tabs, generated from `NAV_ITEMS`, which BL-0054 derives from the
+ * shared list in `@pantry/core` — so the bar cannot drift from web.
  */
 
 import { colorTokens } from "@pantry/design-tokens";
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { NAV_ICONS } from "../../src/navigation/navIcons";
 import { NAV_ITEMS } from "../../src/navigation/navItems";
 import { testID } from "../../src/testing/testIDs";
 
@@ -22,17 +22,22 @@ export default function TabsLayout() {
         },
       }}
     >
-      {NAV_ITEMS.map((item) => (
-        <Tabs.Screen
-          key={item.name}
-          name={item.name}
-          options={{
-            title: item.label,
-            tabBarButtonTestID: testID("nav", "tab", item.name === "index" ? "home" : item.name),
-            tabBarIcon: () => <Text>{item.icon}</Text>,
-          }}
-        />
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const Icon = NAV_ICONS[item.icon];
+        return (
+          <Tabs.Screen
+            key={item.name}
+            name={item.name}
+            options={{
+              title: item.label,
+              tabBarButtonTestID: testID("nav", "tab", item.name === "index" ? "home" : item.name),
+              tabBarIcon: ({ color, size }) => (
+                <Icon color={color} size={size} strokeWidth={1.75} />
+              ),
+            }}
+          />
+        );
+      })}
     </Tabs>
   );
 }

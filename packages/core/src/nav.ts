@@ -21,9 +21,16 @@ export type NavIconName =
   | "ChartLine"
   | "Settings";
 
+/**
+ * A destination's route path. A union rather than `string` so each client can
+ * key an exhaustive `Record<NavRoute, …>` off it — adding a destination then
+ * fails the build on any client that has not routed it.
+ */
+export type NavRoute = "/" | "/plan" | "/recipes" | "/list" | "/pantry" | "/history" | "/settings";
+
 export type NavItem = {
   /** Route path. The web router uses it verbatim; a native router maps it. */
-  to: string;
+  to: NavRoute;
   /**
    * Visible text, and the link's accessible name — the Playwright `navigateTo`
    * helper and the Nav unit tests both locate by it, so it is load-bearing.
