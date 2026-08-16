@@ -86,6 +86,7 @@
       "includes": [
         "**/packages/core/src/**",
         "!**/packages/core/src/react/**",
+        "!**/packages/core/src/data/**",
         "!**/packages/core/src/**/*.test.ts"
       ],
       "linter": {
@@ -95,7 +96,7 @@
               "level": "error",
               "options": {
                 "paths": {
-                  "react": "Only packages/core/src/react (the @pantry/core/react entry point) may import React."
+                  "react": "Only packages/core/src/react and src/data (the @pantry/core/react and @pantry/core/data entry points) may import React."
                 },
                 "patterns": [
                   {
