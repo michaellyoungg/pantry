@@ -1,7 +1,7 @@
 ---
 id: BL-0053
 title: Design tokens beyond color (spacing, radii, typography)
-status: in-progress
+status: done
 area: web
 effort: S
 related_specs: [2026-08-16-mobile-client-parity-design.md]

@@ -8,7 +8,7 @@
     "build": "tsr generate && tsc -b && vite build",
     "typecheck": "tsr generate && tsc -b --noEmit",
     "test": "node scripts/generate-theme-css.mjs --check && vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "node scripts/generate-theme-css.mjs --check && vitest run --coverage",
     "test:e2e": "playwright test",
     "tokens:css": "node scripts/generate-theme-css.mjs"
   },
