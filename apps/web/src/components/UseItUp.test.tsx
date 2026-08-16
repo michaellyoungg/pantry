@@ -1,7 +1,7 @@
+import type { PantryRow } from "@pantry/core";
 import type { GeneratedRecipeDraft, Recommendation } from "@pantry/types";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PantryRow } from "../lib/expiry";
 
 const DAY = 86_400_000;
 

@@ -17,6 +17,13 @@ export {
   windowEndingOn,
 } from "./calendar";
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
+export {
+  EXPIRY_HORIZON_DAYS,
+  expiringSoon,
+  formatUseBy,
+  isOverdue,
+  type PantryRow,
+} from "./expiry";
 export { formatQuantity } from "./formatQuantity";
 export {
   type AisleGroup,

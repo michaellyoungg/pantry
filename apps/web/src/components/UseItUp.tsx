@@ -1,10 +1,10 @@
 import { api } from "@pantry/convex/api";
+import { expiringSoon, formatUseBy, isOverdue, type PantryRow } from "@pantry/core";
 import { useAsyncData } from "@pantry/core/react";
 import type { GeneratedRecipeDraft, Recommendation } from "@pantry/types";
 import { Link } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
-import { expiringSoon, formatUseBy, isOverdue, type PantryRow } from "../lib/expiry";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 
