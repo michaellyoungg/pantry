@@ -28,7 +28,7 @@ import { colorTokens } from "@pantry/design-tokens";
 import Check from "lucide-react-native/icons/check";
 import { Pressable, Text, View } from "react-native";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
-import { CHIP_HIT_SLOP, ROW_PRESS_RETENTION, ROW_TARGET_HEIGHT } from "./hitTargets";
+import { CHIP_HIT_SLOP, ROW_PRESS_PROPS } from "./hitTargets";
 
 const id = surfaceTestIDs("list");
 
@@ -94,9 +94,8 @@ export function GroceryRow({
         accessibilityLabel={`${buy} ${line.item}`}
         className="flex-row items-center gap-3 px-3"
         onPress={() => onToggle(!line.checked)}
-        pressRetentionOffset={ROW_PRESS_RETENTION}
-        style={{ minHeight: ROW_TARGET_HEIGHT }}
         testID={id("toggle", key)}
+        {...ROW_PRESS_PROPS}
       >
         <View
           className={`h-8 w-8 items-center justify-center rounded-md border-2 ${

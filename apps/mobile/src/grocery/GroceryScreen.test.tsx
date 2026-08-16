@@ -52,6 +52,11 @@ jest.mock("convex/react", () => {
 
 import { GroceryScreen } from "./GroceryScreen";
 
+// RNTL 14 made `render` and `fireEvent` async: they await React 19's `act`
+// internally, and `screen` is only bound once that settles. Dropping an `await`
+// does not fail loudly — the next line throws ``render` function has not been
+// called``, which reads like the component never mounted.
+
 function line(over: Record<string, unknown> = {}) {
   return {
     _id: "g1",
@@ -76,9 +81,7 @@ function line(over: Record<string, unknown> = {}) {
  * would drown out a real one.
  */
 async function press(testID: string) {
-  await act(async () => {
-    fireEvent.press(screen.getByTestId(testID));
-  });
+  await fireEvent.press(screen.getByTestId(testID));
 }
 
 /** The mutation call for `name`, or undefined if it was never made. */
@@ -95,29 +98,29 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 describe("GroceryScreen — the aisle walk", () => {
-  it("waits for the first response rather than claiming the list is empty", () => {
+  it("waits for the first response rather than claiming the list is empty", async () => {
     mockState.lines = undefined;
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.loading")).toBeTruthy();
     expect(screen.queryByTestId("list.empty-state")).toBeNull();
   });
 
-  it("says the list is empty once it knows that it is", () => {
+  it("says the list is empty once it knows that it is", async () => {
     mockState.lines = [];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.empty-state")).toBeTruthy();
     expect(screen.queryByTestId("list.loading")).toBeNull();
   });
 
-  it("groups the walk by aisle, title-cased and counted", () => {
+  it("groups the walk by aisle, title-cased and counted", async () => {
     mockState.lines = [
       line({ _id: "a", item: "Parsley", aisle: "produce" }),
       line({ _id: "b", item: "Lemon", aisle: "produce" }),
       line({ _id: "c", item: "Butter", aisle: "dairy and eggs" }),
     ];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.aisle-header.produce")).toHaveTextContent(/Produce.*2/);
     expect(screen.getByTestId("list.aisle-header.dairy-and-eggs")).toHaveTextContent(
@@ -125,20 +128,20 @@ describe("GroceryScreen — the aisle walk", () => {
     );
   });
 
-  it("pins each aisle header so it stays legible while the list scrolls under it", () => {
+  it("pins each aisle header so it stays legible while the list scrolls under it", async () => {
     // A shopper looking up from a shelf needs to know which section they are
     // in; a header that has scrolled away answers only when nobody is asking.
     mockState.lines = [
       line({ _id: "a", aisle: "produce" }),
       line({ _id: "b", item: "Butter", aisle: "dairy" }),
     ];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.aisle-walk").props.stickyHeaderIndices).toHaveLength(2);
   });
 
   it("checks a line off against the row the shopper actually tapped", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.toggle.parsley");
 
@@ -146,10 +149,10 @@ describe("GroceryScreen — the aisle walk", () => {
   });
 
   it("keeps a ticked line in the walk while it animates, so the tap is seen landing", async () => {
-    const { rerender } = render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     mockState.lines = [line({ checked: true })];
-    await act(async () => rerender(<GroceryScreen />));
+    await screen.rerender(<GroceryScreen />);
 
     // Still in the walk, not teleported into the cart section below.
     expect(screen.getByTestId("list.aisle-header.produce")).toHaveTextContent(/Produce.*1/);
@@ -158,9 +161,9 @@ describe("GroceryScreen — the aisle walk", () => {
 });
 
 describe("GroceryScreen — what a line says", () => {
-  it("shows the pack to buy and the measure the recipes wanted", () => {
+  it("shows the pack to buy and the measure the recipes wanted", async () => {
     mockState.lines = [line({ purchase: { quantity: 1, unit: "bunch" } })];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.buy.parsley")).toHaveTextContent("1 bunch Parsley");
     expect(screen.getByTestId("list.need.parsley")).toHaveTextContent("needs 2 tbsp");
@@ -175,7 +178,7 @@ describe("GroceryScreen — what a line says", () => {
         ],
       }),
     ];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.provenance.parsley");
     expect(screen.getByTestId("list.provenance-source.green-soup")).toHaveTextContent(/1 tbsp/);
@@ -187,7 +190,7 @@ describe("GroceryScreen — what a line says", () => {
 
   it("lets a line the pantry already covers be wanted anyway", async () => {
     mockState.lines = [line({ alreadyHave: true })];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.need-it-anyway.parsley");
 
@@ -198,10 +201,10 @@ describe("GroceryScreen — what a line says", () => {
 describe("GroceryScreen — the cart and the dropped half", () => {
   it("collects checked-off lines into their own section once they have left the walk", async () => {
     jest.useFakeTimers();
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     mockState.lines = [line({ checked: true })];
-    await act(async () => screen.rerender(<GroceryScreen />));
+    await screen.rerender(<GroceryScreen />);
     await act(async () => {
       jest.advanceTimersByTime(CART_TRANSITION_MS + 50);
     });
@@ -211,7 +214,7 @@ describe("GroceryScreen — the cart and the dropped half", () => {
 
   it("keeps a line the plan dropped after it was bought, apart and dismissable", async () => {
     mockState.lines = [line({ checked: true, removed: true })];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.dropped-section")).toHaveTextContent(/No longer in your plan/);
     await press("list.dismiss.parsley");
@@ -221,7 +224,7 @@ describe("GroceryScreen — the cart and the dropped half", () => {
 
   it("offers to undo a delete, and puts the whole line back", async () => {
     mockState.lines = [line({ manual: true })];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.remove.parsley");
     expect(screen.getByTestId("list.undo")).toHaveTextContent(/Removed Parsley/);
@@ -242,9 +245,9 @@ describe("GroceryScreen — leftovers", () => {
     purchase: { quantity: 1, unit: "bunch", residue: 6, residueUnit: "tbsp" },
   };
 
-  it("shows its own arithmetic, so the guess is inspectable", () => {
+  it("shows its own arithmetic, so the guess is inspectable", async () => {
     mockState.leftovers = [parsley];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.leftover.parsley")).toHaveTextContent(
       /6 tbsp of the 1 bunch you bought, after the 2 tbsp your recipes wanted/,
@@ -253,7 +256,7 @@ describe("GroceryScreen — leftovers", () => {
 
   it("answers one guess at a time, with no bulk answer anywhere", async () => {
     mockState.leftovers = [parsley, { ...parsley, _id: "g10", item: "Buttermilk" }];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.leftover-keep.parsley");
     expect(callTo("resolveLeftover")).toEqual({ id: "g9", keep: true });
@@ -262,39 +265,39 @@ describe("GroceryScreen — leftovers", () => {
 
   it("dismisses one without writing a leftover", async () => {
     mockState.leftovers = [parsley];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.leftover-dismiss.parsley");
 
     expect(callTo("resolveLeftover")).toEqual({ id: "g9", keep: false });
   });
 
-  it("says nothing at all when there is nothing to propose", () => {
-    render(<GroceryScreen />);
+  it("says nothing at all when there is nothing to propose", async () => {
+    await render(<GroceryScreen />);
     expect(screen.queryByTestId("list.leftovers")).toBeNull();
   });
 });
 
 describe("GroceryScreen — the thumb zone", () => {
-  it("keeps the trip's state visible without scrolling to it", () => {
+  it("keeps the trip's state visible without scrolling to it", async () => {
     mockState.lines = [line({ _id: "a" }), line({ _id: "b", item: "Lemon", checked: true })];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.progress")).toHaveTextContent(/1 of 2 in cart/);
   });
 
   it("adds what the shopper typed, split by the shared parser", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.add-toggle");
-    fireEvent.changeText(screen.getByTestId("list.add-field"), "2 lb butter");
+    await fireEvent.changeText(screen.getByTestId("list.add-field"), "2 lb butter");
     await press("list.add-submit");
 
     expect(mockAction).toHaveBeenCalledWith({ quantity: 2, unit: "lb", item: "butter" });
   });
 
   it("keeps the add field out of the way until it is asked for", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
     expect(screen.queryByTestId("list.add-field")).toBeNull();
 
     await press("list.add-toggle");
@@ -304,9 +307,9 @@ describe("GroceryScreen — the thumb zone", () => {
     expect(screen.queryByTestId("list.add-field")).toBeNull();
   });
 
-  it("cannot end a trip that never started", () => {
+  it("cannot end a trip that never started", async () => {
     mockState.lines = [];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     expect(screen.getByTestId("list.done-shopping").props.accessibilityState.disabled).toBe(true);
   });
@@ -316,7 +319,7 @@ describe("GroceryScreen — ending the trip", () => {
   it("says what each half of the list is about to become", async () => {
     mockState.lines = [line({ _id: "a" }), line({ _id: "b", item: "Lemon", checked: true })];
     mockState.leftovers = [{ _id: "g9", item: "Parsley", quantity: 2, unit: "tbsp" }];
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.done-shopping");
 
@@ -330,7 +333,7 @@ describe("GroceryScreen — ending the trip", () => {
   });
 
   it("keeps what was not bought", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.done-shopping");
     await press("list.finish-keep");
@@ -339,7 +342,7 @@ describe("GroceryScreen — ending the trip", () => {
   });
 
   it("clears the whole list when that is what was meant", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.done-shopping");
     await press("list.finish-remove");
@@ -348,7 +351,7 @@ describe("GroceryScreen — ending the trip", () => {
   });
 
   it("backs out without finishing anything", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.done-shopping");
     await press("list.finish-cancel");
@@ -358,7 +361,7 @@ describe("GroceryScreen — ending the trip", () => {
   });
 
   it("asks before clearing, and does nothing if the answer is no", async () => {
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.clear");
     await press("list.confirm-cancel");
@@ -373,7 +376,7 @@ describe("GroceryScreen — ending the trip", () => {
 describe("GroceryScreen — failure", () => {
   it("surfaces a failed mutation rather than silently not doing it", async () => {
     mockMutation.mockRejectedValueOnce(new Error("offline"));
-    render(<GroceryScreen />);
+    await render(<GroceryScreen />);
 
     await press("list.toggle.parsley");
 

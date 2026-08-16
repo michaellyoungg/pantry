@@ -48,3 +48,21 @@ export const CHIP_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 } as con
  * they are at the till.
  */
 export const ROW_PRESS_RETENTION = { top: 24, bottom: 24, left: 24, right: 24 } as const;
+
+/**
+ * Everything that makes a grocery row's check-off survivable by a moving hand,
+ * as one object the row spreads.
+ *
+ * Bundled rather than applied prop by prop for a testing reason with teeth.
+ * `Pressable` swallows `pressRetentionOffset` into its responder config instead
+ * of forwarding it to the host view, and RNTL 14 removed the `UNSAFE_*` queries
+ * that could reach the composite element — so there is no longer any way to
+ * observe it on a rendered row. `minHeight` *does* reach the host view. Putting
+ * both in one object means the assertion that survives (the height) also proves
+ * the row picked up the half that cannot be seen: a row that stopped spreading
+ * this would fail the height assertion first.
+ */
+export const ROW_PRESS_PROPS = {
+  pressRetentionOffset: ROW_PRESS_RETENTION,
+  style: { minHeight: ROW_TARGET_HEIGHT },
+};

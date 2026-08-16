@@ -6,59 +6,64 @@ const onAdd = jest.fn();
 
 beforeEach(() => jest.clearAllMocks());
 
-describe("AddItemField", () => {
-  it("hands over the raw text, unparsed — splitting it is the data layer's job", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+// RNTL 14 made `render` and `fireEvent` async: they await React 19's `act`
+// internally, and `screen` is only bound once that settles. Dropping an `await`
+// does not fail loudly — the next line throws ``render` function has not been
+// called``, which reads like the component never mounted.
 
-    fireEvent.changeText(screen.getByTestId("list.add-field"), "2 lb butter");
-    fireEvent.press(screen.getByTestId("list.add-submit"));
+describe("AddItemField", () => {
+  it("hands over the raw text, unparsed — splitting it is the data layer's job", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
+
+    await fireEvent.changeText(screen.getByTestId("list.add-field"), "2 lb butter");
+    await fireEvent.press(screen.getByTestId("list.add-submit"));
 
     expect(onAdd).toHaveBeenCalledWith("2 lb butter");
   });
 
-  it("submits from the keyboard, so adding never needs a reach for the button", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+  it("submits from the keyboard, so adding never needs a reach for the button", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
 
-    fireEvent.changeText(screen.getByTestId("list.add-field"), "foil");
-    fireEvent(screen.getByTestId("list.add-field"), "submitEditing");
+    await fireEvent.changeText(screen.getByTestId("list.add-field"), "foil");
+    await fireEvent(screen.getByTestId("list.add-field"), "submitEditing");
 
     expect(onAdd).toHaveBeenCalledWith("foil");
   });
 
-  it("clears itself immediately, so a second add never looks like a duplicate", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+  it("clears itself immediately, so a second add never looks like a duplicate", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
 
-    fireEvent.changeText(screen.getByTestId("list.add-field"), "foil");
-    fireEvent.press(screen.getByTestId("list.add-submit"));
+    await fireEvent.changeText(screen.getByTestId("list.add-field"), "foil");
+    await fireEvent.press(screen.getByTestId("list.add-submit"));
 
     expect(screen.getByTestId("list.add-field").props.value).toBe("");
   });
 
-  it("cannot be submitted empty", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+  it("cannot be submitted empty", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
 
     expect(screen.getByTestId("list.add-submit").props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(screen.getByTestId("list.add-submit"));
+    await fireEvent.press(screen.getByTestId("list.add-submit"));
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("offers what the household buys as one-tap chips — no typing at all", () => {
-    render(
+  it("offers what the household buys as one-tap chips — no typing at all", async () => {
+    await render(
       <AddItemField onAdd={onAdd} recent={[{ canonicalItem: "milk", display: "Whole Milk" }]} />,
     );
 
-    fireEvent.press(screen.getByTestId("list.add-suggestion.whole-milk"));
+    await fireEvent.press(screen.getByTestId("list.add-suggestion.whole-milk"));
 
     expect(onAdd).toHaveBeenCalledWith("Whole Milk");
   });
 
-  it("shows no chip row when there is nothing to suggest", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+  it("shows no chip row when there is nothing to suggest", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
     expect(screen.queryByTestId("list.add-suggestion.whole-milk")).toBeNull();
   });
 
-  it("keeps the field and its button hittable while standing", () => {
-    render(<AddItemField onAdd={onAdd} recent={[]} />);
+  it("keeps the field and its button hittable while standing", async () => {
+    await render(<AddItemField onAdd={onAdd} recent={[]} />);
 
     for (const target of ["list.add-field", "list.add-submit"]) {
       expect(screen.getByTestId(target).props.style).toEqual(
