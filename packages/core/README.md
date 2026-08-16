@@ -36,16 +36,20 @@ import { NAV_ITEMS, type NavIconName } from "@pantry/core";
 binds the name to its own component in its own view layer and nothing
 renderer-specific crosses the boundary — which is what lets this module stay in
 the headless entry point. The web binding is `NAV_ICONS` in
-`apps/web/src/components/Nav.tsx`; a native client keeps the equivalent map
-against `lucide-react-native`. Type it `Record<NavIconName, …>` so adding a
-destination here fails the build on any platform that has not bound its icon.
+`apps/web/src/components/Nav.tsx`; the native one is `NAV_ICONS` in
+`apps/mobile/src/navigation/navIcons.ts`. Both are typed
+`Record<NavIconName, …>`, so adding a destination here fails the build on
+whichever platform has not bound its icon.
 
 Two things about `NavItem` are load-bearing beyond appearance:
 
 - **`label` is the link's accessible name.** The Playwright `navigateTo` helper
   and `Nav.test.tsx` both locate by it, so icons must render `aria-hidden`.
-- **`to` is a route path, not a router object.** Rule 5 of the mobile design
-  spec keeps routers out of shared code; each client maps the path itself.
+- **`to` is a route path (`NavRoute`), not a router object.** Rule 5 of the
+  mobile design spec keeps routers out of shared code; each client maps the
+  path itself, and can key an exhaustive `Record<NavRoute, …>` off it —
+  `apps/mobile/src/navigation/navItems.ts` does exactly that for its Expo
+  Router route names.
 
 ## Screen hooks (`@pantry/core/data`)
 

@@ -42,21 +42,36 @@ Web-side this is a straight visual improvement independent of any mobile work.
 ## Outcome
 
 `NAV_ITEMS` moved to `packages/core/src/nav.ts` and is exported from
-`@pantry/core`. `icon` is a lucide export name, not a component:
+`@pantry/core`. `icon` is a lucide export name, not a component; `to` is a
+`NavRoute` union rather than `string`:
 
 ```ts
 { to: "/list", label: "List", icon: "ShoppingCart" }
 ```
 
-`apps/web` binds those names to `lucide-react` in `NAV_ICONS`
-(`apps/web/src/components/Nav.tsx`). A native client writes the same map
-against `lucide-react-native`, which exports identical names — typed
-`Record<NavIconName, …>` so a new destination fails the build on any platform
-that has not bound its icon. Only `lucide-react` was added, to `apps/web`.
+Both clients bind the names themselves — the binding is the only per-platform
+piece:
+
+| Client | Binding | Package |
+| --- | --- | --- |
+| Web | `NAV_ICONS` in `apps/web/src/components/Nav.tsx` | `lucide-react` |
+| Mobile | `NAV_ICONS` in `apps/mobile/src/navigation/navIcons.ts` | `lucide-react-native` |
+
+Both are typed `Record<NavIconName, LucideIcon>`, so a destination added to the
+shared list fails the build on whichever platform has not bound its icon.
+`apps/mobile/src/navigation/navItems.ts` likewise derives order, labels and
+icons from the shared list and keys its Expo Router route names by `NavRoute`,
+replacing the hand-kept copy BL-0056 shipped.
 
 Icons: `House`, `CalendarDays`, `BookOpen`, `ShoppingCart`, `Refrigerator`,
-`ChartLine`, `Settings` — all present in `lucide-react` and
-`lucide-react-native` 1.31.0.
+`ChartLine`, `Settings` — present in both packages at 1.31.0.
 
-Icons render `aria-hidden`, as the emoji did, so each link's accessible name is
-still its label. No e2e spec selected on the emoji.
+Notes:
+
+- Mobile imports one subpath per icon (`lucide-react-native/icons/house`), not
+  the barrel: the barrel re-exports ~1,700 icons and Metro does not tree-shake
+  by default. Web imports named exports from `lucide-react`, which Vite does
+  tree-shake — only the icon factory reaches the bundle.
+- Icons render `aria-hidden` on web, as the emoji did, so each link's
+  accessible name is still its label. No e2e spec selected on the emoji.
+- `@pantry/types` is untouched and stays type-only.
