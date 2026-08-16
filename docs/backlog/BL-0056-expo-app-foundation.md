@@ -1,7 +1,7 @@
 ---
 id: BL-0056
 title: Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling)
-status: proposed
+status: in-progress
 area: mobile
 effort: L
 related_specs: [2026-08-16-mobile-client-parity-design.md]
