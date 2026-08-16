@@ -40,6 +40,7 @@ export {
   trackSwipe,
 } from "./grocery";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
+export { NAV_ITEMS, type NavIconName, type NavItem } from "./nav";
 export {
   formatNutrientAmount,
   HEADLINE_NUTRIENTS,
