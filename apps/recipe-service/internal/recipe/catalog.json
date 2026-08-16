@@ -2,41 +2,21 @@
   {
     "id": "cat-garlic-bread",
     "title": "Garlic Bread",
+    "servings": 6,
     "ingredients": [
-      {
-        "quantity": 1,
-        "unit": "loaf",
-        "item": "baguette"
-      },
-      {
-        "quantity": 4,
-        "unit": "cloves",
-        "item": "garlic",
-        "note": "minced"
-      },
-      {
-        "quantity": 0.5,
-        "unit": "cup",
-        "item": "butter",
-        "note": "softened"
-      },
-      {
-        "quantity": 2,
-        "unit": "tbsp",
-        "item": "parsley",
-        "note": "chopped"
-      }
+      { "quantity": 1, "unit": "loaf", "item": "baguette" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic", "note": "minced" },
+      { "quantity": 0.5, "unit": "cup", "item": "butter", "note": "softened" },
+      { "quantity": 2, "unit": "tbsp", "item": "parsley", "note": "chopped" }
     ],
-    "equipment": [
-      {
-        "id": "oven",
-        "required": true
-      },
-      {
-        "id": "sheet_pan",
-        "required": true
-      }
+    "steps": [
+      "Heat the oven to 400°F.",
+      "Mash the softened butter with the garlic and parsley and a pinch of salt.",
+      "Split the baguette lengthwise and spread the butter over both cut faces.",
+      "Bake on a sheet pan for 10 minutes, then broil for 2 more until the edges brown.",
+      "Cut into fingers and serve while the butter is still bubbling."
     ],
+    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
     "methods": ["bake"],
     "cuisine": "italian",
     "totalMinutes": 20,
@@ -45,94 +25,50 @@
   {
     "id": "cat-aglio-e-olio",
     "title": "Spaghetti Aglio e Olio",
+    "servings": 4,
     "ingredients": [
-      {
-        "quantity": 1,
-        "unit": "lb",
-        "item": "spaghetti"
-      },
-      {
-        "quantity": 6,
-        "unit": "cloves",
-        "item": "garlic",
-        "note": "thinly sliced"
-      },
-      {
-        "quantity": 4,
-        "unit": "tbsp",
-        "item": "olive oil"
-      },
-      {
-        "quantity": 1,
-        "unit": "tsp",
-        "item": "red pepper flakes"
-      },
-      {
-        "quantity": 2,
-        "unit": "tbsp",
-        "item": "parsley",
-        "note": "chopped"
-      }
+      { "quantity": 1, "unit": "lb", "item": "spaghetti" },
+      { "quantity": 6, "unit": "cloves", "item": "garlic", "note": "thinly sliced" },
+      { "quantity": 4, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 1, "unit": "tsp", "item": "red pepper flakes" },
+      { "quantity": 2, "unit": "tbsp", "item": "parsley", "note": "chopped" }
+    ],
+    "steps": [
+      "Boil the spaghetti in well-salted water until just short of al dente.",
+      "Meanwhile warm the olive oil in a skillet and cook the garlic gently until pale gold — do not let it brown.",
+      "Add the red pepper flakes and a ladle of pasta water to the skillet.",
+      "Drain the pasta and toss it in the skillet for a minute so the sauce clings.",
+      "Off the heat, stir through the parsley and serve."
     ],
     "equipment": [
-      {
-        "id": "stockpot",
-        "required": true
-      },
-      {
-        "id": "skillet",
-        "required": true
-      },
-      {
-        "id": "colander",
-        "required": true
-      }
+      { "id": "stockpot", "required": true },
+      { "id": "skillet", "required": true },
+      { "id": "colander", "required": true }
     ],
     "methods": ["boil", "saute"],
     "cuisine": "italian",
     "totalMinutes": 20,
-    "tags": ["vegan", "vegetarian", "dairy-free", "weeknight", "one-pot"]
+    "tags": ["vegan", "vegetarian", "dairy-free", "weeknight", "one-pot", "budget"]
   },
   {
     "id": "cat-margherita-pizza",
     "title": "Margherita Pizza",
+    "servings": 4,
     "ingredients": [
-      {
-        "quantity": 1,
-        "unit": "ball",
-        "item": "pizza dough"
-      },
-      {
-        "quantity": 1,
-        "unit": "can",
-        "item": "crushed tomatoes"
-      },
-      {
-        "quantity": 8,
-        "unit": "oz",
-        "item": "mozzarella"
-      },
-      {
-        "quantity": 10,
-        "unit": "leaves",
-        "item": "basil"
-      },
-      {
-        "quantity": 2,
-        "unit": "tbsp",
-        "item": "olive oil"
-      }
+      { "quantity": 1, "unit": "ball", "item": "pizza dough" },
+      { "quantity": 1, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 8, "unit": "oz", "item": "mozzarella" },
+      { "quantity": 10, "unit": "leaves", "item": "basil" },
+      { "quantity": 2, "unit": "tbsp", "item": "olive oil" }
     ],
-    "equipment": [
-      {
-        "id": "oven",
-        "required": true
-      },
-      {
-        "id": "pizza_stone",
-        "required": false
-      }
+    "steps": [
+      "Put the pizza stone in the oven and heat to its highest setting for a full hour.",
+      "Stretch the dough by hand to a thin round, leaving the rim a little thicker.",
+      "Spread a thin layer of crushed tomatoes, leaving the rim bare, and tear the mozzarella over it.",
+      "Slide onto the stone and bake 7-10 minutes until the crust is blistered.",
+      "Finish with torn basil and a drizzle of olive oil."
     ],
+    "equipment": [{ "id": "oven", "required": true }, { "id": "pizza_stone", "required": false }],
     "methods": ["bake"],
     "cuisine": "italian",
     "totalMinutes": 45,
@@ -141,141 +77,1603 @@
   {
     "id": "cat-caesar-salad",
     "title": "Caesar Salad",
+    "servings": 4,
     "ingredients": [
-      {
-        "quantity": 1,
-        "unit": "head",
-        "item": "romaine"
-      },
-      {
-        "quantity": 0.5,
-        "unit": "cup",
-        "item": "parmesan",
-        "note": "grated"
-      },
-      {
-        "quantity": 1,
-        "unit": "cup",
-        "item": "croutons"
-      },
-      {
-        "quantity": 2,
-        "unit": "cloves",
-        "item": "garlic"
-      },
-      {
-        "quantity": 3,
-        "unit": "tbsp",
-        "item": "olive oil"
-      },
-      {
-        "quantity": 1,
-        "unit": "whole",
-        "item": "lemon"
-      }
+      { "quantity": 1, "unit": "head", "item": "romaine" },
+      { "quantity": 0.5, "unit": "cup", "item": "parmesan", "note": "grated" },
+      { "quantity": 1, "unit": "cup", "item": "croutons" },
+      { "quantity": 2, "unit": "cloves", "item": "garlic" },
+      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 1, "unit": "whole", "item": "lemon" }
     ],
-    "equipment": [
-      {
-        "id": "mixing_bowl",
-        "required": true
-      },
-      {
-        "id": "whisk",
-        "required": true
-      }
+    "steps": [
+      "Mash the garlic to a paste with a little salt.",
+      "Whisk the garlic with lemon juice, then whisk in the olive oil to make the dressing.",
+      "Tear the romaine into a bowl and toss with just enough dressing to coat.",
+      "Add the croutons and most of the parmesan, toss once more, and finish with the rest."
     ],
+    "equipment": [{ "id": "mixing_bowl", "required": true }, { "id": "whisk", "required": true }],
     "methods": ["no_cook"],
     "cuisine": "american",
     "totalMinutes": 15,
-    "tags": ["vegetarian", "no-cook", "weeknight"]
+    "tags": ["vegetarian", "no-cook", "weeknight", "salad", "side"]
   },
   {
     "id": "cat-tomato-soup",
     "title": "Tomato Soup",
+    "servings": 4,
     "ingredients": [
-      {
-        "quantity": 6,
-        "unit": "whole",
-        "item": "tomato"
-      },
-      {
-        "quantity": 1,
-        "unit": "whole",
-        "item": "onion"
-      },
-      {
-        "quantity": 2,
-        "unit": "cloves",
-        "item": "garlic"
-      },
-      {
-        "quantity": 2,
-        "unit": "tbsp",
-        "item": "olive oil"
-      },
-      {
-        "quantity": 6,
-        "unit": "leaves",
-        "item": "basil"
-      }
+      { "quantity": 6, "unit": "whole", "item": "tomato" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 2, "unit": "cloves", "item": "garlic" },
+      { "quantity": 2, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 6, "unit": "leaves", "item": "basil" }
+    ],
+    "steps": [
+      "Soften the onion in the olive oil over medium heat, then add the garlic for a minute.",
+      "Add the roughly chopped tomatoes and a cup of water, and simmer 25 minutes.",
+      "Blend until smooth, season, and stir in the basil at the last moment."
     ],
     "equipment": [
-      {
-        "id": "stockpot",
-        "required": true
-      },
-      {
-        "id": "immersion_blender",
-        "required": false
-      }
+      { "id": "stockpot", "required": true },
+      { "id": "immersion_blender", "required": false }
     ],
     "methods": ["boil"],
     "cuisine": "american",
     "totalMinutes": 35,
-    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "one-pot"]
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "one-pot", "soup"]
   },
   {
     "id": "cat-roasted-vegetables",
     "title": "Roasted Vegetables",
+    "servings": 6,
     "ingredients": [
-      {
-        "quantity": 4,
-        "unit": "whole",
-        "item": "carrot"
-      },
-      {
-        "quantity": 3,
-        "unit": "whole",
-        "item": "potato"
-      },
-      {
-        "quantity": 1,
-        "unit": "whole",
-        "item": "onion"
-      },
-      {
-        "quantity": 3,
-        "unit": "tbsp",
-        "item": "olive oil"
-      },
-      {
-        "quantity": 1,
-        "unit": "tbsp",
-        "item": "rosemary"
-      }
+      { "quantity": 4, "unit": "whole", "item": "carrot" },
+      { "quantity": 3, "unit": "whole", "item": "potato" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 1, "unit": "tbsp", "item": "rosemary" }
     ],
-    "equipment": [
-      {
-        "id": "oven",
-        "required": true
-      },
-      {
-        "id": "sheet_pan",
-        "required": true
-      }
+    "steps": [
+      "Heat the oven to 425°F.",
+      "Cut everything to a similar size so it cooks evenly, and toss with the oil, rosemary, salt and pepper.",
+      "Spread on a sheet pan in a single layer — crowding steams instead of roasts.",
+      "Roast 35 minutes, turning once, until the edges are properly browned."
     ],
+    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
     "methods": ["roast"],
     "totalMinutes": 40,
-    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "side"]
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "side", "budget"]
+  },
+  {
+    "id": "cat-spaghetti-carbonara",
+    "title": "Spaghetti Carbonara",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1, "unit": "lb", "item": "spaghetti" },
+      { "quantity": 6, "unit": "oz", "item": "pancetta", "note": "cubed" },
+      { "quantity": 4, "unit": "whole", "item": "egg" },
+      { "quantity": 1, "unit": "cup", "item": "parmesan", "note": "finely grated" },
+      { "quantity": 2, "unit": "tsp", "item": "black pepper", "note": "coarsely ground" }
+    ],
+    "steps": [
+      "Beat the eggs with the parmesan and a great deal of black pepper.",
+      "Render the pancetta slowly in a cold skillet until crisp; keep the fat.",
+      "Boil the spaghetti until al dente and reserve a mug of the water.",
+      "Off the heat, toss the drained pasta with the pancetta, then the egg mixture, loosening with pasta water until glossy.",
+      "The residual heat cooks the egg — if the pan is on the flame you will get scrambled egg instead of sauce."
+    ],
+    "equipment": [
+      { "id": "stockpot", "required": true },
+      { "id": "skillet", "required": true },
+      { "id": "mixing_bowl", "required": true },
+      { "id": "colander", "required": true }
+    ],
+    "methods": ["boil", "saute"],
+    "cuisine": "italian",
+    "totalMinutes": 25,
+    "tags": ["weeknight", "comfort-food", "high-protein"]
+  },
+  {
+    "id": "cat-marinara-sauce",
+    "title": "Marinara Sauce",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 1, "unit": "whole", "item": "onion", "note": "finely diced" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic", "note": "sliced" },
+      { "quantity": 0.25, "unit": "cup", "item": "olive oil" },
+      { "quantity": 10, "unit": "leaves", "item": "basil" },
+      { "quantity": 1, "unit": "tsp", "item": "oregano" }
+    ],
+    "steps": [
+      "Soften the onion in the olive oil over low heat for 10 minutes without colouring it.",
+      "Add the garlic and oregano and cook one minute more.",
+      "Pour in the tomatoes, season, and simmer uncovered for 30 minutes until it no longer tastes raw.",
+      "Tear in the basil off the heat. Keeps a week in the fridge and freezes well."
+    ],
+    "equipment": [{ "id": "saucepan", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "italian",
+    "totalMinutes": 45,
+    "tags": [
+      "vegan",
+      "vegetarian",
+      "dairy-free",
+      "gluten-free",
+      "make-ahead",
+      "freezer-friendly",
+      "budget"
+    ]
+  },
+  {
+    "id": "cat-lasagna",
+    "title": "Beef Lasagna",
+    "servings": 8,
+    "ingredients": [
+      { "quantity": 12, "unit": "whole", "item": "lasagna noodles" },
+      { "quantity": 1, "unit": "lb", "item": "ground beef" },
+      { "quantity": 15, "unit": "oz", "item": "ricotta" },
+      { "quantity": 1, "unit": "lb", "item": "mozzarella", "note": "shredded" },
+      { "quantity": 2, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 1, "unit": "whole", "item": "egg" },
+      { "quantity": 0.5, "unit": "cup", "item": "parmesan" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "cloves", "item": "garlic" }
+    ],
+    "steps": [
+      "Brown the beef with the onion and garlic, add the tomatoes and simmer 30 minutes.",
+      "Beat the egg into the ricotta with the parmesan and season well.",
+      "Heat the oven to 375°F.",
+      "Layer sauce, noodles, ricotta and mozzarella twice over, finishing with sauce and cheese.",
+      "Cover with foil and bake 30 minutes, uncover and bake 20 more.",
+      "Rest 20 minutes before cutting or it will slump on the plate."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "baking_dish", "required": true },
+      { "id": "skillet", "required": true }
+    ],
+    "methods": ["bake", "saute"],
+    "cuisine": "italian",
+    "totalMinutes": 105,
+    "tags": ["comfort-food", "make-ahead", "high-protein", "freezer-friendly"]
+  },
+  {
+    "id": "cat-mushroom-risotto",
+    "title": "Mushroom Risotto",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "cup", "item": "arborio rice" },
+      { "quantity": 1, "unit": "lb", "item": "mushroom", "note": "sliced" },
+      { "quantity": 6, "unit": "cup", "item": "chicken stock" },
+      { "quantity": 0.5, "unit": "cup", "item": "white wine" },
+      { "quantity": 0.75, "unit": "cup", "item": "parmesan" },
+      { "quantity": 2, "unit": "whole", "item": "shallot" },
+      { "quantity": 3, "unit": "tbsp", "item": "butter" }
+    ],
+    "steps": [
+      "Keep the stock at a bare simmer in a second pan.",
+      "Brown the mushrooms hard in a little butter and set aside — crowded mushrooms steam.",
+      "Soften the shallot, add the rice and toast 2 minutes until the grains look translucent at the edge.",
+      "Add the wine and let it cook away, then add stock a ladle at a time, stirring, for about 18 minutes.",
+      "Stir the mushrooms, remaining butter and parmesan through off the heat and let it rest 2 minutes."
+    ],
+    "equipment": [{ "id": "saucepan", "required": true }, { "id": "stockpot", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "italian",
+    "totalMinutes": 40,
+    "tags": ["comfort-food", "gluten-free", "vegetarian-adaptable"]
+  },
+  {
+    "id": "cat-caprese-salad",
+    "title": "Caprese Salad",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 4, "unit": "whole", "item": "tomato", "note": "ripe" },
+      { "quantity": 8, "unit": "oz", "item": "mozzarella" },
+      { "quantity": 20, "unit": "leaves", "item": "basil" },
+      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 2, "unit": "tbsp", "item": "balsamic vinegar" }
+    ],
+    "steps": [
+      "Slice the tomatoes and mozzarella about the same thickness.",
+      "Shingle them alternately on a plate, tucking basil leaves between.",
+      "Season with flaky salt, then dress with olive oil and balsamic just before serving."
+    ],
+    "equipment": [
+      { "id": "cutting_board", "required": true },
+      { "id": "chef_knife", "required": true }
+    ],
+    "methods": ["no_cook"],
+    "cuisine": "italian",
+    "totalMinutes": 10,
+    "tags": ["vegetarian", "no-cook", "gluten-free", "side", "salad", "summer"]
+  },
+  {
+    "id": "cat-shrimp-scampi",
+    "title": "Shrimp Scampi",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "lb", "item": "shrimp", "note": "frozen, peeled and deveined" },
+      { "quantity": 1, "unit": "lb", "item": "linguine" },
+      { "quantity": 6, "unit": "tbsp", "item": "butter" },
+      { "quantity": 8, "unit": "cloves", "item": "garlic", "note": "minced" },
+      { "quantity": 0.5, "unit": "cup", "item": "white wine" },
+      { "quantity": 2, "unit": "whole", "item": "lemon" },
+      { "quantity": 0.5, "unit": "cup", "item": "parsley", "note": "chopped" },
+      { "quantity": 1, "unit": "tsp", "item": "red pepper flakes" }
+    ],
+    "steps": [
+      "Boil the linguine in salted water.",
+      "Melt half the butter and cook the garlic and pepper flakes 30 seconds.",
+      "Add the shrimp in one layer and cook 90 seconds a side until just opaque, then lift them out.",
+      "Deglaze with the wine, reduce by half, then whisk in the rest of the butter and the lemon juice.",
+      "Return the shrimp, toss with the drained pasta and the parsley, and serve at once."
+    ],
+    "equipment": [
+      { "id": "skillet", "required": true },
+      { "id": "stockpot", "required": true },
+      { "id": "colander", "required": true }
+    ],
+    "methods": ["boil", "saute"],
+    "cuisine": "italian",
+    "totalMinutes": 25,
+    "tags": ["weeknight", "seafood", "high-protein"]
+  },
+  {
+    "id": "cat-chicken-tacos",
+    "title": "Chicken Tacos",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "lb", "item": "chicken thigh", "note": "boneless" },
+      { "quantity": 12, "unit": "whole", "item": "tortilla" },
+      { "quantity": 2, "unit": "tbsp", "item": "taco seasoning" },
+      { "quantity": 1, "unit": "whole", "item": "onion", "note": "finely diced" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" },
+      { "quantity": 2, "unit": "whole", "item": "lime" },
+      { "quantity": 1, "unit": "cup", "item": "salsa" },
+      { "quantity": 4, "unit": "oz", "item": "queso fresco", "note": "crumbled" }
+    ],
+    "steps": [
+      "Toss the chicken with the seasoning and a little oil and let it sit while the pan heats.",
+      "Sear hard in a skillet 5-6 minutes a side, then rest and chop.",
+      "Warm the tortillas directly over a flame or in a dry pan until pliable and freckled.",
+      "Build with chicken, onion, cilantro, queso fresco and salsa, with lime to squeeze over."
+    ],
+    "equipment": [
+      { "id": "skillet", "required": true },
+      { "id": "cutting_board", "required": true },
+      { "id": "chef_knife", "required": true }
+    ],
+    "methods": ["saute"],
+    "cuisine": "mexican",
+    "totalMinutes": 30,
+    "tags": ["weeknight", "high-protein", "kid-friendly"]
+  },
+  {
+    "id": "cat-black-bean-soup",
+    "title": "Black Bean Soup",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 3, "unit": "can", "item": "black bean", "note": "drained" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 5, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "cumin" },
+      { "quantity": 2, "unit": "tsp", "item": "chili powder" },
+      { "quantity": 6, "unit": "cup", "item": "vegetable stock" },
+      { "quantity": 2, "unit": "whole", "item": "lime" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" }
+    ],
+    "steps": [
+      "Soften the onion, then add the garlic and spices and cook until fragrant.",
+      "Add the beans and stock and simmer 25 minutes.",
+      "Blend about half the pot so it thickens but keeps some texture.",
+      "Finish with plenty of lime juice — it is what makes the whole thing taste like something — and cilantro."
+    ],
+    "equipment": [
+      { "id": "stockpot", "required": true },
+      { "id": "immersion_blender", "required": false }
+    ],
+    "methods": ["saute", "boil"],
+    "cuisine": "mexican",
+    "totalMinutes": 50,
+    "tags": [
+      "vegan",
+      "vegetarian",
+      "dairy-free",
+      "gluten-free",
+      "one-pot",
+      "budget",
+      "soup",
+      "meal-prep"
+    ]
+  },
+  {
+    "id": "cat-beef-barbacoa",
+    "title": "Slow Cooker Beef Barbacoa",
+    "servings": 8,
+    "ingredients": [
+      { "quantity": 3, "unit": "lb", "item": "beef roast" },
+      { "quantity": 3, "unit": "whole", "item": "chipotle pepper" },
+      { "quantity": 6, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "cumin" },
+      { "quantity": 1, "unit": "tbsp", "item": "oregano" },
+      { "quantity": 2, "unit": "whole", "item": "lime" },
+      { "quantity": 1, "unit": "cup", "item": "beef stock" },
+      { "quantity": 2, "unit": "whole", "item": "bay leaf" }
+    ],
+    "steps": [
+      "Blend the chipotles, garlic, cumin, oregano, lime juice and stock to a smooth sauce.",
+      "Cut the beef into large chunks, season, and brown them if you have time — it is worth it.",
+      "Put everything in the slow cooker with the bay leaves and cook on low for 8 hours.",
+      "Shred with two forks and let the meat sit in its juices before serving."
+    ],
+    "equipment": [{ "id": "slow_cooker", "required": true }, { "id": "blender", "required": true }],
+    "methods": ["slow_cook"],
+    "cuisine": "mexican",
+    "totalMinutes": 495,
+    "tags": [
+      "make-ahead",
+      "high-protein",
+      "gluten-free",
+      "dairy-free",
+      "freezer-friendly",
+      "meal-prep"
+    ]
+  },
+  {
+    "id": "cat-guacamole",
+    "title": "Guacamole",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 3, "unit": "whole", "item": "avocado", "note": "ripe" },
+      { "quantity": 1, "unit": "whole", "item": "lime" },
+      { "quantity": 0.25, "unit": "whole", "item": "red onion", "note": "finely diced" },
+      { "quantity": 0.25, "unit": "cup", "item": "cilantro" },
+      { "quantity": 1, "unit": "whole", "item": "jalapeno", "note": "seeded and minced" },
+      { "quantity": 1, "unit": "tsp", "item": "salt" }
+    ],
+    "steps": [
+      "Mash the avocado coarsely — it should stay lumpy.",
+      "Fold in the lime juice, onion, cilantro, jalapeño and salt.",
+      "Taste and add more lime and salt than feels right; avocado swallows both."
+    ],
+    "equipment": [{ "id": "mixing_bowl", "required": true }],
+    "methods": ["no_cook"],
+    "cuisine": "mexican",
+    "totalMinutes": 10,
+    "tags": ["vegan", "vegetarian", "gluten-free", "dairy-free", "no-cook", "snack", "side"]
+  },
+  {
+    "id": "cat-chicken-fried-rice",
+    "title": "Chicken Fried Rice",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 4, "unit": "cup", "item": "rice", "note": "cooked and cold" },
+      { "quantity": 1, "unit": "lb", "item": "chicken breast", "note": "diced" },
+      { "quantity": 3, "unit": "whole", "item": "egg", "note": "beaten" },
+      { "quantity": 1, "unit": "cup", "item": "frozen pea" },
+      { "quantity": 4, "unit": "whole", "item": "green onion" },
+      { "quantity": 3, "unit": "tbsp", "item": "soy sauce" },
+      { "quantity": 1, "unit": "tbsp", "item": "sesame oil" },
+      { "quantity": 3, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger", "note": "grated" }
+    ],
+    "steps": [
+      "Day-old cold rice is not a suggestion — fresh rice turns to porridge in the wok.",
+      "Scramble the egg in a hot oiled wok, then remove it.",
+      "Stir-fry the chicken until cooked through, add the garlic and ginger for 30 seconds.",
+      "Add the rice and press it against the pan to fry rather than stir constantly.",
+      "Return the egg, add the peas, soy sauce and sesame oil, and toss through the green onions."
+    ],
+    "equipment": [{ "id": "wok", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "methods": ["fry"],
+    "cuisine": "chinese",
+    "totalMinutes": 25,
+    "tags": ["weeknight", "one-pot", "high-protein", "dairy-free", "budget"]
+  },
+  {
+    "id": "cat-beef-broccoli-stir-fry",
+    "title": "Beef and Broccoli Stir-Fry",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1, "unit": "lb", "item": "steak", "note": "thinly sliced against the grain" },
+      { "quantity": 1, "unit": "lb", "item": "broccoli" },
+      { "quantity": 0.25, "unit": "cup", "item": "soy sauce" },
+      { "quantity": 2, "unit": "tbsp", "item": "cornstarch" },
+      { "quantity": 2, "unit": "tbsp", "item": "ginger", "note": "grated" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "sesame oil" },
+      { "quantity": 2, "unit": "tbsp", "item": "oyster sauce" },
+      { "quantity": 2, "unit": "cup", "item": "rice" }
+    ],
+    "steps": [
+      "Toss the beef with a tablespoon of the cornstarch and a splash of soy sauce and leave 15 minutes.",
+      "Mix the rest of the soy sauce, oyster sauce and cornstarch with a quarter cup of water.",
+      "Sear the beef in a screaming-hot wok in two batches so it browns instead of stewing, and set aside.",
+      "Stir-fry the broccoli with a splash of water and a lid for 3 minutes until bright green.",
+      "Add the garlic and ginger, return the beef, pour in the sauce and toss until it thickens and coats. Serve over rice."
+    ],
+    "equipment": [{ "id": "wok", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "methods": ["fry"],
+    "cuisine": "chinese",
+    "totalMinutes": 30,
+    "tags": ["weeknight", "high-protein", "dairy-free"]
+  },
+  {
+    "id": "cat-pad-thai",
+    "title": "Shrimp Pad Thai",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 8, "unit": "oz", "item": "rice noodle" },
+      { "quantity": 1, "unit": "lb", "item": "shrimp", "note": "peeled" },
+      { "quantity": 2, "unit": "whole", "item": "egg" },
+      { "quantity": 0.5, "unit": "cup", "item": "peanut", "note": "toasted and crushed" },
+      { "quantity": 2, "unit": "cup", "item": "bean sprout" },
+      { "quantity": 4, "unit": "whole", "item": "green onion" },
+      { "quantity": 3, "unit": "tbsp", "item": "fish sauce" },
+      { "quantity": 2, "unit": "tbsp", "item": "tamarind paste" },
+      { "quantity": 3, "unit": "tbsp", "item": "brown sugar" },
+      { "quantity": 2, "unit": "whole", "item": "lime" }
+    ],
+    "steps": [
+      "Soak the rice noodles in warm water until pliable but still firm; they finish in the pan.",
+      "Stir the fish sauce, tamarind and sugar together — this is the whole sauce.",
+      "Fry the shrimp in a hot wok until pink and lift them out.",
+      "Scramble the eggs, add the drained noodles and the sauce, and toss until absorbed.",
+      "Return the shrimp, throw in the bean sprouts and green onions for 30 seconds, and serve with peanuts and lime."
+    ],
+    "equipment": [
+      { "id": "wok", "required": true },
+      { "id": "colander", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["fry"],
+    "cuisine": "thai",
+    "totalMinutes": 35,
+    "tags": ["weeknight", "high-protein", "dairy-free", "seafood"]
+  },
+  {
+    "id": "cat-thai-green-curry",
+    "title": "Thai Green Curry with Chicken",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 3, "unit": "tbsp", "item": "curry paste" },
+      { "quantity": 2, "unit": "can", "item": "coconut milk" },
+      { "quantity": 1.5, "unit": "lb", "item": "chicken thigh", "note": "sliced" },
+      { "quantity": 2, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 1, "unit": "whole", "item": "lemongrass", "note": "bruised" },
+      { "quantity": 20, "unit": "leaves", "item": "basil" },
+      { "quantity": 2, "unit": "tbsp", "item": "fish sauce" },
+      { "quantity": 2, "unit": "cup", "item": "jasmine rice" }
+    ],
+    "steps": [
+      "Fry the curry paste in the thick cream from the top of a coconut milk can until it splits and smells fragrant.",
+      "Add the chicken and turn it in the paste, then pour in the rest of the coconut milk and the lemongrass.",
+      "Simmer 15 minutes, add the peppers for the last 5.",
+      "Season with fish sauce, pull out the lemongrass, stir in the basil and serve over jasmine rice."
+    ],
+    "equipment": [
+      { "id": "saucepan", "required": true },
+      { "id": "rice_cooker", "required": false }
+    ],
+    "methods": ["saute", "boil"],
+    "cuisine": "thai",
+    "totalMinutes": 35,
+    "tags": ["weeknight", "dairy-free", "gluten-free", "spicy", "high-protein"]
+  },
+  {
+    "id": "cat-miso-soup",
+    "title": "Miso Soup with Tofu",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 0.25, "unit": "cup", "item": "miso" },
+      { "quantity": 8, "unit": "oz", "item": "tofu", "note": "cubed" },
+      { "quantity": 3, "unit": "whole", "item": "green onion" },
+      { "quantity": 6, "unit": "cup", "item": "vegetable stock" },
+      { "quantity": 4, "unit": "whole", "item": "shiitake mushroom", "note": "sliced" }
+    ],
+    "steps": [
+      "Simmer the stock with the mushrooms for 10 minutes.",
+      "Slacken the miso with a ladle of hot stock in a small bowl, then stir it back in.",
+      "Add the tofu and warm through — do not boil once the miso is in, it dulls the flavour.",
+      "Scatter with green onion and serve."
+    ],
+    "equipment": [{ "id": "saucepan", "required": true }],
+    "methods": ["boil"],
+    "cuisine": "japanese",
+    "totalMinutes": 15,
+    "tags": ["vegan", "vegetarian", "dairy-free", "soup", "weeknight", "budget"]
+  },
+  {
+    "id": "cat-teriyaki-salmon",
+    "title": "Teriyaki Salmon",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 4, "unit": "whole", "item": "salmon", "note": "fillets" },
+      { "quantity": 0.33, "unit": "cup", "item": "soy sauce" },
+      { "quantity": 3, "unit": "tbsp", "item": "honey" },
+      { "quantity": 2, "unit": "tbsp", "item": "mirin" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger", "note": "grated" },
+      { "quantity": 2, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "sesame seed" },
+      { "quantity": 2, "unit": "whole", "item": "green onion" }
+    ],
+    "steps": [
+      "Heat the oven to 400°F.",
+      "Simmer the soy sauce, honey, mirin, ginger and garlic until it coats a spoon.",
+      "Put the salmon in a baking dish, spoon over half the glaze, and bake 12-14 minutes.",
+      "Brush with the rest of the glaze and finish with sesame seeds and green onion."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "baking_dish", "required": true },
+      { "id": "saucepan", "required": true }
+    ],
+    "methods": ["bake"],
+    "cuisine": "japanese",
+    "totalMinutes": 25,
+    "tags": ["weeknight", "high-protein", "dairy-free", "seafood"]
+  },
+  {
+    "id": "cat-bibimbap",
+    "title": "Bibimbap",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 3, "unit": "cup", "item": "rice", "note": "cooked" },
+      { "quantity": 1, "unit": "lb", "item": "ground beef" },
+      { "quantity": 8, "unit": "oz", "item": "spinach" },
+      { "quantity": 2, "unit": "whole", "item": "carrot", "note": "julienned" },
+      { "quantity": 8, "unit": "oz", "item": "shiitake mushroom", "note": "sliced" },
+      { "quantity": 4, "unit": "whole", "item": "egg" },
+      { "quantity": 3, "unit": "tbsp", "item": "gochujang" },
+      { "quantity": 2, "unit": "tbsp", "item": "sesame oil" },
+      { "quantity": 3, "unit": "tbsp", "item": "soy sauce" },
+      { "quantity": 1, "unit": "cup", "item": "kimchi" }
+    ],
+    "steps": [
+      "Cook each vegetable separately and season it on its own — that separation is the point of the dish.",
+      "Brown the beef with soy sauce and a little sesame oil.",
+      "Fry the eggs so the yolks stay runny.",
+      "Arrange rice in bowls with the vegetables, beef and kimchi in wedges around the edge and the egg on top.",
+      "Serve gochujang alongside and let everyone mix their own."
+    ],
+    "equipment": [
+      { "id": "skillet", "required": true },
+      { "id": "saucepan", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["saute", "fry"],
+    "cuisine": "korean",
+    "totalMinutes": 45,
+    "tags": ["high-protein", "dairy-free"]
+  },
+  {
+    "id": "cat-vietnamese-noodle-salad",
+    "title": "Vietnamese Noodle Salad",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 8, "unit": "oz", "item": "rice noodle" },
+      { "quantity": 1, "unit": "whole", "item": "cucumber", "note": "julienned" },
+      { "quantity": 2, "unit": "whole", "item": "carrot", "note": "julienned" },
+      { "quantity": 0.5, "unit": "cup", "item": "mint" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" },
+      { "quantity": 0.5, "unit": "cup", "item": "peanut", "note": "crushed" },
+      { "quantity": 3, "unit": "tbsp", "item": "fish sauce" },
+      { "quantity": 3, "unit": "whole", "item": "lime" },
+      { "quantity": 2, "unit": "tbsp", "item": "sugar" },
+      { "quantity": 1, "unit": "whole", "item": "jalapeno", "note": "thinly sliced" }
+    ],
+    "steps": [
+      "Cook the rice noodles, then rinse them under cold water so they stop cooking and stop sticking.",
+      "Whisk the fish sauce, lime juice, sugar and jalapeño with three tablespoons of water.",
+      "Toss the cool noodles with the vegetables and most of the herbs.",
+      "Dress just before eating and top with peanuts and the rest of the herbs."
+    ],
+    "equipment": [
+      { "id": "stockpot", "required": true },
+      { "id": "colander", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["boil"],
+    "cuisine": "vietnamese",
+    "totalMinutes": 30,
+    "tags": ["dairy-free", "gluten-free", "summer", "salad", "meal-prep"]
+  },
+  {
+    "id": "cat-chicken-tikka-masala",
+    "title": "Chicken Tikka Masala",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "lb", "item": "chicken thigh", "note": "cubed" },
+      { "quantity": 1, "unit": "cup", "item": "yogurt" },
+      { "quantity": 2, "unit": "tbsp", "item": "garam masala" },
+      { "quantity": 2, "unit": "tbsp", "item": "ginger", "note": "grated" },
+      { "quantity": 6, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 1, "unit": "cup", "item": "heavy cream" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 1, "unit": "tsp", "item": "turmeric" },
+      { "quantity": 1, "unit": "tsp", "item": "cayenne" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" },
+      { "quantity": 4, "unit": "whole", "item": "naan" }
+    ],
+    "steps": [
+      "Marinate the chicken overnight in the yogurt with half the garam masala, the ginger and half the garlic.",
+      "Broil or sear the chicken in batches until charred at the edges — the char is the flavour, not the sauce.",
+      "Soften the onions, add the rest of the garlic and the spices, then the tomatoes, and cook down 15 minutes.",
+      "Stir in the cream, return the chicken, and simmer 10 minutes.",
+      "Finish with cilantro and serve with naan."
+    ],
+    "equipment": [
+      { "id": "skillet", "required": true },
+      { "id": "mixing_bowl", "required": true },
+      { "id": "blender", "required": false }
+    ],
+    "methods": ["marinate", "saute"],
+    "cuisine": "indian",
+    "totalMinutes": 75,
+    "tags": ["high-protein", "comfort-food", "spicy", "make-ahead"]
+  },
+  {
+    "id": "cat-chana-masala",
+    "title": "Chana Masala",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 2, "unit": "can", "item": "chickpea", "note": "drained" },
+      { "quantity": 2, "unit": "whole", "item": "onion", "note": "finely chopped" },
+      { "quantity": 1, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger", "note": "grated" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "garam masala" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 1, "unit": "tsp", "item": "turmeric" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" },
+      { "quantity": 1, "unit": "whole", "item": "lemon" }
+    ],
+    "steps": [
+      "Cook the onions past soft to properly browned — 12 minutes, not 4.",
+      "Add the ginger, garlic and ground spices and fry a minute until they darken.",
+      "Add the tomatoes and cook until the oil separates out at the edges.",
+      "Add the chickpeas with a splash of water and simmer 15 minutes, crushing a few against the pan to thicken it.",
+      "Finish with lemon juice and cilantro."
+    ],
+    "equipment": [{ "id": "saucepan", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "indian",
+    "totalMinutes": 40,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "budget", "one-pot", "meal-prep"]
+  },
+  {
+    "id": "cat-red-lentil-dal",
+    "title": "Red Lentil Dal",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "cup", "item": "lentil" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger" },
+      { "quantity": 1, "unit": "tsp", "item": "turmeric" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 1, "unit": "can", "item": "coconut milk" },
+      { "quantity": 4, "unit": "oz", "item": "spinach" },
+      { "quantity": 1, "unit": "whole", "item": "lemon" }
+    ],
+    "steps": [
+      "Simmer the lentils in four cups of water with the turmeric for 20 minutes until collapsing.",
+      "Separately fry the onion, then the garlic, ginger and cumin, until deeply fragrant.",
+      "Stir that into the lentils with the coconut milk and simmer 10 minutes.",
+      "Wilt in the spinach and finish with lemon."
+    ],
+    "equipment": [{ "id": "saucepan", "required": true }],
+    "methods": ["boil", "saute"],
+    "cuisine": "indian",
+    "totalMinutes": 35,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "one-pot", "budget", "meal-prep"]
+  },
+  {
+    "id": "cat-hummus",
+    "title": "Hummus from Dried Chickpeas",
+    "servings": 8,
+    "ingredients": [
+      { "quantity": 1, "unit": "cup", "item": "chickpea", "note": "dried" },
+      { "quantity": 0.5, "unit": "cup", "item": "tahini" },
+      { "quantity": 2, "unit": "whole", "item": "lemon" },
+      { "quantity": 3, "unit": "cloves", "item": "garlic" },
+      { "quantity": 0.25, "unit": "cup", "item": "olive oil" },
+      { "quantity": 1, "unit": "tsp", "item": "cumin" },
+      { "quantity": 0.5, "unit": "tsp", "item": "baking soda" }
+    ],
+    "steps": [
+      "Soak the dried chickpeas overnight in plenty of cold water.",
+      "Drain, then boil with the baking soda for about an hour until they are falling apart — undercooked chickpeas make gritty hummus.",
+      "Blend the hot chickpeas with the tahini, lemon juice, garlic and cumin.",
+      "Let the processor run a full three minutes, adding ice water until it is pale and completely smooth.",
+      "Spread in a bowl and pool olive oil on top."
+    ],
+    "equipment": [
+      { "id": "food_processor", "required": true },
+      { "id": "saucepan", "required": true }
+    ],
+    "methods": ["boil"],
+    "cuisine": "middle-eastern",
+    "totalMinutes": 90,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "snack", "make-ahead", "budget"]
+  },
+  {
+    "id": "cat-greek-salad",
+    "title": "Greek Salad",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 2, "unit": "whole", "item": "cucumber" },
+      { "quantity": 4, "unit": "whole", "item": "tomato" },
+      { "quantity": 1, "unit": "whole", "item": "red onion", "note": "thinly sliced" },
+      { "quantity": 8, "unit": "oz", "item": "feta" },
+      { "quantity": 1, "unit": "cup", "item": "olive" },
+      { "quantity": 0.25, "unit": "cup", "item": "olive oil" },
+      { "quantity": 2, "unit": "tbsp", "item": "red wine vinegar" },
+      { "quantity": 1, "unit": "tbsp", "item": "oregano" }
+    ],
+    "steps": [
+      "Cut the cucumber and tomatoes into large rough chunks, not neat dice.",
+      "Combine with the onion and olives, dress with oil, vinegar, oregano and salt.",
+      "Lay the feta on top in a slab rather than crumbling it, and let it sit ten minutes before serving."
+    ],
+    "equipment": [
+      { "id": "mixing_bowl", "required": true },
+      { "id": "chef_knife", "required": true },
+      { "id": "cutting_board", "required": true }
+    ],
+    "methods": ["no_cook"],
+    "cuisine": "greek",
+    "totalMinutes": 15,
+    "tags": ["vegetarian", "gluten-free", "no-cook", "side", "salad", "summer"]
+  },
+  {
+    "id": "cat-shakshuka",
+    "title": "Shakshuka",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 6, "unit": "whole", "item": "egg" },
+      { "quantity": 2, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 2, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 2, "unit": "tsp", "item": "paprika" },
+      { "quantity": 1, "unit": "tbsp", "item": "harissa" },
+      { "quantity": 4, "unit": "oz", "item": "feta" },
+      { "quantity": 0.25, "unit": "cup", "item": "cilantro" }
+    ],
+    "steps": [
+      "Soften the peppers and onion in a cast iron skillet for 10 minutes.",
+      "Add the garlic, cumin, paprika and harissa, then the tomatoes, and simmer until thick.",
+      "Make wells in the sauce and crack an egg into each.",
+      "Cover and cook 6-8 minutes until the whites are set but the yolks still run.",
+      "Crumble over the feta, scatter cilantro, and serve from the pan with bread."
+    ],
+    "equipment": [{ "id": "cast_iron_skillet", "required": true }],
+    "methods": ["saute"],
+    "cuisine": "middle-eastern",
+    "totalMinutes": 30,
+    "tags": ["vegetarian", "breakfast", "one-pot", "gluten-free", "weeknight"]
+  },
+  {
+    "id": "cat-lamb-kofta-skewers",
+    "title": "Grilled Lamb Kofta Skewers",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "lb", "item": "ground lamb" },
+      { "quantity": 1, "unit": "whole", "item": "onion", "note": "grated" },
+      { "quantity": 0.5, "unit": "cup", "item": "parsley" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 2, "unit": "tsp", "item": "coriander" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 6, "unit": "whole", "item": "pita" },
+      { "quantity": 1, "unit": "cup", "item": "yogurt" }
+    ],
+    "steps": [
+      "Soak wooden skewers in water so they do not burn on the grill.",
+      "Squeeze the liquid out of the grated onion, then mix everything but the pita and yogurt.",
+      "Knead the mixture a minute so it becomes tacky — that is what keeps it on the skewer.",
+      "Mould around the skewers and chill 20 minutes.",
+      "Grill over high heat 3-4 minutes a side. Serve in warm pita with yogurt."
+    ],
+    "equipment": [
+      { "id": "grill", "required": true },
+      { "id": "skewers", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["grill"],
+    "cuisine": "middle-eastern",
+    "totalMinutes": 40,
+    "tags": ["high-protein", "summer"]
+  },
+  {
+    "id": "cat-moroccan-chicken-tagine",
+    "title": "Moroccan Chicken Tagine",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 3, "unit": "lb", "item": "chicken thigh", "note": "bone-in" },
+      { "quantity": 1, "unit": "cup", "item": "apricot", "note": "dried" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tsp", "item": "cinnamon" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 1, "unit": "tsp", "item": "turmeric" },
+      { "quantity": 2, "unit": "cup", "item": "chicken stock" },
+      { "quantity": 1, "unit": "cup", "item": "olive" },
+      { "quantity": 2, "unit": "cup", "item": "couscous" },
+      { "quantity": 0.5, "unit": "cup", "item": "cilantro" }
+    ],
+    "steps": [
+      "Brown the chicken skin-side down in a dutch oven and set aside.",
+      "Soften the onions in the fat, add the garlic and spices, and cook until fragrant.",
+      "Return the chicken with the stock and apricots, cover, and braise 45 minutes at a bare simmer.",
+      "Add the olives for the last 10 minutes.",
+      "Steam the couscous, fork it through, and serve the tagine over it with cilantro."
+    ],
+    "equipment": [{ "id": "dutch_oven", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "moroccan",
+    "totalMinutes": 90,
+    "tags": ["high-protein", "make-ahead", "dairy-free", "comfort-food"]
+  },
+  {
+    "id": "cat-french-onion-soup",
+    "title": "French Onion Soup",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 6, "unit": "whole", "item": "onion", "note": "thinly sliced" },
+      { "quantity": 4, "unit": "tbsp", "item": "butter" },
+      { "quantity": 8, "unit": "cup", "item": "beef stock" },
+      { "quantity": 1, "unit": "cup", "item": "white wine" },
+      { "quantity": 1, "unit": "loaf", "item": "baguette" },
+      { "quantity": 8, "unit": "oz", "item": "swiss cheese", "note": "grated" },
+      { "quantity": 1, "unit": "tbsp", "item": "thyme" },
+      { "quantity": 2, "unit": "whole", "item": "bay leaf" }
+    ],
+    "steps": [
+      "Cook the onions in butter over medium-low heat for a full 45 minutes until mahogany. There is no shortcut here.",
+      "Deglaze with the wine and reduce almost to nothing.",
+      "Add the stock, thyme and bay and simmer 20 minutes.",
+      "Ladle into oven-safe bowls, float a slice of toasted baguette on each, and pile on the cheese.",
+      "Broil until the cheese is bubbling and browned in patches."
+    ],
+    "equipment": [{ "id": "dutch_oven", "required": true }, { "id": "oven", "required": true }],
+    "methods": ["saute", "boil", "bake"],
+    "cuisine": "french",
+    "totalMinutes": 95,
+    "tags": ["comfort-food", "soup", "make-ahead"]
+  },
+  {
+    "id": "cat-ratatouille",
+    "title": "Ratatouille",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 1, "unit": "whole", "item": "eggplant" },
+      { "quantity": 3, "unit": "whole", "item": "zucchini" },
+      { "quantity": 3, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 6, "unit": "whole", "item": "tomato" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 6, "unit": "cloves", "item": "garlic" },
+      { "quantity": 0.33, "unit": "cup", "item": "olive oil" },
+      { "quantity": 1, "unit": "tbsp", "item": "thyme" },
+      { "quantity": 0.5, "unit": "cup", "item": "basil" }
+    ],
+    "steps": [
+      "Heat the oven to 400°F.",
+      "Cook each vegetable separately in olive oil until browned, then combine — cooking them together gives you stew.",
+      "Layer into a baking dish with the tomatoes, garlic and thyme.",
+      "Bake 35 minutes until everything has collapsed together.",
+      "Tear over the basil. Better the next day."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "baking_dish", "required": true },
+      { "id": "skillet", "required": true }
+    ],
+    "methods": ["roast", "saute"],
+    "cuisine": "french",
+    "totalMinutes": 70,
+    "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "side", "make-ahead", "summer"]
+  },
+  {
+    "id": "cat-quiche-lorraine",
+    "title": "Quiche Lorraine",
+    "servings": 8,
+    "ingredients": [
+      { "quantity": 1, "unit": "sheet", "item": "puff pastry" },
+      { "quantity": 6, "unit": "whole", "item": "egg" },
+      { "quantity": 1.5, "unit": "cup", "item": "heavy cream" },
+      { "quantity": 8, "unit": "oz", "item": "bacon" },
+      { "quantity": 1.5, "unit": "cup", "item": "swiss cheese", "note": "grated" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 0.25, "unit": "tsp", "item": "nutmeg" }
+    ],
+    "steps": [
+      "Heat the oven to 375°F and line a pie dish with the pastry.",
+      "Blind-bake the shell 15 minutes so the base does not go soggy.",
+      "Render the bacon, soften the onion in the fat, and scatter both over the shell with the cheese.",
+      "Beat the eggs with the cream and nutmeg, season, and pour in.",
+      "Bake 30-35 minutes until barely set with a slight wobble at the centre. Rest before slicing."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "pie_dish", "required": true },
+      { "id": "skillet", "required": true }
+    ],
+    "methods": ["bake"],
+    "cuisine": "french",
+    "totalMinutes": 75,
+    "tags": ["breakfast", "make-ahead", "comfort-food"]
+  },
+  {
+    "id": "cat-buttermilk-pancakes",
+    "title": "Buttermilk Pancakes",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 2, "unit": "cup", "item": "flour" },
+      { "quantity": 2, "unit": "cup", "item": "buttermilk" },
+      { "quantity": 2, "unit": "whole", "item": "egg" },
+      { "quantity": 2, "unit": "tbsp", "item": "sugar" },
+      { "quantity": 2, "unit": "tsp", "item": "baking powder" },
+      { "quantity": 1, "unit": "tsp", "item": "baking soda" },
+      { "quantity": 4, "unit": "tbsp", "item": "butter", "note": "melted" },
+      { "quantity": 0.5, "unit": "cup", "item": "maple syrup" }
+    ],
+    "steps": [
+      "Whisk the dry ingredients in one bowl and the wet in another.",
+      "Combine with a few strokes only — lumps are fine, a smooth batter makes tough pancakes.",
+      "Rest the batter 10 minutes while the griddle heats.",
+      "Cook until bubbles form and the edges look dry, then flip once.",
+      "Serve with maple syrup."
+    ],
+    "equipment": [
+      { "id": "griddle", "required": true },
+      { "id": "mixing_bowl", "required": true },
+      { "id": "whisk", "required": true }
+    ],
+    "methods": ["fry"],
+    "cuisine": "american",
+    "totalMinutes": 25,
+    "tags": ["vegetarian", "breakfast", "kid-friendly", "weeknight"]
+  },
+  {
+    "id": "cat-chocolate-chip-cookies",
+    "title": "Chocolate Chip Cookies",
+    "servings": 24,
+    "ingredients": [
+      { "quantity": 2.25, "unit": "cup", "item": "flour" },
+      { "quantity": 1, "unit": "cup", "item": "butter", "note": "softened" },
+      { "quantity": 1, "unit": "cup", "item": "brown sugar" },
+      { "quantity": 0.5, "unit": "cup", "item": "sugar" },
+      { "quantity": 2, "unit": "whole", "item": "egg" },
+      { "quantity": 2, "unit": "tsp", "item": "vanilla extract" },
+      { "quantity": 1, "unit": "tsp", "item": "baking soda" },
+      { "quantity": 1, "unit": "tsp", "item": "salt" },
+      { "quantity": 2, "unit": "cup", "item": "chocolate chip" }
+    ],
+    "steps": [
+      "Set the butter out an hour ahead — properly softened butter is what makes the dough cream.",
+      "Beat the butter with both sugars for a full three minutes until pale.",
+      "Beat in the eggs one at a time, then the vanilla.",
+      "Fold in the flour, soda and salt, then the chocolate chips.",
+      "Chill the dough at least an hour, then bake at 375°F for 10-12 minutes; pull them while the centres still look underdone."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "sheet_pan", "required": true },
+      { "id": "stand_mixer", "required": false },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["bake"],
+    "cuisine": "american",
+    "totalMinutes": 100,
+    "tags": ["vegetarian", "dessert", "kid-friendly", "make-ahead"]
+  },
+  {
+    "id": "cat-beef-chili",
+    "title": "Beef Chili",
+    "servings": 8,
+    "ingredients": [
+      { "quantity": 2, "unit": "lb", "item": "ground beef" },
+      { "quantity": 2, "unit": "can", "item": "kidney bean", "note": "drained" },
+      { "quantity": 2, "unit": "can", "item": "crushed tomatoes" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 2, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 5, "unit": "cloves", "item": "garlic" },
+      { "quantity": 3, "unit": "tbsp", "item": "chili powder" },
+      { "quantity": 1, "unit": "tbsp", "item": "cumin" },
+      { "quantity": 2, "unit": "cup", "item": "beef stock" },
+      { "quantity": 1, "unit": "cup", "item": "cheddar cheese" }
+    ],
+    "steps": [
+      "Brown the beef hard in a dutch oven and drain off most of the fat.",
+      "Add the onion and pepper and cook until soft, then the garlic and spices for a minute.",
+      "Add the tomatoes, beans and stock and simmer uncovered at least 90 minutes.",
+      "Season late — it concentrates as it reduces. Serve with cheddar."
+    ],
+    "equipment": [{ "id": "dutch_oven", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "american",
+    "totalMinutes": 120,
+    "tags": [
+      "one-pot",
+      "make-ahead",
+      "high-protein",
+      "comfort-food",
+      "freezer-friendly",
+      "gluten-free",
+      "meal-prep"
+    ]
+  },
+  {
+    "id": "cat-mac-and-cheese",
+    "title": "Baked Macaroni and Cheese",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 1, "unit": "lb", "item": "macaroni" },
+      { "quantity": 4, "unit": "cup", "item": "cheddar cheese", "note": "grated" },
+      { "quantity": 3, "unit": "cup", "item": "milk" },
+      { "quantity": 6, "unit": "tbsp", "item": "butter" },
+      { "quantity": 0.33, "unit": "cup", "item": "flour" },
+      { "quantity": 1, "unit": "cup", "item": "breadcrumbs" },
+      { "quantity": 1, "unit": "tsp", "item": "dijon mustard" }
+    ],
+    "steps": [
+      "Boil the macaroni two minutes short of the packet time — it keeps cooking in the oven.",
+      "Make a roux with the butter and flour, then whisk in the warm milk and cook until it coats a spoon.",
+      "Off the heat, stir in most of the cheese and the mustard. Adding cheese off the heat is what stops it splitting.",
+      "Fold in the pasta, tip into a dish, and top with the rest of the cheese and the breadcrumbs.",
+      "Bake at 375°F for 25 minutes until browned and bubbling."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "baking_dish", "required": true },
+      { "id": "saucepan", "required": true },
+      { "id": "stockpot", "required": true },
+      { "id": "colander", "required": true }
+    ],
+    "methods": ["boil", "bake"],
+    "cuisine": "american",
+    "totalMinutes": 50,
+    "tags": ["vegetarian", "comfort-food", "kid-friendly", "budget"]
+  },
+  {
+    "id": "cat-buttermilk-fried-chicken",
+    "title": "Buttermilk Fried Chicken",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 4, "unit": "lb", "item": "whole chicken", "note": "cut into pieces" },
+      { "quantity": 4, "unit": "cup", "item": "buttermilk" },
+      { "quantity": 3, "unit": "cup", "item": "flour" },
+      { "quantity": 1, "unit": "tbsp", "item": "paprika" },
+      { "quantity": 1, "unit": "tsp", "item": "cayenne" },
+      { "quantity": 1, "unit": "tbsp", "item": "garlic powder" },
+      { "quantity": 1, "unit": "tbsp", "item": "black pepper" },
+      { "quantity": 8, "unit": "cup", "item": "vegetable oil" }
+    ],
+    "steps": [
+      "Marinate the chicken in the seasoned buttermilk overnight.",
+      "Season the flour heavily — this is where the crust gets its flavour.",
+      "Dredge each piece, pressing the flour on, and rest 15 minutes so the coating hydrates and sticks.",
+      "Fry at 325°F, a few pieces at a time, 12-15 minutes; the oil must not crowd or the temperature crashes.",
+      "Drain on a rack, never on paper, so the underside stays crisp. Internal temperature should read 165°F."
+    ],
+    "equipment": [
+      { "id": "deep_fryer", "required": true },
+      { "id": "mixing_bowl", "required": true },
+      { "id": "thermometer", "required": true },
+      { "id": "tongs", "required": true }
+    ],
+    "methods": ["marinate", "fry"],
+    "cuisine": "american",
+    "totalMinutes": 90,
+    "tags": ["high-protein", "comfort-food"]
+  },
+  {
+    "id": "cat-bbq-pulled-pork",
+    "title": "Smoked Pulled Pork",
+    "servings": 12,
+    "ingredients": [
+      { "quantity": 8, "unit": "lb", "item": "pork shoulder" },
+      { "quantity": 0.5, "unit": "cup", "item": "brown sugar" },
+      { "quantity": 0.25, "unit": "cup", "item": "paprika" },
+      { "quantity": 2, "unit": "tbsp", "item": "black pepper" },
+      { "quantity": 3, "unit": "tbsp", "item": "salt" },
+      { "quantity": 2, "unit": "tbsp", "item": "garlic powder" },
+      { "quantity": 2, "unit": "cup", "item": "barbecue sauce" },
+      { "quantity": 12, "unit": "whole", "item": "hamburger bun" }
+    ],
+    "steps": [
+      "Rub the pork all over with the sugar, spices and salt and leave it overnight.",
+      "Light the smoker and hold it at 250°F.",
+      "Smoke fat-side up for about 6 hours until the bark is dark and the internal temperature hits 165°F.",
+      "Wrap in foil and continue to 203°F — another 4 hours or so. The stall is normal; wait it out.",
+      "Rest an hour wrapped, then pull with two forks and dress with barbecue sauce. Serve on buns."
+    ],
+    "equipment": [
+      { "id": "smoker", "required": true },
+      { "id": "thermometer", "required": true },
+      { "id": "tongs", "required": true }
+    ],
+    "methods": ["smoke"],
+    "cuisine": "american",
+    "totalMinutes": 720,
+    "tags": ["make-ahead", "high-protein", "dairy-free", "freezer-friendly"]
+  },
+  {
+    "id": "cat-classic-cheeseburger",
+    "title": "Grilled Cheeseburgers",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "lb", "item": "ground beef" },
+      { "quantity": 8, "unit": "oz", "item": "cheddar cheese", "note": "sliced" },
+      { "quantity": 6, "unit": "whole", "item": "hamburger bun" },
+      { "quantity": 1, "unit": "head", "item": "lettuce" },
+      { "quantity": 2, "unit": "whole", "item": "tomato" },
+      { "quantity": 1, "unit": "whole", "item": "red onion" },
+      { "quantity": 1, "unit": "cup", "item": "pickle" },
+      { "quantity": 0.25, "unit": "cup", "item": "ketchup" },
+      { "quantity": 2, "unit": "tbsp", "item": "mustard" }
+    ],
+    "steps": [
+      "Light the grill and get it properly hot.",
+      "Form patties wider than the bun with a dimple in the centre so they do not dome.",
+      "Salt only the outside, only just before grilling — salt mixed into the meat makes it springy.",
+      "Grill 3 minutes a side, adding cheese for the last minute under a cover.",
+      "Toast the buns on the grill and build."
+    ],
+    "equipment": [{ "id": "grill", "required": true }, { "id": "tongs", "required": true }],
+    "methods": ["grill"],
+    "cuisine": "american",
+    "totalMinutes": 25,
+    "tags": ["weeknight", "high-protein", "kid-friendly", "summer"]
+  },
+  {
+    "id": "cat-clam-chowder",
+    "title": "New England Clam Chowder",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "can", "item": "clam" },
+      { "quantity": 4, "unit": "whole", "item": "potato", "note": "diced" },
+      { "quantity": 6, "unit": "oz", "item": "bacon" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "stalks", "item": "celery" },
+      { "quantity": 2, "unit": "cup", "item": "heavy cream" },
+      { "quantity": 0.25, "unit": "cup", "item": "flour" },
+      { "quantity": 4, "unit": "tbsp", "item": "butter" },
+      { "quantity": 1, "unit": "tsp", "item": "thyme" },
+      { "quantity": 2, "unit": "whole", "item": "bay leaf" }
+    ],
+    "steps": [
+      "Render the bacon, remove it, and cook the onion and celery in the fat.",
+      "Stir in the butter and flour and cook the raw taste out for two minutes.",
+      "Add the clam juice and potatoes and simmer until the potatoes are tender.",
+      "Add the cream, clams, thyme and bay and warm through without boiling.",
+      "Scatter the bacon back over each bowl."
+    ],
+    "equipment": [{ "id": "stockpot", "required": true }],
+    "methods": ["saute", "boil"],
+    "cuisine": "american",
+    "totalMinutes": 50,
+    "tags": ["comfort-food", "seafood", "soup"]
+  },
+  {
+    "id": "cat-sous-vide-steak",
+    "title": "Sous Vide Steak",
+    "servings": 2,
+    "ingredients": [
+      { "quantity": 2, "unit": "whole", "item": "steak", "note": "thick-cut" },
+      { "quantity": 3, "unit": "tbsp", "item": "butter" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "thyme" },
+      { "quantity": 1, "unit": "tbsp", "item": "rosemary" },
+      { "quantity": 2, "unit": "tsp", "item": "black pepper" }
+    ],
+    "steps": [
+      "Set the water bath to 130°F for medium-rare and let it come up to temperature.",
+      "Season the steaks, bag them with the herbs, and cook for 2 hours.",
+      "Take them out and dry the surface completely — a wet steak steams instead of searing.",
+      "Sear 45 seconds a side in a ripping-hot cast iron pan, basting with the butter and garlic.",
+      "Rest 5 minutes and slice against the grain."
+    ],
+    "equipment": [
+      { "id": "sous_vide_circulator", "required": true },
+      { "id": "cast_iron_skillet", "required": true },
+      { "id": "tongs", "required": true }
+    ],
+    "methods": ["sous_vide", "fry"],
+    "cuisine": "american",
+    "totalMinutes": 150,
+    "tags": ["high-protein", "gluten-free", "low-carb"]
+  },
+  {
+    "id": "cat-pressure-cooker-beef-stew",
+    "title": "Pressure Cooker Beef Stew",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 3, "unit": "lb", "item": "beef roast", "note": "cubed" },
+      { "quantity": 6, "unit": "whole", "item": "carrot" },
+      { "quantity": 4, "unit": "whole", "item": "potato" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "stalks", "item": "celery" },
+      { "quantity": 4, "unit": "cup", "item": "beef stock" },
+      { "quantity": 3, "unit": "tbsp", "item": "tomato paste" },
+      { "quantity": 1, "unit": "cup", "item": "red wine" },
+      { "quantity": 1, "unit": "tbsp", "item": "thyme" },
+      { "quantity": 2, "unit": "whole", "item": "bay leaf" },
+      { "quantity": 0.25, "unit": "cup", "item": "flour" }
+    ],
+    "steps": [
+      "Toss the beef in the flour and brown it in batches using the sauté function.",
+      "Cook the onion and celery, stir in the tomato paste, and deglaze with the wine.",
+      "Return the beef with the stock, thyme and bay. Pressure cook 35 minutes.",
+      "Release, add the carrots and potatoes, and cook a further 5 minutes under pressure.",
+      "Let the pressure fall naturally so the meat does not seize."
+    ],
+    "equipment": [{ "id": "pressure_cooker", "required": true }],
+    "methods": ["pressure_cook", "saute"],
+    "cuisine": "american",
+    "totalMinutes": 80,
+    "tags": [
+      "one-pot",
+      "comfort-food",
+      "high-protein",
+      "make-ahead",
+      "freezer-friendly",
+      "meal-prep"
+    ]
+  },
+  {
+    "id": "cat-roast-chicken",
+    "title": "Roast Chicken with Root Vegetables",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 5, "unit": "lb", "item": "whole chicken" },
+      { "quantity": 4, "unit": "tbsp", "item": "butter", "note": "softened" },
+      { "quantity": 1, "unit": "whole", "item": "lemon" },
+      { "quantity": 8, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "thyme" },
+      { "quantity": 1, "unit": "tbsp", "item": "rosemary" },
+      { "quantity": 4, "unit": "whole", "item": "carrot" },
+      { "quantity": 6, "unit": "whole", "item": "potato" },
+      { "quantity": 2, "unit": "whole", "item": "onion" }
+    ],
+    "steps": [
+      "Salt the chicken all over and leave it uncovered in the fridge overnight for the crispest skin.",
+      "Heat the oven to 425°F.",
+      "Work the softened butter and herbs under the breast skin, and put the lemon and garlic in the cavity.",
+      "Sit the bird on the vegetables in a roasting pan so they cook in the drippings.",
+      "Roast about 75 minutes until the thigh reads 165°F, then rest 20 minutes before carving."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "roasting_pan", "required": true },
+      { "id": "thermometer", "required": true }
+    ],
+    "methods": ["roast"],
+    "cuisine": "american",
+    "totalMinutes": 105,
+    "tags": ["high-protein", "gluten-free", "holiday", "make-ahead"]
+  },
+  {
+    "id": "cat-overnight-oats",
+    "title": "Overnight Oats",
+    "servings": 2,
+    "ingredients": [
+      { "quantity": 1, "unit": "cup", "item": "oats" },
+      { "quantity": 1, "unit": "cup", "item": "milk" },
+      { "quantity": 0.5, "unit": "cup", "item": "greek yogurt" },
+      { "quantity": 2, "unit": "tbsp", "item": "chia seed" },
+      { "quantity": 2, "unit": "tbsp", "item": "honey" },
+      { "quantity": 1, "unit": "cup", "item": "blueberry" },
+      { "quantity": 1, "unit": "whole", "item": "banana" }
+    ],
+    "steps": [
+      "Stir the oats, milk, yogurt, chia and honey together in a jar.",
+      "Refrigerate overnight — the chia is what sets it rather than leaving it soupy.",
+      "Top with blueberries and sliced banana in the morning."
+    ],
+    "equipment": [{ "id": "mixing_bowl", "required": true }],
+    "methods": ["no_cook"],
+    "totalMinutes": 10,
+    "tags": ["vegetarian", "breakfast", "no-cook", "make-ahead", "budget", "meal-prep"]
+  },
+  {
+    "id": "cat-avocado-toast",
+    "title": "Avocado Toast with Egg",
+    "servings": 2,
+    "ingredients": [
+      { "quantity": 4, "unit": "slices", "item": "sourdough" },
+      { "quantity": 2, "unit": "whole", "item": "avocado" },
+      { "quantity": 1, "unit": "whole", "item": "lemon" },
+      { "quantity": 1, "unit": "tsp", "item": "red pepper flakes" },
+      { "quantity": 2, "unit": "whole", "item": "egg" }
+    ],
+    "steps": [
+      "Toast the sourdough hard — it has to hold the weight.",
+      "Mash the avocado with lemon juice and plenty of salt.",
+      "Fry the eggs to your liking.",
+      "Spread, top with an egg each, and finish with pepper flakes and flaky salt."
+    ],
+    "equipment": [{ "id": "skillet", "required": true }],
+    "methods": ["fry"],
+    "cuisine": "american",
+    "totalMinutes": 10,
+    "tags": ["vegetarian", "breakfast", "weeknight", "budget"]
+  },
+  {
+    "id": "cat-banana-bread",
+    "title": "Banana Bread",
+    "servings": 10,
+    "ingredients": [
+      { "quantity": 2, "unit": "cup", "item": "flour" },
+      { "quantity": 3, "unit": "whole", "item": "banana", "note": "very ripe" },
+      { "quantity": 0.75, "unit": "cup", "item": "sugar" },
+      { "quantity": 0.5, "unit": "cup", "item": "butter", "note": "softened" },
+      { "quantity": 2, "unit": "whole", "item": "egg" },
+      { "quantity": 1, "unit": "tsp", "item": "baking soda" },
+      { "quantity": 1, "unit": "tsp", "item": "vanilla extract" },
+      { "quantity": 1, "unit": "cup", "item": "walnut", "note": "chopped" }
+    ],
+    "steps": [
+      "Heat the oven to 350°F and butter a loaf pan.",
+      "Cream the softened butter with the sugar, then beat in the eggs and vanilla.",
+      "Mash the bananas — the blacker the better — and stir them in.",
+      "Fold in the flour, soda and walnuts until only just combined.",
+      "Bake 60 minutes until a skewer comes out clean, and cool in the tin 10 minutes."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "loaf_pan", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["bake"],
+    "cuisine": "american",
+    "totalMinutes": 75,
+    "tags": ["vegetarian", "dessert", "breakfast", "make-ahead", "budget"]
+  },
+  {
+    "id": "cat-butternut-squash-soup",
+    "title": "Butternut Squash Soup",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 1, "unit": "whole", "item": "butternut squash" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" },
+      { "quantity": 6, "unit": "cup", "item": "vegetable stock" },
+      { "quantity": 1, "unit": "can", "item": "coconut milk" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger" },
+      { "quantity": 2, "unit": "tsp", "item": "cumin" },
+      { "quantity": 3, "unit": "tbsp", "item": "olive oil" }
+    ],
+    "steps": [
+      "Heat the oven to 425°F. Halve the squash, oil it, and roast cut-side down 40 minutes.",
+      "Roasting rather than boiling the squash is most of the flavour — do not skip it.",
+      "Soften the onion, garlic, ginger and cumin in a stockpot.",
+      "Scoop in the squash flesh, add the stock, and simmer 15 minutes.",
+      "Blend smooth, stir in the coconut milk, and season."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "sheet_pan", "required": true },
+      { "id": "stockpot", "required": true },
+      { "id": "immersion_blender", "required": true }
+    ],
+    "methods": ["roast", "boil"],
+    "cuisine": "american",
+    "totalMinutes": 65,
+    "tags": [
+      "vegan",
+      "vegetarian",
+      "dairy-free",
+      "gluten-free",
+      "soup",
+      "make-ahead",
+      "freezer-friendly"
+    ]
+  },
+  {
+    "id": "cat-quinoa-kale-salad",
+    "title": "Quinoa and Kale Salad",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1, "unit": "cup", "item": "quinoa" },
+      { "quantity": 1, "unit": "bunch", "item": "kale" },
+      { "quantity": 0.5, "unit": "cup", "item": "dried cranberry" },
+      { "quantity": 0.5, "unit": "cup", "item": "almond", "note": "toasted" },
+      { "quantity": 4, "unit": "oz", "item": "goat cheese" },
+      { "quantity": 0.25, "unit": "cup", "item": "olive oil" },
+      { "quantity": 2, "unit": "whole", "item": "lemon" },
+      { "quantity": 1, "unit": "tsp", "item": "dijon mustard" }
+    ],
+    "steps": [
+      "Rinse the quinoa well, then cook in twice its volume of water for 15 minutes and cool.",
+      "Strip the kale from its stems, shred it, and massage with a little oil and salt until it darkens and softens.",
+      "Whisk the remaining oil with lemon juice and mustard.",
+      "Toss everything together and crumble the goat cheese over."
+    ],
+    "equipment": [
+      { "id": "saucepan", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["boil"],
+    "cuisine": "mediterranean",
+    "totalMinutes": 30,
+    "tags": ["vegetarian", "gluten-free", "salad", "meal-prep", "make-ahead"]
+  },
+  {
+    "id": "cat-spanish-tortilla",
+    "title": "Spanish Tortilla",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 6, "unit": "whole", "item": "potato", "note": "thinly sliced" },
+      { "quantity": 8, "unit": "whole", "item": "egg" },
+      { "quantity": 1, "unit": "whole", "item": "onion", "note": "thinly sliced" },
+      { "quantity": 1, "unit": "cup", "item": "olive oil" },
+      { "quantity": 1, "unit": "tsp", "item": "salt" }
+    ],
+    "steps": [
+      "Poach the potatoes and onion gently in the olive oil over low heat for 20 minutes until tender but not coloured.",
+      "Drain, reserving the oil, and fold the hot potatoes into the beaten eggs. Let it stand 10 minutes.",
+      "Cook in a skillet with a little of the reserved oil over medium-low heat until the base is set.",
+      "Slide onto a plate, invert back into the pan, and cook the other side.",
+      "The centre should stay just barely soft. Serve at room temperature."
+    ],
+    "equipment": [{ "id": "skillet", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "methods": ["fry"],
+    "cuisine": "spanish",
+    "totalMinutes": 50,
+    "tags": ["vegetarian", "gluten-free", "make-ahead", "budget", "side"]
+  },
+  {
+    "id": "cat-fish-and-chips",
+    "title": "Fish and Chips",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 4, "unit": "whole", "item": "cod", "note": "fillets" },
+      { "quantity": 6, "unit": "whole", "item": "potato" },
+      { "quantity": 1.5, "unit": "cup", "item": "flour" },
+      { "quantity": 1.5, "unit": "cup", "item": "white wine" },
+      { "quantity": 8, "unit": "cup", "item": "vegetable oil" },
+      { "quantity": 2, "unit": "whole", "item": "lemon" },
+      { "quantity": 1, "unit": "cup", "item": "frozen pea" }
+    ],
+    "steps": [
+      "Cut the potatoes into thick chips and fry once at 300°F until soft but pale, then drain.",
+      "Whisk the flour with the wine to a thick batter and let it sit; keep it cold.",
+      "Raise the oil to 375°F and fry the chips again until golden — the second fry is what makes them crisp.",
+      "Dip the cod in the batter and fry 5-6 minutes until deep gold.",
+      "Serve with lemon and peas crushed with butter and salt."
+    ],
+    "equipment": [
+      { "id": "deep_fryer", "required": true },
+      { "id": "thermometer", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
+    "methods": ["fry"],
+    "cuisine": "british",
+    "totalMinutes": 60,
+    "tags": ["seafood", "high-protein", "comfort-food", "dairy-free"]
+  },
+  {
+    "id": "cat-shepherds-pie",
+    "title": "Shepherd's Pie",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 2, "unit": "lb", "item": "ground lamb" },
+      { "quantity": 6, "unit": "whole", "item": "potato" },
+      { "quantity": 3, "unit": "whole", "item": "carrot" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 1, "unit": "cup", "item": "frozen pea" },
+      { "quantity": 2, "unit": "tbsp", "item": "tomato paste" },
+      { "quantity": 2, "unit": "cup", "item": "beef stock" },
+      { "quantity": 0.5, "unit": "cup", "item": "milk" },
+      { "quantity": 4, "unit": "tbsp", "item": "butter" },
+      { "quantity": 1, "unit": "tbsp", "item": "worcestershire sauce" }
+    ],
+    "steps": [
+      "Boil the potatoes, then mash with the butter and milk and season hard.",
+      "Brown the lamb, add the onion and carrot, and cook until soft.",
+      "Stir in the tomato paste and Worcestershire, add the stock, and simmer until thickened.",
+      "Stir the peas through, tip into a baking dish, and spread the mash over, roughing up the top with a fork.",
+      "Bake at 400°F for 25 minutes until the peaks are browned."
+    ],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "baking_dish", "required": true },
+      { "id": "skillet", "required": true },
+      { "id": "saucepan", "required": true }
+    ],
+    "methods": ["bake", "saute", "boil"],
+    "cuisine": "british",
+    "totalMinutes": 80,
+    "tags": ["comfort-food", "high-protein", "make-ahead", "freezer-friendly"]
+  },
+  {
+    "id": "cat-tofu-vegetable-stir-fry",
+    "title": "Crispy Tofu and Vegetable Stir-Fry",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 14, "unit": "oz", "item": "tofu", "note": "extra-firm, pressed" },
+      { "quantity": 3, "unit": "tbsp", "item": "cornstarch" },
+      { "quantity": 1, "unit": "lb", "item": "bok choy" },
+      { "quantity": 2, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 1, "unit": "cup", "item": "snap pea" },
+      { "quantity": 3, "unit": "tbsp", "item": "soy sauce" },
+      { "quantity": 2, "unit": "tbsp", "item": "hoisin sauce" },
+      { "quantity": 3, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tbsp", "item": "ginger" },
+      { "quantity": 2, "unit": "cup", "item": "brown rice" }
+    ],
+    "steps": [
+      "Press the tofu at least 20 minutes, then cube it and toss in cornstarch.",
+      "Fry the tofu in a hot wok without moving it until each face is crisp, then remove.",
+      "Stir-fry the harder vegetables first, then the bok choy leaves and snap peas.",
+      "Add the garlic and ginger, then the soy and hoisin with a splash of water.",
+      "Return the tofu, toss once, and serve over brown rice so it stays crisp."
+    ],
+    "equipment": [{ "id": "wok", "required": true }, { "id": "saucepan", "required": true }],
+    "methods": ["fry"],
+    "cuisine": "chinese",
+    "totalMinutes": 40,
+    "tags": ["vegan", "vegetarian", "dairy-free", "high-protein", "meal-prep"]
+  },
+  {
+    "id": "cat-sheet-pan-sausage-peppers",
+    "title": "Sheet Pan Sausage and Peppers",
+    "servings": 4,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "lb", "item": "sausage" },
+      { "quantity": 3, "unit": "whole", "item": "bell pepper" },
+      { "quantity": 2, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "whole", "item": "potato" },
+      { "quantity": 3, "unit": "tbsp", "item": "olive oil" },
+      { "quantity": 1, "unit": "tbsp", "item": "italian seasoning" },
+      { "quantity": 4, "unit": "cloves", "item": "garlic" }
+    ],
+    "steps": [
+      "Heat the oven to 425°F.",
+      "Give the potatoes a 15-minute head start on the pan — they take longer than everything else.",
+      "Add the sausage, peppers, onion and garlic, tossed with oil and seasoning.",
+      "Roast 25 minutes more, turning once, until the sausages are browned and the peppers are collapsing."
+    ],
+    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
+    "methods": ["roast"],
+    "cuisine": "italian",
+    "totalMinutes": 50,
+    "tags": ["weeknight", "one-pot", "high-protein", "dairy-free", "gluten-free", "budget"]
+  },
+  {
+    "id": "cat-chicken-noodle-soup",
+    "title": "Chicken Noodle Soup",
+    "servings": 6,
+    "ingredients": [
+      { "quantity": 1.5, "unit": "lb", "item": "chicken thigh" },
+      { "quantity": 8, "unit": "cup", "item": "chicken stock" },
+      { "quantity": 8, "unit": "oz", "item": "egg noodles" },
+      { "quantity": 3, "unit": "whole", "item": "carrot" },
+      { "quantity": 3, "unit": "stalks", "item": "celery" },
+      { "quantity": 1, "unit": "whole", "item": "onion" },
+      { "quantity": 3, "unit": "cloves", "item": "garlic" },
+      { "quantity": 1, "unit": "tsp", "item": "thyme" },
+      { "quantity": 2, "unit": "whole", "item": "bay leaf" },
+      { "quantity": 2, "unit": "tbsp", "item": "parsley" }
+    ],
+    "steps": [
+      "Soften the onion, carrot and celery, then add the garlic, thyme and bay.",
+      "Add the stock and the chicken and simmer 25 minutes until the chicken shreds easily.",
+      "Lift the chicken out, shred it, and return it.",
+      "Cook the noodles separately and add them to each bowl — noodles cooked in the pot go to mush by the next day.",
+      "Finish with parsley."
+    ],
+    "equipment": [{ "id": "stockpot", "required": true }, { "id": "saucepan", "required": true }],
+    "methods": ["boil", "saute"],
+    "cuisine": "american",
+    "totalMinutes": 55,
+    "tags": ["comfort-food", "soup", "high-protein", "make-ahead", "budget"]
   }
 ]
