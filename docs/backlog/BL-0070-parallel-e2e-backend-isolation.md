@@ -1,7 +1,7 @@
 ---
 id: BL-0070
 title: Unpin the e2e suite from a single worker (backend isolation)
-status: proposed
+status: in-progress
 area: infra
 effort: M
 related_specs: []
