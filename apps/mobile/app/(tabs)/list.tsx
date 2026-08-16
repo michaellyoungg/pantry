@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { GroceryScreen } from "../../src/grocery/GroceryScreen";
 
 export default function ListScreen() {
-  return <PlaceholderScreen surface="list" title="List" portedBy="BL-0057" />;
+  return <GroceryScreen />;
 }
