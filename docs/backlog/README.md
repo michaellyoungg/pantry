@@ -94,7 +94,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | done | web | S |
 | [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | done | infra | L |
 | [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | done | mobile | L |
-| [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | proposed | mobile | M |
+| [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | in-progress | mobile | M |
 | [BL-0058](BL-0058-offline-grocery-cache-replay.md) | Offline grocery cache + collapse-and-replay reconciliation | proposed | mobile | L |
 | [BL-0059](BL-0059-native-pantry.md) | Native pantry route | proposed | mobile | M |
 | [BL-0060](BL-0060-eas-private-distribution.md) | EAS build + private distribution (TestFlight, Play internal) | proposed | mobile | M |
