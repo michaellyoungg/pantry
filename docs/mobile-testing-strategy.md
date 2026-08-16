@@ -196,14 +196,21 @@ move.
 
 ### Sequencing
 
-1. Confirm React Native vs. wrapper. Nothing below matters until that is settled.
-2. Establish `testID` conventions **before** screens are built. Retrofitting
-   selectors across a finished app is the expensive version of this.
-3. Per-flow backend provisioning — the highest-leverage item, and it pays the
-   web suite back immediately by unblocking parallel Playwright runs.
-4. Maestro with one flow: sign in, see the plan. Prove the harness end to end.
-5. Grow flows to match the Playwright journeys; wire the nightly workflow.
-6. Add jest-expo once there are screens with enough state to be worth testing.
+Captured as backlog items:
+
+| Item | | Blocked on |
+| --- | --- | --- |
+| — | Confirm React Native vs. wrapper | nothing — settle this first |
+| [BL-0053](backlog/BL-0053-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker | nothing |
+| [BL-0054](backlog/BL-0054-portable-test-selectors.md) | Portable test selectors (`testID` contract) | nothing |
+| [BL-0055](backlog/BL-0055-maestro-e2e-harness.md) | Maestro harness + first flow | a mobile client |
+| [BL-0056](backlog/BL-0056-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | BL-0055 |
+| [BL-0057](backlog/BL-0057-mobile-component-tests.md) | Component tests (jest-expo) | a mobile client |
+
+Two of these are worth doing **before** the mobile decision is made, because
+they pay for themselves on the web side alone: BL-0053 is the highest-leverage
+item here and unblocks parallel Playwright runs, and BL-0054 is far cheaper to
+establish before mobile screens exist than to retrofit across a finished app.
 
 ## Sources
 

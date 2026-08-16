@@ -90,3 +90,8 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | done | pantry | M |
 | [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | done | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | done | recommendations | M |
+| [BL-0053](BL-0053-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | proposed | infra | M |
+| [BL-0054](BL-0054-portable-test-selectors.md) | Portable test selectors — a testID contract for shared UI | proposed | infra | M |
+| [BL-0055](BL-0055-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | proposed | mobile | M |
+| [BL-0056](BL-0056-nightly-mobile-e2e.md) | Nightly mobile e2e — flow parity with the browser suite | proposed | mobile | L |
+| [BL-0057](BL-0057-mobile-component-tests.md) | Component tests for the mobile client (jest-expo) | proposed | mobile | S |
