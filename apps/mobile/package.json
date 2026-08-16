@@ -17,7 +17,7 @@
     "@convex-dev/auth": "^0.0.95",
     "@pantry/core": "workspace:^",
     "@pantry/design-tokens": "workspace:^",
-    "convex": "^1.43.0",
+    "convex": "^1.44.0",
     "expo": "~57.0.13",
     "expo-constants": "~57.0.11",
     "expo-linking": "~57.0.6",
