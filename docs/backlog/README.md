@@ -90,7 +90,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | done | pantry | M |
 | [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | done | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | done | recommendations | M |
-| [BL-0053](BL-0053-design-tokens-beyond-color.md) | Design tokens beyond color (spacing, radii, typography) | proposed | web | S |
+| [BL-0053](BL-0053-design-tokens-beyond-color.md) | Design tokens beyond color (spacing, radii, typography) | done | web | S |
 | [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | proposed | web | S |
 | [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | proposed | infra | L |
 | [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | proposed | mobile | L |
