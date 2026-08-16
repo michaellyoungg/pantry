@@ -1,7 +1,7 @@
 ---
 id: BL-0054
 title: Replace emoji icons with a shared icon set
-status: in-progress
+status: done
 area: web
 effort: S
 related_specs: [2026-08-16-mobile-client-parity-design.md, 2026-07-18-mobile-client-design.md]
@@ -38,3 +38,25 @@ Web-side this is a straight visual improvement independent of any mobile work.
   — precisely the duplication a shared set avoids.
 - **Keep emoji.** Free, and honestly fine on the web today. Rejected because the
   cross-platform inconsistency is exactly what makes it a mobile problem.
+
+## Outcome
+
+`NAV_ITEMS` moved to `packages/core/src/nav.ts` and is exported from
+`@pantry/core`. `icon` is a lucide export name, not a component:
+
+```ts
+{ to: "/list", label: "List", icon: "ShoppingCart" }
+```
+
+`apps/web` binds those names to `lucide-react` in `NAV_ICONS`
+(`apps/web/src/components/Nav.tsx`). A native client writes the same map
+against `lucide-react-native`, which exports identical names — typed
+`Record<NavIconName, …>` so a new destination fails the build on any platform
+that has not bound its icon. Only `lucide-react` was added, to `apps/web`.
+
+Icons: `House`, `CalendarDays`, `BookOpen`, `ShoppingCart`, `Refrigerator`,
+`ChartLine`, `Settings` — all present in `lucide-react` and
+`lucide-react-native` 1.31.0.
+
+Icons render `aria-hidden`, as the emoji did, so each link's accessible name is
+still its label. No e2e spec selected on the emoji.

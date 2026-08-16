@@ -91,7 +91,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | done | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | done | recommendations | M |
 | [BL-0053](BL-0053-design-tokens-beyond-color.md) | Design tokens beyond color (spacing, radii, typography) | done | web | S |
-| [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | in-progress | web | S |
+| [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | done | web | S |
 | [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | done | infra | L |
 | [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | in-progress | mobile | L |
 | [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | proposed | mobile | M |
