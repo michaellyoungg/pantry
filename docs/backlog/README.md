@@ -43,7 +43,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | done | grocery-list | L |
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | done | auth | M |
 | [BL-0005](BL-0005-recommendations-service.md) | Recommendations / preference-lookup service | in-progress | recommendations | L |
-| [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | proposed | infra | M |
+| [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | in-progress | infra | M |
 | [BL-0007](BL-0007-openapi-contract-codegen.md) | OpenAPI contract codegen | proposed | infra | M |
 | [BL-0008](BL-0008-self-hosted-convex-prod-hardening.md) | Self-hosted Convex prod hardening | done | infra | M |
 | [BL-0009](BL-0009-recipe-service-http-hardening.md) | recipe-service HTTP hardening (timeouts, body cap, graceful shutdown) | done | infra | S |
