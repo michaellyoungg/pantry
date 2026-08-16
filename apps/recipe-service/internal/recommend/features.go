@@ -200,9 +200,7 @@ func pantryFeatures(m match, v pantryView, w Weights) []feature {
 			available: m.total > 0,
 		},
 
-		// --- wired, inert in increment 1 ---
-		// Needs the interaction event log (increment 2).
-		{name: "affinity", value: 0, weight: w.Affinity, available: false},
+		// --- still wired and inert ---
 		// Needs plan HISTORY; the basket is current-week only, and current-week
 		// recipes are hard-excluded via ExcludeRecipeIDs instead.
 		{name: "recentlyPlanned", value: 0, weight: w.RecentlyPlanned, available: false},

@@ -13,6 +13,11 @@ type Weights struct {
 	NutritionFit     float64
 	CuisineMatch     float64
 	TimeFit          float64
+	// Discovery-surface features (BL-0005 increment 2). They carry a weight of
+	// zero in DefaultPantryWeights because that surface never scores them: "cook
+	// what I have" is not the place to be told a recipe is new.
+	Novelty       float64
+	NearDuplicate float64
 }
 
 // DefaultPantryWeights favours clearing flagged use-it-up items over raw
@@ -31,10 +36,14 @@ type Weights struct {
 // and there the user's explicit instruction is meant to be narrowly outweighed
 // by a fact they may not have noticed — not overruled.
 //
-// MissingNonStaple, Affinity and RecentlyPlanned have weights here but their
-// features report UNAVAILABLE in increment 1 (no staple flag, no event log, no
-// plan history), so they contribute to neither the numerator nor the
-// denominator. See combine().
+// Affinity is live as of increment 2 but deliberately stays at 1.0 here — the
+// LOWEST live weight on this surface. Taste is a good reason to reorder what you
+// could cook tonight and a bad reason to overrule what is about to spoil. The
+// discover surface, where taste IS the question, weights it four times higher.
+//
+// RecentlyPlanned still has a weight and still reports UNAVAILABLE (no plan
+// history), so it contributes to neither the numerator nor the denominator. See
+// combine().
 var DefaultPantryWeights = Weights{
 	ExpiryUrgency:    3.5,
 	UseItUpHits:      3.0,
@@ -57,4 +66,48 @@ var DefaultPantryWeights = Weights{
 	// ask, and a recipe answering both should beat one answering either.
 	CuisineMatch: 1.5,
 	TimeFit:      1.5,
+	// The discover surface's own features are not scored here at all.
+	Novelty:       0,
+	NearDuplicate: 0,
+}
+
+// DefaultDiscoverWeights ranks "what should I try" — a different question from
+// "what can I cook", and therefore a different ordering of the same features.
+//
+// Affinity DOMINATES, at four times its pantry weight. On this surface taste is
+// not a tiebreak between things you can cook tonight; it is the entire question
+// being asked. Everything else adjusts a taste-led ordering.
+//
+// CuisineMatch sits just under it and above TimeFit because a stated cuisine is
+// a statement about what you want to eat, while a time limit is a statement
+// about tonight — and discovery is a question about the former.
+//
+// Coverage is deliberately the SMALLEST live weight, a third of its value on the
+// pantry surface. Being cookable from what you have is a pleasant bonus for a
+// recipe you want to try; if it grew, discovery would quietly become the pantry
+// endpoint under another name, which is the failure this surface exists to
+// avoid. ExpiryUrgency and UseItUpHits are not scored here at all, for the same
+// reason: the fridge is the other surface's question.
+//
+// NearDuplicate outweighs Novelty because they answer different questions and
+// only one of them is about the food. "You have not seen this" is a fact about
+// the UI; "this is the fourth chicken-and-rice recipe we have offered you" is a
+// fact about the suggestion, and it is the one that makes a discovery surface
+// feel repetitive.
+var DefaultDiscoverWeights = Weights{
+	Affinity:      4.0,
+	CuisineMatch:  3.0,
+	NearDuplicate: 2.5,
+	TimeFit:       2.5,
+	Novelty:       2.0,
+	// Level with the pantry surface: a goal the user set should matter the same
+	// amount whichever screen they are on.
+	NutritionFit: 2.0,
+	Coverage:     0.7,
+	// Not scored on this surface. Named explicitly rather than left to the zero
+	// value so that "we chose not to score this here" is visible in review.
+	ExpiryUrgency:    0,
+	UseItUpHits:      0,
+	MissingNonStaple: 0,
+	RecentlyPlanned:  0,
 }
