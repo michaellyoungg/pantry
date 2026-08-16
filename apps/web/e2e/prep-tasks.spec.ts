@@ -54,9 +54,16 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
   });
   await expect(box).not.toBeChecked();
   await box.check();
-  // The tick is not optimistic: it round-trips through Convex and comes back
-  // over the socket, so a checked box means the mutation actually landed.
   await expect(box).toBeChecked();
+  // A checked box does NOT mean the mutation landed — `prepTasks.setDone` is
+  // optimistic, so this flips locally first. (The comment that used to sit here
+  // claimed the opposite.) aria-busy on the card clears only once the server
+  // acknowledges, and waiting for it is what stops the reload below from
+  // cancelling the very write it is meant to be testing. (BL-0070.)
+  await expect(page.getByRole("region", { name: "Before you cook" })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
 
   // --- and the tick survives a full reload, keyed on the stable task key ---
   await page.reload();

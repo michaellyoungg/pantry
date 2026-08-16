@@ -42,6 +42,19 @@ test("full loop: sign up, plan a recipe, generate list, check off, persist", asy
   await checkbox.check();
   await expect(checkbox).toBeChecked();
 
+  // That tick proves nothing on its own: `groceryList.toggleItem` carries an
+  // optimistic update, so the box flips locally before the server has seen the
+  // mutation. Reloading here is a full load, which drops the Convex socket and
+  // cancels anything not yet flushed — the write the next assertion is about.
+  // aria-busy clears when the mutation is acknowledged, so it is the barrier
+  // that makes the reload meaningful. (BL-0070: this lost race is rare on an
+  // idle machine and common under parallel load, which is exactly the kind of
+  // flake that made the suite untrustworthy at more than one worker.)
+  await expect(page.getByRole("region", { name: "Grocery list" })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+
   // Reload: the checked state is server-persisted (Convex), not just local.
   await page.reload();
   const itemAfterReload = page.getByRole("listitem").filter({ hasText: "garlic" });

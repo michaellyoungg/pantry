@@ -33,6 +33,10 @@ export function BeforeYouCook() {
   return (
     <section
       aria-label="Before you cook"
+      // The tick is optimistic, so it renders before the server has agreed.
+      // aria-busy is the acknowledgement signal (see GroceryList for the same
+      // pattern and why the e2e suite depends on it).
+      aria-busy={act.pending}
       className="rounded-xl border border-primary/40 bg-primary/5 p-5 shadow-sm"
     >
       <h2 className="text-lg font-semibold text-text">

@@ -217,6 +217,17 @@ export type UseGroceryList = {
   undo: RestorableLine | null;
   /** The most recent failed mutation, already stringified. */
   error: string | null;
+  /**
+   * True while a write is in flight — i.e. from the moment a mutation is fired
+   * until the server acknowledges it.
+   *
+   * Every write here is optimistic, so the rendered state flips before the
+   * server has seen anything. This is the only signal that separates "the UI
+   * says so" from "the backend agreed", which is what a platform needs to show
+   * a spinner, and what an e2e test needs before it may reload the page — a
+   * reload drops the Convex socket and cancels anything not yet flushed.
+   */
+  pending: boolean;
   toggle: (line: GroceryLine, checked: boolean) => void;
   /** Deletes now; `undoRemove` puts it back for the next {@link UNDO_MS}. */
   remove: (line: GroceryLine) => void;
@@ -265,7 +276,7 @@ export function useGroceryList(): UseGroceryList {
   const finishShopping = useMutation(api.groceryList.finishShopping).withOptimisticUpdate(
     finishShoppingOptimistic,
   );
-  const { run, error } = useAsyncAction();
+  const { run, error, pending } = useAsyncAction();
 
   // Every id this device changed itself, so the highlight can tell a household
   // member's edit from the user's own tap.
@@ -349,6 +360,7 @@ export function useGroceryList(): UseGroceryList {
     highlighted,
     undo,
     error,
+    pending,
     toggle,
     remove,
     undoRemove,
