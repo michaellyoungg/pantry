@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
+
+// RNTL 14 made `render` and `fireEvent` async: they await React 19's `act`
+// internally, and `screen` is only bound once that settles. Dropping an `await`
+// does not fail loudly — the next line throws ``render` function has not been
+// called``, which reads like the component never mounted.
 
 const DAY = 86_400_000;
 
@@ -56,31 +61,31 @@ beforeEach(() => {
 });
 
 describe("what the pantry currently holds", () => {
-  it("tells 'still loading' apart from 'you own nothing'", () => {
+  it("tells 'still loading' apart from 'you own nothing'", async () => {
     mockState.rows = undefined;
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.loading")).toBeOnTheScreen();
     expect(screen.queryByTestId("pantry.empty-state")).toBeNull();
   });
 
-  it("explains where inventory comes from when there is none", () => {
-    render(<PantryInventory />);
+  it("explains where inventory comes from when there is none", async () => {
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.empty-state")).toHaveTextContent(/grocery list/i);
     // Nothing is suppressed yet, so the don't-rebuy note would be a lie.
     expect(screen.queryByTestId("pantry.rebuy-note")).toBeNull();
   });
 
-  it("groups rows under their aisle, in the server's order", () => {
+  it("groups rows under their aisle, in the server's order", async () => {
     mockState.rows = [
       row({ canonicalItem: "milk", display: "Milk", aisle: "dairy" }),
       row({ canonicalItem: "butter", display: "Butter", aisle: "dairy" }),
       row({ canonicalItem: "green onion", display: "Green onion", aisle: "produce" }),
     ];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.aisle.dairy")).toHaveTextContent("Dairy");
     expect(screen.getByTestId("pantry.aisle.produce")).toHaveTextContent("Produce");
@@ -89,45 +94,38 @@ describe("what the pantry currently holds", () => {
     expect(screen.getByTestId("pantry.item-name.green-onion")).toHaveTextContent("Green onion");
   });
 
-  it("says plainly what the Have state does to the next grocery list", () => {
+  it("says plainly what the Have state does to the next grocery list", async () => {
     mockState.rows = [row()];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.rebuy-note")).toHaveTextContent(/skipped/i);
   });
 });
 
 describe("the state cycle", () => {
-  // These press a control that fires a mutation, and `useAsyncAction` flips its
-  // pending flag when the promise settles — after the synchronous assertion
-  // would have run. Awaiting `waitFor` lets that update land inside act().
   it("advances have → low", async () => {
     mockState.rows = [row({ state: "have" })];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.state.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.state.spinach"));
 
-    await waitFor(() =>
-      expect(mockSetState).toHaveBeenCalledWith({ id: "p-spinach", state: "low" }),
-    );
+    expect(mockSetState).toHaveBeenCalledWith({ id: "p-spinach", state: "low" });
   });
 
   it("wraps out → have, so restocking never needs a different control", async () => {
     mockState.rows = [row({ state: "out" })];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.state.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.state.spinach"));
 
-    await waitFor(() =>
-      expect(mockSetState).toHaveBeenCalledWith({ id: "p-spinach", state: "have" }),
-    );
+    expect(mockSetState).toHaveBeenCalledWith({ id: "p-spinach", state: "have" });
   });
 
-  it("labels the control with the state it is in, for a screen reader too", () => {
+  it("labels the control with the state it is in, for a screen reader too", async () => {
     mockState.rows = [row({ state: "low" })];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     const control = screen.getByTestId("pantry.state.spinach");
     expect(control).toHaveTextContent("Low");
@@ -139,35 +137,31 @@ describe("marking something to use up", () => {
   it("flips the flag the ranker reads", async () => {
     mockState.rows = [row({ useItUp: false })];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.use-up.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.use-up.spinach"));
 
-    await waitFor(() =>
-      expect(mockSetUseItUp).toHaveBeenCalledWith({ id: "p-spinach", useItUp: true }),
-    );
+    expect(mockSetUseItUp).toHaveBeenCalledWith({ id: "p-spinach", useItUp: true });
   });
 
   it("unflips an already-flagged item", async () => {
     mockState.rows = [row({ useItUp: true })];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
     expect(screen.getByTestId("pantry.use-up.spinach").props.accessibilityState.selected).toBe(
       true,
     );
 
-    fireEvent.press(screen.getByTestId("pantry.use-up.spinach"));
-    await waitFor(() =>
-      expect(mockSetUseItUp).toHaveBeenCalledWith({ id: "p-spinach", useItUp: false }),
-    );
+    await fireEvent.press(screen.getByTestId("pantry.use-up.spinach"));
+    expect(mockSetUseItUp).toHaveBeenCalledWith({ id: "p-spinach", useItUp: false });
   });
 });
 
 describe("removing an item", () => {
-  it("asks before destroying the row, rather than firing on a mis-tap", () => {
+  it("asks before destroying the row, rather than firing on a mis-tap", async () => {
     mockState.rows = [row()];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
 
     expect(mockRemove).not.toHaveBeenCalled();
     expect(screen.getByTestId("pantry.confirm-remove.spinach")).toBeOnTheScreen();
@@ -176,31 +170,31 @@ describe("removing an item", () => {
   it("removes once confirmed", async () => {
     mockState.rows = [row()];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
-    fireEvent.press(screen.getByTestId("pantry.confirm-remove.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
+    await fireEvent.press(screen.getByTestId("pantry.confirm-remove.spinach"));
 
-    await waitFor(() => expect(mockRemove).toHaveBeenCalledWith({ id: "p-spinach" }));
+    expect(mockRemove).toHaveBeenCalledWith({ id: "p-spinach" });
     expect(screen.queryByTestId("pantry.confirm-remove.spinach")).toBeNull();
   });
 
-  it("backs out on Keep", () => {
+  it("backs out on Keep", async () => {
     mockState.rows = [row()];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
-    fireEvent.press(screen.getByTestId("pantry.cancel-remove.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
+    await fireEvent.press(screen.getByTestId("pantry.cancel-remove.spinach"));
 
     expect(mockRemove).not.toHaveBeenCalled();
     expect(screen.getByTestId("pantry.remove.spinach")).toBeOnTheScreen();
   });
 
-  it("prompts on one row at a time", () => {
+  it("prompts on one row at a time", async () => {
     mockState.rows = [row(), row({ canonicalItem: "milk", display: "Milk" })];
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
-    fireEvent.press(screen.getByTestId("pantry.remove.milk"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.remove.spinach"));
+    await fireEvent.press(screen.getByTestId("pantry.remove.milk"));
 
     expect(screen.getByTestId("pantry.confirm-remove.milk")).toBeOnTheScreen();
     expect(screen.queryByTestId("pantry.confirm-remove.spinach")).toBeNull();
@@ -212,38 +206,38 @@ describe("when a mutation fails", () => {
     mockState.rows = [row()];
     mockSetState.mockRejectedValueOnce(new Error("offline"));
 
-    render(<PantryInventory />);
-    fireEvent.press(screen.getByTestId("pantry.state.spinach"));
+    await render(<PantryInventory />);
+    await fireEvent.press(screen.getByTestId("pantry.state.spinach"));
 
     expect(await screen.findByTestId("pantry.error")).toHaveTextContent(/offline/);
   });
 });
 
 describe("shelf life", () => {
-  it("shows an approximate, relative date — never one that looks printed", () => {
+  it("shows an approximate, relative date — never one that looks printed", async () => {
     // 2.5 days, not 2: the component reads its own `Date.now()` a few
     // milliseconds after this line, and whole days are floored, so an exact
     // two-day offset lands on "~tomorrow" about half the time.
     mockState.rows = [row({ useBy: Date.now() + 2.5 * DAY })];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.use-by.spinach")).toHaveTextContent("~2 days");
   });
 
-  it("calls out an item that is past its date in words, not only in colour", () => {
+  it("calls out an item that is past its date in words, not only in colour", async () => {
     mockState.rows = [row({ useBy: Date.now() - 2 * DAY })];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.use-by.spinach")).toHaveTextContent(/past its date/i);
   });
 
-  it("shows no date at all for an item with no known shelf life", () => {
+  it("shows no date at all for an item with no known shelf life", async () => {
     // A guessed date is worse than an absent one.
     mockState.rows = [row({ canonicalItem: "salt", display: "Salt", useBy: undefined })];
 
-    render(<PantryInventory />);
+    await render(<PantryInventory />);
 
     expect(screen.getByTestId("pantry.item.salt")).toBeOnTheScreen();
     expect(screen.queryByTestId("pantry.use-by.salt")).toBeNull();

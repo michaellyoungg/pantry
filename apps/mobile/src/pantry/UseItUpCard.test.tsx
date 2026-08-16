@@ -69,7 +69,7 @@ describe("the deadline half of the card", () => {
       row({ canonicalItem: "milk", display: "Milk" }),
     ];
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     expect(screen.getByTestId("pantry.use-it-up-heading")).toHaveTextContent(
       /2 items to use this week/,
@@ -80,11 +80,11 @@ describe("the deadline half of the card", () => {
     await waitFor(() => expect(mockRecommend).toHaveBeenCalled());
   });
 
-  it("renders before the ranker has answered, because it needs no network", () => {
+  it("renders before the ranker has answered, because it needs no network", async () => {
     mockState.pantry = [row()];
     mockRecommend.mockImplementation(() => new Promise(() => {}));
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     expect(screen.getByTestId("pantry.expiring.spinach")).toBeOnTheScreen();
     expect(screen.getByTestId("pantry.suggestions-loading")).toBeOnTheScreen();
@@ -94,7 +94,7 @@ describe("the deadline half of the card", () => {
     mockState.pantry = [row()];
     mockRecommend.mockRejectedValue(new Error("ranker down"));
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     await waitFor(() => expect(screen.getByTestId("pantry.suggestions-error")).toBeOnTheScreen());
     // The deadline half came from local state and is still useful on its own.
@@ -104,7 +104,7 @@ describe("the deadline half of the card", () => {
   it("marks the dates as estimates, never as printed labels", async () => {
     mockState.pantry = [row()];
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     expect(screen.getByTestId("pantry.estimate-note")).toHaveTextContent(/estimates/i);
     await waitFor(() => expect(mockRecommend).toHaveBeenCalled());
@@ -115,7 +115,7 @@ describe("on the pantry screen the card is the feature's home", () => {
   it("still asks for suggestions when nothing is expiring", async () => {
     mockState.pantry = [row({ useBy: Date.now() + 300 * DAY })];
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     await waitFor(() => expect(mockRecommend).toHaveBeenCalled());
     expect(screen.getByTestId("pantry.nothing-expiring")).toBeOnTheScreen();
@@ -124,7 +124,7 @@ describe("on the pantry screen the card is the feature's home", () => {
   it("renders nothing at all as a Home nudge when nothing is expiring", async () => {
     mockState.pantry = [row({ useBy: Date.now() + 300 * DAY })];
 
-    render(<UseItUpCard variant="nudge" />);
+    await render(<UseItUpCard variant="nudge" />);
 
     expect(screen.queryByTestId("pantry.use-it-up")).toBeNull();
     // And it costs no request: the common case is silent AND free.
@@ -144,7 +144,7 @@ describe("suggestions", () => {
       ]),
     );
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     const urgency = await screen.findByTestId("pantry.urgency.creamed-spinach");
     expect(urgency).toHaveTextContent(/Use soon — Spinach \(~2 days\)/);
@@ -156,8 +156,8 @@ describe("suggestions", () => {
     mockState.pantry = [row()];
     mockRecommend.mockImplementation(ranked([rec()]));
 
-    render(<UseItUpCard variant="page" />);
-    fireEvent.press(await screen.findByTestId("pantry.add-to-plan.creamed-spinach"));
+    await render(<UseItUpCard variant="page" />);
+    await fireEvent.press(await screen.findByTestId("pantry.add-to-plan.creamed-spinach"));
 
     await waitFor(() =>
       expect(mockAddToBasket).toHaveBeenCalledWith({
@@ -181,7 +181,7 @@ describe("suggestions", () => {
       ranked([rec({ recipeId: "gen-1", title: "Spinach Skillet", source: "generated" })], [draft]),
     );
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     // Said in words, not only as a badge: this is the one row nobody has cooked.
     expect(await screen.findByTestId("pantry.ai-idea.spinach-skillet")).toHaveTextContent(
@@ -191,7 +191,7 @@ describe("suggestions", () => {
       /not a tested recipe/i,
     );
 
-    fireEvent.press(screen.getByTestId("pantry.add-to-plan.spinach-skillet"));
+    await fireEvent.press(screen.getByTestId("pantry.add-to-plan.spinach-skillet"));
 
     await waitFor(() => expect(mockAccept).toHaveBeenCalled());
     // The SAVED id, never the synthetic `gen-` one, which names no stored recipe.
@@ -203,8 +203,8 @@ describe("suggestions", () => {
     mockRecommend.mockImplementation(ranked([rec()]));
     mockAddToBasket.mockRejectedValueOnce(new Error("offline"));
 
-    render(<UseItUpCard variant="page" />);
-    fireEvent.press(await screen.findByTestId("pantry.add-to-plan.creamed-spinach"));
+    await render(<UseItUpCard variant="page" />);
+    await fireEvent.press(await screen.findByTestId("pantry.add-to-plan.creamed-spinach"));
 
     expect(await screen.findByTestId("pantry.add-error")).toHaveTextContent(/offline/);
     // A failed add is not a failed load; the card itself is fine.
@@ -217,7 +217,7 @@ describe("suggestions", () => {
       ranked([rec({ missing: [{ canonicalItem: "cream", display: "Cream" }] })]),
     );
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     expect(await screen.findByTestId("pantry.suggestion.creamed-spinach")).toHaveTextContent(
       /Need: Cream/,
@@ -227,7 +227,7 @@ describe("suggestions", () => {
   it("treats 'nothing matched' as its own answer, not as a failure", async () => {
     mockState.pantry = [row()];
 
-    render(<UseItUpCard variant="page" />);
+    await render(<UseItUpCard variant="page" />);
 
     expect(await screen.findByTestId("pantry.suggestions-empty")).toHaveTextContent(
       /no recipe uses these yet/i,

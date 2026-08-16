@@ -44,7 +44,7 @@ beforeEach(() => {
 
 describe("the pantry route", () => {
   it("is a real screen now, not the placeholder", async () => {
-    render(<PantryScreen />);
+    await render(<PantryScreen />);
 
     expect(screen.getByTestId("pantry.screen")).toBeOnTheScreen();
     expect(screen.getByTestId("pantry.title")).toHaveTextContent("Pantry");
@@ -53,7 +53,7 @@ describe("the pantry route", () => {
   });
 
   it("shows inventory and the suggestion card together", async () => {
-    render(<PantryScreen />);
+    await render(<PantryScreen />);
 
     expect(screen.getByTestId("pantry.use-it-up")).toBeOnTheScreen();
     expect(screen.getByTestId("pantry.item.spinach")).toBeOnTheScreen();
@@ -64,7 +64,7 @@ describe("the pantry route", () => {
     // BL-0050 collapsed two competing cards on this route into one. Porting it
     // to a second client is the obvious way to undo that, so the count is
     // asserted rather than assumed.
-    render(<PantryScreen />);
+    await render(<PantryScreen />);
 
     expect(screen.getAllByTestId("pantry.use-it-up")).toHaveLength(1);
     await waitFor(() => expect(mockRecommend).toHaveBeenCalled());
