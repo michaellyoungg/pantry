@@ -10,12 +10,46 @@ can reuse it instead of reimplementing it.
 
 | Import | Contains | May depend on |
 | --- | --- | --- |
-| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads | nothing but `@pantry/types` |
+| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
 | `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
+
+## Navigation destinations (`NAV_ITEMS`)
+
+BL-0054. The seven primary destinations — path, label, and icon — live in
+`src/nav.ts` so both clients read one list.
+
+```ts
+import { NAV_ITEMS, type NavIconName } from "@pantry/core";
+```
+
+`icon` holds a **name**, not a component:
+
+```ts
+{ to: "/list", label: "List", icon: "ShoppingCart" }
+```
+
+`lucide-react` and `lucide-react-native` export identical names, so each client
+binds the name to its own component in its own view layer and nothing
+renderer-specific crosses the boundary — which is what lets this module stay in
+the headless entry point. The web binding is `NAV_ICONS` in
+`apps/web/src/components/Nav.tsx`; the native one is `NAV_ICONS` in
+`apps/mobile/src/navigation/navIcons.ts`. Both are typed
+`Record<NavIconName, …>`, so adding a destination here fails the build on
+whichever platform has not bound its icon.
+
+Two things about `NavItem` are load-bearing beyond appearance:
+
+- **`label` is the link's accessible name.** The Playwright `navigateTo` helper
+  and `Nav.test.tsx` both locate by it, so icons must render `aria-hidden`.
+- **`to` is a route path (`NavRoute`), not a router object.** Rule 5 of the
+  mobile design spec keeps routers out of shared code; each client maps the
+  path itself, and can key an exhaustive `Record<NavRoute, …>` off it —
+  `apps/mobile/src/navigation/navItems.ts` does exactly that for its Expo
+  Router route names.
 
 ## Screen hooks (`@pantry/core/data`)
 
