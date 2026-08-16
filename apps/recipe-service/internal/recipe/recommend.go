@@ -25,7 +25,7 @@ func (h *handlers) recommendPantry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes))
+	results := recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes, recommend.Shortlist))
 
 	// Generation runs only against a thin corpus, and only when it is
 	// configured at all (BL-0034). Everything it produces re-enters the SAME
@@ -40,7 +40,7 @@ func (h *handlers) recommendPantry(w http.ResponseWriter, r *http.Request) {
 				// on the same terms as a stored one.
 				recipes[rec.ID] = rec
 			}
-			results = recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes))
+			results = recommend.RankPantry(uc, h.withNutrition(r.Context(), uc, candidates, recipes, recommend.Shortlist))
 			generated = draftsInResults(drafts, results)
 		}
 	}
@@ -69,8 +69,8 @@ func (h *handlers) recommendCandidates(ctx context.Context, userID string) ([]re
 	}
 
 	out := make([]recommend.Candidate, 0, len(mine)+len(catalog))
-	out = append(out, toCandidates(mine, "user")...)
-	out = append(out, toCandidates(catalog, "catalog")...)
+	out = append(out, toCandidates(mine, recommend.SourceUser)...)
+	out = append(out, toCandidates(catalog, recommend.SourceCatalog)...)
 
 	byID := make(map[string]Recipe, len(mine)+len(catalog))
 	for _, rec := range mine {
@@ -98,16 +98,21 @@ const nutritionShortlist = 30
 // nothing for the vectors to be scored against, so fetching them would be pure
 // cost. Candidates it cannot measure keep a nil vector and are ranked NEUTRALLY
 // — see internal/recommend/nutrition.go.
+//
+// The SHORTLIST is passed in rather than fixed because the pre-rank has to ask
+// the same question as the final rank: pre-ranking discovery candidates by the
+// pantry signal would decide the surface before its own ranker ever ran.
 func (h *handlers) withNutrition(
 	ctx context.Context,
 	uc recommend.UserContext,
 	candidates []recommend.Candidate,
 	recipes map[string]Recipe,
+	shortlist func(recommend.UserContext, []recommend.Candidate, int) []recommend.Candidate,
 ) []recommend.Candidate {
 	if h.nutrition == nil || len(uc.NutritionTargets) == 0 {
 		return candidates
 	}
-	short := recommend.Shortlist(uc, candidates, nutritionShortlist)
+	short := shortlist(uc, candidates, nutritionShortlist)
 	for i := range short {
 		rec, ok := recipes[short[i].RecipeID]
 		if !ok {

@@ -22,6 +22,10 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 	avoid := toSet(uc.Preferences.AvoidItems)
 	exclude := toSet(uc.ExcludeRecipeIDs)
 	view := newPantryView(uc.Pantry, uc.Now)
+	// Live since increment 2 (BL-0005). Unavailable — not zero — for a user with
+	// no history and no stated likes, so a cold-start pantry ranks exactly as it
+	// did before affinity existed. See affinity.go.
+	aff := newAffinityView(uc)
 
 	results := make([]Result, 0, len(candidates))
 	for _, c := range candidates {
@@ -44,8 +48,10 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 		}
 
 		d := matchDiscovery(c, uc.Preferences)
+		affValue := aff.score(c)
 
 		features := append(pantryFeatures(m, view, w), nutritionFeature(na, w))
+		features = append(features, affinityFeature(affValue, aff, w))
 		features = append(features, discoveryFeatures(d, w)...)
 
 		// Reason order is a ranking of what matters, and the card shows only the
@@ -58,6 +64,12 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 			reasons = append(reasons, r)
 		}
 		reasons = append(reasons, discoveryReasons(d)...)
+		// Last, because on THIS surface taste is the least consequential of the
+		// four claims: it is a prediction, and the three above it are facts about
+		// the food, a goal the user set, and a taste they typed.
+		if r := affinityReason(affValue); r != "" {
+			reasons = append(reasons, r)
+		}
 
 		results = append(results, Result{
 			RecipeID: c.RecipeID,
@@ -114,6 +126,29 @@ func rankPantryWith(uc UserContext, candidates []Candidate, w Weights) []Result 
 // limit even when the corpus holds more recipes that would have qualified. n
 // should therefore be comfortably larger than the limit.
 func Shortlist(uc UserContext, candidates []Candidate, n int) []Candidate {
+	return shortlistWith(uc, candidates, n, rankPantryWith, DefaultPantryWeights)
+}
+
+// ShortlistDiscover is Shortlist for the discovery surface.
+//
+// It exists rather than reusing Shortlist because the pre-rank has to be the
+// SAME question as the final rank. Shortlisting discovery candidates by the
+// pantry signal would quietly hand the surface to whatever the user happens to
+// have in the fridge — the exact bias DefaultDiscoverWeights sets Coverage low
+// to avoid — before the discovery ranker ever saw the pool.
+func ShortlistDiscover(uc UserContext, candidates []Candidate, n int) []Candidate {
+	return shortlistWith(uc, candidates, n, rankDiscoverWith, DefaultDiscoverWeights)
+}
+
+// shortlistWith is the shared body: rank cheaply, keep the leaders, hand the
+// full Candidates back so the caller can enrich them.
+func shortlistWith(
+	uc UserContext,
+	candidates []Candidate,
+	n int,
+	rank func(UserContext, []Candidate, Weights) []Result,
+	w Weights,
+) []Candidate {
 	if n <= 0 {
 		return nil
 	}
@@ -127,7 +162,7 @@ func Shortlist(uc UserContext, candidates []Candidate, n int) []Candidate {
 		byID[c.RecipeID] = c
 	}
 
-	ranked := rankPantryWith(base, candidates, DefaultPantryWeights)
+	ranked := rank(base, candidates, w)
 	out := make([]Candidate, 0, len(ranked))
 	for _, r := range ranked {
 		if c, ok := byID[r.RecipeID]; ok {

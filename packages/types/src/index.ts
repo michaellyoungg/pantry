@@ -454,12 +454,62 @@ export interface RecommendationPlanNutrition {
   coverage: NutritionCoverage;
 }
 
+/**
+ * What a user did with a recommendation (BL-0005 increment 2).
+ *
+ * `shown` is an impression, and it is deliberately worth NOTHING as a taste
+ * signal — the user did not choose to be shown the card. It is recorded because
+ * the discovery ranker's `novelty` reads it: "you have seen this six times" is a
+ * fact about the UI, not an opinion about the food.
+ *
+ * `cooked` outweighs `accepted` because planning a meal is an intention and
+ * cooking it is a completed act.
+ */
+export type RecommendationEventAction = "shown" | "accepted" | "dismissed" | "cooked";
+
+/** Which surface an interaction happened on. */
+export type RecommendationContext = "pantry" | "discover";
+
+/**
+ * Recent event counts for ONE recipe. Counts, not events: the ranker has no
+ * business knowing when something happened or in what order, which is what keeps
+ * it stateless. Mirrors Go recommend.RecipeInteraction.
+ */
+export interface RecommendationInteraction {
+  shown: number;
+  accepted: number;
+  dismissed: number;
+  cooked: number;
+}
+
 /** Mirrors Go recommend.UserContext. */
 export interface RecommendationRequest {
   pantry: PantryContextItem[];
   preferences: RecommendationPreferences;
+  /**
+   * canonicalItem → [-1, 1], DERIVED by Convex from its interaction log at
+   * request time and never stored as a score (BL-0005 increment 2).
+   *
+   * Omitted or empty means "no signal", which makes the ranker's `affinity`
+   * feature UNAVAILABLE rather than scoring every candidate zero. That
+   * distinction is the whole cold-start guarantee: a user who has done nothing
+   * has told us nothing, and nothing must not be read as dislike.
+   */
   affinities?: Record<string, number>;
+  /**
+   * Recipes the user already has a copy of. The discover surface REMOVES them;
+   * the pantry surface ignores the field.
+   */
   savedRecipeIds?: string[];
+  /**
+   * Recent per-recipe interaction counts, keyed by recipe id. Read only by the
+   * discover surface.
+   *
+   * An OMITTED field and an EMPTY object are different: omitted means no history
+   * was sent, so `novelty` is unavailable; empty means this user has interacted
+   * with nothing, which makes every candidate equally new.
+   */
+  interactions?: Record<string, RecommendationInteraction>;
   excludeRecipeIds?: string[];
   limit?: number;
   /**
@@ -577,6 +627,17 @@ export interface RecommendationResponse {
    * unproductive, which is the common case.
    */
   generated: GeneratedRecipeDraft[];
+}
+
+/**
+ * `POST /recommendations/discover` — the sibling of the pantry surface.
+ *
+ * No `generated` sidecar, and that is a decision rather than an omission: an
+ * invented recipe is the opposite of a discovery. This surface exists to surface
+ * recipes that already exist and that somebody has actually cooked.
+ */
+export interface DiscoverResponse {
+  results: Recommendation[];
 }
 
 /**

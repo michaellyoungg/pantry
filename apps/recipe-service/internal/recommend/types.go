@@ -7,6 +7,16 @@
 // (see BL-0005) and what makes every function here a pure, table-testable unit.
 package recommend
 
+// Where a candidate came from. The discover surface BRANCHES on this — the
+// recipes a user already owns are the ones a new suggestion can be a
+// near-duplicate of — so it is named rather than spelled out at each comparison.
+// The third value, "generated", is recipe.SourceGenerated: it is produced by the
+// generator (BL-0034), which lives on the other side of this package boundary.
+const (
+	SourceUser    = "user"
+	SourceCatalog = "catalog"
+)
+
 // PantryItem is one thing the user has, keyed on the normalized ingredient id.
 type PantryItem struct {
 	CanonicalItem string `json:"canonicalItem"`
@@ -40,12 +50,28 @@ type Preferences struct {
 
 // UserContext is everything the ranker knows about the caller for one request.
 type UserContext struct {
-	Pantry           []PantryItem       `json:"pantry"`
-	Preferences      Preferences        `json:"preferences"`
-	Affinities       map[string]float64 `json:"affinities"`
-	SavedRecipeIDs   []string           `json:"savedRecipeIds"`
-	ExcludeRecipeIDs []string           `json:"excludeRecipeIds"`
-	Limit            int                `json:"limit"`
+	Pantry      []PantryItem `json:"pantry"`
+	Preferences Preferences  `json:"preferences"`
+	// Affinities maps canonicalItem → [-1, 1], DERIVED by the caller from its
+	// interaction log (BL-0005 increment 2). The ranker never sees an event and
+	// never stores a score; see affinity.go.
+	//
+	// Empty makes the `affinity` feature unavailable rather than zero, which is
+	// the cold-start rule this whole feature turns on.
+	Affinities map[string]float64 `json:"affinities"`
+	// SavedRecipeIDs are recipes the user already has a copy of. The discover
+	// surface REMOVES them: something already in your collection is not something
+	// to discover. Unused by the pantry surface.
+	SavedRecipeIDs []string `json:"savedRecipeIds"`
+	// Interactions is per-recipe recent event counts, keyed by recipe id.
+	//
+	// A nil map (the field absent) means the caller sent no history, so `novelty`
+	// is unavailable. An EMPTY map is a different and stronger statement — this
+	// user has interacted with nothing — and makes every candidate equally new.
+	// Only the discover surface reads it.
+	Interactions     map[string]RecipeInteraction `json:"interactions,omitempty"`
+	ExcludeRecipeIDs []string                     `json:"excludeRecipeIds"`
+	Limit            int                          `json:"limit"`
 	// Now is the caller's clock in epoch milliseconds. It arrives in the payload
 	// rather than being read from the server clock so that scoring stays a pure
 	// function of its input — the same request always produces the same order,

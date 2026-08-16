@@ -234,6 +234,18 @@ export const cookDecrement = internalAction({
     const canonicalItems = [...new Set(lines.map((l) => l.canonicalItem).filter(Boolean))];
     if (canonicalItems.length === 0) return;
     await ctx.runMutation(internal.pantry.applyCookDecrement, { userId, canonicalItems });
+
+    // Cooking a meal is the strongest taste signal the product has — an
+    // intention that was actually carried out — and this is the ONE place that
+    // already knows the recipe's normalized ingredients, which the affinity fold
+    // needs and a mutation cannot fetch (BL-0005 increment 2). Recording it here
+    // costs nothing; a `cooked` event of its own would repeat this exact HTTP
+    // call to learn the same list.
+    await ctx.runMutation(internal.recommendationEvents.recordCooked, {
+      userId,
+      recipeId,
+      canonicalItems,
+    });
   },
 });
 

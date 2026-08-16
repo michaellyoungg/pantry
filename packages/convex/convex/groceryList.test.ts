@@ -967,3 +967,163 @@ describe("purchase units and inferred leftovers", () => {
     expect(await t.withIdentity(identity).query(api.groceryList.leftoverProposals, {})).toEqual([]);
   });
 });
+
+// BL-0019: a list that is never emptied stops being a list — the next trip
+// starts buried under the last one's ticks.
+describe("finishShopping", () => {
+  const asRow = (item: string, checked: boolean, extra: Record<string, unknown> = {}) => ({
+    userId: USER_ID,
+    item,
+    canonicalItem: item,
+    unit: "",
+    quantity: 1,
+    aisle: "other",
+    checked,
+    ...extra,
+  });
+
+  async function seed(t: ReturnType<typeof convexTest>) {
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", asRow("milk", true));
+      await ctx.db.insert("groceryList", asRow("eggs", false));
+      await ctx.db.insert("groceryList", asRow("kale", false));
+    });
+  }
+
+  it("removes what was bought and keeps what was not", async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+
+    const result = await t
+      .withIdentity(identity)
+      .mutation(api.groceryList.finishShopping, { unbought: "keep" });
+
+    expect(result).toEqual({ purchased: 1, cleared: 0 });
+    const rows = await t.withIdentity(identity).query(api.groceryList.getGroceryList, {});
+    expect(rows.map((r) => r.item).sort()).toEqual(["eggs", "kale"]);
+  });
+
+  it("clears the unbought half too when the user asks it to", async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+
+    const result = await t
+      .withIdentity(identity)
+      .mutation(api.groceryList.finishShopping, { unbought: "remove" });
+
+    expect(result).toEqual({ purchased: 1, cleared: 2 });
+    expect(await t.withIdentity(identity).query(api.groceryList.getGroceryList, {})).toEqual([]);
+  });
+
+  it("takes flagged lines with the bought half — that is the trip that just ended", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", asRow("kale", true, { removed: true }));
+    });
+
+    await t.withIdentity(identity).mutation(api.groceryList.finishShopping, { unbought: "keep" });
+
+    expect(await t.withIdentity(identity).query(api.groceryList.getGroceryList, {})).toEqual([]);
+  });
+
+  it("leaves the pantry alone — check-off already recorded the inflow", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await t.run(async (ctx) => ctx.db.insert("groceryList", asRow("milk", false)));
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    const before = await t.run(async (ctx) => ctx.db.query("pantryItems").collect());
+    expect(before).toHaveLength(1);
+
+    await asUser.mutation(api.groceryList.finishShopping, { unbought: "keep" });
+
+    const after = await t.run(async (ctx) => ctx.db.query("pantryItems").collect());
+    expect(after).toHaveLength(1);
+    expect(after[0].canonicalItem).toBe("milk");
+  });
+
+  it("never reaches another household's list", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groceryList", { ...asRow("milk", true), userId: "someone-else" });
+    });
+
+    await t.withIdentity(identity).mutation(api.groceryList.finishShopping, { unbought: "remove" });
+
+    const rows = await t.run(async (ctx) => ctx.db.query("groceryList").collect());
+    expect(rows).toHaveLength(1);
+  });
+});
+
+describe("restoreItem", () => {
+  const manualLine = {
+    item: "Foil",
+    canonicalItem: "foil",
+    unit: "",
+    quantity: 1,
+    aisle: "other",
+    checked: false,
+    manual: true,
+  };
+
+  it("puts a swiped-away manual line back", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.groceryList.restoreItem, { line: manualLine });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ item: "Foil", manual: true, checked: false });
+  });
+
+  it("carries the line's own state back with it, not a fresh blank row", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.groceryList.restoreItem, {
+      line: {
+        ...manualLine,
+        checked: true,
+        quantity: 3,
+        purchase: { quantity: 1, unit: "roll" },
+        leftoverDecision: "kept" as const,
+      },
+    });
+
+    const rows = await asUser.query(api.groceryList.getGroceryList, {});
+    expect(rows[0]).toMatchObject({
+      checked: true,
+      quantity: 3,
+      leftoverDecision: "kept",
+      purchase: { quantity: 1, unit: "roll" },
+    });
+  });
+
+  it("restores a dismissed flagged line", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+
+    await asUser.mutation(api.groceryList.restoreItem, {
+      line: { ...manualLine, manual: undefined, checked: true, removed: true },
+    });
+
+    expect(await asUser.query(api.groceryList.getGroceryList, {})).toHaveLength(1);
+  });
+
+  it("cannot conjure a line that could never have been deleted", async () => {
+    const t = convexTest(schema, modules);
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .mutation(api.groceryList.restoreItem, { line: { ...manualLine, manual: undefined } }),
+    ).rejects.toThrow(/manually added or removed/i);
+  });
+
+  it("requires a signed-in user", async () => {
+    const t = convexTest(schema, modules);
+    await expect(t.mutation(api.groceryList.restoreItem, { line: manualLine })).rejects.toThrow(
+      /not authenticated/i,
+    );
+  });
+});

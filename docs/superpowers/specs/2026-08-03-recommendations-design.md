@@ -350,6 +350,27 @@ by orders of magnitude in order to support click-through analysis nobody is
 doing. `added` and `dismissed` carry the signal that feeds affinities. A
 `cooked` action slots in when BL-0028 lands.
 
+> **Amended in increment 2: `shown` events ARE recorded**, and the reasoning is
+> here so the doc does not contradict the code.
+>
+> The objection above is about VOLUME and about a consumer that does not exist,
+> and increment 2 answers both. Volume: impressions are deduplicated per recipe
+> per day on write, so a render costs at most one row per card per day rather
+> than one per render. Consumer: `novelty` reads them. With a catalog this small,
+> "you have already been shown this six times" is the only thing that stops the
+> discovery surface offering the same five cards forever — the failure the
+> surface is most likely to have, and one no amount of ranking fixes.
+>
+> What does NOT change is the part of the objection that was about honesty: an
+> impression carries **zero** affinity weight. The user did not choose to be
+> shown the card, and learning taste from it would let the recommender teach
+> itself its own past decisions.
+>
+> The action vocabulary as built is `shown | accepted | dismissed | cooked`
+> (`accepted` rather than `added`). `cooked` is written from
+> `pantry.cookDecrement`, which BL-0028 landed and which is the one place that
+> already knows a cooked recipe's normalized ingredients.
+
 #### Convex — `pantryItems` (one field)
 
 ```ts
@@ -373,6 +394,19 @@ time — added recipes upweight their ingredients, dismissed ones downweight, wi
 recency decay — and sends the **top ~50** in the payload. Nothing is persisted,
 so there is no derived-state staleness problem and the ranker stays stateless. If
 this becomes expensive it becomes a cached Convex table, which is a local change.
+
+Built as described, with two details the design left open:
+
+- Convex cannot look a recipe's ingredients up — recipe bodies live in
+  recipe-service and a mutation cannot fetch — so each event carries the recipe's
+  **canonical ingredients as they were at the time**, denormalized onto the row.
+  Same reasoning as `nutritionLog.snapshot`: an event is a historical fact, and
+  re-deriving it from a recipe since edited or deleted would rewrite what the
+  user did.
+- Weights are squashed with `tanh` against a fixed scale, **not** divided by the
+  largest weight present. Relative normalization would make the top ingredient
+  score ±1 for every user alive, so one click would look exactly as certain as a
+  year of cooking, and every other weight would be rescaled by each new event.
 
 ### HTTP contract
 

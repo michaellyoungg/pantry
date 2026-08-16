@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type {
+  DiscoverResponse,
   GeneratedRecipeDraft,
   Recipe,
   Recommendation,
@@ -10,8 +11,9 @@ import type {
   RecommendationResponse,
 } from "@pantry/types";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { type ActionCtx, action } from "./_generated/server";
+import type { DerivedSignal } from "./lib/affinity";
 import type { PlanNutritionResult } from "./nutrition";
 import { ingredientValidator, recipeServiceFetch } from "./recipes";
 
@@ -98,6 +100,23 @@ function rankerPreferences(prefs: {
 }
 
 /**
+ * The user's taste as derived from their interaction log (BL-0005 increment 2).
+ *
+ * Folded HERE, at request time, and never written back anywhere. A stored
+ * per-user per-ingredient score would be a second source of truth about the same
+ * events, and the day it drifted from them nothing would say which was right.
+ *
+ * An empty `affinities` map is the cold-start case and is sent as-is: the ranker
+ * reads emptiness as "no signal" and drops the feature out of its average
+ * entirely, rather than scoring every candidate zero. See `lib/affinity.ts` and
+ * `internal/recommend/affinity.go` — this is the same rule stated on both sides
+ * of the wire, because getting it wrong on either one punishes every new user.
+ */
+async function derivedSignal(ctx: ActionCtx, userId: string): Promise<DerivedSignal> {
+  return ctx.runQuery(internal.recommendationEvents.signalFor, { userId, now: Date.now() });
+}
+
+/**
  * Rank recipes against what the user has on hand.
  *
  * This is an ACTION, not a query, because Convex queries cannot do network I/O.
@@ -121,11 +140,12 @@ export const pantry = action({
     const secret = process.env.RECIPE_SERVICE_SECRET;
     if (!secret) throw new Error("RECIPE_SERVICE_SECRET is not set on the deployment");
 
-    const [pantryRows, preferences, basket, targetRows] = await Promise.all([
+    const [pantryRows, preferences, basket, targetRows, signal] = await Promise.all([
       ctx.runQuery(api.pantry.list, {}),
       ctx.runQuery(api.preferences.get, {}),
       ctx.runQuery(api.basket.list, {}),
       ctx.runQuery(api.nutritionTargets.list, {}),
+      derivedSignal(ctx, userId),
     ]);
 
     // Active rows only: a paused goal is not a goal, and the ranker should not
@@ -154,6 +174,14 @@ export const pantry = action({
         useBy: row.useBy,
       })),
       preferences: rankerPreferences(preferences),
+      // Taste carries its LOWEST weight on this surface (see
+      // DefaultPantryWeights): a good reason to reorder what you could cook
+      // tonight, and a bad reason to overrule what is about to spoil.
+      //
+      // `interactions` is deliberately not sent — `novelty` is a discovery
+      // concern, and being told a recipe is new is not an answer to "what can I
+      // make with this spinach".
+      affinities: signal.affinities,
       // Already-planned recipes are excluded outright: suggesting what is
       // already on the week's plan is noise.
       excludeRecipeIds: basket.map((b: { recipeId: string }) => b.recipeId),
@@ -178,6 +206,104 @@ export const pantry = action({
     }
     const payload = (await res.json()) as RecommendationResponse;
     return { results: payload.results ?? [], generated: payload.generated ?? [] };
+  },
+});
+
+/**
+ * How many suggestions the discovery surface asks for.
+ *
+ * Smaller than the pantry surface's 20 because the question is different: "what
+ * can I cook from this fridge" is a search whose answers the user scans, while
+ * "what should I try" is a recommendation, and a list of twenty of those is not
+ * a recommendation at all. It is also what the card renders without a scroll.
+ */
+const DISCOVER_LIMIT = 8;
+
+/**
+ * "What should I try?" — the discovery surface (BL-0005 increment 2).
+ *
+ * The sibling of `pantry` above, and deliberately a SEPARATE action hitting a
+ * separate endpoint rather than a flag on the existing one. The two intents pull
+ * in opposite directions — "cook what I have" rewards the familiar, "try
+ * something new" rewards the unfamiliar — so the same features carry different
+ * weights, and one endpoint switching on a boolean would be two rankers sharing
+ * a name.
+ *
+ * What it sends that the pantry surface does not:
+ *
+ *  - `interactions`, so the ranker can prefer things this user has not already
+ *    been shown six times. Always sent, even when EMPTY: an empty history says
+ *    "this user has interacted with nothing", which makes every candidate
+ *    equally new, and that is a real observation rather than a gap.
+ *  - The pantry itself still rides along, because "and you could cook it
+ *    tonight" is a genuine tiebreak — just a small-weighted one, or discovery
+ *    quietly becomes the pantry endpoint under another name.
+ *
+ * Recipes already on the plan are excluded, and recipes the user already owns a
+ * copy of are removed by recipe-service, which is the only side that knows which
+ * catalog rows were cloned.
+ */
+export const discover = action({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }): Promise<Recommendation[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const baseUrl = process.env.RECIPE_SERVICE_URL;
+    if (!baseUrl) throw new Error("RECIPE_SERVICE_URL is not set on the deployment");
+    const secret = process.env.RECIPE_SERVICE_SECRET;
+    if (!secret) throw new Error("RECIPE_SERVICE_SECRET is not set on the deployment");
+
+    const [pantryRows, preferences, basket, targetRows, signal] = await Promise.all([
+      ctx.runQuery(api.pantry.list, {}),
+      ctx.runQuery(api.preferences.get, {}),
+      ctx.runQuery(api.basket.list, {}),
+      ctx.runQuery(api.nutritionTargets.list, {}),
+      derivedSignal(ctx, userId),
+    ]);
+
+    const nutritionTargets: RecommendationNutritionTarget[] = targetRows
+      .filter((t) => t.active)
+      .map(({ nutrientId, operator, value, period, label, hard }) => ({
+        nutrientId,
+        operator,
+        value,
+        period,
+        label,
+        hard,
+      }));
+
+    const body: RecommendationRequest = {
+      nutritionTargets,
+      planNutrition: await committedWeek(ctx, nutritionTargets),
+      pantry: pantryRows.map((row) => ({
+        canonicalItem: row.canonicalItem,
+        state: row.state,
+        useItUp: row.useItUp ?? false,
+      })),
+      preferences: rankerPreferences(preferences),
+      affinities: signal.affinities,
+      interactions: signal.interactions,
+      excludeRecipeIds: basket.map((b: { recipeId: string }) => b.recipeId),
+      limit: limit ?? DISCOVER_LIMIT,
+      now: Date.now(),
+    };
+
+    const res = await fetch(`${baseUrl}/recommendations/discover`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Service-Secret": secret,
+        "X-User-Id": userId,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(`recipe-service POST /recommendations/discover failed: ${res.status}`);
+    }
+    const payload = (await res.json()) as DiscoverResponse;
+    return payload.results ?? [];
   },
 });
 

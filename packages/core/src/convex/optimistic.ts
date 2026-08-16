@@ -90,6 +90,41 @@ export function setEquipmentOwnedOptimistic(
   ]);
 }
 
+/**
+ * Swipe-away delete (BL-0019). A gesture that leaves the row sitting there
+ * until the server answers reads as a failed swipe, and the shopper swipes
+ * again — so the row has to go the moment the finger lifts.
+ */
+export function removeItemOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { id: Id<"groceryList"> },
+): void {
+  const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.groceryList.getGroceryList,
+    {},
+    cur.filter((l) => l._id !== args.id),
+  );
+}
+
+/**
+ * Ending a shopping trip (BL-0019). Mirrors the mutation exactly: what was
+ * bought always goes, and what was not goes only if the user said so.
+ */
+export function finishShoppingOptimistic(
+  localStore: OptimisticLocalStore,
+  args: { unbought: "keep" | "remove" },
+): void {
+  const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
+  if (cur === undefined) return;
+  localStore.setQuery(
+    api.groceryList.getGroceryList,
+    {},
+    args.unbought === "remove" ? [] : cur.filter((l) => !l.checked),
+  );
+}
+
 export function clearGroceryListOptimistic(localStore: OptimisticLocalStore): void {
   const cur = localStore.getQuery(api.groceryList.getGroceryList, {});
   if (cur === undefined) return;

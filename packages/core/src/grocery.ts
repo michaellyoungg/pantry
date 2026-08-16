@@ -46,6 +46,116 @@ export function partitionRemoved<T extends RemovableLine>(
   return { active, removed };
 }
 
+/** A line that can be in the cart or still on the walk. */
+export type CartLine = { checked: boolean };
+
+/**
+ * Splits the active list into what is still to buy and what is already in the
+ * cart (BL-0019).
+ *
+ * Checked lines used to strike through in place, which meant the top of a
+ * half-shopped list was mostly things the shopper had already dealt with — the
+ * one thing a list read one-handed in an aisle must never be. Moving them into
+ * their own section keeps the top of the list "what's left", and keeps the
+ * cart auditable at the till without re-reading the whole thing.
+ *
+ * Order within each half is the server's aisle order, untouched, so a line does
+ * not jump position when it crosses over.
+ *
+ * `isInCart` exists for the crossing itself: a client that animates a ticked
+ * line out of the walk needs it to stay where it is until the animation ends,
+ * which is a statement about *when* a line has moved, not whether it is
+ * checked. Defaults to the plain reading.
+ */
+export function partitionCart<T extends CartLine>(
+  lines: readonly T[],
+  isInCart: (line: T) => boolean = (line) => line.checked,
+): { toBuy: T[]; inCart: T[] } {
+  const toBuy: T[] = [];
+  const inCart: T[] = [];
+  for (const line of lines) (isInCart(line) ? inCart : toBuy).push(line);
+  return { toBuy, inCart };
+}
+
+// --- swipe-away (BL-0019) ---
+//
+// Swipe is an *accelerator*, never the only path to an action: the row keeps
+// its ordinary button, because a gesture is invisible, unavailable to a
+// keyboard, and unreliable for anyone whose hands are full of shopping. These
+// constants and the reducer below are here rather than in the component so the
+// thresholds can be tested without a DOM — the gesture is a decision about two
+// numbers, and only the drawing of it is a web concern.
+
+/** How far left the row must travel before letting go deletes it. */
+export const SWIPE_COMMIT_PX = 96;
+
+/**
+ * Movement below this is not yet a swipe. Without it, the tiny drag inside an
+ * ordinary tap would start sliding the row out from under the finger — and the
+ * primary interaction on this list is a tap.
+ */
+export const SWIPE_SLOP_PX = 12;
+
+/** How far the row can be dragged, so it never leaves the screen mid-gesture. */
+export const SWIPE_MAX_PX = 140;
+
+export type SwipeState = {
+  /** Pixels to shift the row by; always ≤ 0, because the gesture is leftward. */
+  offset: number;
+  /** True once the gesture is horizontal enough to own the pointer. */
+  engaged: boolean;
+  /** True when letting go here should delete the row. */
+  willDelete: boolean;
+};
+
+/**
+ * Where a drag of (dx, dy) has got to.
+ *
+ * Vertical dominance loses: a mostly-up-and-down drag is the page being
+ * scrolled, and stealing it would make a long list unscrollable on the exact
+ * device this feature is for. A rightward drag does nothing — one direction,
+ * one meaning.
+ */
+export function trackSwipe(dx: number, dy: number): SwipeState {
+  const engaged = Math.abs(dx) > SWIPE_SLOP_PX && Math.abs(dx) > Math.abs(dy);
+  if (!engaged || dx > 0) return { offset: 0, engaged, willDelete: false };
+  const offset = Math.max(dx, -SWIPE_MAX_PX);
+  return { offset, engaged, willDelete: -offset >= SWIPE_COMMIT_PX };
+}
+
+// --- live sync (BL-0019) ---
+
+/** The parts of a line a second shopper can change under you. */
+export type SyncableLine = { _id: string; checked: boolean; quantity: number };
+
+/**
+ * Which lines changed between two renders of the list.
+ *
+ * Convex already re-renders on a remote write, so the list is *correct* the
+ * moment someone else ticks something off — but silently. On a phone in a shop
+ * that reads as the list mutating on its own. The caller subtracts the changes
+ * it made itself and flashes the rest, which is the whole acknowledgement.
+ *
+ * A line that appears out of nowhere counts as a change (someone added it); one
+ * that disappears cannot be highlighted, so it does not.
+ */
+export function changedLineIds(
+  prev: readonly SyncableLine[],
+  next: readonly SyncableLine[],
+): string[] {
+  const before = new Map(prev.map((line) => [line._id, line]));
+  const changed: string[] = [];
+  for (const line of next) {
+    const was = before.get(line._id);
+    if (was === undefined) {
+      changed.push(line._id);
+    } else if (was.checked !== line.checked || was.quantity !== line.quantity) {
+      changed.push(line._id);
+    }
+  }
+  return changed;
+}
+
 /** The purchase half of a grocery line — see `GroceryPurchase` in @pantry/types. */
 export type PurchasedLine = {
   quantity: number;

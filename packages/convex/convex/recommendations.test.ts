@@ -241,4 +241,144 @@ describe("recommendations request carries stated tastes (BL-0030)", () => {
     expect(prefs.maxMinutes).toBeUndefined();
     expect(prefs.cuisines).toEqual([]);
   });
+
+  // The pantry surface learns too — it just weights taste far below what is
+  // about to spoil (see DefaultPantryWeights).
+  it("sends affinities but not interactions on the pantry surface", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedPantry(t, { canonicalItem: "rice" });
+
+    await t.withIdentity(identity).action(api.recommendations.pantry, {});
+
+    expect(calls[0].body.affinities).toEqual({});
+    // Novelty is a discovery concern: being told a recipe is new is not an
+    // answer to "what can I make with this spinach".
+    expect(calls[0].body.interactions).toBeUndefined();
+  });
+});
+
+// --- The discovery surface (BL-0005 increment 2) -------------------------
+
+describe("recommendations.discover request payload", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  async function seedEvent(
+    t: ReturnType<typeof convexTest>,
+    row: {
+      recipeId: string;
+      action: "shown" | "accepted" | "dismissed" | "cooked";
+      canonicalItems?: string[];
+    },
+  ) {
+    await t.run(async (ctx) =>
+      ctx.db.insert("recommendationEvents", {
+        userId: USER_ID,
+        context: "discover" as const,
+        createdAt: Date.now(),
+        ...row,
+      }),
+    );
+  }
+
+  it("posts to the discover endpoint, not the pantry one", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    expect(calls[0].url).toBe("http://recipe-service/recommendations/discover");
+  });
+
+  it("requires an authenticated caller", async () => {
+    const t = convexTest(schema, modules);
+    stubService();
+    await expect(t.action(api.recommendations.discover, {})).rejects.toThrow(/Not authenticated/);
+  });
+
+  // THE cold-start contract, stated on the wire. An empty object is what makes
+  // the Go ranker report `affinity` unavailable; a map of zeroes would make it
+  // available and quietly punish every new user on the surface that weights it
+  // most heavily.
+  it("sends an empty affinity map for a user with no history", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    expect(calls[0].body.affinities).toEqual({});
+  });
+
+  it("sends derived affinities once the user has interacted", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedEvent(t, { recipeId: "r1", action: "cooked", canonicalItems: ["garlic"] });
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    const affinities = calls[0].body.affinities as Record<string, number>;
+    expect(affinities.garlic).toBeGreaterThan(0);
+  });
+
+  // Always sent, even when empty. Omitted means "no history was sent" and makes
+  // novelty unavailable; empty means "this user has interacted with nothing",
+  // which makes every candidate equally new — a real observation, not a gap.
+  it("always sends the interactions map, empty included", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    expect(calls[0].body.interactions).toEqual({});
+  });
+
+  it("sends per-recipe interaction counts", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await seedEvent(t, { recipeId: "r1", action: "shown" });
+    await seedEvent(t, { recipeId: "r1", action: "shown" });
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    const interactions = calls[0].body.interactions as Record<string, { shown: number }>;
+    expect(interactions.r1.shown).toBe(2);
+  });
+
+  // Suggesting what is already on the week's plan is noise on either surface.
+  it("excludes recipes already on the plan", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await t.withIdentity(identity).mutation(api.basket.add, { recipeId: "r9", title: "Planned" });
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    expect(calls[0].body.excludeRecipeIds).toEqual(["r9"]);
+  });
+
+  // The avoid list is a hard pre-filter on BOTH surfaces. A second surface that
+  // forgot to forward it would be a safety bug, not a ranking one.
+  it("forwards the avoid list", async () => {
+    const t = convexTest(schema, modules);
+    const calls = stubService();
+    await t.withIdentity(identity).mutation(api.preferences.set, { avoidItems: ["peanut"] });
+
+    await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    const prefs = calls[0].body.preferences as { avoidItems: string[] };
+    expect(prefs.avoidItems).toContain("peanut");
+  });
+
+  it("returns an empty list rather than throwing when the corpus is empty", async () => {
+    const t = convexTest(schema, modules);
+    stubService({ results: [] });
+
+    const out = await t.withIdentity(identity).action(api.recommendations.discover, {});
+
+    expect(out).toEqual([]);
+  });
 });

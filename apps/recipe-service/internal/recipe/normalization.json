@@ -470,6 +470,9 @@
     "turnip": { "display": "Turnips", "aisle": "produce", "shelfLifeDays": 21 },
     "beet": { "display": "Beets", "aisle": "produce", "shelfLifeDays": 21 },
     "bok choy": { "display": "Bok choy", "aisle": "produce", "shelfLifeDays": 7 },
+    "bean sprout": { "display": "Bean sprouts", "aisle": "produce", "shelfLifeDays": 3 },
+    "lemongrass": { "display": "Lemongrass", "aisle": "produce", "shelfLifeDays": 14 },
+    "kimchi": { "display": "Kimchi", "aisle": "produce", "shelfLifeDays": 90 },
     "pea": { "display": "Peas", "aisle": "produce", "shelfLifeDays": 5 },
     "snap pea": { "display": "Snap peas", "aisle": "produce", "shelfLifeDays": 5 },
     "snow pea": { "display": "Snow peas", "aisle": "produce", "shelfLifeDays": 5 },
@@ -600,6 +603,13 @@
       "aisle": "meat",
       "shelfLifeDays": 14,
       "category": "protein"
+    },
+    "pancetta": {
+      "display": "Pancetta",
+      "aisle": "meat",
+      "shelfLifeDays": 14,
+      "category": "protein",
+      "purchase": { "unit": "package", "size": 113, "sizeUnit": "g" }
     },
     "salmon": { "display": "Salmon", "aisle": "meat", "shelfLifeDays": 2, "category": "protein" },
     "shrimp": {
@@ -820,6 +830,13 @@
       "category": "dairy"
     },
     "gouda": { "display": "Gouda", "aisle": "dairy", "shelfLifeDays": 21, "category": "dairy" },
+    "queso fresco": {
+      "display": "Queso fresco",
+      "aisle": "dairy",
+      "shelfLifeDays": 14,
+      "category": "dairy",
+      "purchase": { "unit": "package", "size": 340, "sizeUnit": "g" }
+    },
     "goat cheese": {
       "display": "Goat cheese",
       "aisle": "dairy",
@@ -1144,6 +1161,8 @@
     "miso": { "display": "Miso", "aisle": "pantry", "shelfLifeDays": 365 },
     "curry paste": { "display": "Curry paste", "aisle": "pantry", "shelfLifeDays": 365 },
     "tahini": { "display": "Tahini", "aisle": "pantry", "shelfLifeDays": 365 },
+    "tamarind paste": { "display": "Tamarind paste", "aisle": "pantry", "shelfLifeDays": 365 },
+    "harissa": { "display": "Harissa", "aisle": "pantry", "shelfLifeDays": 180 },
     "caper": { "display": "Capers", "aisle": "pantry", "shelfLifeDays": 365 },
     "olive": { "display": "Olives", "aisle": "pantry", "shelfLifeDays": 180 },
     "pickle": { "display": "Pickles", "aisle": "pantry", "shelfLifeDays": 365 },
@@ -1435,6 +1454,7 @@
         "mozzarella",
         "parmesan",
         "provolone",
+        "queso fresco",
         "ricotta",
         "sour cream",
         "sweetened condensed milk",
@@ -1455,6 +1475,7 @@
         "cod",
         "fish sauce",
         "halibut",
+        "kimchi",
         "salmon",
         "smoked salmon",
         "tilapia",
@@ -1465,7 +1486,7 @@
     "shellfish": {
       "display": "Shellfish",
       "names": ["shellfish", "crustacean", "crustaceans"],
-      "items": ["clam", "crab", "mussel", "oyster sauce", "scallop", "shrimp"]
+      "items": ["clam", "crab", "kimchi", "mussel", "oyster sauce", "scallop", "shrimp"]
     },
     "wheat": {
       "display": "Wheat",

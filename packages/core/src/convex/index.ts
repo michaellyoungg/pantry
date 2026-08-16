@@ -5,8 +5,10 @@
 export {
   addToBasketOptimistic,
   clearGroceryListOptimistic,
+  finishShoppingOptimistic,
   needItAnywayOptimistic,
   removeFromBasketOptimistic,
+  removeItemOptimistic,
   removePantryItemOptimistic,
   setEquipmentOwnedOptimistic,
   setPantryStateOptimistic,

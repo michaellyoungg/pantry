@@ -13,8 +13,14 @@ var catalogJSON []byte
 // catalogEntry is the on-disk shape of a curated recipe. user_id is intentionally
 // absent from the file — LoadCatalog forces every entry to CatalogUserID.
 type catalogEntry struct {
-	ID          string       `json:"id"`
-	Title       string       `json:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	// Servings is curated per entry (BL-0035) and required by the catalog's own
+	// test. Nil is a legal value on a Recipe — a hand-entered one may not state a
+	// yield — but a seeded entry has no excuse: the per-serving nutrition figures
+	// the planner shows are computed by dividing by it, so an entry without one
+	// contributes to a week's totals while showing nothing per plate.
+	Servings    *int         `json:"servings"`
 	Ingredients []Ingredient `json:"ingredients"`
 	Steps       []string     `json:"steps"`
 	// Equipment and Methods are curated per entry (BL-0041) rather than
@@ -72,11 +78,15 @@ func parseCatalog(data []byte) ([]Recipe, error) {
 		if err != nil {
 			return nil, fmt.Errorf("catalog entry %q: %w", e.ID, err)
 		}
+		if e.Servings != nil && *e.Servings < 1 {
+			return nil, fmt.Errorf("catalog entry %q: servings must be at least 1, or omitted", e.ID)
+		}
 		seen[e.ID] = true
 		out = append(out, Recipe{
 			ID:           e.ID,
 			UserID:       CatalogUserID,
 			Title:        e.Title,
+			Servings:     copyIntPtr(e.Servings),
 			Ingredients:  e.Ingredients,
 			Steps:        e.Steps,
 			Equipment:    normEquipment(e.Equipment),

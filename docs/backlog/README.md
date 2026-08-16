@@ -39,10 +39,10 @@ it can be filtered/sorted/updated programmatically.
 | ID | Title | Status | Area | Effort |
 |---|---|---|---|---|
 | [BL-0001](BL-0001-url-import-recipe-parser.md) | URL import + recipe parser service | done | recipes | L |
-| [BL-0002](BL-0002-seeded-recipe-catalog.md) | Seeded recipe catalog | in-progress | recipes | M |
+| [BL-0002](BL-0002-seeded-recipe-catalog.md) | Seeded recipe catalog | done | recipes | M |
 | [BL-0003](BL-0003-ingredient-normalization.md) | Ingredient normalization + unit conversion + aisle grouping | done | grocery-list | L |
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | done | auth | M |
-| [BL-0005](BL-0005-recommendations-service.md) | Recommendations / preference-lookup service | in-progress | recommendations | L |
+| [BL-0005](BL-0005-recommendations-service.md) | Recommendations / preference-lookup service | done | recommendations | L |
 | [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | in-progress | infra | M |
 | [BL-0007](BL-0007-openapi-contract-codegen.md) | OpenAPI contract codegen | proposed | infra | M |
 | [BL-0008](BL-0008-self-hosted-convex-prod-hardening.md) | Self-hosted Convex prod hardening | done | infra | M |
@@ -56,7 +56,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0016](BL-0016-app-ia-responsive-nav.md) | App IA + responsive navigation shell (5 routes, sidebar ↔ bottom tabs) | done | web | M |
 | [BL-0017](BL-0017-home-dashboard-weekly-handoff.md) | Home dashboard — state-aware "what do I do now?" + shopping-day handoff | done | web | M |
 | [BL-0018](BL-0018-meal-planner-week.md) | Meal planner — basket becomes a dinner-first week plan | done | meal-planning | L |
-| [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping | in-progress | grocery-list | L |
+| [BL-0019](BL-0019-grocery-list-ux-polish.md) | Grocery list UX — aisle sections, tap-to-check, recipe provenance, done-shopping | done | grocery-list | L |
 | [BL-0020](BL-0020-recipe-add-funnel-catalog-discovery.md) | Recipe "Add" funnel (one review screen) + catalog search & filters | done | recipes | M |
 | [BL-0021](BL-0021-pantry-thin-loop.md) | Pantry thin loop — auto-add from check-off, don't-rebuy, cook-decrement | done | pantry | L |
 | [BL-0022](BL-0022-persist-recipe-steps.md) | Persist recipe steps | done | recipes | M |
@@ -90,3 +90,24 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0050](BL-0050-unify-pantry-suggestion-surfaces.md) | Unify the two pantry suggestion surfaces (expiry vs. recommendations) | done | pantry | M |
 | [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | done | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | done | recommendations | M |
+| [BL-0053](BL-0053-design-tokens-beyond-color.md) | Design tokens beyond color (spacing, radii, typography) | proposed | web | S |
+| [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | proposed | web | S |
+| [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | proposed | infra | L |
+| [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | proposed | mobile | L |
+| [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | proposed | mobile | M |
+| [BL-0058](BL-0058-offline-grocery-cache-replay.md) | Offline grocery cache + collapse-and-replay reconciliation | proposed | mobile | L |
+| [BL-0059](BL-0059-native-pantry.md) | Native pantry route | proposed | mobile | M |
+| [BL-0060](BL-0060-eas-private-distribution.md) | EAS build + private distribution (TestFlight, Play internal) | proposed | mobile | M |
+| [BL-0061](BL-0061-native-cooking-mode.md) | Native cooking mode (recipe detail, steps, Before You Cook, prep) | proposed | mobile | M |
+| [BL-0062](BL-0062-native-home-dashboard.md) | Native home dashboard | proposed | mobile | M |
+| [BL-0063](BL-0063-native-recipes-browse.md) | Native recipes browse (list, catalog, kitchen, filters, add funnel) | proposed | mobile | L |
+| [BL-0064](BL-0064-native-week-planner.md) | Native week planner | proposed | mobile | L |
+| [BL-0065](BL-0065-native-nutrition-surfaces.md) | Native nutrition surfaces (facts panel, goals, plan rollup, recipe fit) | proposed | mobile | L |
+| [BL-0066](BL-0066-native-settings-preferences.md) | Native settings and preferences (taste, avoid list, equipment, household) | proposed | mobile | M |
+| [BL-0067](BL-0067-native-history.md) | Native history (habit review) | proposed | mobile | M |
+| [BL-0068](BL-0068-account-deletion.md) | In-app account deletion (cascade across Convex and recipe-service) | proposed | auth | M |
+| [BL-0069](BL-0069-public-store-launch.md) | Public store launch (App Store + Google Play) | proposed | mobile | M |
+| [BL-0070](BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | proposed | infra | M |
+| [BL-0071](BL-0071-portable-test-selectors.md) | Emit portable test selectors from the shared web primitives | proposed | web | M |
+| [BL-0072](BL-0072-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | proposed | mobile | M |
+| [BL-0073](BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e — flow parity with the browser suite | proposed | mobile | L |
