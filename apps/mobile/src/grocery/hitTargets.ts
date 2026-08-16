@@ -32,9 +32,9 @@ export const CONTROL_TARGET_HEIGHT = 44;
 
 /**
  * Padding added around the small in-row chips (provenance, remove, "need it
- * anyway"), which are drawn small on purpose — see `SECONDARY_ACTIONS_BELOW`.
- * `hitSlop` grows the touchable area without growing the ink, so a chip stays
- * visually secondary while still being reachable when it is what you meant.
+ * anyway"), which are drawn small on purpose — see `GroceryRow`. `hitSlop`
+ * grows the touchable area without growing the ink, so a chip stays visually
+ * secondary while still being reachable when it *is* what you meant.
  */
 export const CHIP_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 } as const;
 
@@ -48,18 +48,3 @@ export const CHIP_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 } as con
  * they are at the till.
  */
 export const ROW_PRESS_RETENTION = { top: 24, bottom: 24, left: 24, right: 24 } as const;
-
-/**
- * Why the secondary actions sit on their own line *below* the check-off target
- * rather than beside it, as they do on web.
- *
- * A moving hand mis-aims along the row. If the strays land on "remove" or on
- * the provenance sheet, the shopper has to notice and undo something. If they
- * land on check-off, the worst case is a second tap — the action is its own
- * inverse. So the big forgiving target is the reversible one, and everything
- * that is not reversible in one tap is small and out of the way.
- *
- * Exported as documentation with a test attached: the row test asserts the
- * chips are not inside the pressable that toggles.
- */
-export const SECONDARY_ACTIONS_BELOW = true;
