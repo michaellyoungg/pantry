@@ -91,7 +91,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0051](BL-0051-e2e-seeds-the-catalog.md) | Seed the recipe catalog in the e2e environment | done | infra | S |
 | [BL-0052](BL-0052-avoid-list-canonicalization.md) | Avoid-list canonicalization + allergen families | done | recommendations | M |
 | [BL-0053](BL-0053-design-tokens-beyond-color.md) | Design tokens beyond color (spacing, radii, typography) | done | web | S |
-| [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | proposed | web | S |
+| [BL-0054](BL-0054-shared-icon-set.md) | Replace emoji icons with a shared icon set | in-progress | web | S |
 | [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | done | infra | L |
 | [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | done | mobile | L |
 | [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | proposed | mobile | M |
@@ -107,7 +107,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0067](BL-0067-native-history.md) | Native history (habit review) | proposed | mobile | M |
 | [BL-0068](BL-0068-account-deletion.md) | In-app account deletion (cascade across Convex and recipe-service) | proposed | auth | M |
 | [BL-0069](BL-0069-public-store-launch.md) | Public store launch (App Store + Google Play) | proposed | mobile | M |
-| [BL-0070](BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | proposed | infra | M |
+| [BL-0070](BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | in-progress | infra | M |
 | [BL-0071](BL-0071-portable-test-selectors.md) | Emit portable test selectors from the shared web primitives | proposed | web | M |
 | [BL-0072](BL-0072-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | proposed | mobile | M |
 | [BL-0073](BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e — flow parity with the browser suite | proposed | mobile | L |
