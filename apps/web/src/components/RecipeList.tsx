@@ -122,7 +122,10 @@ export function RecipeList({
       {!loading && !loadError && recipes.length === 0 && (
         <p className="text-sm text-muted">No recipes yet.</p>
       )}
-      <ul className="flex flex-col divide-y divide-border">
+      {/* Named so tests (and screen readers) can tell this list apart from the
+          "For you" suggestions rendered directly above it on /recipes, which
+          list the same recipe titles. */}
+      <ul aria-label="My recipes" className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
           <li key={r.id} className="flex flex-col gap-1.5 py-2">
             <div className="flex items-center justify-between gap-2">

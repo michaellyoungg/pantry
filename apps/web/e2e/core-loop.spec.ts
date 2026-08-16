@@ -32,7 +32,9 @@ test("full loop: sign up, plan a recipe, generate list, check off, persist", asy
   await scheduleAndGenerate(page, [{ title: recipeTitle, day: "Monday" }]);
 
   // Grocery list: check off, then confirm it persists across a reload.
-  await page.goto("/list");
+  // Nav link, not page.goto(): `scheduleAndGenerate` fires the generate action
+  // on its last line and a full load would cancel it.
+  await navigateTo(page, "List");
   const item = page.getByRole("listitem").filter({ hasText: "garlic" });
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");
@@ -67,8 +69,10 @@ test("checking an item off fills the pantry", async ({ page }) => {
   });
   await scheduleAndGenerate(page, [{ title: recipeTitle, day: "Monday" }]);
 
-  // Initial navigation to the list: page.goto() is fine here, nothing is in flight yet.
-  await page.goto("/list");
+  // Nav link, not page.goto(). The comment that used to sit here claimed
+  // nothing was in flight, but `scheduleAndGenerate` fires the generate action
+  // on its last line, so a full load can cancel it and leave the list empty.
+  await navigateTo(page, "List");
   const item = page.getByRole("listitem").filter({ hasText: "garlic" });
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");

@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  planRailRow,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 // Home's state machine (BL-0017) is derived from live Convex queries, so the
 // transitions only really hold against a real backend: the build-list CTA runs the
@@ -18,7 +24,7 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   await createRecipeAndAddToBasket(page, title, { quantity: "2", unit: "cup", item: "beans" });
 
   await navigateTo(page, "Plan");
-  const row = page.getByRole("listitem").filter({ hasText: title });
+  const row = planRailRow(page, title);
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Monday" }).click();
   // Wait for the scheduling mutation to land before navigating — leaving the page

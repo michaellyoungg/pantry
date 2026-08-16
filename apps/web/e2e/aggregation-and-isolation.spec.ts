@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, scheduleAndGenerate, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  scheduleAndGenerate,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 // Two cross-service guarantees that unit tests can't prove end to end:
 //   1. Ingredient aggregation — two recipes that each call for garlic must
@@ -28,7 +34,9 @@ test("aggregates ingredients across recipes and isolates data per user", async (
     { title: recipeB, day: "Tuesday" },
   ]);
 
-  await page.goto("/list");
+  // Nav link, not page.goto(): the generate action fired by
+  // `scheduleAndGenerate` above is still in flight and a full load cancels it.
+  await navigateTo(page, "List");
   // If aggregation works, both recipes' garlic merges into a single line; a
   // regression that stopped merging would show two garlic lines here.
   const garlicLines = page.getByRole("listitem").filter({ hasText: "garlic" });

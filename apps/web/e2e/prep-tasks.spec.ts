@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  planRailRow,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 // Derived prep (BL-0042) only exists as a whole across three services: the rule
 // engine and the cook-date arithmetic are in Go, the check-off is Convex state,
@@ -22,7 +28,7 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
   });
 
   await navigateTo(page, "Plan");
-  const row = page.getByRole("listitem").filter({ hasText: title });
+  const row = planRailRow(page, title);
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Monday" }).click();
   // Wait for the scheduling write to land before navigating away — leaving with
