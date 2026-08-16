@@ -21,14 +21,23 @@ export { formatQuantity } from "./formatQuantity";
 export {
   type AisleGroup,
   type AisleLine,
+  type CartLine,
+  changedLineIds,
   groupByAisle,
   type PurchasedLine,
+  partitionCart,
   partitionRemoved,
   pluralizeUnit,
   purchaseText,
   type RemovableLine,
   residueText,
+  SWIPE_COMMIT_PX,
+  SWIPE_MAX_PX,
+  SWIPE_SLOP_PX,
+  type SwipeState,
+  type SyncableLine,
   titleCase,
+  trackSwipe,
 } from "./grocery";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export {

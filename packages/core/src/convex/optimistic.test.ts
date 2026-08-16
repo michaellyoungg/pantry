@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   addToBasketOptimistic,
   clearGroceryListOptimistic,
+  finishShoppingOptimistic,
   needItAnywayOptimistic,
   removeFromBasketOptimistic,
+  removeItemOptimistic,
   removePantryItemOptimistic,
   setPantryStateOptimistic,
   setPrepTaskDoneOptimistic,
@@ -219,6 +221,48 @@ describe("setPrepTaskDoneOptimistic", () => {
       cookDate: "2026-08-05",
       done: true,
     });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeItemOptimistic", () => {
+  it("drops the row the moment the finger lifts", () => {
+    const { store, state } = fakeStore([
+      { _id: "g1", item: "foil", checked: false },
+      { _id: "g2", item: "milk", checked: false },
+    ]);
+    removeItemOptimistic(store as never, { id: "g1" as never });
+    expect(state.value).toEqual([{ _id: "g2", item: "milk", checked: false }]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    removeItemOptimistic(store as never, { id: "g1" as never });
+    expect(store.setQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("finishShoppingOptimistic", () => {
+  const list = [
+    { _id: "g1", item: "milk", checked: true },
+    { _id: "g2", item: "eggs", checked: false },
+  ];
+
+  it("takes the bought half and leaves the rest", () => {
+    const { store, state } = fakeStore(list);
+    finishShoppingOptimistic(store as never, { unbought: "keep" });
+    expect(state.value).toEqual([{ _id: "g2", item: "eggs", checked: false }]);
+  });
+
+  it("empties the list when the unbought half goes too", () => {
+    const { store, state } = fakeStore(list);
+    finishShoppingOptimistic(store as never, { unbought: "remove" });
+    expect(state.value).toEqual([]);
+  });
+
+  it("no-ops when the query is not in the cache", () => {
+    const { store } = fakeStore(undefined);
+    finishShoppingOptimistic(store as never, { unbought: "keep" });
     expect(store.setQuery).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,7 @@ import type * as nutritionTargets from "../nutritionTargets.js";
 import type * as pantry from "../pantry.js";
 import type * as preferences from "../preferences.js";
 import type * as prepTasks from "../prepTasks.js";
+import type * as presence from "../presence.js";
 import type * as pricing from "../pricing.js";
 import type * as recipes from "../recipes.js";
 import type * as recommendations from "../recommendations.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   pantry: typeof pantry;
   preferences: typeof preferences;
   prepTasks: typeof prepTasks;
+  presence: typeof presence;
   pricing: typeof pricing;
   recipes: typeof recipes;
   recommendations: typeof recommendations;

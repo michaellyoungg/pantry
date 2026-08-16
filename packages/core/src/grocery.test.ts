@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  changedLineIds,
   groupByAisle,
+  partitionCart,
   partitionRemoved,
   pluralizeUnit,
   purchaseText,
   residueText,
+  SWIPE_COMMIT_PX,
+  SWIPE_MAX_PX,
+  SWIPE_SLOP_PX,
   titleCase,
+  trackSwipe,
 } from "./grocery";
 
 const line = (aisle: string, item: string) => ({ aisle, item });
@@ -131,5 +137,93 @@ describe("residueText", () => {
 
   it("is empty when the pack was an exact fit", () => {
     expect(residueText({ quantity: 1, unit: "bunch" }, fmt)).toBe("");
+  });
+});
+
+describe("partitionCart", () => {
+  const cartLine = (item: string, checked: boolean) => ({ item, checked });
+
+  it("keeps what is still to buy apart from what is already in the cart", () => {
+    const lines = [cartLine("milk", false), cartLine("eggs", true), cartLine("kale", false)];
+    expect(partitionCart(lines)).toEqual({
+      toBuy: [cartLine("milk", false), cartLine("kale", false)],
+      inCart: [cartLine("eggs", true)],
+    });
+  });
+
+  it("preserves the server's aisle order inside each half", () => {
+    const lines = [cartLine("a", true), cartLine("b", true), cartLine("c", true)];
+    expect(partitionCart(lines).inCart.map((l) => l.item)).toEqual(["a", "b", "c"]);
+  });
+
+  it("lets the caller hold a line back while it animates across", () => {
+    const ticked = { item: "eggs", checked: true };
+    const { toBuy, inCart } = partitionCart([ticked], (l) => l.checked && l.item !== "eggs");
+    expect(toBuy).toEqual([ticked]);
+    expect(inCart).toEqual([]);
+  });
+
+  it("gives an untouched list nothing in the cart", () => {
+    expect(partitionCart([cartLine("milk", false)])).toEqual({
+      toBuy: [cartLine("milk", false)],
+      inCart: [],
+    });
+  });
+});
+
+describe("trackSwipe", () => {
+  it("ignores movement inside the slop, so an ordinary tap does not slide", () => {
+    expect(trackSwipe(-(SWIPE_SLOP_PX - 1), 0)).toEqual({
+      offset: 0,
+      engaged: false,
+      willDelete: false,
+    });
+  });
+
+  it("tracks a leftward drag past the slop", () => {
+    const state = trackSwipe(-40, 2);
+    expect(state.engaged).toBe(true);
+    expect(state.offset).toBe(-40);
+    expect(state.willDelete).toBe(false);
+  });
+
+  it("commits once the row has travelled far enough", () => {
+    expect(trackSwipe(-SWIPE_COMMIT_PX, 0).willDelete).toBe(true);
+  });
+
+  it("clamps the offset so the row never leaves the screen", () => {
+    expect(trackSwipe(-500, 0).offset).toBe(-SWIPE_MAX_PX);
+  });
+
+  it("yields to a vertical drag, which is the page being scrolled", () => {
+    expect(trackSwipe(-40, 80)).toEqual({ offset: 0, engaged: false, willDelete: false });
+  });
+
+  it("does nothing rightward — one direction, one meaning", () => {
+    expect(trackSwipe(60, 0)).toEqual({ offset: 0, engaged: true, willDelete: false });
+  });
+});
+
+describe("changedLineIds", () => {
+  const l = (id: string, checked = false, quantity = 1) => ({ _id: id, checked, quantity });
+
+  it("reports a line another shopper ticked off", () => {
+    expect(changedLineIds([l("a"), l("b")], [l("a"), l("b", true)])).toEqual(["b"]);
+  });
+
+  it("reports a quantity another device changed", () => {
+    expect(changedLineIds([l("a")], [l("a", false, 3)])).toEqual(["a"]);
+  });
+
+  it("reports a line that appeared out of nowhere", () => {
+    expect(changedLineIds([l("a")], [l("a"), l("new")])).toEqual(["new"]);
+  });
+
+  it("says nothing when nothing moved", () => {
+    expect(changedLineIds([l("a"), l("b", true)], [l("a"), l("b", true)])).toEqual([]);
+  });
+
+  it("cannot highlight a line that has gone away", () => {
+    expect(changedLineIds([l("a"), l("b")], [l("a")])).toEqual([]);
   });
 });

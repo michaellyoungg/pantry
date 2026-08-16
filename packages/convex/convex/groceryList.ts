@@ -282,6 +282,105 @@ export const resolveLeftover = mutation({
   },
 });
 
+// --- finishing a shop (BL-0019) ---
+//
+// A grocery list that is never emptied stops being a list: the next trip starts
+// buried under last trip's ticks. "Done shopping" is the one moment the user
+// can say which of the two halves survives, and the halves genuinely differ:
+//
+//   * what they bought is *finished* — and, because check-off is already the
+//     pantry's inflow signal (BL-0021), it is recorded where it belongs. The
+//     line itself has nothing left to say, so it always goes.
+//   * what they did NOT buy is an open question. Sometimes the shop was out of
+//     it and it should roll into the next trip; sometimes they decided against
+//     it. Only the user knows which, so only the user gets to answer.
+//
+// Deliberately no pantry writes here: the inflow already happened, one row at a
+// time, at the moment each box was ticked. Re-doing it at the till would double
+// up on anything the user had since un-checked.
+export const finishShopping = mutation({
+  args: { unbought: v.union(v.literal("keep"), v.literal("remove")) },
+  handler: async (ctx, { unbought }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const rows = await ctx.db
+      .query("groceryList")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    let purchased = 0;
+    let cleared = 0;
+    for (const row of rows) {
+      // A `removed` row is a flagged line the shopper had already checked off
+      // (BL-0018), so it belongs to the bought half — the trip it describes is
+      // the one that just ended.
+      if (row.checked) {
+        await ctx.db.delete(row._id);
+        purchased++;
+      } else if (unbought === "remove") {
+        await ctx.db.delete(row._id);
+        cleared++;
+      }
+    }
+    return { purchased, cleared };
+  },
+});
+
+// The shape `restoreItem` puts back. Not `groceryLineValidator`: that one is
+// pinned to the @pantry/types wire contract, while this is a whole *row* minus
+// its system fields and owner — the user state a delete took with it.
+const restorableLineValidator = v.object({
+  item: v.string(),
+  canonicalItem: v.optional(v.string()),
+  unit: v.string(),
+  quantity: v.number(),
+  aisle: v.string(),
+  checked: v.boolean(),
+  alreadyHave: v.optional(v.boolean()),
+  shelfLifeDays: v.optional(v.number()),
+  sources: v.optional(
+    v.array(v.object({ recipeId: v.string(), title: v.string(), quantity: v.number() })),
+  ),
+  purchase: v.optional(
+    v.object({
+      quantity: v.number(),
+      unit: v.string(),
+      residue: v.optional(v.number()),
+      residueUnit: v.optional(v.string()),
+    }),
+  ),
+  leftoverDecision: v.optional(v.union(v.literal("kept"), v.literal("dismissed"))),
+  manual: v.optional(v.boolean()),
+  removed: v.optional(v.boolean()),
+});
+
+/**
+ * Undo for a swiped-away line (BL-0019).
+ *
+ * The delete commits immediately and this puts the row back, rather than the
+ * usual trick of holding the delete behind a timer: a shopper who swipes and
+ * then locks their phone, or walks to the till and navigates away, must get the
+ * outcome they asked for, and a pending-delete that lives in a component dies
+ * with it. Undo is therefore a real write, replayed from the snapshot the
+ * client still has on screen.
+ *
+ * The row comes back with a new id — nothing references a grocery line by id
+ * across a delete, so that costs nothing — and re-checks the same rule
+ * `removeItem` enforces, so undo can never conjure a line that could not have
+ * been deleted in the first place.
+ */
+export const restoreItem = mutation({
+  args: { line: restorableLineValidator },
+  handler: async (ctx, { line }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    if (!line.manual && !line.removed) {
+      throw new Error("Only manually added or removed lines can be restored");
+    }
+    await ctx.db.insert("groceryList", { userId, ...line });
+  },
+});
+
 export const clearGroceryList = mutation({
   args: {},
   handler: async (ctx) => {
