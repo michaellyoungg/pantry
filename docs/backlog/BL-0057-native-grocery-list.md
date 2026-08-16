@@ -1,7 +1,7 @@
 ---
 id: BL-0057
 title: Native grocery list (aisle sections, one-handed check-off)
-status: proposed
+status: in-progress
 area: mobile
 effort: M
 related_specs: [2026-08-16-mobile-client-parity-design.md]
