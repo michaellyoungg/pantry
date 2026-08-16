@@ -1,16 +1,34 @@
+import { NAV_ITEMS, type NavIconName } from "@pantry/core";
 import { Link } from "@tanstack/react-router";
+import {
+  BookOpen,
+  CalendarDays,
+  ChartLine,
+  House,
+  type LucideIcon,
+  Refrigerator,
+  Settings,
+  ShoppingCart,
+} from "lucide-react";
 
-type NavItem = { to: string; label: string; icon: string };
-
-export const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Home", icon: "🏠" },
-  { to: "/plan", label: "Plan", icon: "🗓️" },
-  { to: "/recipes", label: "Recipes", icon: "📖" },
-  { to: "/list", label: "List", icon: "🛒" },
-  { to: "/pantry", label: "Pantry", icon: "🥫" },
-  { to: "/history", label: "History", icon: "📈" },
-  { to: "/settings", label: "Settings", icon: "⚙️" },
-];
+/**
+ * Binds each shared icon name to its `lucide-react` component.
+ *
+ * `NAV_ITEMS` lives in `@pantry/core` and names icons as strings so it can stay
+ * headless; this map is the web half of that contract. A native client keeps
+ * the same map against `lucide-react-native`, which exports identical names.
+ * `Record<NavIconName, …>` is deliberate — adding a destination in core fails
+ * the build on any platform that has not bound its icon.
+ */
+const NAV_ICONS: Record<NavIconName, LucideIcon> = {
+  BookOpen,
+  CalendarDays,
+  ChartLine,
+  House,
+  Refrigerator,
+  Settings,
+  ShoppingCart,
+};
 
 function NavLinks({ variant }: { variant: "sidebar" | "bottom" }) {
   const base =
@@ -19,20 +37,21 @@ function NavLinks({ variant }: { variant: "sidebar" | "bottom" }) {
       : "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted data-[active=true]:text-primary";
   return (
     <>
-      {NAV_ITEMS.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          activeOptions={{ exact: item.to === "/" }}
-          activeProps={{ "aria-current": "page", "data-active": "true" }}
-          className={base}
-        >
-          <span className="text-xl" aria-hidden>
-            {item.icon}
-          </span>
-          <span className={variant === "sidebar" ? "hidden lg:inline" : ""}>{item.label}</span>
-        </Link>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const Icon = NAV_ICONS[item.icon];
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            activeOptions={{ exact: item.to === "/" }}
+            activeProps={{ "aria-current": "page", "data-active": "true" }}
+            className={base}
+          >
+            <Icon className="size-5 shrink-0" strokeWidth={1.75} aria-hidden focusable="false" />
+            <span className={variant === "sidebar" ? "hidden lg:inline" : ""}>{item.label}</span>
+          </Link>
+        );
+      })}
     </>
   );
 }

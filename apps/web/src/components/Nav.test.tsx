@@ -1,3 +1,4 @@
+import { NAV_ITEMS } from "@pantry/core";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { NAV_ITEMS, Nav } from "./Nav";
+import { Nav } from "./Nav";
 
 async function renderNavAt(path: string) {
   const rootRoute = createRootRoute({
@@ -47,6 +48,22 @@ describe("Nav", () => {
     }
     // Home · Plan · Recipes · List · Pantry · History (BL-0039) · Settings (BL-0038).
     expect(NAV_ITEMS).toHaveLength(7);
+  });
+
+  // Regression (BL-0054 / rule 7 of 2026-07-18-mobile-client-design.md): the
+  // icons were emoji literals, which render differently on every platform. Each
+  // destination must now draw an SVG, and the nav must carry no glyph at all.
+  it("draws an icon for every destination and no emoji", async () => {
+    const sidebar = await renderNavAt("/");
+    for (const item of NAV_ITEMS) {
+      const link = within(sidebar).getByRole("link", { name: item.label });
+      const icon = link.querySelector("svg");
+      expect(icon).not.toBeNull();
+      // aria-hidden keeps the icon out of the accessible name, which the
+      // Playwright `navigateTo` helper locates links by.
+      expect(icon?.getAttribute("aria-hidden")).toBe("true");
+    }
+    expect(sidebar.textContent ?? "").not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
   // Regression (BL-0005): /settings existed but nothing linked to it, so the
