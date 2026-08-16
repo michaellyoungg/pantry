@@ -42,8 +42,11 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   // --- the handoff: generate in place, land on the list ---
   await build.click();
   await expect(page).toHaveURL(/\/list$/);
-  const item = page.getByRole("listitem").filter({ hasText: "beans" });
-  await expect(item).toBeVisible();
+  // toHaveURL is satisfied before the lazily-loaded route mounts, so wait for
+  // the destination card and scope to it rather than querying the whole page.
+  const groceryCard = page.getByRole("region", { name: "Grocery list" });
+  await expect(groceryCard).toBeVisible();
+  await expect(groceryCard.getByRole("listitem").filter({ hasText: "beans" })).toBeVisible();
 
   // --- shopping: an unchecked list drives the shopping-day card ---
   await navigateTo(page, "Home");
@@ -52,7 +55,14 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   await expect(page).toHaveURL(/\/list$/);
 
   // --- shopped: everything checked closes the loop back to planning ---
-  await page.getByRole("checkbox").first().check();
+  // Scoped to the grocery card, and only once it has rendered. `toHaveURL`
+  // above is satisfied the moment the location changes, which is before the
+  // lazily-loaded route swaps in — so an unscoped `getByRole("checkbox")` can
+  // still resolve against Home, whose "Before you cook" card has checkboxes of
+  // its own. Ticking one of those produces the memorably unhelpful "Clicking
+  // the checkbox did not change its state". (BL-0070.)
+  await expect(groceryCard).toBeVisible();
+  await groceryCard.getByRole("checkbox").first().check();
   await navigateTo(page, "Home");
   await expect(page.getByRole("link", { name: "Plan next week" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Getting started" })).toBeHidden();

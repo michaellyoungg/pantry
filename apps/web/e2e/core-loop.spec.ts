@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   navigateTo,
   scheduleAndGenerate,
   signUp,
@@ -35,7 +36,10 @@ test("full loop: sign up, plan a recipe, generate list, check off, persist", asy
   // Nav link, not page.goto(): `scheduleAndGenerate` fires the generate action
   // on its last line and a full load would cancel it.
   await navigateTo(page, "List");
-  const item = page.getByRole("listitem").filter({ hasText: "garlic" });
+  // Scoped to the grocery card. Once a line is checked off, <LeftoverProposals>
+  // renders its own listitems naming the same ingredient, so an unscoped filter
+  // matches two elements and hard-fails on a strict-mode violation.
+  const item = groceryLine(page, "garlic");
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");
   await expect(checkbox).not.toBeChecked();
@@ -57,7 +61,7 @@ test("full loop: sign up, plan a recipe, generate list, check off, persist", asy
 
   // Reload: the checked state is server-persisted (Convex), not just local.
   await page.reload();
-  const itemAfterReload = page.getByRole("listitem").filter({ hasText: "garlic" });
+  const itemAfterReload = groceryLine(page, "garlic");
   await expect(itemAfterReload.getByRole("checkbox")).toBeChecked();
 
   expect(pageErrors, `Uncaught page errors during the loop:\n${pageErrors.join("\n")}`).toEqual([]);
@@ -86,7 +90,10 @@ test("checking an item off fills the pantry", async ({ page }) => {
   // nothing was in flight, but `scheduleAndGenerate` fires the generate action
   // on its last line, so a full load can cancel it and leave the list empty.
   await navigateTo(page, "List");
-  const item = page.getByRole("listitem").filter({ hasText: "garlic" });
+  // Scoped to the grocery card. Once a line is checked off, <LeftoverProposals>
+  // renders its own listitems naming the same ingredient, so an unscoped filter
+  // matches two elements and hard-fails on a strict-mode violation.
+  const item = groceryLine(page, "garlic");
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");
   await expect(checkbox).not.toBeChecked();

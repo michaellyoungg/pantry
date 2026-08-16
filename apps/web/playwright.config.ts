@@ -4,10 +4,16 @@ import { defineConfig, devices } from "@playwright/test";
 // compose-up stack (Postgres + recipe-service + self-hosted Convex) and the
 // Vite dev server — they are deliberately NOT part of `pnpm test` (unit/fast).
 // Bring the stack up and run them with `pnpm test:e2e` (see scripts/e2e.sh).
-const PORT = 5173;
+// Default 5173, overridable via E2E_PORT. The override exists because
+// `reuseExistingServer` (below) means a stale dev server squatting the default
+// port is silently adopted, and the suite then reports on whatever *that*
+// server is serving. scripts/e2e.sh reads the same variable and points the
+// deployment's SITE_URL at it.
+const PORT = Number(process.env.E2E_PORT ?? 5173);
 const HOST = "localhost";
-// SITE_URL on the Convex deployment must match this origin or Convex Auth's JWT
-// validation fails, so the dev server is pinned to localhost:5173.
+// SITE_URL on the Convex deployment must match this origin exactly or Convex
+// Auth's JWT validation fails, which is why the port is a single constant
+// shared with scripts/e2e.sh rather than set independently in two places.
 const baseURL = `http://${HOST}:${PORT}`;
 
 export default defineConfig({

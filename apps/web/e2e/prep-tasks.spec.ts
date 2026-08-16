@@ -37,7 +37,12 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
 
   // The planner badge: the lead time is visible where the meal is scheduled,
   // which is the whole point of deriving against the cook date.
-  const planned = page.getByRole("listitem").filter({ hasText: title });
+  // Scoped to the day column: the title is now in Monday, but the rail row it
+  // came from may not have unmounted yet, and two matches is a hard error.
+  const planned = page
+    .getByRole("region", { name: "Monday", exact: true })
+    .getByRole("listitem")
+    .filter({ hasText: title });
   await expect(planned.getByText(/prep:/)).toBeVisible();
 
   // --- Home surfaces it, named against its meal ---

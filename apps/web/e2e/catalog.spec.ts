@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { navigateTo, navigateToRecipesTab, scheduleAndGenerate, signUp } from "./helpers";
+import {
+  groceryLine,
+  navigateTo,
+  navigateToRecipesTab,
+  scheduleAndGenerate,
+  signUp,
+} from "./helpers";
 
 // The shared catalog, end to end (BL-0051).
 //
@@ -49,7 +55,7 @@ test("plans and shops a catalog recipe the user did not write", async ({ page })
   // the caller's scope alone, the basket would aggregate to an empty list and
   // this line would simply be absent.
   await navigateTo(page, "List");
-  const line = page.getByRole("listitem").filter({ hasText: CATALOG_ONLY_INGREDIENT });
+  const line = groceryLine(page, CATALOG_ONLY_INGREDIENT);
   await expect(line).toBeVisible();
 
   // And it is attributed to the catalog recipe, not merely present: provenance

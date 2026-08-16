@@ -85,12 +85,30 @@ export async function navigateTo(page: Page, label: string): Promise<void> {
  * its own scope — `navigateTo` targets the app-level "Main" navigation and
  * would not find these links. Client-side for the same reason as `navigateTo`.
  */
+/**
+ * The card heading each Recipes tab's outlet renders. "My recipes" is keyed on
+ * the create form rather than the recipe list, whose card is also titled
+ * "Recipes" and would collide with the layout heading.
+ */
+const RECIPES_TAB_HEADING: Record<string, string> = {
+  "My recipes": "New recipe",
+  "Browse catalog": "Catalog",
+  "My kitchen": "My Kitchen",
+};
+
 export async function navigateToRecipesTab(page: Page, label: string): Promise<void> {
   const link = page.getByRole("navigation", { name: "Recipes" }).getByRole("link", { name: label });
   await link.click();
-  // Same commit barrier as `navigateTo`. This sub-nav marks its active tab with
-  // `data-active` rather than `aria-current`.
+  // Same barrier as `navigateTo`, and needed for the same reason. `data-active`
+  // alone is not enough, and the trick `navigateTo` uses does not transfer:
+  // routes/recipes.tsx renders its <h2>Recipes</h2> at the *layout* level, so
+  // that heading is already on screen for every tab and proves nothing about
+  // which outlet is mounted. Each tab's own card heading does.
   await expect(link).toHaveAttribute("data-active", "true");
+  const heading = RECIPES_TAB_HEADING[label];
+  if (heading) {
+    await expect(page.getByRole("heading", { level: 2, name: heading, exact: true })).toBeVisible();
+  }
 }
 
 /**
@@ -123,6 +141,21 @@ export function planRailRow(page: Page, title: string) {
     .getByRole("list", { name: "Not yet planned" })
     .getByRole("listitem")
     .filter({ hasText: title });
+}
+
+/**
+ * A line in the grocery card on /list, matched by ingredient text.
+ *
+ * Scoped because /list is not only the grocery card: once a line has been
+ * checked off, <LeftoverProposals> renders listitems naming the same
+ * ingredient, so an unscoped filter starts matching two elements — a
+ * strict-mode violation, which is a hard error rather than a retried poll.
+ */
+export function groceryLine(page: Page, text: string | RegExp) {
+  return page
+    .getByRole("region", { name: "Grocery list" })
+    .getByRole("listitem")
+    .filter({ hasText: text });
 }
 
 /** Create a manual recipe with one ingredient row and add it to the basket. */

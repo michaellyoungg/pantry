@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   navigateTo,
   scheduleAndGenerate,
   signUp,
@@ -39,7 +40,7 @@ test("aggregates ingredients across recipes and isolates data per user", async (
   await navigateTo(page, "List");
   // If aggregation works, both recipes' garlic merges into a single line; a
   // regression that stopped merging would show two garlic lines here.
-  const garlicLines = page.getByRole("listitem").filter({ hasText: "garlic" });
+  const garlicLines = groceryLine(page, "garlic");
   await expect(garlicLines).toHaveCount(1);
 
   // BL-0019: merging is only useful if it stays traceable — the one line has to
@@ -60,5 +61,9 @@ test("aggregates ingredients across recipes and isolates data per user", async (
   await signUp(page);
   await page.goto("/list");
   await expect(page.getByText(/Nothing yet — generate from your basket/)).toBeVisible();
-  await expect(page.getByRole("listitem")).toHaveCount(0);
+  // Scoped to the grocery card: asserting the whole document has no listitems
+  // makes an isolation test hostage to any future <li> anywhere in the shell.
+  await expect(
+    page.getByRole("region", { name: "Grocery list" }).getByRole("listitem"),
+  ).toHaveCount(0);
 });
