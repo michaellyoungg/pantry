@@ -10,7 +10,7 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (plus `jest-expo` for `apps/mobile`) · build · Knip (dead code / unused deps) |
+| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · Knip (dead code / unused deps) |
 | **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
@@ -85,6 +85,14 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
 - **golangci-lint** (`apps/recipe-service/.golangci.yml`) — the standard linter
   set plus `misspell`/`unconvert`.
 - **Knip** (`knip.json`) — flags unused files, exports, and dependencies.
+- **Design-token drift guard** (`apps/web/scripts/generate-theme-css.mjs`) —
+  `apps/web/src/theme.generated.css` is rendered from `@pantry/design-tokens`,
+  so `--check` re-renders and compares, and also verifies the spacing scale
+  against its own base multiplier. It runs from both `test` and `test:coverage`,
+  because CI runs the latter. It is a script rather than a vitest test on
+  purpose: the natural test imports the stylesheet with `?raw`, and the web
+  suite runs with `css: false`, which resolves such imports to `""` — the
+  assertion would pass against nothing.
 
 ## One-time repository settings (needs admin)
 

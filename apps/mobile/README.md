@@ -112,13 +112,15 @@ which means the drift check fails once, on purpose, as the prompt to regenerate.
 
 ## Known gaps
 
-- `@pantry/convex` and `@pantry/types` are declared dependencies but nothing
-  imports them yet; the first screen to query Convex
-  ([BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md)) will. They are
-  listed in `knip.json`'s `ignoreDependencies` until then.
+- `@pantry/convex` and `@pantry/types` are **not** direct dependencies. Nothing
+  here imports them yet — `@pantry/core/data` owns the `@pantry/convex/api`
+  import on the app's behalf — and a declared-but-unused dependency is just
+  something for Knip to flag. Both are in the Metro source map already, so the
+  first screen that needs one only adds a line to `package.json`.
 - `@pantry/core/data` ([BL-0055](../../docs/backlog/BL-0055-core-data-screen-hooks.md))
   is what real screens should call. Placeholder screens are deliberately thin so
-  none of that work is duplicated here.
+  none of that work is duplicated here; the resolver test proves the entry point
+  resolves to source.
 - No app icon or splash screen — that is
   [BL-0060](../../docs/backlog/BL-0060-eas-private-distribution.md), along with
   EAS build and distribution.

@@ -19,12 +19,7 @@
         "scripts/*.mjs"
       ],
       "metro": false,
-      "ignoreDependencies": [
-        "@pantry/convex",
-        "@pantry/types",
-        "expo-updates",
-        "react-native-css-interop"
-      ]
+      "ignoreDependencies": ["expo-updates", "react-native-css-interop"]
     }
   }
 }

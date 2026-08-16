@@ -13,8 +13,58 @@ can reuse it instead of reimplementing it.
 | `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
+| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
+
+## Screen hooks (`@pantry/core/data`)
+
+BL-0055. A screen hook owns everything about a screen that is *not* rendering:
+its Convex subscriptions, its mutations and their optimistic updates, and every
+value derived from them. It returns data, actions and derived state. A view over
+one is presentation.
+
+```tsx
+const { groups, inCart, undo, error, toggle, undoRemove } = useGroceryList();
+```
+
+Convex's React hooks run unchanged under React Native, so `apps/web` and
+`apps/mobile` (BL-0056) share these **verbatim** — the wiring is authored once,
+and the two clients cannot drift into fetching different fields or handling
+errors differently.
+
+### Writing one
+
+1. **Name it for the screen** (`useGroceryList`, `usePantry`), not for the table.
+2. **Export a named `Use*` return type.** It is the contract two clients read;
+   an inferred shape is not reviewable, and it is what lands in the `.d.ts`.
+3. **Derive row types from the query** —
+   `FunctionReturnType<typeof api.pantry.list>[number]`. Restating a row by hand
+   erases Convex's `Id` brand on `_id`, every mutation takes the branded id, and
+   only `tsc` ever catches it — never Vitest.
+4. **Build on what is here.** `@pantry/core` for the pure derivations
+   (`groupByAisle`, `partitionCart`), `@pantry/core/react` for
+   `useAsyncAction`/`useAsyncData`, `@pantry/core/convex` for optimistic updates.
+5. **Leave per-platform concerns in the view**: which sheet is open, whether a
+   disclosure is expanded, confirmation prompts, animation, navigation. A hook
+   may own an animation's *duration* and *which rows are mid-flight* — both
+   clients need those — but never the animation itself.
+
+`src/data` is the one subtree besides `src/react` allowed to import React, and
+the one besides `src/convex` excluded from `tsconfig.dom-free.json` (the Convex
+client declarations `/// <reference lib="dom" />`). The `biome.json` ban on
+browser globals still applies, so `document`/`window` remain errors there.
+
+### Migrated screens
+
+Screens move one at a time, as the native client reaches them — never as one
+refactor across all 11 routes. Routes not listed still wire Convex in their
+components, and carry their own migration when they are ported.
+
+| Screen | Hook | Web view |
+| --- | --- | --- |
+| Grocery list | `useGroceryList` | `apps/web/src/components/GroceryList.tsx` |
+| Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
 
 ## The rule this package exists to enforce
 

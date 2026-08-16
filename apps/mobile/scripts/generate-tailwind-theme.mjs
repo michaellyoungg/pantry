@@ -30,24 +30,40 @@ import * as tokenExports from "@pantry/design-tokens";
 const tokens = { ...tokenExports };
 
 /**
- * Token export -> Tailwind `theme.extend` key. Entries whose export does not
- * exist yet are skipped, so this list can name BL-0053's groups before it lands.
+ * `@pantry/design-tokens` export -> Tailwind `theme.extend` key, with the
+ * reshaping Tailwind's schema needs. Groups whose export does not exist are
+ * skipped, so a token group can be named here before it lands.
  */
 const TOKEN_GROUPS = [
-  ["colorTokens", "colors"],
-  ["spacingTokens", "spacing"],
-  ["radiusTokens", "borderRadius"],
-  ["fontSizeTokens", "fontSize"],
-  ["fontWeightTokens", "fontWeight"],
+  { exportName: "colorTokens", themeKey: "colors" },
+  { exportName: "spacingTokens", themeKey: "spacing" },
+  { exportName: "radiusTokens", themeKey: "borderRadius" },
+  {
+    exportName: "fontSizeTokens",
+    themeKey: "fontSize",
+    // The token pairs a size with its line height as a record; Tailwind wants
+    // `[size, { lineHeight }]` and would treat the record as an arbitrary
+    // value, silently emitting no line height at all.
+    transform: (tokens) =>
+      Object.fromEntries(
+        Object.entries(tokens).map(([name, { fontSize, lineHeight }]) => [
+          name,
+          [fontSize, { lineHeight }],
+        ]),
+      ),
+  },
+  { exportName: "fontWeightTokens", themeKey: "fontWeight" },
 ];
 
 const BANNER = `// Generated from @pantry/design-tokens — do not edit by hand.
 // Run \`pnpm --filter @pantry/mobile tokens:tailwind\` after changing a token.`;
 
 function render() {
-  const groups = TOKEN_GROUPS.filter(([exportName]) => tokens[exportName] !== undefined).map(
-    ([exportName, themeKey]) =>
-      `  ${themeKey}: ${JSON.stringify(tokens[exportName], null, 2).replace(/\n/g, "\n  ")},`,
+  const groups = TOKEN_GROUPS.filter(({ exportName }) => tokens[exportName] !== undefined).map(
+    ({ exportName, themeKey, transform }) => {
+      const value = transform ? transform(tokens[exportName]) : tokens[exportName];
+      return `  ${themeKey}: ${JSON.stringify(value, null, 2).replace(/\n/g, "\n  ")},`;
+    },
   );
 
   return `${BANNER}\n\nmodule.exports = {\n${groups.join("\n")}\n};\n`;

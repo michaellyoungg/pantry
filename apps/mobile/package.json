@@ -15,10 +15,8 @@
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.95",
-    "@pantry/convex": "workspace:^",
     "@pantry/core": "workspace:^",
     "@pantry/design-tokens": "workspace:^",
-    "@pantry/types": "workspace:^",
     "convex": "^1.43.0",
     "expo": "~57.0.13",
     "expo-constants": "~57.0.11",

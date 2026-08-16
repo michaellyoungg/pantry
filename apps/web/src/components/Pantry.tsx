@@ -1,17 +1,9 @@
-import { api } from "@pantry/convex/api";
-import { removePantryItemOptimistic, setPantryStateOptimistic } from "@pantry/core/convex";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
+import { titleCase } from "@pantry/core";
+import { usePantry } from "@pantry/core/data";
 import { formatUseBy, isOverdue } from "../lib/expiry";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
-
-const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-
-// Cycling forward from "out" wraps to "have": restocking is the common case,
-// and it keeps the whole control reachable with one repeated tap.
-const NEXT_STATE = { have: "low", low: "out", out: "have" } as const;
 
 const STATE_STYLE = {
   have: "bg-[var(--color-primary)]/10 text-[var(--color-primary)]",
@@ -19,22 +11,17 @@ const STATE_STYLE = {
   out: "bg-border text-muted",
 } as const;
 
+/**
+ * The pantry screen (BL-0055): presentation over `usePantry()`.
+ *
+ * The Convex subscription, the three mutations and their optimistic updates,
+ * the aisle grouping and the have → low → out → have cycle all live in
+ * `@pantry/core/data`, so the native pantry screen renders the same state
+ * rather than re-deriving it.
+ */
 export function Pantry() {
-  const items = useQuery(api.pantry.list) ?? [];
-  const setState = useMutation(api.pantry.setState).withOptimisticUpdate(setPantryStateOptimistic);
-  const remove = useMutation(api.pantry.remove).withOptimisticUpdate(removePantryItemOptimistic);
-  const setUseItUp = useMutation(api.pantry.setUseItUp);
-  const { run, error } = useAsyncAction();
+  const { items, groups, error, cycleState, toggleUseItUp, remove } = usePantry();
   const now = Date.now();
-
-  // Rows arrive sorted by aisle from Convex; group consecutive runs (same
-  // approach as GroceryList).
-  const groups: { aisle: string; items: typeof items }[] = [];
-  for (const item of items) {
-    const last = groups[groups.length - 1];
-    if (last && last.aisle === item.aisle) last.items.push(item);
-    else groups.push({ aisle: item.aisle, items: [item] });
-  }
 
   return (
     <Card title="Pantry">
@@ -51,7 +38,7 @@ export function Pantry() {
               {titleCase(group.aisle)}
             </h3>
             <ul className="flex flex-col gap-1">
-              {group.items.map((item) => (
+              {group.lines.map((item) => (
                 <li key={item._id} className="flex items-center gap-2 text-sm">
                   <span className="flex-1 text-text">{item.display}</span>
                   {/* Relative and tilde-marked on purpose: this date came from a
@@ -72,9 +59,7 @@ export function Pantry() {
                     type="button"
                     aria-label={`${item.display} is: ${item.state}. Change.`}
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATE_STYLE[item.state]}`}
-                    onClick={() =>
-                      run(() => setState({ id: item._id, state: NEXT_STATE[item.state] }))
-                    }
+                    onClick={() => cycleState(item)}
                   >
                     {item.state}
                   </button>
@@ -90,7 +75,7 @@ export function Pantry() {
                         ? "bg-amber-500/20 text-amber-700"
                         : "bg-border text-muted hover:text-text"
                     }`}
-                    onClick={() => run(() => setUseItUp({ id: item._id, useItUp: !item.useItUp }))}
+                    onClick={() => toggleUseItUp(item)}
                   >
                     use up
                   </button>
@@ -98,7 +83,7 @@ export function Pantry() {
                     variant="ghost"
                     size="sm"
                     aria-label={`Remove ${item.display}`}
-                    onClick={() => run(() => remove({ id: item._id }))}
+                    onClick={() => remove(item)}
                   >
                     ×
                   </Button>

@@ -35,6 +35,16 @@ describe("workspace package specifiers", () => {
     );
   });
 
+  it("resolves the @pantry/core/data screen hooks to source", () => {
+    // BL-0055's entry point: what real screens call, and the one most likely to
+    // be edited and re-run in the same minute.
+    const resolved = resolve(fromApp, "@pantry/core/data");
+
+    expect(relativeToRoot(resolved as string)).toBe(
+      path.join("packages", "core", "src", "data", "index.ts"),
+    );
+  });
+
   it("never resolves a workspace package into dist", () => {
     for (const pkg of Object.keys(WORKSPACE_SOURCE_DIRS)) {
       const resolved = resolve(fromApp, pkg);

@@ -1,7 +1,11 @@
+import type { FinishChoice } from "@pantry/core/data";
 import { useEffect, useId, useRef } from "react";
 import { Button } from "./ui/Button";
 
-export type FinishChoice = "keep" | "remove";
+// Re-exported, not redeclared: what the sheet offers and what `useGroceryList`
+// sends to `finishShopping` have to be the same union, or the sheet can grow a
+// third choice the mutation will reject.
+export type { FinishChoice };
 
 /**
  * The end of a shopping trip (BL-0019).
