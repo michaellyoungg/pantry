@@ -10,6 +10,16 @@
     },
     "packages/convex": {
       "ignoreBinaries": ["go"]
+    },
+    "apps/mobile": {
+      "entry": [
+        "app/**/*.{ts,tsx}",
+        "metro.config.js",
+        "metro.workspace-source.js",
+        "scripts/*.mjs"
+      ],
+      "metro": false,
+      "ignoreDependencies": ["expo-updates", "react-native-css-interop"]
     }
   }
 }

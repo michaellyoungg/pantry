@@ -1,0 +1,9 @@
+# Expo
+.expo/
+expo-env.d.ts
+dist/
+web-build/
+
+# Native projects (managed workflow — `expo prebuild` regenerates these)
+/ios
+/android

@@ -1,7 +1,7 @@
 ---
 id: BL-0054
 title: Replace emoji icons with a shared icon set
-status: proposed
+status: done
 area: web
 effort: S
 related_specs: [2026-08-16-mobile-client-parity-design.md, 2026-07-18-mobile-client-design.md]
@@ -38,3 +38,40 @@ Web-side this is a straight visual improvement independent of any mobile work.
   — precisely the duplication a shared set avoids.
 - **Keep emoji.** Free, and honestly fine on the web today. Rejected because the
   cross-platform inconsistency is exactly what makes it a mobile problem.
+
+## Outcome
+
+`NAV_ITEMS` moved to `packages/core/src/nav.ts` and is exported from
+`@pantry/core`. `icon` is a lucide export name, not a component; `to` is a
+`NavRoute` union rather than `string`:
+
+```ts
+{ to: "/list", label: "List", icon: "ShoppingCart" }
+```
+
+Both clients bind the names themselves — the binding is the only per-platform
+piece:
+
+| Client | Binding | Package |
+| --- | --- | --- |
+| Web | `NAV_ICONS` in `apps/web/src/components/Nav.tsx` | `lucide-react` |
+| Mobile | `NAV_ICONS` in `apps/mobile/src/navigation/navIcons.ts` | `lucide-react-native` |
+
+Both are typed `Record<NavIconName, LucideIcon>`, so a destination added to the
+shared list fails the build on whichever platform has not bound its icon.
+`apps/mobile/src/navigation/navItems.ts` likewise derives order, labels and
+icons from the shared list and keys its Expo Router route names by `NavRoute`,
+replacing the hand-kept copy BL-0056 shipped.
+
+Icons: `House`, `CalendarDays`, `BookOpen`, `ShoppingCart`, `Refrigerator`,
+`ChartLine`, `Settings` — present in both packages at 1.31.0.
+
+Notes:
+
+- Mobile imports one subpath per icon (`lucide-react-native/icons/house`), not
+  the barrel: the barrel re-exports ~1,700 icons and Metro does not tree-shake
+  by default. Web imports named exports from `lucide-react`, which Vite does
+  tree-shake — only the icon factory reaches the bundle.
+- Icons render `aria-hidden` on web, as the emoji did, so each link's
+  accessible name is still its label. No e2e spec selected on the emoji.
+- `@pantry/types` is untouched and stays type-only.

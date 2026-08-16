@@ -1,0 +1,41 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "nativewind",
+
+    // No `node` types here, deliberately. React Native has no `fs`, no `path`
+    // and no `__dirname`; leaving them undeclared makes reaching for one a type
+    // error rather than a runtime crash on device. The config and test files
+    // that legitimately run in Node are checked by `tsconfig.test.json`, the
+    // same split `packages/core` uses to stay DOM-free.
+    "types": ["nativewind/types"],
+
+    // Typecheck against the same *source* Metro bundles, not the built `dist/`.
+    // If these disagreed, a stale build would typecheck green and crash at
+    // runtime — the exact failure `metro.workspace-source.js` exists to prevent.
+    // It also means `pnpm --filter @pantry/mobile typecheck` needs no prior
+    // build. (TypeScript 7 removed `baseUrl`; `paths` resolve relative to this
+    // file.)
+    "paths": {
+      "@pantry/core": ["../../packages/core/src/index.ts"],
+      "@pantry/core/*": ["../../packages/core/src/*"],
+      "@pantry/design-tokens": ["../../packages/design-tokens/src/index.ts"],
+      "@pantry/types": ["../../packages/types/src/index.ts"]
+    }
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "nativewind-env.d.ts",
+    "expo-env.d.ts",
+    ".expo/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+}

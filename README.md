@@ -19,6 +19,9 @@ list → check items off live*. See
 A hybrid, multi-service monorepo:
 
 - **`apps/web`** — React (Vite) web app.
+- **`apps/mobile`** — Expo / React Native client for iOS and Android, peer to
+  `apps/web`. Shares the headless layers and nothing of the view layer. See
+  [`apps/mobile/README.md`](apps/mobile/README.md).
 - **`apps/recipe-service`** — Go + Postgres. Canonical source of truth for
   recipe definitions, ingredient data, and grocery-list aggregation. Also hosts
   `internal/recommend`, a dependency-free scoring package behind
@@ -64,6 +67,9 @@ pnpm test            # all workspaces (web, convex, go)
 ```
 
 - **web** — Vitest + jsdom (components + lib).
+- **mobile** — `jest-expo` + React Native Testing Library. The one place the
+  repo is not on Vitest, because Vitest cannot drive React Native; scoped to
+  `apps/mobile`, and hidden behind `pnpm test` like everything else.
 - **convex** — `convex-test` runs functions against an in-memory backend.
 - **recipe-service** — `go test ./...` (DB-backed tests skip without a database).
 
