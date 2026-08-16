@@ -1,0 +1,19 @@
+{
+  // Tests and build configuration run in Node, under Jest. Kept separate so the
+  // app itself cannot quietly acquire a dependency on either.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["nativewind/types", "jest", "node"],
+    "noEmit": true
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "*.test.ts",
+    "nativewind-env.d.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}

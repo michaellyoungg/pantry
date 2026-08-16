@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Pantry",
+    "slug": "pantry",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "scheme": "pantry",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#faf7f2",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pantry.app"
+    },
+    "android": {
+      "package": "com.pantry.app",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#faf7f2"
+      }
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "convexUrl": "http://127.0.0.1:3210"
+    }
+  }
+}
