@@ -1,5 +1,5 @@
 import { api } from "@pantry/convex/api";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   partitionCart,
   partitionRemoved,
 } from "../grocery";
+import { parseManualEntry } from "../manualEntry";
 import { useAsyncAction } from "../react/useAsyncAction";
 
 /**
@@ -27,6 +28,9 @@ export type GroceryLine = FunctionReturnType<typeof api.groceryList.getGroceryLi
 
 /** An unanswered "did this leave a leftover?" prompt. */
 export type LeftoverProposal = FunctionReturnType<typeof api.groceryList.leftoverProposals>[number];
+
+/** A one-tap add suggestion — something this household has bought before. */
+export type RecentItem = FunctionReturnType<typeof api.groceryList.recentItems>[number];
 
 /** What ending a trip does with the lines that were never checked off. */
 export type FinishChoice = "keep" | "remove";
@@ -209,6 +213,8 @@ export type UseGroceryList = {
   groups: AisleGroup<GroceryLine>[];
   /** Unanswered leftover prompts; the finish sheet warns when any are left. */
   pendingLeftovers: LeftoverProposal[];
+  /** Things this household buys, for one-tap adding without typing. */
+  recentItems: RecentItem[];
   /** Ids mid-flight out of the walk, for however the platform animates that. */
   leaving: ReadonlySet<string>;
   /** Ids another shopper changed just now. */
@@ -233,6 +239,17 @@ export type UseGroceryList = {
   remove: (line: GroceryLine) => void;
   undoRemove: () => void;
   needItAnyway: (line: GroceryLine) => void;
+  /**
+   * Adds one line from what the shopper typed into the add box.
+   *
+   * Takes the raw text rather than a parsed entry: splitting "2 lb butter" into
+   * quantity/unit/item is `parseManualEntry`'s job, and a view that did it
+   * first would be the second place that decision lives. Blank input is a
+   * no-op, so a stray tap on an empty field cannot post a nameless line.
+   */
+  addManual: (typed: string) => void;
+  /** Answers one inferred-leftover guess. Each is answered on its own. */
+  resolveLeftover: (proposal: LeftoverProposal, keep: boolean) => void;
   /** Deletes every line. Callers confirm first — the prompt is per-platform. */
   clear: () => void;
   finish: (unbought: FinishChoice) => void;
@@ -241,10 +258,10 @@ export type UseGroceryList = {
 /**
  * Everything the grocery list screen needs, with no view attached (BL-0055).
  *
- * Two subscriptions, six mutations with their optimistic updates, the cart and
- * dropped-line partitions, the two transient-highlight timers and the undo
- * window all live here, so the web and native grocery screens render the same
- * state rather than each re-deriving it.
+ * Three subscriptions, seven mutations plus one action with their optimistic
+ * updates, the cart and dropped-line partitions, the two transient-highlight
+ * timers and the undo window all live here, so the web and native grocery
+ * screens render the same state rather than each re-deriving it.
  *
  * What deliberately stays in the view: which sheet is open, whether the add
  * field is expanded, and the confirmation prompt before {@link clear} — those
@@ -256,6 +273,9 @@ export function useGroceryList(): UseGroceryList {
   // Shared with the leftovers prompt rather than re-derived: Convex dedupes the
   // subscription, and the predicate for "still unanswered" belongs in one place.
   const pendingLeftovers = useQuery(api.groceryList.leftoverProposals) ?? [];
+  // The add box's suggestions. Subscribed here rather than inside the add
+  // field so both clients' add fields are pure presentation over one wiring.
+  const recentItems = useQuery(api.groceryList.recentItems) ?? [];
 
   const [undo, setUndo] = useState<RestorableLine | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,6 +293,11 @@ export function useGroceryList(): UseGroceryList {
     removeItemOptimistic,
   );
   const restoreItem = useMutation(api.groceryList.restoreItem);
+  const resolveLeftoverMutation = useMutation(api.groceryList.resolveLeftover);
+  // An action, not a mutation: adding by hand calls out to recipe-service to
+  // normalize the typed name, so a typed "scallions" files itself beside a
+  // recipe's "green onion" instead of landing in the catch-all aisle.
+  const addManualItem = useAction(api.groceryList.addManualItem);
   const finishShopping = useMutation(api.groceryList.finishShopping).withOptimisticUpdate(
     finishShoppingOptimistic,
   );
@@ -336,6 +361,25 @@ export function useGroceryList(): UseGroceryList {
     [run, needItAnywayMutation],
   );
 
+  const addManual = useCallback(
+    (typed: string) => {
+      const entry = parseManualEntry(typed);
+      // "  " parses to a nameless line, and the action would reject it. Failing
+      // silently here keeps a stray tap from raising an error the shopper did
+      // nothing to deserve.
+      if (entry.item === "") return;
+      run(() => addManualItem(entry));
+    },
+    [run, addManualItem],
+  );
+
+  const resolveLeftover = useCallback(
+    (proposal: LeftoverProposal, keep: boolean) => {
+      run(() => resolveLeftoverMutation({ id: proposal._id, keep }));
+    },
+    [run, resolveLeftoverMutation],
+  );
+
   const clear = useCallback(() => {
     run(() => clearList({}));
   }, [run, clearList]);
@@ -356,6 +400,7 @@ export function useGroceryList(): UseGroceryList {
     inCart,
     groups: groupByAisle(toBuy),
     pendingLeftovers,
+    recentItems,
     leaving,
     highlighted,
     undo,
@@ -365,6 +410,8 @@ export function useGroceryList(): UseGroceryList {
     remove,
     undoRemove,
     needItAnyway,
+    addManual,
+    resolveLeftover,
     clear,
     finish,
   };
