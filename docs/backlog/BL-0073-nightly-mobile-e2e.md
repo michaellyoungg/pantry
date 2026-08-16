@@ -1,5 +1,5 @@
 ---
-id: BL-0056
+id: BL-0073
 title: Nightly mobile e2e — flow parity with the browser suite
 status: proposed
 area: mobile
@@ -10,7 +10,7 @@ created: 2026-08-16
 
 ## Context
 
-Follows BL-0055, which lands the Maestro harness and one flow. This is the part
+Follows BL-0072, which lands the Maestro harness and one flow. This is the part
 that makes it coverage rather than a demo.
 
 The research (`docs/mobile-testing-strategy.md`) found the scheduling answer is
@@ -40,8 +40,8 @@ subset, and no one will be able to tell which client is under-tested.
   recordings, device logs, build logs. A nightly failure nobody can debug from
   the artifacts is a nightly failure nobody will fix.
 - Keep it off the PR path. Per-PR mobile stays lint + typecheck + jest-expo
-  (BL-0057), matching the browser suite's split between fast checks and the full
-  loop.
+  (the harness BL-0056 sets up), matching the browser suite's split between
+  fast checks and the full loop.
 - Decide and document the triage rule up front: who looks at a red nightly, and
   what happens if it stays red. A nightly suite with no owner decays into noise
   within a month, and then gets deleted.

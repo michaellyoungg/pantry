@@ -1,5 +1,5 @@
 ---
-id: BL-0053
+id: BL-0070
 title: Unpin the e2e suite from a single worker (backend isolation)
 status: proposed
 area: infra
@@ -55,7 +55,7 @@ cheap answer may already be available:
 - Whatever lands, leave the resulting constraint written down in the config, with
   the evidence. The current comment is an assertion nobody can check.
 
-The payoff is shared: the same isolation story is what mobile e2e (BL-0055) needs
+The payoff is shared: the same isolation story is what mobile e2e (BL-0072) needs
 to run flows without contending with the browser suite.
 
 ## Alternatives considered

@@ -1,5 +1,5 @@
 ---
-id: BL-0055
+id: BL-0072
 title: Maestro e2e harness for the mobile client
 status: proposed
 area: mobile
@@ -10,9 +10,9 @@ created: 2026-08-16
 
 ## Context
 
-Depends on the mobile client existing, and on it being React Native rather than a
-Capacitor/PWA wrapper — a wrapper is covered by the existing Playwright suite and
-makes this item unnecessary. See `docs/mobile-testing-strategy.md`.
+Depends on the Expo app foundation (BL-0056). The mobile client is native Expo,
+settled by the mobile client parity plan, so the wrapper caveat in
+`docs/mobile-testing-strategy.md` no longer applies.
 
 Playwright cannot drive a native app, so a mobile client ships with no end-to-end
 coverage until something replaces it. The research picked **Maestro**: it is what
@@ -21,7 +21,7 @@ Bluesky uses today, having run Detox from 2023 and replaced it in May 2024
 configuration to maintain, and one tool covers iOS and Android.
 
 This item is the harness and the first flow only — proving the loop end to end.
-Growing coverage and wiring nightly CI is BL-0056.
+Growing coverage and wiring nightly CI is BL-0073.
 
 ## Proposal
 
@@ -32,7 +32,7 @@ Growing coverage and wiring nightly CI is BL-0056.
   on both is the deliverable; a suite that only works on the author's simulator
   is not.
 - Point the app at the local compose stack the way the browser suite does, using
-  whatever isolation BL-0053 lands. Android emulators reach the host on
+  whatever isolation BL-0070 lands. Android emulators reach the host on
   `10.0.2.2`, not `localhost` — Bluesky's `setupApp.yml` branches on platform for
   exactly this, and it is the first thing that will break.
 - Build the **e2e module substitution** seam now rather than retrofitting it.
@@ -42,8 +42,8 @@ Growing coverage and wiring nightly CI is BL-0056.
   seam for at least notifications if prep-task reminders ship. Substituting at
   build time is cleaner than runtime mocking, and there is no Playwright
   equivalent to copy from, so it wants deciding deliberately.
-- Use the ids from BL-0054. If BL-0054 has not landed, this flow is the forcing
-  function for it.
+- Use the testID conventions BL-0056 establishes as part of the Expo foundation.
+  If they are not in place yet, this flow is the forcing function for them.
 
 ## Alternatives considered
 

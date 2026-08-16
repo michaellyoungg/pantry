@@ -27,16 +27,16 @@ open source, and close enough in shape to be worth copying from.
 
 [bsky-maestro]: https://github.com/bluesky-social/social-app/pull/3983
 
-## The one question that changes everything
+## The question this opened with — now answered
 
-**Is the mobile client React Native/Expo, or a wrapper (Capacitor / PWA / web
-view) around the existing web app?**
+This document originally led with an unanswered question: **React Native/Expo,
+or a wrapper (Capacitor / PWA / web view) around the existing web app?** The
+answer changes almost everything below it, because a wrapper is already covered
+by Playwright and would need only a thin on-device smoke suite.
 
-If it is a wrapper, most of this document is unnecessary: Playwright already
-covers the logic and the UI, and mobile needs only a thin on-device smoke suite
-for the native seams (install, deep links, permissions, offline). If it is React
-Native, the recommendation below applies in full. Everything after this section
-assumes React Native.
+It is settled: **native Expo**, per the mobile client parity plan
+([`superpowers/specs/2026-08-16-mobile-client-parity-design.md`](superpowers/specs/2026-08-16-mobile-client-parity-design.md),
+BL-0056 *Expo app foundation*). Everything below applies in full.
 
 ## What Bluesky actually does
 
@@ -164,9 +164,12 @@ vitest monorepo. Vitest cannot easily run React Native (the Metro/Flow
 transform pipeline is Babel/Jest-shaped), and jest-expo is the maintained path.
 Contain it — `apps/mobile` runs jest, everything else stays vitest, and turbo
 hides the difference behind `pnpm test`. Bluesky barely uses this layer; I would
-use it more than they do, for screens with real state.
+use it more than they do, for screens with real state. **The parity plan adopted
+this and put the harness inside BL-0056**, so it has no separate testing item —
+the per-screen tests ride along with each native screen item.
 
-**L3 — e2e: Maestro, nightly.** Flows in `apps/mobile/e2e/flows/*.yml`, mirroring
+**L3 — e2e: Maestro, nightly** (BL-0072, BL-0073). Flows in
+`apps/mobile/e2e/flows/*.yml`, mirroring
 the journeys the Playwright specs already describe — core loop, catalog,
 home dashboard, recommendations, prep tasks. Where a spec has a web equivalent,
 name them the same so drift is visible.
@@ -196,21 +199,22 @@ move.
 
 ### Sequencing
 
-Captured as backlog items:
+The parity plan's BL-0056 (Expo app foundation) owns two pieces of this
+research directly — it sets up the `jest-expo` + React Native Testing Library
+harness, and establishes the `testID` conventions before any screen is built.
+Those are therefore **not** separate testing items. What remains:
 
 | Item | | Blocked on |
 | --- | --- | --- |
-| — | Confirm React Native vs. wrapper | nothing — settle this first |
-| [BL-0053](backlog/BL-0053-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker | nothing |
-| [BL-0054](backlog/BL-0054-portable-test-selectors.md) | Portable test selectors (`testID` contract) | nothing |
-| [BL-0055](backlog/BL-0055-maestro-e2e-harness.md) | Maestro harness + first flow | a mobile client |
-| [BL-0056](backlog/BL-0056-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | BL-0055 |
-| [BL-0057](backlog/BL-0057-mobile-component-tests.md) | Component tests (jest-expo) | a mobile client |
+| [BL-0070](backlog/BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker | nothing |
+| [BL-0071](backlog/BL-0071-portable-test-selectors.md) | Portable test selectors, web half | nothing |
+| [BL-0072](backlog/BL-0072-maestro-e2e-harness.md) | Maestro harness + first flow | BL-0056 |
+| [BL-0073](backlog/BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | BL-0072 |
 
-Two of these are worth doing **before** the mobile decision is made, because
-they pay for themselves on the web side alone: BL-0053 is the highest-leverage
-item here and unblocks parallel Playwright runs, and BL-0054 is far cheaper to
-establish before mobile screens exist than to retrofit across a finished app.
+BL-0070 and BL-0071 are worth doing **before** the mobile client exists, because
+they pay for themselves on the web side alone: BL-0070 is the highest-leverage
+item here and unblocks parallel Playwright runs, and BL-0071 is far cheaper to
+establish while there is one client than two.
 
 ## Sources
 
