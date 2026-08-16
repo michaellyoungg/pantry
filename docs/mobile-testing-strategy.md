@@ -202,7 +202,9 @@ move.
 The parity plan's BL-0056 (Expo app foundation) owns two pieces of this
 research directly — it sets up the `jest-expo` + React Native Testing Library
 harness, and establishes the `testID` conventions before any screen is built.
-Those are therefore **not** separate testing items. What remains:
+Those are therefore **not** separate testing items. Both have now landed: the
+harness is in `apps/mobile`, and the selector contract is written up in
+[`mobile-testid-conventions.md`](mobile-testid-conventions.md). What remains:
 
 | Item | | Blocked on |
 | --- | --- | --- |

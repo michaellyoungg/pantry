@@ -10,7 +10,7 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage · build · Knip (dead code / unused deps) |
+| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (plus `jest-expo` for `apps/mobile`) · build · Knip (dead code / unused deps) |
 | **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
@@ -32,7 +32,7 @@ Everything CI runs is available through pnpm from the repo root:
 pnpm lint            # Biome (TS) + go vet (via turbo)
 pnpm format          # Biome: auto-fix formatting, imports, safe lint fixes
 pnpm typecheck       # tsc across all packages
-pnpm test            # Vitest + go test
+pnpm test            # Vitest + jest-expo (apps/mobile) + go test
 pnpm test:coverage   # Vitest with coverage thresholds enforced
 pnpm knip            # unused files / exports / dependencies
 pnpm check           # lint + typecheck + test in one shot
