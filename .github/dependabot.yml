@@ -6,6 +6,45 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # --- Versions the Expo SDK owns, not us ---------------------------------
+      # `apps/mobile` is an Expo-managed app. The SDK pins an exact React Native
+      # version plus every bundled native module to a set it was built against;
+      # `expo install` is what moves them, together, when the SDK moves. Bumping
+      # one on its own does not upgrade the app, it desynchronises it — RN 0.87
+      # under SDK 57 failed every mobile suite because `jest-expo@57` peer-pins
+      # `@react-native/jest-preset@^0.86.2`, so the preset's own setup file could
+      # not resolve `@react-native/assets-registry` (PR #165). Dependabot cannot
+      # know that constraint, so it re-proposes the same broken bump weekly.
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "jest-expo"
+      - dependency-name: "react-native"
+      - dependency-name: "@react-native/*"
+      # Matches the bundled native modules (reanimated, screens, worklets, …).
+      # Scoped names such as `@testing-library/react-native` are unaffected: this
+      # is a whole-name glob, and that package is ours to upgrade.
+      - dependency-name: "react-native-*"
+      # Pinned by `jest-expo`, which depends on an exact `react-test-renderer`.
+      - dependency-name: "react-test-renderer"
+
+      # --- Majors the React Native toolchain cannot load ----------------------
+      # `jest-expo@57` is built on Jest 29 (`babel-jest@^29`, `@jest/globals@^29`,
+      # `jest-snapshot@^29`). A Jest 30 major installs a mixed 29/30 tree and
+      # every mobile suite dies inside `jest-runtime` with
+      # `this._moduleMocker.clearMocksOnScope is not a function` (PR #167).
+      # Minors and patches still flow; only the major waits for `jest-expo`.
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/jest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "babel-jest"
+        update-types: ["version-update:semver-major"]
+      # React Native's Babel plugins (`react-native-worklets`,
+      # `react-native-css-interop`) hard-require Babel `^7.0.0-0` and throw
+      # `Requires Babel "^7.0.0-0", but was loaded with "8.0.1"` on load (PR #170).
+      - dependency-name: "@babel/core"
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for the routine minor/patch bumps to cut review noise.
       minor-and-patch:
