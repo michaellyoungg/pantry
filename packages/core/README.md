@@ -105,6 +105,23 @@ components, and carry their own migration when they are ported.
 | Home | `useHome` | `apps/web/src/components/Home.tsx` |
 | Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
 
+### Offline, and why only one hook has it
+
+`useOfflineGroceryList` (BL-0058) wraps `useGroceryList` with a durable cache
+and a replay queue, and `apps/mobile` is the only caller. Offline is a property
+of *that* client — a phone in a shop with no signal — not of the screen, so it
+is a wrapper rather than a flag inside the shared hook, and the web app keeps
+the plain one.
+
+The reconciliation is not in the hook. `src/groceryOffline.ts` is pure, in the
+platform-free entry point, and holds the whole of it: the `item|unit|aisle`
+composite a line keeps across a regeneration, the collapse of a queue of taps to
+one intent per line, the plan that re-resolves each intent against the list as
+it is *now*, and the cache codec. Two things it decides that nothing else can:
+that a queued tap loses to a server state stamped after this device's last view,
+and that a tap whose line the server no longer has is a conflict to surface
+rather than a write to drop. Both are tested there, without a renderer.
+
 ## Test selectors (`@pantry/core/testing`)
 
 BL-0071. `testID()` builds a `surface.element[.key]` string; `TEST_IDS` names
