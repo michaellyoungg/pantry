@@ -190,6 +190,22 @@ describe("refusals", () => {
     ).toThrow(/Missing/);
   });
 
+  it("refuses a dangling $ref anywhere in the document, not just in a schema", () => {
+    // A response reference is never rendered, so nothing else would notice.
+    expect(() =>
+      render(
+        {},
+        { "/thing": { get: { responses: { "200": { $ref: "#/components/responses/Nope" } } } } },
+      ),
+    ).toThrow(/does not resolve/);
+  });
+
+  it("refuses a $ref to another document", () => {
+    expect(() =>
+      render({}, { "/thing": { get: { responses: { "200": { $ref: "other.yaml#/Thing" } } } } }),
+    ).toThrow(/only local \$refs/);
+  });
+
   it("refuses a Go package outside the recipe-service internals", () => {
     expect(() =>
       render({

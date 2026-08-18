@@ -48,6 +48,7 @@ const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "head", "options"
  */
 export function generate(spec) {
   const schemas = spec.components?.schemas ?? {};
+  checkRefs(spec);
 
   // ── Spec navigation ─────────────────────────────────────────────────────
 
@@ -287,6 +288,38 @@ export function generate(spec) {
   }
 
   return { ts: renderTs(), go: renderGo() };
+}
+
+/**
+ * Resolves every `$ref` in the whole document, `paths` included.
+ *
+ * The renderers only ever walk `components.schemas`, so a typo in a response or
+ * parameter reference would produce no output and no error — the spec would
+ * quietly describe an endpoint nobody can read. This walks the document instead
+ * of the part being rendered, for that reason.
+ */
+function checkRefs(spec) {
+  const walk = (node, path) => {
+    if (node === null || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => walk(item, `${path}/${i}`));
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key === "$ref") {
+        if (typeof value !== "string" || !value.startsWith("#/"))
+          throw new Error(`${path}: only local $refs are supported, got ${String(value)}`);
+        let target = spec;
+        for (const segment of value.slice(2).split("/")) {
+          target = target?.[segment];
+          if (target === undefined) throw new Error(`${path}: $ref does not resolve: ${value}`);
+        }
+      } else {
+        walk(value, `${path}/${key}`);
+      }
+    }
+  };
+  walk(spec, "#");
 }
 
 /**
