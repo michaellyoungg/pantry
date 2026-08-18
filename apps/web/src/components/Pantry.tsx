@@ -1,5 +1,6 @@
 import { formatUseBy, isOverdue, titleCase } from "@pantry/core";
 import { usePantry } from "@pantry/core/data";
+import { TEST_IDS } from "@pantry/core/testing";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -25,7 +26,7 @@ export function Pantry() {
   return (
     <Card title="Pantry">
       {items.length === 0 && (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted" data-testid={TEST_IDS.pantry.emptyState}>
           Nothing here yet — check items off your grocery list and they'll show up, so you don't
           rebuy things you already own.
         </p>
@@ -38,7 +39,14 @@ export function Pantry() {
             </h3>
             <ul className="flex flex-col gap-1">
               {group.lines.map((item) => (
-                <li key={item._id} className="flex items-center gap-2 text-sm">
+                // Keyed by the canonical item — the server's key, which is
+                // what the native row keys on too, rather than the display
+                // form each client renders (BL-0071).
+                <li
+                  key={item._id}
+                  data-testid={TEST_IDS.pantry.item(item.canonicalItem)}
+                  className="flex items-center gap-2 text-sm"
+                >
                   <span className="flex-1 text-text">{item.display}</span>
                   {/* Relative and tilde-marked on purpose: this date came from a
                       shelf-life table when the item entered the pantry, not off a
@@ -64,6 +72,7 @@ export function Pantry() {
                   </button>
                   <button
                     type="button"
+                    data-testid={TEST_IDS.pantry.markUseUp(item.canonicalItem)}
                     aria-label={
                       item.useItUp
                         ? `Stop using up ${item.display}`

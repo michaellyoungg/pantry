@@ -1,5 +1,6 @@
 import { formatQuantity, titleCase } from "@pantry/core";
 import { useGroceryList } from "@pantry/core/data";
+import { TEST_IDS } from "@pantry/core/testing";
 import { useState } from "react";
 import { DoneShoppingSheet } from "./DoneShoppingSheet";
 import { ErrorText } from "./ErrorText";
@@ -72,6 +73,9 @@ export function GroceryList() {
       message: "Every line goes, including the ones you have already checked off.",
       confirmLabel: "Clear",
       destructive: true,
+      // The native client asks the same question from its own sheet; the ids
+      // are what make it one flow rather than two (BL-0071).
+      testIds: TEST_IDS.list.clearConfirm,
     });
     if (!cleared) return;
     clear();
@@ -86,7 +90,7 @@ export function GroceryList() {
     <Card title="Grocery list" label="Grocery list" busy={pending}>
       <ShoppingPresence />
       {lines.length === 0 && (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted" data-testid={TEST_IDS.list.emptyState}>
           Nothing yet — generate from your basket, or add something below.
         </p>
       )}
@@ -120,6 +124,7 @@ export function GroceryList() {
       {inCart.length > 0 && (
         <div className="mt-3">
           <CollapsibleSection
+            testId={TEST_IDS.list.inCartSection}
             title="In cart"
             count={inCart.length}
             countLabel={inCart.length === 1 ? "item" : "items"}
@@ -143,6 +148,7 @@ export function GroceryList() {
       {removed.length > 0 && (
         <div className="mt-4 rounded-lg border border-border bg-surface p-3">
           <CollapsibleSection
+            testId={TEST_IDS.list.droppedSection}
             title="No longer in your plan"
             count={removed.length}
             countLabel={removed.length === 1 ? "dropped line" : "dropped lines"}
@@ -182,7 +188,13 @@ export function GroceryList() {
       <PricingSummary lines={active} />
       {lines.length > 0 && (
         <div className="mt-3 flex justify-end">
-          <Button variant="ghost" size="sm" className="min-h-11" onClick={onClear}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-11"
+            testId={TEST_IDS.list.clear}
+            onClick={onClear}
+          >
             Clear list
           </Button>
         </div>
@@ -197,6 +209,7 @@ export function GroceryList() {
         {undo && (
           <div
             role="status"
+            data-testid={TEST_IDS.list.undo}
             className="mb-2 flex items-center gap-2 rounded-lg bg-border/60 px-3 py-2 text-sm text-text"
           >
             <span className="flex-1">Removed {undo.item}</span>
@@ -211,7 +224,7 @@ export function GroceryList() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <p className="flex-1 text-xs text-muted">
+          <p className="flex-1 text-xs text-muted" data-testid={TEST_IDS.list.progress}>
             {active.length === 0
               ? "Nothing on the list"
               : `${inCart.length} of ${active.length} in cart`}
@@ -219,6 +232,7 @@ export function GroceryList() {
           <Button
             variant="secondary"
             className="min-h-11"
+            testId={TEST_IDS.list.addToggle}
             aria-expanded={adding}
             onClick={() => setAdding((wasAdding) => !wasAdding)}
           >
@@ -227,6 +241,7 @@ export function GroceryList() {
           <Button
             variant="primary"
             className="min-h-11"
+            testId={TEST_IDS.list.doneShopping}
             disabled={lines.length === 0}
             onClick={() => setFinishing(true)}
           >

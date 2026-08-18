@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -155,6 +156,21 @@ describe("RecipeList duplicate titles", () => {
     await screen.findByText("Soup");
 
     expect(screen.getAllByText("Duplicate")).toHaveLength(2);
+  });
+
+  it("gives colliding titles one id between them, which is why specs mint unique ones", async () => {
+    // The honest limit of `TEST_IDS.recipes.item(title)`: a title is the only
+    // identity a spec can name in advance (the recipe's id is server-minted),
+    // and this list deliberately tolerates duplicates. Two rows then answer to
+    // one selector. The e2e suite suffixes every title it creates, so it never
+    // meets this — but a spec that hard-codes a title can, and the failure is a
+    // Playwright strict-mode violation rather than anything subtle.
+    listRecipes.mockResolvedValue([RECIPE, { ...RECIPE, id: "r2", title: "  garlic bread " }]);
+
+    render(<RecipeList refreshKey={0} />);
+    await screen.findAllByText("Duplicate");
+
+    expect(screen.getAllByTestId(TEST_IDS.recipes.item("Garlic Bread"))).toHaveLength(2);
   });
 
   it("leaves a list of unique titles unflagged", async () => {

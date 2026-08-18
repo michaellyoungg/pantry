@@ -1,4 +1,5 @@
 import { formatQuantity, purchaseText } from "@pantry/core";
+import { TEST_IDS } from "@pantry/core/testing";
 import { ProvenanceButton, type ProvenanceSource } from "./GroceryProvenance";
 import { SwipeAwayRow } from "./SwipeAwayRow";
 import { Button } from "./ui/Button";
@@ -50,7 +51,15 @@ export function GroceryRow({
   const { buy, need } = purchaseText(line, formatQuantity);
 
   return (
-    <SwipeAwayRow onRemove={onRemove} leaving={leaving} highlighted={highlighted}>
+    // Keyed by the ingredient, not by position: the walk reorders as lines are
+    // checked off, and a positional selector would follow the slot rather than
+    // the line. The native row carries the same id (BL-0071).
+    <SwipeAwayRow
+      testId={TEST_IDS.list.item(line.item)}
+      onRemove={onRemove}
+      leaving={leaving}
+      highlighted={highlighted}
+    >
       <label
         className={`flex min-h-11 flex-1 items-center gap-3 text-sm ${
           line.checked ? "text-muted line-through" : line.alreadyHave ? "text-muted" : "text-text"

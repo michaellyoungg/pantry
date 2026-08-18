@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -72,6 +73,10 @@ describe("WeekPlan", () => {
     render(<WeekPlan />);
 
     expect(screen.getByText("Not yet planned")).toBeTruthy();
+    // The rail row names the recipe it holds (BL-0071); the e2e helper reaches
+    // it this way rather than by hunting for an <li> containing the title,
+    // which also matched rows in other cards on the page.
+    expect(screen.getByTestId(TEST_IDS.plan.unplanned("Toast"))).toBeTruthy();
     // Pick Wednesday (index 2) from that row's day picker.
     fireEvent.click(screen.getByRole("button", { name: "Wednesday" }));
 

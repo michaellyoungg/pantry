@@ -1,9 +1,11 @@
+import type { TestID } from "@pantry/core/testing";
 import type { ReactNode } from "react";
 
 export function Card({
   title,
   label,
   busy,
+  testId,
   children,
   className = "",
 }: {
@@ -16,6 +18,8 @@ export function Card({
   label?: string;
   /** Marks the card as settling while a write is in flight (aria-busy). */
   busy?: boolean;
+  /** See `Button`'s `testId` — one contract, both clients (BL-0071). */
+  testId?: TestID;
   children: ReactNode;
   className?: string;
 }) {
@@ -23,6 +27,7 @@ export function Card({
     <section
       aria-label={label}
       aria-busy={busy}
+      data-testid={testId}
       className={`rounded-xl border border-border bg-surface p-5 shadow-sm ${className}`}
     >
       {title && <h2 className="mb-3 text-lg font-semibold text-text">{title}</h2>}

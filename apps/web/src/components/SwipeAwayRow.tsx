@@ -1,4 +1,5 @@
 import { trackSwipe } from "@pantry/core";
+import type { TestID } from "@pantry/core/testing";
 import { type ReactNode, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 
 /**
@@ -19,6 +20,7 @@ export function SwipeAwayRow({
   removeLabel = "Remove",
   leaving = false,
   highlighted = false,
+  testId,
   children,
 }: {
   /** Absent when the row cannot be removed — which also disables the gesture. */
@@ -28,6 +30,8 @@ export function SwipeAwayRow({
   leaving?: boolean;
   /** Changed by somebody else just now — flashed so it isn't a silent edit. */
   highlighted?: boolean;
+  /** See `Button`'s `testId` — one contract, both clients (BL-0071). */
+  testId?: TestID;
   children: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
@@ -59,7 +63,10 @@ export function SwipeAwayRow({
   }
 
   return (
-    <li className={`relative overflow-hidden rounded-lg ${highlighted ? "grocery-remote" : ""}`}>
+    <li
+      data-testid={testId}
+      className={`relative overflow-hidden rounded-lg ${highlighted ? "grocery-remote" : ""}`}
+    >
       {/* What the row slides off to reveal. Decorative — it only exists
           mid-gesture, and the real control is the button inside the row. */}
       {swipeable && offset < 0 && (

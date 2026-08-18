@@ -1,3 +1,4 @@
+import type { TestID } from "@pantry/core/testing";
 import type { ButtonHTMLAttributes } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
@@ -23,11 +24,23 @@ export function Button({
   size = "md",
   type = "button",
   className = "",
+  testId,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  size?: Size;
+  /**
+   * The button's `data-testid`, and the same string a native `Pressable`
+   * carries as its `testID` (BL-0071). `TestID` rather than `string` so it has
+   * to come from `@pantry/core/testing` — an id typed by hand skips both the
+   * naming rules and the shared catalog.
+   */
+  testId?: TestID;
+}) {
   return (
     <button
       type={type}
+      data-testid={testId}
       data-variant={variant}
       className={`${base} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
