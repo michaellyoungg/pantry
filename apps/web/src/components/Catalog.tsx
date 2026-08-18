@@ -1,85 +1,60 @@
 import { api } from "@pantry/convex/api";
-import { defaultServingsMultiplier, formatDuration, humanizeSlug } from "@pantry/core";
-import { useAsyncAction, useAsyncData } from "@pantry/core/react";
-import type { EquipmentFit } from "@pantry/types";
+import { FIT_LABELS, formatDuration, humanizeSlug, missingLabel } from "@pantry/core";
+import { useCatalog } from "@pantry/core/data";
+import { TEST_IDS } from "@pantry/core/testing";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
-import { FIT_BADGES, hiddenSummary, missingLabel, tallyFits } from "../lib/equipmentFit";
-import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
-import { useHouseholdSize } from "../lib/useHouseholdSize";
+import { FIT_BADGE_CLASS } from "../lib/equipmentFit";
 import { useTracedAction } from "../telemetry/useTracedAction";
-import {
-  applyCatalogFilter,
-  type CatalogFilter,
-  CatalogFilters,
-  emptyFilter,
-  isFilterActive,
-} from "./CatalogFilters";
+import { CatalogFilters } from "./CatalogFilters";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
+/**
+ * The seeded catalog (BL-0020): presentation over `useCatalog()`.
+ *
+ * The catalog request, the equipment fits, the filter selection and clone-on-add
+ * live in `@pantry/core/data`, so the native catalog narrows to exactly the same
+ * recipes rather than re-deriving the rules. What is web-specific and stays here
+ * is the chip row, the badge colours, and the link into My Kitchen.
+ */
 export function Catalog() {
-  const listCatalog = useTracedAction(api.recipes.listCatalog, "recipes.listCatalog");
-  const makeability = useTracedAction(api.equipment.makeability, "equipment.makeability");
-  // Adding a catalog recipe CLONES it into the user's own recipes and baskets
-  // the clone (BL-0020). It is deliberately not basket.add on the catalog id:
-  // that row belongs to the sentinel "catalog" user, so the recipe on the plan
-  // could never be edited, and it would break if the entry were retired.
-  const addFromCatalog = useTracedAction(api.recipes.addFromCatalog, "recipes.addFromCatalog");
-  const householdSize = useHouseholdSize();
-  // Convex actions require an args object; useTracedAction injects traceCtx into it.
-  // Wrap in useCallback so useAsyncData's effect (keyed on fn) doesn't refire every render.
-  const load = useCallback(() => listCatalog({}), [listCatalog]);
-  const { data, loading, error: loadError, reload } = useAsyncData(load);
-  // Loaded separately from the recipes, so equipment being unavailable costs
-  // the badges and the filter but never the catalog itself.
-  const loadFits = useCallback(() => makeability({}), [makeability]);
-  const { data: fitData, error: fitError } = useAsyncData(loadFits);
-  const { catalog: equipment } = useEquipmentCatalog();
-  const { run, error } = useAsyncAction();
-  const [onlyMakeable, setOnlyMakeable] = useState(false);
-  const [filter, setFilter] = useState<CatalogFilter>(emptyFilter);
-  // Which catalog ids this session has already added, so the button can say so
-  // rather than looking like it did nothing the second time.
-  const [added, setAdded] = useState<string[]>([]);
-
-  const recipes = useMemo(() => data ?? [], [data]);
-  const fits: Record<string, EquipmentFit> = useMemo(() => fitData?.fits ?? {}, [fitData]);
-  // Only offered once we actually know something. Without fits every recipe is
-  // "unknown", and a filter that hides everything is worse than no filter.
-  const canFilter = fitError === null && Object.keys(fits).length > 0;
-  // The discovery filters and the equipment filter answer independent questions
-  // ("what fits tonight?" vs "what can this kitchen make?"), so both narrow.
-  const shown = useMemo(() => {
-    const matching = applyCatalogFilter(recipes, filter);
-    return canFilter && onlyMakeable
-      ? matching.filter((r) => fits[r.id]?.status === "makeable")
-      : matching;
-  }, [recipes, filter, canFilter, onlyMakeable, fits]);
-  // Tallied over the catalog on screen, not the server's library-wide counts.
-  const hidden = hiddenSummary(
-    tallyFits(
-      recipes.filter((r) => !shown.includes(r)).map((r) => r.id),
-      fits,
-    ),
-  );
-
-  async function add(recipeId: string, servings: number | undefined) {
-    const clone = await run(() =>
-      addFromCatalog({
-        catalogRecipeId: recipeId,
-        // The clone inherits the catalog recipe's yield, so the household
-        // default (BL-0018) comes out the same either way.
-        servingsMultiplier: defaultServingsMultiplier(householdSize, servings),
-      }),
-    );
-    // The clone lands in the user's own recipes; /recipes loads fresh on
-    // navigation, so there is nothing to invalidate here.
-    if (clone) setAdded((prev) => (prev.includes(recipeId) ? prev : [...prev, recipeId]));
-  }
+  const {
+    shown,
+    recipes,
+    loading,
+    loadError,
+    error,
+    reload,
+    filter,
+    setQuery,
+    toggleCookTime,
+    toggleDiet,
+    toggleCuisine,
+    clearFilter,
+    filterActive,
+    cuisines,
+    diets,
+    fits,
+    equipment,
+    canFilter,
+    onlyMakeable,
+    setOnlyMakeable,
+    hidden,
+    added,
+    add,
+  } = useCatalog({
+    listCatalog: useTracedAction(api.recipes.listCatalog, "recipes.listCatalog"),
+    makeability: useTracedAction(api.equipment.makeability, "equipment.makeability"),
+    // Adding a catalog recipe CLONES it into the user's own recipes and baskets
+    // the clone (BL-0020). It is deliberately not basket.add on the catalog id:
+    // that row belongs to the sentinel "catalog" user, so the recipe on the plan
+    // could never be edited, and it would break if the entry were retired.
+    addFromCatalog: useTracedAction(api.recipes.addFromCatalog, "recipes.addFromCatalog"),
+    listEquipment: useTracedAction(api.recipes.listEquipment, "recipes.listEquipment"),
+  });
 
   return (
     <Card title="Catalog">
@@ -102,11 +77,19 @@ export function Catalog() {
             type="search"
             placeholder="Search recipes, ingredients or tags…"
             className="mb-3 w-full"
+            data-testid={TEST_IDS.recipes.catalogSearch}
             value={filter.query}
-            onChange={(e) => setFilter({ ...filter, query: e.target.value })}
+            onChange={(e) => setQuery(e.target.value)}
             aria-label="Search catalog"
           />
-          <CatalogFilters recipes={recipes} filter={filter} onChange={setFilter} />
+          <CatalogFilters
+            filter={filter}
+            cuisines={cuisines}
+            diets={diets}
+            onToggleCookTime={toggleCookTime}
+            onToggleDiet={toggleDiet}
+            onToggleCuisine={toggleCuisine}
+          />
         </>
       )}
 
@@ -116,6 +99,7 @@ export function Catalog() {
             <input
               type="checkbox"
               checked={onlyMakeable}
+              data-testid={TEST_IDS.recipes.onlyMakeable}
               onChange={(e) => setOnlyMakeable(e.target.checked)}
               className="h-4 w-4 accent-[var(--color-primary)]"
             />
@@ -141,8 +125,13 @@ export function Catalog() {
       {recipes.length > 0 && shown.length === 0 && !(canFilter && onlyMakeable) && (
         <div className="flex items-center gap-2">
           <p className="text-sm text-muted">No recipes match these filters.</p>
-          {isFilterActive(filter) && (
-            <Button variant="ghost" size="sm" onClick={() => setFilter(emptyFilter)}>
+          {filterActive && (
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid={TEST_IDS.recipes.clearFilters}
+              onClick={clearFilter}
+            >
               Clear filters
             </Button>
           )}
@@ -152,9 +141,13 @@ export function Catalog() {
       <ul className="flex flex-col divide-y divide-border">
         {shown.map((r) => {
           const fit = fits[r.id];
-          const badge = fit ? FIT_BADGES[fit.status] : null;
+          const badge = fit ? FIT_LABELS[fit.status] : null;
           return (
-            <li key={r.id} className="flex flex-col gap-1.5 py-2">
+            <li
+              key={r.id}
+              data-testid={TEST_IDS.recipes.catalogItem(r.title)}
+              className="flex flex-col gap-1.5 py-2"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="font-medium text-text">{r.title}</span>
@@ -168,17 +161,18 @@ export function Catalog() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  data-testid={TEST_IDS.recipes.catalogAdd(r.title)}
                   disabled={added.includes(r.id)}
-                  onClick={() => add(r.id, r.servings)}
+                  onClick={() => void add(r)}
                 >
                   {added.includes(r.id) ? "Added" : "Add to basket"}
                 </Button>
               </div>
-              {badge && (
+              {badge && fit && (
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    title={badge.title}
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}
+                    title={badge.description}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${FIT_BADGE_CLASS[fit.status]}`}
                   >
                     {badge.label}
                   </span>

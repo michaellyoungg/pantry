@@ -1,5 +1,5 @@
+import { MAX_SERVINGS } from "@pantry/core";
 import { useId } from "react";
-import { MAX_SERVINGS } from "../lib/servings";
 import { Input } from "./ui/Input";
 
 /**

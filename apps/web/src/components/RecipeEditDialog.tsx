@@ -1,42 +1,20 @@
 import { api } from "@pantry/convex/api";
 import {
+  formatServings,
   formatTags,
   formatTotalMinutes,
+  parseServings,
   parseTags,
   parseTotalMinutes,
   toISODate,
 } from "@pantry/core";
+import type { RecipeEdit } from "@pantry/core/data";
 import { useAsyncData } from "@pantry/core/react";
-import type { EquipmentDef, PrepTaskInput, Recipe } from "@pantry/types";
+import type { EquipmentDef, Recipe } from "@pantry/types";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatServings, parseServings } from "../lib/servings";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { emptyIngredient, RecipeFields, type RecipeFieldsValue } from "./RecipeFields";
 import { Button } from "./ui/Button";
-
-/**
- * What the dialog hands back on save. An object rather than a positional
- * argument list: with ten fields, a caller mixing up two adjacent strings is a
- * bug the compiler cannot see.
- */
-export interface RecipeEdit {
-  title: string;
-  servings: number | undefined;
-  ingredients: Recipe["ingredients"];
-  steps: string[];
-  equipment: Recipe["equipment"];
-  methods: Recipe["methods"];
-  cuisine: string;
-  totalMinutes: number | undefined;
-  tags: string[];
-  sourceUrl: string | undefined;
-  /**
-   * The user's own prep tasks (BL-0044). Unlike every field above this does not
-   * replace the recipe's whole prep — model-derived tasks are a separate
-   * producer and survive an edit untouched.
-   */
-  prepTasks: PrepTaskInput[];
-}
 
 export function RecipeEditDialog({
   recipe,

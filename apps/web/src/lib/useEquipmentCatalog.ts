@@ -19,12 +19,3 @@ export function useEquipmentCatalog(): {
   const { data, loading, error } = useAsyncData(load);
   return { catalog: data ?? [], loading, error };
 }
-
-/**
- * Resolves an equipment slug to its display name, falling back to the slug so a
- * tag whose catalog entry is missing (or whose catalog request failed) still
- * renders as something rather than disappearing.
- */
-export function equipmentName(catalog: EquipmentDef[], id: string): string {
-  return catalog.find((e) => e.id === id)?.name ?? id;
-}

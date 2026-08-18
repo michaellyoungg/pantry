@@ -1,7 +1,6 @@
-import { COOKING_METHOD_LABELS, formatDuration, humanizeSlug } from "@pantry/core";
+import { COOKING_METHOD_LABELS, equipmentName, formatDuration, humanizeSlug } from "@pantry/core";
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
 import { useEffect, useState } from "react";
-import { equipmentName } from "../lib/useEquipmentCatalog";
 import { RecipePrep } from "./RecipePrep";
 
 function ingredientLine(ing: Ingredient): string {

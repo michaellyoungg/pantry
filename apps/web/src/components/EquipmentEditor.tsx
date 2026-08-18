@@ -1,11 +1,10 @@
-import { COOKING_METHOD_LABELS, COOKING_METHODS } from "@pantry/core";
+import { COOKING_METHOD_LABELS, COOKING_METHODS, equipmentName } from "@pantry/core";
 import type {
   CookingMethod,
   EquipmentCategory,
   EquipmentDef,
   RecipeEquipment,
 } from "@pantry/types";
-import { equipmentName } from "../lib/useEquipmentCatalog";
 import { Button } from "./ui/Button";
 
 const CATEGORY_LABELS: Record<EquipmentCategory, string> = {

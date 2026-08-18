@@ -1,8 +1,5 @@
 import { api } from "@pantry/convex/api";
-import { addToBasketOptimistic } from "@pantry/core/convex";
-import { useAsyncAction, useAsyncData } from "@pantry/core/react";
-import { useMutation } from "convex/react";
-import { useCallback } from "react";
+import { useKitchenUnlocks } from "@pantry/core/data";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -18,6 +15,8 @@ import { Button } from "./ui/Button";
  *
  * An empty result is a real, common answer — the catalog simply has nothing
  * that needs this device — and is worded as such rather than as a failure.
+ *
+ * Presentation over `useKitchenUnlocks()` since BL-0063.
  */
 export function KitchenUnlocks({
   equipmentId,
@@ -29,12 +28,10 @@ export function KitchenUnlocks({
   name: string;
   onDismiss: () => void;
 }) {
-  const unlockedBy = useTracedAction(api.equipment.unlockedBy, "equipment.unlockedBy");
-  const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
-  const load = useCallback(() => unlockedBy({ equipmentId }), [unlockedBy, equipmentId]);
-  const { data, loading, error, reload } = useAsyncData(load, [equipmentId]);
-  const { run, error: addError } = useAsyncAction();
-  const recipes = data ?? [];
+  const { recipes, loading, error, addError, reload, addToBasket } = useKitchenUnlocks(
+    equipmentId,
+    { unlockedBy: useTracedAction(api.equipment.unlockedBy, "equipment.unlockedBy") },
+  );
 
   return (
     <section
@@ -76,11 +73,7 @@ export function KitchenUnlocks({
               <li key={r.id} className="flex flex-col gap-1.5 py-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-text">{r.title}</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => run(() => addToBasket({ recipeId: r.id, title: r.title }))}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => addToBasket(r)}>
                     Add to basket
                   </Button>
                 </div>

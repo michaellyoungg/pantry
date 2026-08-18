@@ -1,8 +1,14 @@
 import { api } from "@pantry/convex/api";
-import { formatTags, formatTotalMinutes, parseTags, parseTotalMinutes } from "@pantry/core";
+import {
+  formatServings,
+  formatTags,
+  formatTotalMinutes,
+  parseServings,
+  parseTags,
+  parseTotalMinutes,
+} from "@pantry/core";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
 import type { PrepTaskInput, Recipe } from "@pantry/types";
-import { formatServings, parseServings } from "../lib/servings";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
