@@ -1,7 +1,7 @@
 ---
 id: BL-0072
 title: Maestro e2e harness for the mobile client
-status: proposed
+status: in-progress
 area: mobile
 effort: M
 related_specs: []
