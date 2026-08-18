@@ -30,6 +30,7 @@ export {
   type GroceryLine,
   type LeftoverProposal,
   REMOTE_HIGHLIGHT_MS,
+  type RecentItem,
   type RestorableLine,
   UNDO_MS,
   type UseGroceryList,

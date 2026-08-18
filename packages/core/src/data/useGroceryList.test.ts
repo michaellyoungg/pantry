@@ -5,13 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hoisted and mutable so each test sets both query results. One shared mutation
 // spy is enough for most assertions; `restoreItem` gets its own because undo is
 // the one path whose argument shape has to be checked in isolation.
-const { state, mutationMock, restoreMock } = vi.hoisted(() => ({
+const { state, mutationMock, restoreMock, actionMock } = vi.hoisted(() => ({
   state: {
     lines: undefined as Array<Record<string, unknown>> | undefined,
     leftovers: [] as Array<Record<string, unknown>>,
+    recent: [] as Array<Record<string, unknown>>,
   },
   mutationMock: vi.fn(() => Promise.resolve()),
   restoreMock: vi.fn(() => Promise.resolve()),
+  actionMock: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock("convex/react", async () => {
@@ -19,8 +21,13 @@ vi.mock("convex/react", async () => {
   // reliable — the function's name is.
   const { getFunctionName } = await import("convex/server");
   return {
-    useQuery: (query: Parameters<typeof getFunctionName>[0]) =>
-      getFunctionName(query).includes("leftoverProposals") ? state.leftovers : state.lines,
+    useQuery: (query: Parameters<typeof getFunctionName>[0]) => {
+      const name = getFunctionName(query);
+      if (name.includes("leftoverProposals")) return state.leftovers;
+      if (name.includes("recentItems")) return state.recent;
+      return state.lines;
+    },
+    useAction: () => actionMock,
     useMutation: (ref: Parameters<typeof getFunctionName>[0]) => {
       const spy = getFunctionName(ref).endsWith("restoreItem") ? restoreMock : mutationMock;
       const fn = ((...args: unknown[]) =>
@@ -61,6 +68,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.lines = [line()];
   state.leftovers = [];
+  state.recent = [];
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -305,6 +313,58 @@ describe("useGroceryList — remote highlight", () => {
     await act(async () => rerender());
     expect(result.current.highlighted.size).toBe(0);
     expect(result.current.leaving.size).toBe(0);
+  });
+});
+
+describe("useGroceryList — adding by hand", () => {
+  it("splits what was typed into quantity, unit and item", async () => {
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () => result.current.addManual("2 lb butter"));
+    expect(actionMock).toHaveBeenCalledWith({ quantity: 2, unit: "lb", item: "butter" });
+  });
+
+  it("defaults an amount nobody gave, rather than posting a quantity-less line", async () => {
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () => result.current.addManual("foil"));
+    expect(actionMock).toHaveBeenCalledWith({ quantity: 1, unit: "", item: "foil" });
+  });
+
+  it("ignores text with no item in it, so a stray tap raises no error", async () => {
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () => result.current.addManual("   "));
+    expect(actionMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("surfaces a failed add rather than losing the item silently", async () => {
+    actionMock.mockRejectedValueOnce(new Error("service down"));
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () => result.current.addManual("foil"));
+    expect(result.current.error).toContain("service down");
+  });
+
+  it("offers what the household actually buys as one-tap suggestions", () => {
+    state.recent = [{ canonicalItem: "milk", display: "Milk" }];
+    const { result } = renderHook(() => useGroceryList());
+    expect(result.current.recentItems).toEqual([{ canonicalItem: "milk", display: "Milk" }]);
+  });
+});
+
+describe("useGroceryList — leftovers", () => {
+  it("answers one guess at a time, keeping it", async () => {
+    state.leftovers = [{ _id: "g9", item: "Parsley" }];
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () => result.current.resolveLeftover(result.current.pendingLeftovers[0], true));
+    expect(mutationMock).toHaveBeenCalledWith({ id: "g9", keep: true });
+  });
+
+  it("dismisses one without writing a leftover", async () => {
+    state.leftovers = [{ _id: "g9", item: "Parsley" }];
+    const { result } = renderHook(() => useGroceryList());
+    await act(async () =>
+      result.current.resolveLeftover(result.current.pendingLeftovers[0], false),
+    );
+    expect(mutationMock).toHaveBeenCalledWith({ id: "g9", keep: false });
   });
 });
 

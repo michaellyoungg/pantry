@@ -109,6 +109,31 @@ Selectors are `testID`s, and the scheme is a contract:
 Device e2e (Maestro) is [BL-0072](../../docs/backlog/BL-0072-maestro-e2e-harness.md)
 and runs nightly, not as a merge gate.
 
+## Screens
+
+`app/(tabs)/*.tsx` are route files and nothing else — each renders a component
+from `src/`. The grocery list
+([BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md)) is the first real
+one and sets the pattern for the rest:
+
+- **Every value on screen comes from `useGroceryList()` and `@pantry/core`.** The
+  aisle grouping, what to buy, what the recipes wanted, what is left over — all
+  of it is the same code the web screen renders from. A rule about groceries
+  written in `src/grocery/` would be a rule the two clients can disagree about.
+- **What the native file owns is interaction.** `src/grocery/hitTargets.ts`
+  carries the sizes, with the reasoning, and its numbers are asserted in tests
+  rather than left as utility classes: this screen is used one-handed while
+  pushing a trolley, and 44pt assumes a hand that is not moving.
+- **Mis-aims land on the reversible action.** The check-off target is the whole
+  row and is the *only* thing in its band; provenance, remove and "need it
+  anyway" sit below it, small and hit-slopped. Tapping the wrong thing costs one
+  more tap, never an undo.
+- **Sheets are bottom sheets, and are in-tree rather than `Alert.alert`** — the
+  top of a phone is out of thumb reach, and an OS alert cannot be tested.
+
+Offline is [BL-0058](../../docs/backlog/BL-0058-offline-grocery-cache-replay.md) and is
+expected to replace the grocery screen's data source in place.
+
 ## Styling
 
 NativeWind (Tailwind v3) bound to `@pantry/design-tokens`.
@@ -133,9 +158,10 @@ which means the drift check fails once, on purpose, as the prompt to regenerate.
   so the first screen needing a *runtime* import only adds a line to
   `package.json`.
 - `@pantry/core/data` ([BL-0055](../../docs/backlog/BL-0055-core-data-screen-hooks.md))
-  is what real screens call — see `src/pantry/` for the worked example. The
-  remaining placeholder screens are deliberately thin so none of that work is
-  duplicated here; the resolver test proves the entry point resolves to source.
+  is what real screens call — see `src/grocery/` and `src/pantry/` for the
+  worked examples. The remaining placeholder screens are deliberately thin so
+  none of that work is duplicated here; the resolver test proves the entry point
+  resolves to source.
 - No app icon or splash screen — that is
   [BL-0060](../../docs/backlog/BL-0060-eas-private-distribution.md), along with
   EAS build and distribution.

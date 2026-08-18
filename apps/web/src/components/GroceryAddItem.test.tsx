@@ -1,92 +1,57 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { state, actionMock } = vi.hoisted(() => ({
-  state: { recent: [] as Array<{ canonicalItem: string; display: string }> },
-  actionMock: vi.fn(() => Promise.resolve(null)),
-}));
-
-vi.mock("convex/react", () => ({
-  useQuery: () => state.recent,
-  useAction: () => actionMock,
-}));
-
 import { GroceryAddItem } from "./GroceryAddItem";
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  state.recent = [];
-});
+// The field hands the raw text straight to the data layer: splitting "2 lb
+// butter" apart is `parseManualEntry`'s job and is proven in the hook's own
+// suite, so what is left to test here is only the field's behaviour.
+const onAdd = vi.fn();
+
+beforeEach(() => vi.clearAllMocks());
 
 function type(value: string) {
   fireEvent.change(screen.getByLabelText("Add an item"), { target: { value } });
 }
 
 describe("GroceryAddItem", () => {
-  it("sends what was typed, split into quantity, unit and item", async () => {
-    render(<GroceryAddItem />);
+  it("sends what was typed, unparsed", () => {
+    render(<GroceryAddItem recent={[]} onAdd={onAdd} />);
     type("2 lb butter");
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    await waitFor(() =>
-      expect(actionMock).toHaveBeenCalledWith({ quantity: 2, unit: "lb", item: "butter" }),
-    );
+    expect(onAdd).toHaveBeenCalledWith("2 lb butter");
   });
 
-  it("submits on Enter, so adding never needs a second tap", async () => {
-    render(<GroceryAddItem />);
+  it("submits on Enter, so adding never needs a second tap", () => {
+    render(<GroceryAddItem recent={[]} onAdd={onAdd} />);
     type("foil");
     fireEvent.submit(screen.getByLabelText("Add an item"));
 
-    await waitFor(() =>
-      expect(actionMock).toHaveBeenCalledWith({ quantity: 1, unit: "", item: "foil" }),
-    );
+    expect(onAdd).toHaveBeenCalledWith("foil");
   });
 
-  it("clears the field after adding", async () => {
-    render(<GroceryAddItem />);
+  it("clears the field after adding", () => {
+    render(<GroceryAddItem recent={[]} onAdd={onAdd} />);
     type("foil");
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    await waitFor(() =>
-      expect((screen.getByLabelText("Add an item") as HTMLInputElement).value).toBe(""),
-    );
+    expect((screen.getByLabelText("Add an item") as HTMLInputElement).value).toBe("");
   });
 
   it("cannot be submitted empty", () => {
-    render(<GroceryAddItem />);
+    render(<GroceryAddItem recent={[]} onAdd={onAdd} />);
     expect((screen.getByRole("button", { name: "Add" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("adds nothing for whitespace that parses to no item", async () => {
-    render(<GroceryAddItem />);
-    type("  ");
-    fireEvent.submit(screen.getByLabelText("Add an item"));
-    await waitFor(() => expect(actionMock).not.toHaveBeenCalled());
-  });
-
-  it("offers recent items as one-tap chips", async () => {
-    state.recent = [{ canonicalItem: "milk", display: "Milk" }];
-    render(<GroceryAddItem />);
+  it("offers recent items as one-tap chips", () => {
+    render(<GroceryAddItem recent={[{ canonicalItem: "milk", display: "Milk" }]} onAdd={onAdd} />);
     fireEvent.click(screen.getByRole("button", { name: "Milk" }));
 
-    await waitFor(() =>
-      expect(actionMock).toHaveBeenCalledWith({ quantity: 1, unit: "", item: "Milk" }),
-    );
+    expect(onAdd).toHaveBeenCalledWith("Milk");
   });
 
   it("shows no chip row when there is nothing to suggest", () => {
-    render(<GroceryAddItem />);
+    render(<GroceryAddItem recent={[]} onAdd={onAdd} />);
     expect(screen.queryByRole("button", { name: /milk/i })).toBeNull();
-  });
-
-  it("surfaces a failure inline instead of losing the item silently", async () => {
-    actionMock.mockRejectedValueOnce(new Error("service down"));
-    render(<GroceryAddItem />);
-    type("foil");
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("service down");
   });
 });

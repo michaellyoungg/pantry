@@ -23,6 +23,10 @@ import { useConfirm } from "./ui/useConfirm";
  * offer all live in `@pantry/core/data`, so the native grocery screen renders
  * the same state rather than re-deriving it.
  *
+ * The add field and the leftover prompt are presentation over the same hook
+ * (BL-0057) rather than components that subscribe on their own, so the native
+ * screen drives one copy of that wiring rather than a second.
+ *
  * What is left here is genuinely per-platform: `.grocery-leaving` and
  * `.grocery-remote` are the web's rendering of `leaving`/`highlighted`, which
  * sheet is open is view state, and the clear confirmation is a web dialog — the
@@ -38,6 +42,7 @@ export function GroceryList() {
     groups,
     pendingLeftovers,
     pending,
+    recentItems,
     leaving,
     highlighted,
     undo,
@@ -46,6 +51,8 @@ export function GroceryList() {
     remove,
     undoRemove,
     needItAnyway,
+    addManual,
+    resolveLeftover,
     clear,
     finish,
   } = useGroceryList();
@@ -169,7 +176,7 @@ export function GroceryList() {
       )}
       {/* Sits below the walk and above the total: it only has anything to say
           once lines have been checked off, which is the end of a shop. */}
-      <LeftoverProposals />
+      <LeftoverProposals proposals={pendingLeftovers} onResolve={resolveLeftover} />
       {/* Priced over the active half only: a flagged line is already bought, so
           folding it into "what this trip costs" would double-count it. */}
       <PricingSummary lines={active} />
@@ -200,7 +207,7 @@ export function GroceryList() {
         )}
         {adding && (
           <div className="mb-2">
-            <GroceryAddItem />
+            <GroceryAddItem recent={recentItems} onAdd={addManual} />
           </div>
         )}
         <div className="flex items-center gap-2">
