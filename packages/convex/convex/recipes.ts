@@ -99,6 +99,24 @@ export const _cookingMethodInSync: Equals<
   CookingMethod
 > = true;
 
+/**
+ * A non-2xx from recipe-service, carrying the status.
+ *
+ * The message is unchanged, so every existing caller keeps behaving exactly as
+ * it did; what the status adds is the one distinction a client genuinely has to
+ * make — "this recipe does not exist" is a state to render, while "the service
+ * is down" is an error to report. Only `get` reads it so far.
+ */
+export class RecipeServiceError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "RecipeServiceError";
+    this.status = status;
+  }
+}
+
 // Calls recipe-service as Convex: proves identity with the shared secret and
 // forwards the authenticated user id. Never reachable from the browser.
 // When a `traceparent` is supplied it rides along so the Go span (BL-0027)
@@ -125,7 +143,11 @@ export async function recipeServiceFetch<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`recipe-service ${method} ${path} failed: ${res.status}`);
+  if (!res.ok)
+    throw new RecipeServiceError(
+      res.status,
+      `recipe-service ${method} ${path} failed: ${res.status}`,
+    );
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -243,6 +265,43 @@ export const list = action({
     return withSpan("recipes.list", traceCtx, (traceparent) =>
       recipeServiceFetch<Recipe[]>(userId, "GET", "/recipes", undefined, traceparent),
     );
+  },
+});
+
+/**
+ * One recipe by id, for a screen that opens a single recipe (BL-0061).
+ *
+ * The web client never needed this: its recipe rows expand in place inside a
+ * list it already holds. A native cooking screen is reached by id — from the
+ * week strip, and later from a deep link — so fetching the whole library to
+ * find one recipe would be the wrong shape on the connection least able to
+ * afford it.
+ *
+ * A recipe that is gone resolves to `null` rather than throwing. The plan can
+ * outlive the recipe it points at (deletion reconciles the basket best-effort,
+ * and another device may have done the deleting), so "no longer in your
+ * library" is an ordinary state for this screen to render — not a failure to
+ * report as one.
+ */
+export const get = action({
+  args: { id: v.string(), traceCtx: v.optional(v.string()) },
+  handler: async (ctx, { id, traceCtx }): Promise<Recipe | null> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    return withSpan("recipes.get", traceCtx, async (traceparent) => {
+      try {
+        return await recipeServiceFetch<Recipe>(
+          userId,
+          "GET",
+          `/recipes/${id}`,
+          undefined,
+          traceparent,
+        );
+      } catch (err) {
+        if (err instanceof RecipeServiceError && err.status === 404) return null;
+        throw err;
+      }
+    });
   },
 });
 
