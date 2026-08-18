@@ -1,7 +1,6 @@
 import { api } from "@pantry/convex/api";
-import { PREP_WINDOW_LABELS, toISODate } from "@pantry/core";
-import { useAsyncData } from "@pantry/core/react";
-import { useCallback } from "react";
+import { PREP_WINDOW_LABELS } from "@pantry/core";
+import { useRecipePrep } from "@pantry/core/data";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { PrepSourceBadge } from "./PrepSourceBadge";
 
@@ -14,20 +13,15 @@ import { PrepSourceBadge } from "./PrepSourceBadge";
  * have nowhere to be stored. Check-off lives on Home, where a task is attached
  * to an actual dinner.
  *
- * The derivation still needs *a* date to resolve windows against, so today is
- * passed and the resulting dates are deliberately not rendered.
+ * Presentation over `useRecipePrep()`, which the native recipe screen renders
+ * from too (BL-0061) — so the two clients cannot disagree about what a recipe
+ * needs doing to it beforehand.
  */
 export function RecipePrep({ recipeId }: { recipeId: string }) {
   const forRecipe = useTracedAction(api.prepTasks.forRecipe, "prepTasks.forRecipe");
-  const cookDate = toISODate(new Date());
-  const load = useCallback(
-    () => forRecipe({ recipeId, cookDate }),
-    [forRecipe, recipeId, cookDate],
-  );
-  const { data, loading } = useAsyncData(load);
+  const { tasks, loading } = useRecipePrep(recipeId, { forRecipe });
 
   if (loading) return <p className="text-xs text-muted">Checking for prep…</p>;
-  const tasks = data?.tasks ?? [];
   if (tasks.length === 0) return null;
 
   return (

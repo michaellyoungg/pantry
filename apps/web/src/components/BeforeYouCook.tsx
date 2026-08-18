@@ -1,6 +1,8 @@
+import { api } from "@pantry/convex/api";
 import { dueByToday, formatDueOn, stateKey } from "@pantry/core";
+import { usePlanPrep } from "@pantry/core/data";
 import { useAsyncAction } from "@pantry/core/react";
-import { usePlanPrep } from "../lib/usePlanPrep";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { PrepSourceBadge } from "./PrepSourceBadge";
 
@@ -17,7 +19,8 @@ import { PrepSourceBadge } from "./PrepSourceBadge";
  * next action, and an empty prep card would compete with it for no reason.
  */
 export function BeforeYouCook() {
-  const { meals, today, done, setDone, loading, error } = usePlanPrep();
+  const forPlan = useTracedAction(api.prepTasks.forPlan, "prepTasks.forPlan");
+  const { meals, today, done, setDone, loading, error } = usePlanPrep({ forPlan });
   const act = useAsyncAction();
 
   const due = dueByToday(meals, today);

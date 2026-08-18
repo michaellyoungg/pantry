@@ -14,10 +14,10 @@ import {
   unscheduledItems,
 } from "@pantry/core";
 import { removeFromBasketOptimistic } from "@pantry/core/convex";
+import { usePlanPrep } from "@pantry/core/data";
 import { useAsyncAction } from "@pantry/core/react";
 import { TEST_IDS } from "@pantry/core/testing";
 import { useMutation, useQuery } from "convex/react";
-import { usePlanPrep } from "../lib/usePlanPrep";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { MealPrepBadge } from "./MealPrepBadge";
@@ -70,7 +70,8 @@ export function WeekPlan() {
 
   // Derived lead-time prep for the planned week (BL-0042), keyed by recipe: the
   // basket holds one row per recipe, so a recipe id identifies a meal.
-  const { meals: prepMeals, done: prepDone } = usePlanPrep();
+  const forPlan = useTracedAction(api.prepTasks.forPlan, "prepTasks.forPlan");
+  const { meals: prepMeals, done: prepDone } = usePlanPrep({ forPlan });
   const prepByRecipe = new Map(prepMeals.map((m) => [m.recipeId, m]));
 
   const week = planWeek(items);
