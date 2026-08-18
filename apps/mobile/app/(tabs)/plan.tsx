@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { PlanScreen } from "../../src/plan/PlanScreen";
 
-export default function PlanScreen() {
-  return <PlaceholderScreen surface="plan" title="Plan" portedBy="BL-0064" />;
+export default function PlanRoute() {
+  return <PlanScreen />;
 }

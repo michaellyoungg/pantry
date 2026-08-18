@@ -101,7 +101,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0061](BL-0061-native-cooking-mode.md) | Native cooking mode (recipe detail, steps, Before You Cook, prep) | done | mobile | M |
 | [BL-0062](BL-0062-native-home-dashboard.md) | Native home dashboard | done | mobile | M |
 | [BL-0063](BL-0063-native-recipes-browse.md) | Native recipes browse (list, catalog, kitchen, filters, add funnel) | proposed | mobile | L |
-| [BL-0064](BL-0064-native-week-planner.md) | Native week planner | in-progress | mobile | L |
+| [BL-0064](BL-0064-native-week-planner.md) | Native week planner | done | mobile | L |
 | [BL-0065](BL-0065-native-nutrition-surfaces.md) | Native nutrition surfaces (facts panel, goals, plan rollup, recipe fit) | proposed | mobile | L |
 | [BL-0066](BL-0066-native-settings-preferences.md) | Native settings and preferences (taste, avoid list, equipment, household) | proposed | mobile | M |
 | [BL-0067](BL-0067-native-history.md) | Native history (habit review) | proposed | mobile | M |
