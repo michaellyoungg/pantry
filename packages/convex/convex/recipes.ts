@@ -4,6 +4,7 @@ import type {
   EquipmentDef,
   GroceryLine,
   Ingredient,
+  NormalizationLookupResponse,
   NutritionEstimate,
   PrepTaskInput,
   PrepWindow,
@@ -152,14 +153,6 @@ export async function recipeServiceFetch<T>(
   return (await res.json()) as T;
 }
 
-/** One entry of POST /normalization/lookup. `shelfLifeDays` is absent when unknown. */
-export interface NormalizedItem {
-  canonicalItem: string;
-  display: string;
-  aisle: string;
-  shelfLifeDays?: number;
-}
-
 /**
  * Resolve approximate shelf life for a set of canonical items, as
  * canonicalItem -> days (BL-0029). Items recipe-service doesn't recognize are
@@ -172,7 +165,7 @@ async function lookupShelfLife(
   traceparent?: string,
 ): Promise<Record<string, number>> {
   if (items.length === 0) return {};
-  const res = await recipeServiceFetch<{ items: NormalizedItem[] }>(
+  const res = await recipeServiceFetch<NormalizationLookupResponse>(
     userId,
     "POST",
     "/normalization/lookup",

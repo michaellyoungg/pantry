@@ -67,7 +67,9 @@ function rec(over: Partial<Recommendation> = {}): Recommendation {
     score: 0.8,
     reasons: ["Uses things you cook a lot"],
     have: ["garlic"],
-    missing: [{ canonicalItem: "coconut milk", display: "Coconut milk" }],
+    missing: [{ canonicalItem: "coconut milk", display: "Coconut milk", staple: false }],
+    nutritionFit: null,
+    nutritionUnverified: [],
     ...over,
   };
 }

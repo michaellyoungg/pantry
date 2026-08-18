@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { CostEstimate, GroceryLine } from "@pantry/types";
+import type { CostEstimate, GroceryLine, PricingLine } from "@pantry/types";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
@@ -15,9 +15,6 @@ import { recipeServiceFetch } from "./recipes";
  * snapshot), so caching it in a table would buy one avoided round trip in
  * exchange for invalidating on every list edit, check-off and regeneration.
  */
-
-/** The subset of a grocery line recipe-service needs to price it. */
-type PricingLine = Pick<GroceryLine, "canonicalItem" | "item" | "unit" | "quantity">;
 
 async function estimate(userId: string, lines: PricingLine[], traceparent?: string) {
   return recipeServiceFetch<CostEstimate>(

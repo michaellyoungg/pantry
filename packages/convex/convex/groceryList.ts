@@ -1,10 +1,10 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { GroceryLine } from "@pantry/types";
+import type { GroceryLine, NormalizationLookupResponse } from "@pantry/types";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { markUseItUp, removeAutoRow, upsertFromCheckoff } from "./pantry";
-import { type NormalizedItem, recipeServiceFetch } from "./recipes";
+import { recipeServiceFetch } from "./recipes";
 
 // How many "recent" chips the manual-add field offers. Enough to be useful on a
 // phone without turning the add field into a second list to read.
@@ -434,7 +434,7 @@ export const addManualItem = action({
 
     // Unknown items still normalize — they pass through lowercased and land in
     // the catch-all aisle — so a miss here means the service call itself failed.
-    const res = await recipeServiceFetch<{ items: NormalizedItem[] }>(
+    const res = await recipeServiceFetch<NormalizationLookupResponse>(
       userId,
       "POST",
       "/normalization/lookup",

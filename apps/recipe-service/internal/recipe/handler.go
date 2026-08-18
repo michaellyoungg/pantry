@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -45,32 +47,49 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 		opt(h)
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", traced(h.healthz))
-	mux.HandleFunc("POST /recipes", traced(h.createRecipe))
-	mux.HandleFunc("GET /recipes", traced(h.listRecipes))
-	mux.HandleFunc("GET /recipes/{id}", traced(h.getRecipe))
-	mux.HandleFunc("GET /recipes/{id}/nutrition", traced(h.recipeNutrition))
-	mux.HandleFunc("GET /catalog", traced(h.listCatalog))
-	mux.HandleFunc("POST /catalog/{id}/add", traced(h.addFromCatalog))
-	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
-	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
-	mux.HandleFunc("DELETE /users/me/recipes", traced(h.deleteUserRecipes))
-	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
-	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
-	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
-	mux.HandleFunc("POST /normalization/lookup", traced(h.normalizationLookup))
-	mux.HandleFunc("POST /normalization/avoid", traced(h.normalizationAvoid))
-	mux.HandleFunc("GET /normalization/coverage", traced(h.normalizationCoverage))
-	mux.HandleFunc("POST /equipment/match", traced(h.equipmentMatch))
-	mux.HandleFunc("POST /pricing/estimate", traced(h.pricingEstimate))
-	mux.HandleFunc("POST /nutrition/estimate", traced(h.nutritionEstimate))
-	mux.HandleFunc("POST /recommendations/pantry", traced(h.recommendPantry))
-	mux.HandleFunc("POST /recommendations/discover", traced(h.recommendDiscover))
-	mux.HandleFunc("POST /prep-tasks", traced(h.prepTasks))
+	for pattern, handle := range h.routes() {
+		mux.HandleFunc(pattern, traced(handle))
+	}
 
 	// otelhttp sits OUTSIDE requireService so rejected requests are traced too —
 	// an auth failure is precisely when you want to see the request.
 	return otelhttp.NewHandler(requireService(secret, mux), "recipe-service")
+}
+
+// routes is the whole HTTP surface, as data rather than as a run of
+// registration calls, so RoutePatterns can list it without a running server.
+// contract/openapi.yaml is checked against that list (BL-0007), which is what
+// stops an endpoint from being served without being written down.
+func (h *handlers) routes() map[string]http.HandlerFunc {
+	return map[string]http.HandlerFunc{
+		"GET /healthz":                   h.healthz,
+		"POST /recipes":                  h.createRecipe,
+		"GET /recipes":                   h.listRecipes,
+		"GET /recipes/{id}":              h.getRecipe,
+		"GET /recipes/{id}/nutrition":    h.recipeNutrition,
+		"GET /catalog":                   h.listCatalog,
+		"POST /catalog/{id}/add":         h.addFromCatalog,
+		"GET /equipment":                 h.listEquipment,
+		"DELETE /recipes/{id}":           h.deleteRecipe,
+		"DELETE /users/me/recipes":       h.deleteUserRecipes,
+		"PUT /recipes/{id}":              h.updateRecipe,
+		"POST /recipes/import":           h.importRecipe,
+		"POST /grocery-list":             h.groceryList,
+		"POST /normalization/lookup":     h.normalizationLookup,
+		"POST /normalization/avoid":      h.normalizationAvoid,
+		"GET /normalization/coverage":    h.normalizationCoverage,
+		"POST /equipment/match":          h.equipmentMatch,
+		"POST /pricing/estimate":         h.pricingEstimate,
+		"POST /nutrition/estimate":       h.nutritionEstimate,
+		"POST /recommendations/pantry":   h.recommendPantry,
+		"POST /recommendations/discover": h.recommendDiscover,
+		"POST /prep-tasks":               h.prepTasks,
+	}
+}
+
+// RoutePatterns lists every method+path pattern the router registers, sorted.
+func RoutePatterns() []string {
+	return slices.Sorted(maps.Keys((&handlers{}).routes()))
 }
 
 type handlers struct {

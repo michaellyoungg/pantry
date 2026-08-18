@@ -31,6 +31,10 @@ A hybrid, multi-service monorepo:
 - **`convex/`** — self-hosted Convex. User-centric reactive data: profile,
   preferences, the meal basket, and the live grocery list. Stores references to
   recipe ids only — never recipe bodies.
+- **`contract/`** — `openapi.yaml`, the single source of truth for the
+  recipe-service HTTP contract. The TypeScript wire types are generated from it
+  and the Go server structs are checked against it, so the two halves cannot
+  drift silently. See [`contract/README.md`](contract/README.md).
 - **`packages/core`** — the headless domain layer: planner bucketing, aisle
   grouping, the import-review draft, and the shared async/optimistic hooks. No
   React in the pure entry point, no DOM anywhere — so a second client can reuse

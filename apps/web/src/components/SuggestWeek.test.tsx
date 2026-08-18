@@ -32,7 +32,13 @@ function candidate(
     score,
     reasons: [],
     have,
-    missing: missing.map((canonicalItem) => ({ canonicalItem, display: canonicalItem })),
+    missing: missing.map((canonicalItem) => ({
+      canonicalItem,
+      display: canonicalItem,
+      staple: false,
+    })),
+    nutritionFit: null,
+    nutritionUnverified: [],
   };
 }
 
