@@ -1,7 +1,13 @@
-import type { NutritionEstimate, NutritionRecipeCoverage } from "@pantry/types";
+import type { NutritionEstimate, NutritionRecipeCoverage, NutritionTarget } from "@pantry/types";
 import { describe, expect, it } from "vitest";
 import { NUTRITION_COVERAGE_THRESHOLD } from "./nutrition";
-import { planNutritionSignature, rollUpWeekNutrition, summarizeNutrition } from "./nutritionRollup";
+import {
+  planGoalStatus,
+  planNutritionSignature,
+  planNutritionView,
+  rollUpWeekNutrition,
+  summarizeNutrition,
+} from "./nutritionRollup";
 
 function recipe(over: Partial<NutritionRecipeCoverage> = {}): NutritionRecipeCoverage {
   return {
@@ -306,5 +312,120 @@ describe("planNutritionSignature", () => {
     const a = item();
     const b = item({ _id: "b2", recipeId: "r2", weekday: 4 });
     expect(planNutritionSignature([a, b])).toBe(planNutritionSignature([b, a]));
+  });
+});
+
+function target(over: Partial<NutritionTarget> = {}): NutritionTarget {
+  return { nutrientId: "1003", operator: ">=", value: 30, period: "day", active: true, ...over };
+}
+
+describe("planGoalStatus", () => {
+  const week = { days: [{ weekday: 0, estimate: estimate() }], week: estimate() };
+
+  it("draws nothing when no goal is written against a day or a week", () => {
+    expect(planGoalStatus([], week)).toBeNull();
+    // A per-meal goal belongs to a recipe, not to a plan.
+    expect(planGoalStatus([target({ period: "meal" })], week)).toBeNull();
+    expect(planGoalStatus([target({ active: false })], week)).toBeNull();
+  });
+
+  it("evaluates only the windows the user actually uses", () => {
+    const status = planGoalStatus([target({ period: "day" })], week);
+
+    expect(status?.week).toBeNull();
+    expect(status?.days).toEqual([
+      { weekday: 0, label: "Monday", evaluations: [expect.objectContaining({ status: "met" })] },
+    ]);
+  });
+
+  it("judges the week against the week's own estimate, not a sum of days", () => {
+    const status = planGoalStatus([target({ period: "week", value: 500 })], {
+      days: [{ weekday: 0, estimate: estimate() }],
+      week: estimate({ nutrients: { "1003": { nutrientId: "1003", amount: 600, unit: "g" } } }),
+    });
+
+    expect(status?.days).toBeNull();
+    expect(status?.week).toEqual([expect.objectContaining({ status: "met", actual: 600 })]);
+  });
+
+  // A day holding a recipe we could not read contributes nothing to the totals,
+  // and nothing looks exactly like zero. It must not come back "met".
+  it("reports an unreadable day as unchecked rather than as within a cap", () => {
+    const status = planGoalStatus([target({ operator: "<=", value: 10 })], {
+      days: [
+        {
+          weekday: 2,
+          estimate: estimate({
+            coverage: { resolvedMassFraction: 0.2, resolvedCount: 1, totalCount: 4 },
+          }),
+        },
+      ],
+      week: null,
+    });
+
+    expect(status?.days?.[0]).toMatchObject({
+      weekday: 2,
+      label: "Wednesday",
+      evaluations: [expect.objectContaining({ status: "unknown", reason: "low-coverage" })],
+    });
+  });
+
+  // A rollup that failed still owes the user an answer about every goal.
+  it("reports every goal as unknown when there is no estimate at all", () => {
+    const status = planGoalStatus([target({ period: "week" })], { days: [], week: null });
+
+    expect(status?.week).toEqual([expect.objectContaining({ status: "unknown" })]);
+  });
+});
+
+describe("planNutritionView", () => {
+  const data = {
+    days: [
+      { weekday: 0, estimate: estimate() },
+      { weekday: 3, estimate: estimate() },
+    ],
+    week: estimate(),
+  };
+
+  it("keeps only the days with food on them, in weekday order", () => {
+    const view = planNutritionView(data);
+
+    expect(view.days.map((d) => d.fullLabel)).toEqual(["Monday", "Thursday"]);
+    expect(view.rollup.plannedDays).toBe(2);
+  });
+
+  // A day is the period the Daily Value is defined against, so the day's own
+  // total is the figure — no divisor.
+  it("builds each showable day a Nutrition Facts panel from its own total", () => {
+    const view = planNutritionView(data);
+    const calories = view.days[0].factsRows.find((r) => r.id === "1008");
+
+    expect(calories?.amount?.amount).toBe(900);
+  });
+
+  // A quasi-official label over figures the rest of the app has agreed not to
+  // trust is the artifact this whole track exists to prevent.
+  it("gives no panel to a day it will not put a number on", () => {
+    const view = planNutritionView({
+      days: [
+        {
+          weekday: 0,
+          estimate: estimate({
+            coverage: { resolvedMassFraction: 0.2, resolvedCount: 1, totalCount: 4 },
+          }),
+        },
+      ],
+      week: null,
+    });
+
+    expect(view.days[0].summary.kind).toBe("unavailable");
+    expect(view.days[0].factsRows).toEqual([]);
+  });
+
+  it("scores the panels and the goal chips off the same one response", () => {
+    const view = planNutritionView(data, [target({ period: "day" })]);
+
+    expect(view.days[0].factsRows.find((r) => r.id === "1003")?.hasTarget).toBe(true);
+    expect(view.goals?.days).toHaveLength(2);
   });
 });

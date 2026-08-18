@@ -15,6 +15,38 @@ import type { NutrientAmount, NutritionTarget, NutritionTargetPeriod } from "@pa
  * DOM.
  */
 
+/** The panel's own name, and its accessible label. */
+export const NUTRITION_FACTS_TITLE = "Nutrition Facts";
+
+/**
+ * What an unestimated figure prints as, and what the second footnote is about.
+ *
+ * Never `0`. A food matched without a cholesterol figure is not a food with no
+ * cholesterol, and on a panel that looks quasi-official that is the most
+ * damaging lie available to us.
+ */
+export const NUTRITION_FACTS_NOT_ESTIMATED = "—";
+
+/**
+ * The footnote, verbatim.
+ *
+ * Three sentences doing three different jobs, and none of them is decoration.
+ * The first is the standard 2,000-calorie sentence that makes the right-hand
+ * column mean something. The second is load-bearing for the honesty rule this
+ * whole nutrition track runs on: a panel that looks quasi-official must say out
+ * loud that a dash is absent data and not a measured zero. The third refuses the
+ * authority the layout borrows — these are estimates from parsed ingredient text
+ * matched against USDA food data, not a lab assay, and not a regulated label.
+ *
+ * Shared rather than restated per client (BL-0065): a disclaimer that is only
+ * on one of them is a disclaimer the other is missing.
+ */
+export const NUTRITION_FACTS_FOOTNOTES = [
+  "The % Daily Value tells you how much a nutrient in a serving contributes to a daily diet. 2,000 calories a day is used for general nutrition advice.",
+  "— means we could not estimate that nutrient. It is not zero.",
+  "Estimated from your ingredient list using USDA food data. This is not a regulated Nutrition Facts label.",
+] as const;
+
 /** A reference amount, with the unit it is stated in. */
 export interface DailyValue {
   amount: number;

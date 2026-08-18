@@ -1,17 +1,22 @@
-import { formatNutrientAmount, nutrientMeta } from "@pantry/core";
 import type {
   NutritionTarget,
   NutritionTargetEvaluation,
+  NutritionTargetPeriod,
   NutritionTargetStatus,
   RecommendationUnverifiedConstraint,
 } from "@pantry/types";
+import { formatNutrientAmount, nutrientMeta } from "./nutrition";
 
 /**
  * Turning goal evaluations into something a screen can show (BL-0038).
  *
  * Pure, so the rules that decide what a user is told about their own health
  * data are tested directly rather than through the DOM. The evaluation itself
- * lives in `@pantry/core`; this is only how it reads.
+ * lives in `nutritionTargets.ts`; this is only how it reads.
+ *
+ * Lived in `apps/web/src/lib` until BL-0065 gave the native client the same
+ * surfaces. Every word a user reads about their own goals is here rather than
+ * in either view, so the two clients cannot describe one evaluation differently.
  */
 
 const OPERATOR_SYMBOL: Record<NutritionTarget["operator"], string> = {
@@ -117,6 +122,69 @@ export function goalSummary(evaluations: readonly NutritionTargetEvaluation[]): 
   const judged = evaluations.length - unknown;
   const met = evaluations.filter((e) => e.status === "met").length;
   return { met, judged, unknown, onTrack: judged > 0 && unknown === 0 && met === judged };
+}
+
+/**
+ * The three things a set of goals can say about one thing you might eat.
+ *
+ * `unknown` is a verdict, not a missing one. A recipe with one met goal and one
+ * we could not measure is not a fit — calling it one would let the nutrient we
+ * failed to measure pass as within limits.
+ */
+export type GoalVerdict = "fits" | "unknown" | "misses";
+
+/** What each verdict says out loud. One wording, both clients. */
+export const GOAL_VERDICT_LABELS: Record<GoalVerdict, string> = {
+  fits: "Fits your goals",
+  unknown: "Can't tell if this fits",
+  misses: "Doesn't fit your goals",
+};
+
+/** Reads a summary as a single verdict. */
+export function goalVerdict(summary: GoalSummary): GoalVerdict {
+  if (summary.onTrack) return "fits";
+  return summary.unknown > 0 ? "unknown" : "misses";
+}
+
+/**
+ * The windows a goal can be written against, in editor order, with both the
+ * word the picker shows ("day") and the heading a group of them gets
+ * ("Per day"). Shared because the editor exists on both clients and the two
+ * must not offer different windows.
+ */
+export const GOAL_PERIODS: ReadonlyArray<{
+  value: NutritionTargetPeriod;
+  label: string;
+  heading: string;
+}> = [
+  { value: "day", label: "day", heading: "Per day" },
+  { value: "week", label: "week", heading: "Per week" },
+  { value: "meal", label: "meal", heading: "Per meal" },
+];
+
+/** The comparisons a goal can make, worded rather than symbolic. */
+export const GOAL_OPERATORS: ReadonlyArray<{
+  value: NutritionTarget["operator"];
+  label: string;
+}> = [
+  { value: ">=", label: "at least" },
+  { value: "<=", label: "at most" },
+  { value: "==", label: "about" },
+];
+
+/**
+ * The typed amount as a number the mutation will accept, or `null`.
+ *
+ * A goal with no number is not a goal, and `Number("")` is 0 — which would
+ * store "at most 0 mg of sodium" for someone who tabbed past the field. The
+ * check is here rather than in either editor so both refuse the same inputs,
+ * and so the server's own `assertValue` is never the first thing to notice.
+ */
+export function parseGoalValue(value: string): number | null {
+  if (value.trim() === "") return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  return amount;
 }
 
 /**

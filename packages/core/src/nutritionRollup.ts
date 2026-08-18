@@ -1,10 +1,17 @@
-import type { NutritionEstimate, NutritionRecipeCoverage } from "@pantry/types";
+import type {
+  NutritionEstimate,
+  NutritionRecipeCoverage,
+  NutritionTarget,
+  NutritionTargetEvaluation,
+} from "@pantry/types";
 import {
   NUTRITION_COVERAGE_THRESHOLD,
   type NutrientRow,
   nutrientRows,
   unresolvedItems,
 } from "./nutrition";
+import { type NutritionFactsRow, nutritionFactsLabel } from "./nutritionFacts";
+import { evaluateTargets } from "./nutritionTargets";
 import type { PlannedItem } from "./planner";
 import { DAY_FULL, DAYS } from "./week";
 
@@ -184,5 +191,119 @@ export function rollUpWeekNutrition(data: PlanNutrition): WeekNutritionRollup {
       week.kind === "estimate" && plannedDays > 0
         ? nutrientRows(data.week?.nutrients, plannedDays)
         : [],
+  };
+}
+
+/** One planned day's goals, named. */
+export interface PlanDayGoals {
+  weekday: number;
+  /** Full label, e.g. "Monday". */
+  label: string;
+  evaluations: NutritionTargetEvaluation[];
+}
+
+/**
+ * How the planned week is doing against the user's goals (BL-0038).
+ *
+ * It computes no totals of its own. The day and week vectors come from the plan
+ * rollup (BL-0037), which is also what guarantees the two surfaces agree: a day
+ * the rollup will not put a number on is a day this reports as unchecked,
+ * because both consult the same coverage rule.
+ *
+ * That agreement is the whole point. A day holding a recipe we could not read
+ * contributes nothing to the totals, and nothing looks exactly like zero — so
+ * without the coverage rule a cholesterol cap would come back "met" on the one
+ * day we knew least about.
+ */
+export interface PlanGoalStatus {
+  /** Week-window goals, or `null` when the user has set none. */
+  week: NutritionTargetEvaluation[] | null;
+  /**
+   * Day-window goals, one entry per day the plan has food on, or `null` when
+   * the user has set none. Seven rows of "nothing planned" is noise, and an
+   * empty day is not a goal you failed.
+   */
+  days: PlanDayGoals[] | null;
+}
+
+function vectorFor(estimate: NutritionEstimate | null | undefined) {
+  return estimate ? { nutrients: estimate.nutrients, coverage: estimate.coverage } : null;
+}
+
+/**
+ * Evaluates the week's goals, or `null` when there is no goal on either window
+ * and the surface has nothing to draw.
+ */
+export function planGoalStatus(
+  targets: readonly NutritionTarget[],
+  data: PlanNutrition,
+): PlanGoalStatus | null {
+  const hasDayGoals = targets.some((t) => t.active && t.period === "day");
+  const hasWeekGoals = targets.some((t) => t.active && t.period === "week");
+  if (!hasDayGoals && !hasWeekGoals) return null;
+
+  return {
+    week: hasWeekGoals ? evaluateTargets(targets, vectorFor(data.week), "week") : null,
+    days: hasDayGoals
+      ? data.days.map((day) => ({
+          weekday: day.weekday,
+          label: DAY_FULL[day.weekday],
+          evaluations: evaluateTargets(targets, vectorFor(day.estimate), "day"),
+        }))
+      : null,
+  };
+}
+
+/** One day of the plan, with everything its row and its panel need. */
+export interface PlanNutritionDay extends DayNutritionSummary {
+  /**
+   * The Nutrition Facts rows for this day, empty unless the day's summary is
+   * showable. Only a day we would put a number on gets a panel: a
+   * quasi-official label over figures the rest of the app has agreed not to
+   * trust is the artifact this whole track exists to prevent.
+   *
+   * A day is the period the Daily Value is defined against, so the day's own
+   * total is the figure — no divisor, and no per-serving idea here.
+   */
+  factsRows: NutritionFactsRow[];
+}
+
+/** Everything the plan's nutrition surface renders, decided in one place. */
+export interface PlanNutritionView {
+  rollup: WeekNutritionRollup;
+  /** The days with food on them, in weekday order. */
+  days: PlanNutritionDay[];
+  goals: PlanGoalStatus | null;
+}
+
+/**
+ * Reads one rollup response into what a client may draw (BL-0065).
+ *
+ * The goal status is computed from the same response as the totals, which is
+ * what keeps the two halves of the surface from ever disagreeing about whether
+ * a day is knowable.
+ */
+export function planNutritionView(
+  data: PlanNutrition,
+  targets: readonly NutritionTarget[] = [],
+): PlanNutritionView {
+  const rollup = rollUpWeekNutrition(data);
+  const estimateByDay = new Map(data.days.map((d) => [d.weekday, d.estimate]));
+
+  return {
+    rollup,
+    days: rollup.days
+      .filter((day) => day.summary.kind !== "empty")
+      .map((day) => {
+        const estimate = estimateByDay.get(day.weekday);
+        return {
+          ...day,
+          factsRows:
+            day.summary.kind === "estimate" && estimate
+              ? nutritionFactsLabel(estimate.nutrients, { targets, period: "day" })
+              : [],
+        };
+      }),
+    goals: planGoalStatus(targets, data),
   };
 }
