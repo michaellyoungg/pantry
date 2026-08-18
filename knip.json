@@ -16,6 +16,7 @@
         "app/**/*.{ts,tsx}",
         "metro.config.js",
         "metro.workspace-source.js",
+        "metro.e2e-source-ext.js",
         "scripts/*.mjs"
       ],
       "metro": false,
