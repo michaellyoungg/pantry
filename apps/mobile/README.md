@@ -107,6 +107,10 @@ behavioural weight belongs.
 
 Selectors are `testID`s, and the scheme is a contract:
 [`docs/mobile-testid-conventions.md`](../../docs/mobile-testid-conventions.md).
+It lives in `@pantry/core/testing` (BL-0071), which the web client reads too —
+`src/testing/testIDs.ts` is a re-export, so screens keep importing it from
+there. The same strings are that client's `data-testid` values, which is what
+lets a Maestro flow and a Playwright spec describe one journey.
 
 Device e2e (Maestro) is [BL-0072](../../docs/backlog/BL-0072-maestro-e2e-harness.md)
 and runs nightly, not as a merge gate.
