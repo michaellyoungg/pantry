@@ -16,7 +16,10 @@
       "Bake on a sheet pan for 10 minutes, then broil for 2 more until the edges brown.",
       "Cut into fingers and serve while the butter is still bubbling."
     ],
-    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "sheet_pan", "required": true }
+    ],
     "methods": ["bake"],
     "cuisine": "italian",
     "totalMinutes": 20,
@@ -68,7 +71,10 @@
       "Slide onto the stone and bake 7-10 minutes until the crust is blistered.",
       "Finish with torn basil and a drizzle of olive oil."
     ],
-    "equipment": [{ "id": "oven", "required": true }, { "id": "pizza_stone", "required": false }],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "pizza_stone", "required": false }
+    ],
     "methods": ["bake"],
     "cuisine": "italian",
     "totalMinutes": 45,
@@ -92,7 +98,10 @@
       "Tear the romaine into a bowl and toss with just enough dressing to coat.",
       "Add the croutons and most of the parmesan, toss once more, and finish with the rest."
     ],
-    "equipment": [{ "id": "mixing_bowl", "required": true }, { "id": "whisk", "required": true }],
+    "equipment": [
+      { "id": "mixing_bowl", "required": true },
+      { "id": "whisk", "required": true }
+    ],
     "methods": ["no_cook"],
     "cuisine": "american",
     "totalMinutes": 15,
@@ -140,7 +149,10 @@
       "Spread on a sheet pan in a single layer — crowding steams instead of roasts.",
       "Roast 35 minutes, turning once, until the edges are properly browned."
     ],
-    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "sheet_pan", "required": true }
+    ],
     "methods": ["roast"],
     "totalMinutes": 40,
     "tags": ["vegan", "vegetarian", "dairy-free", "gluten-free", "side", "budget"]
@@ -259,7 +271,10 @@
       "Add the wine and let it cook away, then add stock a ladle at a time, stirring, for about 18 minutes.",
       "Stir the mushrooms, remaining butter and parmesan through off the heat and let it rest 2 minutes."
     ],
-    "equipment": [{ "id": "saucepan", "required": true }, { "id": "stockpot", "required": true }],
+    "equipment": [
+      { "id": "saucepan", "required": true },
+      { "id": "stockpot", "required": true }
+    ],
     "methods": ["saute", "boil"],
     "cuisine": "italian",
     "totalMinutes": 40,
@@ -409,7 +424,10 @@
       "Put everything in the slow cooker with the bay leaves and cook on low for 8 hours.",
       "Shred with two forks and let the meat sit in its juices before serving."
     ],
-    "equipment": [{ "id": "slow_cooker", "required": true }, { "id": "blender", "required": true }],
+    "equipment": [
+      { "id": "slow_cooker", "required": true },
+      { "id": "blender", "required": true }
+    ],
     "methods": ["slow_cook"],
     "cuisine": "mexican",
     "totalMinutes": 495,
@@ -467,7 +485,10 @@
       "Add the rice and press it against the pan to fry rather than stir constantly.",
       "Return the egg, add the peas, soy sauce and sesame oil, and toss through the green onions."
     ],
-    "equipment": [{ "id": "wok", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "equipment": [
+      { "id": "wok", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
     "methods": ["fry"],
     "cuisine": "chinese",
     "totalMinutes": 25,
@@ -495,7 +516,10 @@
       "Stir-fry the broccoli with a splash of water and a lid for 3 minutes until bright green.",
       "Add the garlic and ginger, return the beef, pour in the sauce and toss until it thickens and coats. Serve over rice."
     ],
-    "equipment": [{ "id": "wok", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "equipment": [
+      { "id": "wok", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
     "methods": ["fry"],
     "cuisine": "chinese",
     "totalMinutes": 30,
@@ -941,7 +965,10 @@
       "Ladle into oven-safe bowls, float a slice of toasted baguette on each, and pile on the cheese.",
       "Broil until the cheese is bubbling and browned in patches."
     ],
-    "equipment": [{ "id": "dutch_oven", "required": true }, { "id": "oven", "required": true }],
+    "equipment": [
+      { "id": "dutch_oven", "required": true },
+      { "id": "oven", "required": true }
+    ],
     "methods": ["saute", "boil", "bake"],
     "cuisine": "french",
     "totalMinutes": 95,
@@ -1226,7 +1253,10 @@
       "Grill 3 minutes a side, adding cheese for the last minute under a cover.",
       "Toast the buns on the grill and build."
     ],
-    "equipment": [{ "id": "grill", "required": true }, { "id": "tongs", "required": true }],
+    "equipment": [
+      { "id": "grill", "required": true },
+      { "id": "tongs", "required": true }
+    ],
     "methods": ["grill"],
     "cuisine": "american",
     "totalMinutes": 25,
@@ -1523,7 +1553,10 @@
       "Slide onto a plate, invert back into the pan, and cook the other side.",
       "The centre should stay just barely soft. Serve at room temperature."
     ],
-    "equipment": [{ "id": "skillet", "required": true }, { "id": "mixing_bowl", "required": true }],
+    "equipment": [
+      { "id": "skillet", "required": true },
+      { "id": "mixing_bowl", "required": true }
+    ],
     "methods": ["fry"],
     "cuisine": "spanish",
     "totalMinutes": 50,
@@ -1616,7 +1649,10 @@
       "Add the garlic and ginger, then the soy and hoisin with a splash of water.",
       "Return the tofu, toss once, and serve over brown rice so it stays crisp."
     ],
-    "equipment": [{ "id": "wok", "required": true }, { "id": "saucepan", "required": true }],
+    "equipment": [
+      { "id": "wok", "required": true },
+      { "id": "saucepan", "required": true }
+    ],
     "methods": ["fry"],
     "cuisine": "chinese",
     "totalMinutes": 40,
@@ -1641,7 +1677,10 @@
       "Add the sausage, peppers, onion and garlic, tossed with oil and seasoning.",
       "Roast 25 minutes more, turning once, until the sausages are browned and the peppers are collapsing."
     ],
-    "equipment": [{ "id": "oven", "required": true }, { "id": "sheet_pan", "required": true }],
+    "equipment": [
+      { "id": "oven", "required": true },
+      { "id": "sheet_pan", "required": true }
+    ],
     "methods": ["roast"],
     "cuisine": "italian",
     "totalMinutes": 50,
@@ -1670,7 +1709,10 @@
       "Cook the noodles separately and add them to each bowl — noodles cooked in the pot go to mush by the next day.",
       "Finish with parsley."
     ],
-    "equipment": [{ "id": "stockpot", "required": true }, { "id": "saucepan", "required": true }],
+    "equipment": [
+      { "id": "stockpot", "required": true },
+      { "id": "saucepan", "required": true }
+    ],
     "methods": ["boil", "saute"],
     "cuisine": "american",
     "totalMinutes": 55,

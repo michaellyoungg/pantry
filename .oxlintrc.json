@@ -1,0 +1,121 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "ignorePatterns": [
+    "**/.claude/**",
+    "**/_generated/**",
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/.turbo/**",
+    "**/public/**",
+    "**/routeTree.gen.ts"
+  ],
+  "rules": {
+    "react/exhaustive-deps": "warn",
+    "react/no-array-index-key": "warn",
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "typescript/no-non-null-assertion": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["packages/core/src/**"],
+      "excludeFiles": ["packages/core/src/**/*.test.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "window",
+            "message": "packages/core must stay platform-free \u2014 take the value as an argument instead."
+          },
+          {
+            "name": "document",
+            "message": "packages/core must stay platform-free \u2014 no DOM access."
+          },
+          {
+            "name": "navigator",
+            "message": "packages/core must stay platform-free \u2014 no DOM access."
+          },
+          {
+            "name": "localStorage",
+            "message": "packages/core must stay platform-free \u2014 pass storage in from the client."
+          },
+          {
+            "name": "sessionStorage",
+            "message": "packages/core must stay platform-free \u2014 pass storage in from the client."
+          },
+          {
+            "name": "alert",
+            "message": "packages/core must stay platform-free \u2014 return the message and let the client show it."
+          },
+          {
+            "name": "confirm",
+            "message": "packages/core must stay platform-free \u2014 return the message and let the client show it."
+          },
+          {
+            "name": "prompt",
+            "message": "packages/core must stay platform-free \u2014 return the message and let the client show it."
+          }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["react-dom", "react-dom/**", "**/*.css"],
+                "message": "packages/core is headless: no renderer and no styling."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/core/src/**"],
+      "excludeFiles": [
+        "packages/core/src/react/**",
+        "packages/core/src/data/**",
+        "packages/core/src/**/*.test.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "message": "Only packages/core/src/react and src/data (the @pantry/core/react and @pantry/core/data entry points) may import React."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["react-dom", "react-dom/**", "**/*.css"],
+                "message": "packages/core is headless: no renderer and no styling."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/routes/**"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": ["packages/convex/**"],
+      "rules": {
+        "react/rules-of-hooks": "off"
+      }
+    }
+  ]
+}

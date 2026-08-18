@@ -19,7 +19,6 @@ export function useAsyncData<T>(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: caller-supplied deps are intentionally spread
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -38,6 +37,7 @@ export function useAsyncData<T>(
     return () => {
       active = false;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- caller-supplied deps are intentionally spread
   }, [fn, nonce, ...deps]);
 
   return { data, loading, error, reload };

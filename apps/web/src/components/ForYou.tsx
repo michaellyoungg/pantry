@@ -59,6 +59,7 @@ export function ForYou() {
   // does not re-fire; the mutation deduplicates again server-side, because a
   // remount is not something the client can be trusted to notice.
   const shownKey = results.map((r) => r.recipeId).join(",");
+  /* oxlint-disable react-hooks/exhaustive-deps -- `results` is a fresh array each render; `shownKey` compares it by value */
   useEffect(() => {
     if (results.length === 0) return;
     void recordShown({
@@ -71,8 +72,8 @@ export function ForYou() {
       // Losing an impression costs a little novelty accuracy and nothing else.
       // It must never surface as an error on a card the user did not ask for.
     });
-    // biome-ignore lint/correctness/useExhaustiveDependencies: `results` is a fresh array each render; `shownKey` compares it by value
   }, [shownKey, recordShown]);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   const visible = results.filter((r) => !dismissed.includes(r.recipeId));
 

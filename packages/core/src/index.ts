@@ -97,11 +97,7 @@ export {
   summarizeNutrition,
   type WeekNutritionRollup,
 } from "./nutritionRollup";
-export {
-  EQUALITY_BAND,
-  evaluateTargets,
-  type NutritionVector,
-} from "./nutritionTargets";
+export { EQUALITY_BAND, evaluateTargets, type NutritionVector } from "./nutritionTargets";
 export {
   canGenerateList,
   decreaseServings,

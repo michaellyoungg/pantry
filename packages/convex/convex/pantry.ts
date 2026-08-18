@@ -191,7 +191,7 @@ export const applyCookDecrement = internalMutation({
     const now = Date.now();
     // De-duplicated: a recipe can list the same ingredient on two lines (the Go
     // aggregator keeps non-convertible units apart), and one cook is one notch.
-    for (const canonicalItem of [...new Set(canonicalItems)]) {
+    for (const canonicalItem of new Set(canonicalItems)) {
       const row = await ctx.db
         .query("pantryItems")
         .withIndex("by_user_item", (q) => q.eq("userId", userId).eq("canonicalItem", canonicalItem))
