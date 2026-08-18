@@ -19,7 +19,7 @@
  * cannot change back.
  */
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
@@ -59,17 +59,16 @@ export function SettingsScreen() {
 
         {/* The goal editor is a screen of its own (BL-0065) — a phone has no
             room to stack it under these cards — so Settings is the way in. */}
-        <Link asChild href={NUTRITION_GOALS_HREF}>
-          <Pressable
-            accessibilityLabel="Nutrition goals"
-            accessibilityRole="link"
-            className="items-center justify-center rounded-lg border border-border px-4"
-            style={{ minHeight: CONTROL_TARGET_HEIGHT }}
-            testID={id("nutrition-goals")}
-          >
-            <Text className="text-base text-text">Nutrition goals</Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          accessibilityLabel="Nutrition goals"
+          accessibilityRole="link"
+          className="items-center justify-center rounded-lg border border-border px-4"
+          onPress={() => router.navigate(NUTRITION_GOALS_HREF)}
+          style={{ minHeight: CONTROL_TARGET_HEIGHT }}
+          testID={id("nutrition-goals")}
+        >
+          <Text className="text-base text-text">Nutrition goals</Text>
+        </Pressable>
 
         <AvoidList />
 

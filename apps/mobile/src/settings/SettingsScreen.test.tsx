@@ -73,6 +73,17 @@ describe("the settings route", () => {
     expect(screen.queryByTestId("recipes.equipment.whisk")).toBeNull();
   });
 
+  // BL-0065 put this entry point on the settings route while this port was in
+  // flight, and the port replaces that file wholesale. Nothing else links to
+  // the goal editor, so losing it here strands the screen entirely.
+  it("keeps the way in to the nutrition goal editor", async () => {
+    await render(<SettingsRoute />);
+
+    await fireEvent.press(screen.getByTestId("settings.nutrition-goals"));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/nutrition/goals");
+  });
+
   // Both shipped before the rest of Settings existed — sign-out because a
   // device otherwise cannot leave a session, deletion because App Store
   // guideline 5.1.1(v) requires it in-app. Neither may be lost to the port.
