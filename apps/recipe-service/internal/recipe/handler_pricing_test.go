@@ -268,3 +268,22 @@ func TestPricingEstimateWithoutAStoreDoesNotCallOne(t *testing.T) {
 		t.Errorf("pricer was called with %q for a user who never opted in", pricer.seenLoc)
 	}
 }
+
+func TestPricingEstimateIgnoresAStoreFromAnotherProvider(t *testing.T) {
+	pricer := &fakeStorePricer{quotes: map[string]pricing.StoreQuote{
+		"eggs": {Description: "Not our eggs", Cents: 240, Dimension: pricing.DimensionCount, PackSize: 12},
+	}}
+	srv := newStoreServer(t, pricer)
+
+	// A selection made when the deployment priced against a different retailer.
+	// The same location id means something else there, so it must not be priced.
+	got := postEstimate(t, srv.URL, `{"storeLocationId":"01400376","storeProvider":"other-store","lines":[
+		{"canonicalItem":"eggs","item":"Eggs","unit":"","quantity":12}
+	]}`)
+	if pricer.seenLoc != "" {
+		t.Errorf("pricer was called with a foreign provider's location %q", pricer.seenLoc)
+	}
+	if got.Basis.Store != nil || got.Lines[0].Source != pricing.SourceAverage {
+		t.Errorf("estimate = %+v, want the averages", got)
+	}
+}

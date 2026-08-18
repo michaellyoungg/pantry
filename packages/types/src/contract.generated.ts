@@ -645,6 +645,12 @@ export interface PricingEstimateRequest {
    * one — prices the list from the national averages alone.
    */
   storeLocationId?: string;
+  /**
+   * Who `storeLocationId` belongs to. A selection outlives the deployment that made it, and a
+   * location id means something else at a different retailer, so a mismatch is ignored rather
+   * than priced.
+   */
+  storeProvider?: string;
 }
 
 /** Which table priced a line. Absent on an unpriced line, where there is no number to attribute. */

@@ -1,10 +1,10 @@
 ---
 id: BL-0046
 title: Real store prices (opt-in) — Kroger Products API behind a feature flag
-status: in-progress
+status: done
 area: pricing
 effort: M
-related_specs: [2026-07-12-full-app-ux-plan.md]
+related_specs: [2026-07-12-full-app-ux-plan.md, 2026-08-17-real-store-prices-design.md]
 created: 2026-08-03
 ---
 

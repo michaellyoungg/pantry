@@ -60,6 +60,36 @@ Re-running is safe — recipes upsert by stable id. The catalog requires Postgre
 running recipe-service with the in-memory store (no `DATABASE_URL`) has an empty
 catalog.
 
+### Optional: real store prices
+
+The grocery list is priced from a checked-in table of BLS national average
+prices, which needs no configuration and no network. A deployment can
+additionally offer **real shelf prices** from a retailer (BL-0046) — off by
+default, and off is the shipped state.
+
+Turning it on needs three environment variables on recipe-service, all read from
+the environment and **never committed**:
+
+```bash
+PRICING_STORE_PROVIDER=kroger   # the feature flag; unset = averages only
+KROGER_CLIENT_ID=...            # free, from https://developer.kroger.com
+KROGER_CLIENT_SECRET=...
+```
+
+With the flag unset, or either credential missing, the feature is simply absent:
+the store chooser does not render, and every list is priced from the averages
+exactly as before. It also degrades that way at runtime — an unreachable or
+rate-limited retailer costs the upgrade, never the estimate.
+
+It is opt-in per user on top of that: a shelf price requires a store, and no
+store is selected until someone picks one on the grocery list.
+
+**Read the provider's developer terms before enabling this.** They are accepted
+at registration, and
+[`docs/superpowers/specs/2026-08-17-real-store-prices-design.md`](docs/superpowers/specs/2026-08-17-real-store-prices-design.md)
+records what could and could not be verified about what they permit for caching
+and display.
+
 ## Testing
 
 ### Unit tests

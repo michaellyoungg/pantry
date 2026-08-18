@@ -1410,6 +1410,12 @@ components:
             user who has not chosen one — prices the list from the national
             averages alone.
           type: string
+        storeProvider:
+          description: >-
+            Who `storeLocationId` belongs to. A selection outlives the
+            deployment that made it, and a location id means something else at
+            a different retailer, so a mismatch is ignored rather than priced.
+          type: string
 
     PriceSource:
       type: string

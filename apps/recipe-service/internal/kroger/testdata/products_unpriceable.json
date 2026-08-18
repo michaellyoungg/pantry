@@ -10,7 +10,13 @@
       "productId": "0001111000002",
       "brand": "Simple Truth",
       "description": "Assorted Herb Blend",
-      "items": [{ "itemId": "0001111000002", "price": { "regular": 5.49, "promo": 0 }, "size": "family size" }]
+      "items": [
+        {
+          "itemId": "0001111000002",
+          "price": { "regular": 5.49, "promo": 0 },
+          "size": "family size"
+        }
+      ]
     }
   ],
   "meta": { "pagination": { "start": 0, "limit": 5, "total": 2 } }

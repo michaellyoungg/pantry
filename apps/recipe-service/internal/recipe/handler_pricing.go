@@ -47,6 +47,10 @@ func (h *handlers) pricingEstimate(w http.ResponseWriter, r *http.Request) {
 		// StoreLocationID is the store the user opted into. Empty — which is
 		// every user who has not chosen one — means the averages alone.
 		StoreLocationID string `json:"storeLocationId"`
+		// StoreProvider is who that id belongs to. A selection outlives the
+		// deployment that made it, and a location id means something different
+		// at a different retailer, so a mismatch is ignored rather than priced.
+		StoreProvider string `json:"storeProvider"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -59,11 +63,21 @@ func (h *handlers) pricingEstimate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.storePricer != nil && req.StoreLocationID != "" {
+	if h.storeSelected(req.StoreLocationID, req.StoreProvider) {
 		writeJSON(w, http.StatusOK, est.EstimateWithStore(req.Lines, h.storeQuotes(r, est, req.Lines, req.StoreLocationID)))
 		return
 	}
 	writeJSON(w, http.StatusOK, est.Estimate(req.Lines))
+}
+
+// storeSelected reports whether this request names a store this deployment can
+// actually price. An empty provider is accepted so a client that has not been
+// updated still works.
+func (h *handlers) storeSelected(locationID, provider string) bool {
+	if h.storePricer == nil || locationID == "" {
+		return false
+	}
+	return provider == "" || provider == h.storePricer.Provider()
 }
 
 // storeQuotes fetches shelf prices, and returns an empty set on any failure.

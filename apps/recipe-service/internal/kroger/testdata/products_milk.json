@@ -10,7 +10,12 @@
         {
           "itemId": "0001111041660",
           "favorite": false,
-          "fulfillment": { "curbside": true, "delivery": true, "inStore": true, "shipToHome": false },
+          "fulfillment": {
+            "curbside": true,
+            "delivery": true,
+            "inStore": true,
+            "shipToHome": false
+          },
           "price": { "regular": 3.99, "promo": 2.99 },
           "size": "1 gal",
           "soldBy": "UNIT"

@@ -262,6 +262,28 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_item", ["userId", "canonicalItem"]),
 
+  // The store a user opted into for real shelf prices (BL-0046). One row per
+  // user, or none — and none is the default, which is why nothing about pricing
+  // changes for anyone who never picks a store.
+  //
+  // A table rather than a field on `preferences` because it is not a food
+  // preference: it is a per-provider handle whose meaning is owned by
+  // recipe-service, it changes on a different cadence, and it must be
+  // deletable on its own without touching what the ranker reads.
+  storeSelection: defineTable({
+    userId: v.string(),
+    // Which price provider `locationId` belongs to ("kroger"). Stored so a row
+    // written for one provider can never be handed to another as if it meant
+    // the same thing.
+    provider: v.string(),
+    locationId: v.string(),
+    // Denormalized so the UI can name the chosen store without a round trip to
+    // the retailer — and can still name it when that retailer is unreachable.
+    name: v.string(),
+    address: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // What the user did with the recommendations we showed them (BL-0005
   // increment 2). This is the ONLY learned input the recommender has, and it
   // lives here because Convex owns user state — recipe-service stays stateless
