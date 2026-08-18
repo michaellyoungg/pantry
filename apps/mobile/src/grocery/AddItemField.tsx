@@ -16,8 +16,8 @@ import type { RecentItem } from "@pantry/core/data";
 import { colorTokens } from "@pantry/design-tokens";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
-import { CONTROL_TARGET_HEIGHT } from "./hitTargets";
 
 const id = surfaceTestIDs("list");
 

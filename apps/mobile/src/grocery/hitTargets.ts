@@ -24,13 +24,6 @@
 export const ROW_TARGET_HEIGHT = 64;
 
 /**
- * The floor for anything else that can be tapped: the add button, the sheet
- * choices, the leftover answers. Still the accessibility minimum — these are
- * aimed at deliberately, usually while standing still.
- */
-export const CONTROL_TARGET_HEIGHT = 44;
-
-/**
  * Padding added around the small in-row chips (provenance, remove, "need it
  * anyway"), which are drawn small on purpose — see `GroceryRow`. `hitSlop`
  * grows the touchable area without growing the ink, so a chip stays visually

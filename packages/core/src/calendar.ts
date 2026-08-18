@@ -7,6 +7,8 @@
  * user experienced, not an instant.
  */
 
+import { weekdayOf } from "./week";
+
 /** An inclusive range of calendar days. */
 export interface DateRange {
   from: string; // YYYY-MM-DD
@@ -48,10 +50,7 @@ export function addDays(iso: string, days: number): string {
  * weekday index is the row's calendar date with no further translation.
  */
 export function startOfWeek(iso: string): string {
-  const date = parseISODate(iso);
-  // Date#getDay() is 0=Sun…6=Sat; shift to 0=Mon…6=Sun.
-  const mondayIndex = (date.getDay() + 6) % 7;
-  return addDays(iso, -mondayIndex);
+  return addDays(iso, -weekdayOf(parseISODate(iso)));
 }
 
 /** The calendar date of `weekday` (0=Mon…6=Sun) within the week starting `weekStart`. */

@@ -171,7 +171,7 @@ export {
   withServings,
   withSteps,
 } from "./recipeDraft";
-export { DAY_FULL, DAYS } from "./week";
+export { DAY_FULL, DAYS, weekdayOf } from "./week";
 export {
   type SuggestedPick,
   type SuggestionCandidate,

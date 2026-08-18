@@ -10,3 +10,8 @@ export const DAY_FULL = [
   "Saturday",
   "Sunday",
 ] as const;
+
+/** Which bucket a local date falls in, 0=Mon … 6=Sun — `getDay()`, shifted. */
+export function weekdayOf(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}

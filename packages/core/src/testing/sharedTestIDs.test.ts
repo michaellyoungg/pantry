@@ -33,6 +33,9 @@ const FIXED_IDS = [
   TEST_IDS.list.progress,
   TEST_IDS.list.undo,
   TEST_IDS.pantry.emptyState,
+  TEST_IDS.plan.generate,
+  TEST_IDS.plan.suggest,
+  TEST_IDS.plan.suggestAccept,
 ];
 
 describe("TEST_IDS", () => {
@@ -56,6 +59,9 @@ describe("TEST_IDS", () => {
       "list.progress",
       "list.undo",
       "pantry.empty-state",
+      "plan.generate",
+      "plan.suggest",
+      "plan.suggest-accept",
     ]);
   });
 
@@ -71,6 +77,7 @@ describe("TEST_IDS", () => {
     expect(TEST_IDS.pantry.item("olive oil")).toBe("pantry.item.olive-oil");
     expect(TEST_IDS.pantry.markUseUp("olive oil")).toBe("pantry.use-up.olive-oil");
     expect(TEST_IDS.plan.unplanned("Garlic Base 12-9")).toBe("plan.unplanned.garlic-base-12-9");
+    expect(TEST_IDS.plan.meal("Garlic Base 12-9")).toBe("plan.meal.garlic-base-12-9");
     expect(TEST_IDS.recipes.item("E2E Aisle Walk")).toBe("recipes.item.e2e-aisle-walk");
   });
 
@@ -84,6 +91,7 @@ describe("TEST_IDS", () => {
   it("stems the keyed rows so a suite can address them as a set", () => {
     expect(TEST_IDS.list.item("garlic").startsWith(TEST_IDS.list.itemPrefix)).toBe(true);
     expect(TEST_IDS.pantry.item("garlic").startsWith(TEST_IDS.pantry.itemPrefix)).toBe(true);
+    expect(TEST_IDS.plan.meal("toast").startsWith(TEST_IDS.plan.mealPrefix)).toBe(true);
   });
 
   it("produces ids in the documented shape", () => {

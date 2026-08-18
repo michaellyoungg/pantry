@@ -102,6 +102,16 @@ export const TEST_IDS = {
   plan: {
     /** A basket recipe waiting for a day, in the "Not yet planned" rail. */
     unplanned: (title: string): TestID => plan("unplanned", testIDKey(title)),
+    /**
+     * A meal sitting on a day. Web draws a cell in a seven-column grid, native
+     * a card under a day pager, so the shared journey needs one name.
+     */
+    meal: (title: string): TestID => plan("meal", testIDKey(title)),
+    mealPrefix: testIDPrefix("plan", "meal"),
+    generate: plan("generate"),
+    suggest: plan("suggest"),
+    /** Accepts the proposal — the one control in that flow that writes. */
+    suggestAccept: plan("suggest-accept"),
   },
 
   /** The user's own recipes. */

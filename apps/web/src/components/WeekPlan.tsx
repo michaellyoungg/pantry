@@ -1,23 +1,7 @@
 import { api } from "@pantry/convex/api";
-import {
-  canGenerateList,
-  DAY_FULL,
-  DAYS,
-  decreaseServings,
-  increaseServings,
-  isCooked,
-  isLeftover,
-  type PlannedItem,
-  planWeek,
-  servingsMultiplier,
-  toggledType,
-  unscheduledItems,
-} from "@pantry/core";
-import { removeFromBasketOptimistic } from "@pantry/core/convex";
-import { usePlanPrep } from "@pantry/core/data";
-import { useAsyncAction } from "@pantry/core/react";
+import { DAY_FULL, DAYS, isCooked, isLeftover, servingsMultiplier } from "@pantry/core";
+import { usePlanPrep, usePlanWeek } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
-import { useMutation, useQuery } from "convex/react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { MealPrepBadge } from "./MealPrepBadge";
@@ -26,11 +10,9 @@ import { SuggestWeek } from "./SuggestWeek";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
-// Dinner-first week plan (BL-0018). weekday 0=Mon … 6=Sun. A basket entry with a
-// weekday is scheduled onto that day; without one it waits in the rail. Slots
-// beyond dinner, servings, and diff-merge regeneration are deliberately later.
-// The bucketing and the servings clamp live in @pantry/core (BL-0024); this
-// component is presentation over that.
+// Dinner-first week plan. weekday 0=Mon … 6=Sun; a basket entry without one
+// waits in the rail. Presentation over `usePlanWeek()`, which the native day
+// pager renders from too.
 
 /** A compact 7-day selector; the active day is highlighted. */
 function DayPicker({ active, onPick }: { active?: number; onPick: (weekday: number) => void }) {
@@ -54,19 +36,23 @@ function DayPicker({ active, onPick }: { active?: number; onPick: (weekday: numb
 }
 
 export function WeekPlan() {
-  const items = (useQuery(api.basket.list) ?? []) as PlannedItem[];
-  const schedule = useMutation(api.basket.schedule);
-  const unschedule = useMutation(api.basket.unschedule);
-  const setServings = useMutation(api.basket.setServings);
-  const setType = useMutation(api.basket.setType);
-  const markCooked = useMutation(api.basket.markCooked);
-  const unmarkCooked = useMutation(api.basket.unmarkCooked);
-  const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
-    removeFromBasketOptimistic,
-  );
   const generate = useTracedAction(api.recipes.generateGroceryList, "recipes.generateGroceryList");
-  const gen = useAsyncAction();
-  const act = useAsyncAction();
+  const {
+    items,
+    days,
+    unscheduled,
+    generating,
+    error,
+    canGenerate,
+    schedule,
+    unschedule,
+    increaseServings,
+    decreaseServings,
+    toggleType,
+    toggleCooked,
+    remove,
+    buildList,
+  } = usePlanWeek({ generate });
 
   // Derived lead-time prep for the planned week (BL-0042), keyed by recipe: the
   // basket holds one row per recipe, so a recipe id identifies a meal.
@@ -74,14 +60,11 @@ export function WeekPlan() {
   const { meals: prepMeals, done: prepDone } = usePlanPrep({ forPlan });
   const prepByRecipe = new Map(prepMeals.map((m) => [m.recipeId, m]));
 
-  const week = planWeek(items);
-  const unscheduled = unscheduledItems(items);
-
   return (
     <div className="flex flex-col gap-4">
       {/* Week grid: agenda (stacked) on phone, 7-column grid on desktop. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-        {week.map((day) => {
+        {days.map((day) => {
           return (
             // A named region per day: the grid is seven peers with identical
             // markup, so the weekday is the only thing that tells them apart —
@@ -103,6 +86,7 @@ export function WeekPlan() {
                     return (
                       <li
                         key={i._id}
+                        data-testid={TEST_IDS.plan.meal(i.title)}
                         className={`flex flex-col gap-1 rounded-lg px-2 py-1.5 ${
                           leftover ? "bg-border/30 text-muted" : "bg-primary/10"
                         }`}
@@ -114,10 +98,7 @@ export function WeekPlan() {
                           <button
                             type="button"
                             aria-label={`Remove ${i.title} from ${day.fullLabel}`}
-                            onClick={() => {
-                              gen.clearError();
-                              void act.run(() => unschedule({ recipeId: i.recipeId }));
-                            }}
+                            onClick={() => unschedule(i)}
                             className="shrink-0 text-muted hover:text-text"
                           >
                             ×
@@ -136,15 +117,7 @@ export function WeekPlan() {
                               <button
                                 type="button"
                                 aria-label={`Decrease servings for ${i.title}`}
-                                onClick={() => {
-                                  gen.clearError();
-                                  void act.run(() =>
-                                    setServings({
-                                      recipeId: i.recipeId,
-                                      servingsMultiplier: decreaseServings(mult),
-                                    }),
-                                  );
-                                }}
+                                onClick={() => decreaseServings(i)}
                                 className="h-5 w-5 rounded border border-border hover:border-primary hover:text-text"
                               >
                                 −
@@ -153,15 +126,7 @@ export function WeekPlan() {
                               <button
                                 type="button"
                                 aria-label={`Increase servings for ${i.title}`}
-                                onClick={() => {
-                                  gen.clearError();
-                                  void act.run(() =>
-                                    setServings({
-                                      recipeId: i.recipeId,
-                                      servingsMultiplier: increaseServings(mult),
-                                    }),
-                                  );
-                                }}
+                                onClick={() => increaseServings(i)}
                                 className="h-5 w-5 rounded border border-border hover:border-primary hover:text-text"
                               >
                                 +
@@ -173,15 +138,7 @@ export function WeekPlan() {
                             aria-label={
                               leftover ? `Mark ${i.title} as meal` : `Mark ${i.title} as leftover`
                             }
-                            onClick={() => {
-                              gen.clearError();
-                              void act.run(() =>
-                                setType({
-                                  recipeId: i.recipeId,
-                                  type: toggledType(i),
-                                }),
-                              );
-                            }}
+                            onClick={() => toggleType(i)}
                             className="ml-auto hover:text-text"
                           >
                             {leftover ? "↩ meal" : "♻ leftover"}
@@ -195,14 +152,7 @@ export function WeekPlan() {
                               leftover ? "eaten" : "cooked"
                             }`}
                             aria-pressed={cooked}
-                            onClick={() => {
-                              gen.clearError();
-                              void act.run(() =>
-                                cooked
-                                  ? unmarkCooked({ recipeId: i.recipeId })
-                                  : markCooked({ recipeId: i.recipeId }),
-                              );
-                            }}
+                            onClick={() => toggleCooked(i)}
                             className="hover:text-text"
                           >
                             {cooked ? "✓" : leftover ? "eaten?" : "cooked?"}
@@ -241,20 +191,8 @@ export function WeekPlan() {
               >
                 <span className="text-text">{i.title}</span>
                 <div className="flex items-center gap-2">
-                  <DayPicker
-                    onPick={(weekday) => {
-                      gen.clearError();
-                      void act.run(() => schedule({ recipeId: i.recipeId, weekday }));
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      gen.clearError();
-                      void act.run(() => removeFromBasket({ recipeId: i.recipeId }));
-                    }}
-                  >
+                  <DayPicker onPick={(weekday) => schedule(i, weekday)} />
+                  <Button variant="ghost" size="sm" onClick={() => remove(i)}>
                     Remove
                   </Button>
                 </div>
@@ -266,15 +204,13 @@ export function WeekPlan() {
 
       <div className="flex flex-col gap-1">
         <Button
-          onClick={() => {
-            act.clearError();
-            void gen.run(() => generate({}));
-          }}
-          disabled={gen.pending || !canGenerateList(items)}
+          testId={TEST_IDS.plan.generate}
+          onClick={() => void buildList()}
+          disabled={generating || !canGenerate}
         >
-          {gen.pending ? "Generating…" : "Generate grocery list"}
+          {generating ? "Generating…" : "Generate grocery list"}
         </Button>
-        <ErrorText message={gen.error ?? act.error} />
+        <ErrorText message={error} />
       </div>
     </div>
   );
