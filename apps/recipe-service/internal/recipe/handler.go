@@ -80,6 +80,8 @@ func (h *handlers) routes() map[string]http.HandlerFunc {
 		"GET /normalization/coverage":    h.normalizationCoverage,
 		"POST /equipment/match":          h.equipmentMatch,
 		"POST /pricing/estimate":         h.pricingEstimate,
+		"GET /pricing/store-provider":    h.pricingStoreProvider,
+		"POST /pricing/stores":           h.pricingStores,
 		"POST /nutrition/estimate":       h.nutritionEstimate,
 		"POST /recommendations/pantry":   h.recommendPantry,
 		"POST /recommendations/discover": h.recommendDiscover,
@@ -100,6 +102,10 @@ type handlers struct {
 	// (BL-0034). Nil unless WithGenerator was passed, which is the default:
 	// no key, no generated candidates, no errors.
 	generator Generator
+	// storePricer reads real shelf prices for a store the user opted into
+	// (BL-0046). Nil unless WithStorePricer was passed, which is the default:
+	// no flag and no credentials, no store prices, and the BLS estimate stands.
+	storePricer StorePricer
 }
 
 func (h *handlers) healthz(w http.ResponseWriter, _ *http.Request) {

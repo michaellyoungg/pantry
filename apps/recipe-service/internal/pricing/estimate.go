@@ -34,6 +34,15 @@ type LineEstimate struct {
 	Bucket        string `json:"bucket,omitempty"`
 	BucketLabel   string `json:"bucketLabel,omitempty"`
 	Reason        string `json:"reason,omitempty"`
+	// Source names which table priced the line — SourceAverage or SourceStore.
+	// Empty on an unpriced line, where there is no number to attribute.
+	Source string `json:"source,omitempty"`
+	// Product is the shelf item a store price came from, so "$4.29" can be shown
+	// as the specific thing it is the price of. Empty for an average.
+	Product string `json:"product,omitempty"`
+	// OnSale marks a store price that is a promotion, not the regular shelf
+	// price, and so will not last.
+	OnSale bool `json:"onSale,omitempty"`
 }
 
 // Basis is the provenance the UI must show alongside any total. An estimate
@@ -44,6 +53,10 @@ type Basis struct {
 	Area             string    `json:"area"`
 	ObservationMonth string    `json:"observationMonth"`
 	Staleness        Staleness `json:"staleness"`
+	// Store is present only when a user's chosen store priced at least one line
+	// (BL-0046). The averages above still cover the rest, which is why this
+	// layers rather than replaces.
+	Store *StoreBasis `json:"store,omitempty"`
 }
 
 // Estimate is the whole answer: a total, how much of the list it actually
@@ -85,7 +98,18 @@ func (e *Estimator) Estimate(lines []Line) Estimate {
 
 // estimateAt is Estimate with an injectable clock, so staleness is testable.
 func (e *Estimator) estimateAt(lines []Line, now time.Time) Estimate {
-	out := Estimate{
+	out := e.newEstimate(lines, now)
+	for _, l := range lines {
+		e.accumulate(&out, e.estimateLine(l))
+	}
+	return out
+}
+
+// newEstimate is the empty answer with its basis filled in, shared by the
+// averages-only and store-overlay paths so the two cannot describe themselves
+// differently.
+func (e *Estimator) newEstimate(lines []Line, now time.Time) Estimate {
+	return Estimate{
 		Currency: "USD",
 		Lines:    make([]LineEstimate, 0, len(lines)),
 		Basis: Basis{
@@ -96,19 +120,18 @@ func (e *Estimator) estimateAt(lines []Line, now time.Time) Estimate {
 			Staleness:        stalenessAt(e.snapshot.ObservationMonth, now),
 		},
 	}
-	for _, l := range lines {
-		le := e.estimateLine(l)
-		if le.Priced {
-			out.PricedCount++
-			// Rounding per line rather than once at the end keeps the line items
-			// summing exactly to the displayed total.
-			out.TotalCents += le.Cents
-		} else {
-			out.UnpricedCount++
-		}
-		out.Lines = append(out.Lines, le)
+}
+
+func (e *Estimator) accumulate(out *Estimate, le LineEstimate) {
+	if le.Priced {
+		out.PricedCount++
+		// Rounding per line rather than once at the end keeps the line items
+		// summing exactly to the displayed total.
+		out.TotalCents += le.Cents
+	} else {
+		out.UnpricedCount++
 	}
-	return out
+	out.Lines = append(out.Lines, le)
 }
 
 func (e *Estimator) estimateLine(l Line) LineEstimate {
@@ -148,6 +171,7 @@ func (e *Estimator) estimateLine(l Line) LineEstimate {
 
 	le.Priced = true
 	le.Cents = int(math.Round(baseQty * series.pricePerBase() * 100))
+	le.Source = SourceAverage
 	return le
 }
 

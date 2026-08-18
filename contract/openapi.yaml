@@ -350,6 +350,46 @@ paths:
               schema: { $ref: "#/components/schemas/CostEstimate" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /pricing/store-provider:
+    get:
+      tags: [pricing]
+      operationId: pricingStoreProvider
+      summary: Report whether real store prices are configured (BL-0046).
+      description: >-
+        The feature flag, as seen from outside the service. A client asks this
+        before offering a store chooser, so a deployment without the flag or
+        without credentials shows no control rather than a dead one. It makes no
+        upstream call.
+      responses:
+        "200":
+          description: Whether store prices are available, and from which provider.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProviderStatus" }
+
+  /pricing/stores:
+    post:
+      tags: [pricing]
+      operationId: pricingStores
+      summary: Find stores near a zip code for the user to price against.
+      description: >-
+        Returns an empty list and no provider when real store prices are not
+        configured. A 502 means the retailer's directory could not be reached,
+        which is a failure of this search alone — pricing a grocery list never
+        fails, it falls back to the national averages.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreSearchRequest" }
+      responses:
+        "200":
+          description: The nearby stores, or an empty list when the feature is off.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreSearchResult" }
+        "502": { $ref: "#/components/responses/ServerError" }
+
   /nutrition/estimate:
     post:
       tags: [nutrition]
@@ -1288,6 +1328,7 @@ components:
           description: '"YYYY-MM" the prices were observed.'
           type: string
         staleness: { $ref: "#/components/schemas/PriceStaleness" }
+        store: { $ref: "#/components/schemas/StorePriceBasis" }
 
     PricedLine:
       type: object
@@ -1308,6 +1349,17 @@ components:
         reason:
           description: Why the line could not be priced, when `priced` is false.
           type: string
+        source: { $ref: "#/components/schemas/PriceSource" }
+        product:
+          description: >-
+            The shelf item a store price came from, so a number can be shown as
+            the price of something specific. Absent for an average.
+          type: string
+        onSale:
+          description: >-
+            True when the store price is a promotion rather than the regular
+            shelf price, and so will not last.
+          type: boolean
 
     CostEstimate:
       type: object
@@ -1352,6 +1404,92 @@ components:
         lines:
           type: array
           items: { $ref: "#/components/schemas/PricingLine" }
+        storeLocationId:
+          description: >-
+            The store the user opted into (BL-0046). Absent — which is every
+            user who has not chosen one — prices the list from the national
+            averages alone.
+          type: string
+
+    PriceSource:
+      type: string
+      description: >-
+        Which table priced a line. Absent on an unpriced line, where there is no
+        number to attribute.
+      x-go-unbound: a plain string field on pricing.LineEstimate, checked as a string.
+      enum: [average, store]
+
+    StorePriceBasis:
+      type: object
+      description: |-
+        Provenance for the store-priced half of an estimate (BL-0046).
+
+        It sits alongside the averages basis rather than replacing it, because a
+        mixed estimate genuinely has two sources, and is present only when the
+        chosen store actually priced something.
+      x-go-types: [pricing.StoreBasis]
+      required: [provider, locationId, fetchedAt, pricedCount]
+      properties:
+        provider: { type: string }
+        locationId: { type: string }
+        storeName: { type: string }
+        fetchedAt:
+          description: RFC 3339. Shelf prices move daily, so the age of the quote is part of the number.
+          type: string
+        pricedCount:
+          description: >-
+            How many lines the store priced. The rest came from the averages,
+            and saying so is what keeps a mixed total honest.
+          type: integer
+
+    StoreLocation:
+      type: object
+      description: One store a user can choose to price against.
+      x-go-types: [pricing.StoreLocation]
+      required: [locationId, name]
+      properties:
+        locationId: { type: string }
+        name: { type: string }
+        chain: { type: string }
+        address: { type: string }
+        city: { type: string }
+        state: { type: string }
+        zipCode: { type: string }
+
+    StoreSearchRequest:
+      type: object
+      x-go-unbound: decoded into an anonymous struct in the pricingStores handler.
+      x-go-direction: request
+      required: [zipCode]
+      properties:
+        zipCode: { type: string }
+        radiusMiles:
+          description: Defaults to 10 and is capped at 100 by the provider.
+          type: integer
+
+    StoreSearchResult:
+      type: object
+      description: >-
+        Nearby stores. An empty provider means real store prices are not
+        configured, which a client renders by offering no chooser at all.
+      x-go-types: [pricing.StoreSearch]
+      required: [provider, stores]
+      properties:
+        provider: { type: string }
+        stores:
+          type: array
+          items: { $ref: "#/components/schemas/StoreLocation" }
+
+    StoreProviderStatus:
+      type: object
+      description: >-
+        Whether real store prices are configured on this deployment. This is the
+        BL-0046 feature flag as seen from outside the service.
+      x-go-types: [pricing.StoreProviderStatus]
+      required: [enabled, provider]
+      properties:
+        enabled: { type: boolean }
+        provider: { type: string }
 
     # ── Recommendations ─────────────────────────────────────────────────────
     PantryContextItem:
