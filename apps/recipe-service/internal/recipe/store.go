@@ -30,6 +30,12 @@ type Store interface {
 	ListRecipes(ctx context.Context, userID string) ([]Recipe, error)
 	GetRecipesByIDs(ctx context.Context, userID string, ids []string) ([]Recipe, error)
 	DeleteRecipe(ctx context.Context, id, userID string) error
+	// DeleteUserRecipes removes every recipe owned by userID and returns how
+	// many went, for account deletion (BL-0068). Deleting nothing is success,
+	// not ErrNotFound: a user who never wrote a recipe still has an account to
+	// close, and a cascade that fails on an empty store is a cascade that
+	// cannot be retried.
+	DeleteUserRecipes(ctx context.Context, userID string) (int, error)
 	UpdateRecipe(ctx context.Context, id, userID string, in RecipeInput) (Recipe, error)
 	UpsertRecipe(ctx context.Context, rec Recipe) error
 	// FindCloneOf returns userID's existing clone of sourceRecipeID, or
@@ -147,6 +153,23 @@ func (s *MemoryStore) DeleteRecipe(_ context.Context, id, userID string) error {
 		}
 	}
 	return nil
+}
+
+func (s *MemoryStore) DeleteUserRecipes(_ context.Context, userID string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	kept := s.order[:0]
+	deleted := 0
+	for _, id := range s.order {
+		if s.byID[id].UserID == userID {
+			delete(s.byID, id)
+			deleted++
+			continue
+		}
+		kept = append(kept, id)
+	}
+	s.order = kept
+	return deleted, nil
 }
 
 func (s *MemoryStore) UpdateRecipe(_ context.Context, id, userID string, in RecipeInput) (Recipe, error) {
