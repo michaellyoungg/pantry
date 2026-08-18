@@ -1,0 +1,37 @@
+# Put ONE line on the grocery list whose id is known in advance.
+#
+# Everything else a flow can reach on this screen is aggregated from whatever
+# the ranker proposed for the week, so its ids are decided by the catalog and
+# cannot be written into a flow. A manually added line is the opposite: the
+# shopper types the text, so `list.item.garlic` is a selector rather than a bet.
+#
+# "garlic" specifically, and with no quantity or unit, because both halves of
+# the id have to survive the round trip. The server replaces the typed text with
+# the normalization dictionary's display form ("Garlic"), which slugs back to
+# the same key; an unrecognised word would keep whatever was typed, and "2
+# cloves garlic" would only key on `garlic` if `cloves` were a measure word.
+# `maestroFlows.test.ts` pins the text below to the selectors derived from it.
+#
+# A manual line is also the only one a flow may remove — a generated line comes
+# back on the next generation, so the app does not offer it (see
+# `groceryList.removeItem`).
+appId: com.pantry.app
+---
+- tapOn:
+    id: "list.add-toggle"
+- tapOn:
+    id: "list.add-field"
+- inputText: garlic
+- hideKeyboard
+- tapOn:
+    id: "list.add-submit"
+# The insert is an action, not an optimistic mutation: it goes to
+# recipe-service for the aisle and the display form before the row exists — so
+# this waits. It scrolls as well as waits because the row lands in its own
+# aisle, which on a generated list is somewhere below the fold; `assertVisible`
+# means "on screen" to Maestro, not "in the list".
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 60000

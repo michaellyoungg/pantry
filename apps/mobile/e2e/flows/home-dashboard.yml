@@ -1,0 +1,69 @@
+# Home's state machine (BL-0017 / BL-0062), walked in order.
+#
+# The mobile counterpart of `apps/web/e2e/home-dashboard.spec.ts`. Every
+# transition is derived from live Convex queries, so they only really hold
+# against a real backend: the build-list CTA runs the recipe-service
+# aggregation through a Convex action, and each state change depends on Convex
+# reactivity pushing the new plan or list down to a screen that is already open.
+#
+# Home matters more on this client than on web — it is the launch screen, the
+# first thing seen after unlocking, and the only surface that answers "what do I
+# do now?" before the user has chosen a tab.
+#
+# Four of the five states are here: empty, planned, the handoff, and shopping.
+# The fifth (shopped) needs every line on the list ticked off, and the lines an
+# aggregated list carries are named by whichever dinners the ranker proposed, so
+# no flow can select them. `flowParity.ts` records that.
+appId: com.pantry.app
+name: home-dashboard
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- empty: nothing planned, nothing to shop ---
+# `sign-up.yml` lands on the tab bar, which is Home. The onboarding card sits
+# under the week strip's seven rows, so it starts below the fold.
+- scrollUntilVisible:
+    element:
+      id: "home.getting-started"
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "home.plan-week"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    id: "home.plan-week"
+- assertVisible:
+    id: "plan.screen"
+
+# --- planned: meals in the week, no list yet ---
+- runFlow: ../subflows/plan-a-week.yml
+- tapOn:
+    id: "nav.tab.home"
+# The CTA counts meals rather than grocery lines, because the list does not
+# exist yet — reaching it at all is the "planned" state.
+- extendedWaitUntil:
+    visible:
+      id: "home.build-list"
+    timeout: 60000
+
+# --- the handoff: generate in place, land on the list ---
+- tapOn:
+    id: "home.build-list"
+- extendedWaitUntil:
+    visible:
+      id: "list.progress"
+      text: "\\d+ of \\d+ in cart"
+    timeout: 120000
+
+# --- shopping: an unchecked list drives the shopping-day card ---
+- tapOn:
+    id: "nav.tab.home"
+- extendedWaitUntil:
+    visible:
+      id: "home.shop"
+    timeout: 60000

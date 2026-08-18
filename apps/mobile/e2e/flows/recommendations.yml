@@ -1,0 +1,95 @@
+# The one "use it up" surface on the pantry screen (BL-0050 / BL-0059).
+#
+# The mobile counterpart of `apps/web/e2e/recommendations.spec.ts`. What only a
+# live stack can show is that the whole chain lines up: a line checked off the
+# grocery list becomes a pantry row (BL-0021 inflow), the use-up flag is sent to
+# the ranker, and recipe-service answers with candidates drawn from the seeded
+# catalog as well as the caller's own recipes.
+#
+# The web spec asserts on a suggestion it authored itself, so it can name the
+# row. Nothing here can author a recipe (BL-0063), so the suggestions are all
+# catalog rows and their titles are the ranker's to decide — which is why this
+# asserts that the card ANSWERED rather than what it answered. That is still the
+# assertion that fails on the bug this path actually has: a user-scoped lookup
+# that cannot see the catalog's owner comes back empty, and `pantry.suggestions
+# -empty` is what an empty answer renders.
+#
+# Order matters below. `pantry.suggestions-empty` renders only once a response
+# has arrived, so asserting it is absent means nothing while the request is
+# still in flight — the wait on the loading line is what makes the next line a
+# claim rather than a coincidence.
+appId: com.pantry.app
+name: recommendations
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- get something into the pantry, the only way this app allows ---
+# There is no manual add on the pantry screen: checking a grocery line off is
+# the inflow, which is exactly the coupling this flow is here to exercise.
+- tapOn:
+    id: "nav.tab.list"
+- extendedWaitUntil:
+    visible:
+      id: "list.empty-state"
+    timeout: 60000
+- runFlow: ../subflows/add-manual-item.yml
+- tapOn:
+    id: "list.toggle.garlic"
+- extendedWaitUntil:
+    visible:
+      id: "list.in-cart-section"
+    timeout: 30000
+
+# The inventory sits under the suggestion card, so the row is reached by
+# scrolling — which is also how this waits for the pantry write to arrive.
+- tapOn:
+    id: "nav.tab.pantry"
+- scrollUntilVisible:
+    element:
+      id: "pantry.item.garlic"
+    direction: DOWN
+    timeout: 60000
+
+# --- the card answers for a pantry that has something in it ---
+# Back up to the card. It anchors its own scroll: on this screen it renders
+# whether or not anything is expiring, so it is always there to be found.
+- scrollUntilVisible:
+    element:
+      id: "pantry.use-it-up"
+    direction: UP
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible:
+      id: "pantry.suggestions-loading"
+    timeout: 60000
+- assertNotVisible:
+    id: "pantry.suggestions-empty"
+
+# --- and marking an item to use up does not empty the card ---
+# `useItUp` is the strongest signal the ranker reads, and the card's fetch key
+# includes it, so pressing this re-asks. What the wait below can prove is the
+# weaker half of that: the flag did not leave the card with nothing to say.
+# Whether the answer on screen is the second response or still the first is not
+# something a UI test can see, and pretending otherwise would make this read
+# stronger than it is.
+- scrollUntilVisible:
+    element:
+      id: "pantry.use-up.garlic"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "pantry.use-up.garlic"
+- scrollUntilVisible:
+    element:
+      id: "pantry.use-it-up"
+    direction: UP
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible:
+      id: "pantry.suggestions-loading"
+    timeout: 60000
+- assertNotVisible:
+    id: "pantry.suggestions-empty"

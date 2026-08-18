@@ -1,0 +1,85 @@
+# "Suggest my week" (BL-0033), and its two contracts.
+#
+# The mobile counterpart of `apps/web/e2e/suggest-week.spec.ts`, which states
+# them as: pressing the button changes NOTHING until the proposal is accepted,
+# and accepting never disturbs a day that was already planned.
+#
+# Neither is a property of any one unit — the first spans the card's in-memory
+# proposal and the basket it has not written to, the second spans selection,
+# two mutations and the week the planner reads back.
+#
+# The web spec plans its own recipe by hand to set the second half up. This one
+# cannot (no Recipes tab yet — BL-0063), so it takes the same claim from the
+# other end: accept a full week, then ask again. Every day is now locked, so a
+# suggester that respected locked days has nothing left to offer and says so,
+# while one that ignored them would happily propose over the week it just
+# planned.
+appId: com.pantry.app
+name: suggest-week
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+- tapOn:
+    id: "nav.tab.plan"
+- assertVisible:
+    id: "plan.screen"
+- assertVisible:
+    id: "plan.day-empty"
+
+- scrollUntilVisible:
+    element:
+      id: "plan.suggest"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.suggest"
+- extendedWaitUntil:
+    visible:
+      id: "plan.suggest-preamble"
+    timeout: 60000
+
+# The anti-friction contract: a proposal is on screen and the week is still
+# empty. Scrolling back up first, because the card pushed the day off the top
+# and Maestro only sees what is on screen.
+- scrollUntilVisible:
+    element:
+      id: "plan.title"
+    direction: UP
+    timeout: 20000
+- assertVisible:
+    id: "plan.day-empty"
+
+- scrollUntilVisible:
+    element:
+      id: "plan.suggest-accept"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.suggest-accept"
+- scrollUntilVisible:
+    element:
+      id: "plan.title"
+    direction: UP
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible:
+      id: "plan.day-empty"
+    timeout: 60000
+
+# Ask again with the week full. `suggestWeek` proposes into OPEN days only, so
+# the honest answer is "nothing left to suggest" — and it is the same code path
+# that leaves one hand-planned Wednesday alone on web.
+- scrollUntilVisible:
+    element:
+      id: "plan.suggest"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.suggest"
+- extendedWaitUntil:
+    visible:
+      id: "plan.suggest-empty"
+    timeout: 60000

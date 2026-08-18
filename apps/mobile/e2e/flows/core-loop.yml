@@ -1,0 +1,87 @@
+# The cross-service loop, on a device: plan a week, turn it into one grocery
+# list, check something off, and prove both survive a cold start.
+#
+# The mobile counterpart of `apps/web/e2e/core-loop.spec.ts`, and the same two
+# claims that spec makes, in the order it makes them. What differs is where the
+# week comes from. The web spec authors a recipe and baskets it; this client has
+# no Recipes tab yet (BL-0063), so the week is filled from the seeded catalog by
+# "Suggest my week" — see `subflows/plan-a-week.yml`. That covers the loop from
+# the plan onward; authoring a recipe on a phone is the one link still missing,
+# and `flowParity.ts` records it.
+#
+# The manual line is what makes the check-off assertable. Aggregated lines are
+# named by whichever dinners the ranker proposed, so no flow can select one by
+# id; a line the shopper typed is `list.item.garlic` every run.
+#
+# The relaunch is a full sign-out-and-back-in rather than a bare `launchApp`,
+# and that is load-bearing. `useOfflineGroceryList` caches the list in device
+# storage (BL-0058), so a warm relaunch would render the same list from the
+# cache even if the write had never reached Convex — which is precisely the
+# claim being made. `clearState` drops the cache, `clearKeychain` drops the
+# session, and what comes back on screen afterwards came back from the server.
+appId: com.pantry.app
+name: core-loop
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- a week, and one list built from it ---
+- runFlow: ../subflows/plan-a-week.yml
+
+- scrollUntilVisible:
+    element:
+      id: "plan.generate"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.generate"
+
+- tapOn:
+    id: "nav.tab.list"
+# Aggregation is a Convex action calling recipe-service, over every recipe in
+# the week — the slowest single step in the suite. "N of M in cart" replaces
+# "Nothing on the list" only once lines exist, so this asserts a NON-EMPTY
+# generated list without naming a line the catalog decides.
+- extendedWaitUntil:
+    visible:
+      id: "list.progress"
+      text: "\\d+ of \\d+ in cart"
+    timeout: 120000
+
+# --- check one off ---
+- runFlow: ../subflows/add-manual-item.yml
+- tapOn:
+    id: "list.toggle.garlic"
+# "In cart" is a footer under the whole walk, so on a generated list it is far
+# below the fold — scrolled to rather than waited for. The tick is optimistic,
+# so this proves only that the device believes it; the relaunch below is what
+# makes it a claim about Convex.
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 60000
+
+# --- and it is the server that remembers ---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-in.yml
+- tapOn:
+    id: "nav.tab.list"
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 60000
+
+# Checking a line off is also the pantry's inflow signal (BL-0021), written in
+# the same transaction as the tick — so an empty pantry here means the tick that
+# survived the relaunch above was only half of what it claimed to be.
+- tapOn:
+    id: "nav.tab.pantry"
+- scrollUntilVisible:
+    element:
+      id: "pantry.item.garlic"
+    direction: DOWN
+    timeout: 60000

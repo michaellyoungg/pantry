@@ -7,4 +7,11 @@ flows:
   - "flows/*.yml"
 
 executionOrder:
-  continueOnFailure: false
+  # The suite runs nightly (BL-0073), so a run costs a runner, a native build
+  # and the better part of an hour. Stopping at the first failure would spend
+  # all of that to learn one fact, and the flows are independent by
+  # construction — every one launches with `clearState` and signs up its own
+  # account — so a failure in one says nothing about the next. Whoever reads
+  # the morning's report should see the whole picture rather than the first
+  # line of it.
+  continueOnFailure: true

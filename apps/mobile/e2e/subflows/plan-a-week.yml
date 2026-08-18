@@ -1,0 +1,58 @@
+# Fill the week from the shared catalog, and wait until it is actually written.
+#
+# Three flows need a planned week before they can start, and on this client
+# "Suggest my week" is the ONLY way to get one: the Recipes tab is still a
+# placeholder (BL-0063), so nothing here can author a recipe or add one to the
+# basket by hand. What makes it work anyway is that the candidate pool is the
+# caller's recipes PLUS the shared catalog (`recommendCandidates` in
+# recipe-service), and `scripts/lib/e2e-stack.sh` seeds that catalog — so a
+# brand-new account with no recipes still has 50-odd dinners to choose from.
+#
+# Selection then fills every open day (`suggestWeek`), which includes the day
+# the planner opens on, so `plan.day-empty` disappearing is the signal that the
+# accept landed rather than a guess about which day got which dinner.
+appId: com.pantry.app
+---
+- tapOn:
+    id: "nav.tab.plan"
+- assertVisible:
+    id: "plan.screen"
+
+# The card sits below the day and the rail, so it is off-screen on a phone.
+- scrollUntilVisible:
+    element:
+      id: "plan.suggest"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.suggest"
+# A recipe-service round trip over the whole catalog, on a cold backend.
+- extendedWaitUntil:
+    visible:
+      id: "plan.suggest-preamble"
+    timeout: 60000
+
+- scrollUntilVisible:
+    element:
+      id: "plan.suggest-accept"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.suggest-accept"
+# Back to the top of the screen before reading the day. The anchor is the title
+# rather than the thing under test: `plan.day-empty` is what the accept is
+# expected to REMOVE, so scrolling until it appears would fail exactly when the
+# write was fast — and `notVisible` is satisfied by an element that is merely
+# off-screen, so asserting it from down here would pass without meaning
+# anything.
+- scrollUntilVisible:
+    element:
+      id: "plan.title"
+    direction: UP
+    timeout: 20000
+# `accept` writes one add + one schedule per pick and none of them is
+# optimistic, so the day filling up IS the backend acknowledging all of them.
+- extendedWaitUntil:
+    notVisible:
+      id: "plan.day-empty"
+    timeout: 60000
