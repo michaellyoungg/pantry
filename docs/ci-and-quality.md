@@ -74,11 +74,20 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
   opinionated rules (`typescript/no-non-null-assertion`,
   `react/no-array-index-key`, `react/exhaustive-deps`) are `warn` so they
   surface without blocking — tighten them to `error` as the code is cleaned up.
-  CI fails on errors only, which is the posture Biome ran with before it. The
-  `overrides` block is what keeps `packages/core` platform-free: browser globals
-  and `react-dom`/stylesheet imports are errors there, and `react` itself is an
-  error outside `packages/core/src/react`. See
+  CI fails on errors only, which is the posture Biome ran with before it, and
+  those three are the only warnings a clean run prints — keep it that way, or
+  the warnings stop being read. The `overrides` block is what keeps
+  `packages/core` platform-free: browser globals and `react-dom`/stylesheet
+  imports are errors there, and `react` itself is an error outside
+  `packages/core/src/react`. See
   [`packages/core/README.md`](../packages/core/README.md).
+
+  Two rules are deliberately off. `react/only-export-components` (a Vite
+  scaffold default) fires on every TanStack route file and on components that
+  export a helper constant — 9 warnings that no reviewer was ever going to act
+  on. `typescript/unbound-method` is off in test files only, where
+  `expect(mock.method)` is the normal way to assert on a mock and the
+  unbound-`this` hazard it warns about does not exist.
 
 - **`pnpm lint:types`** — oxlint again, with **`--type-aware`** (the
   `oxlint-tsgolint` package). This is the one thing the previous linter could

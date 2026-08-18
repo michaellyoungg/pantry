@@ -49,13 +49,19 @@ export function tabHref(route: NavRoute): Href {
  * Screens ask here rather than building the string themselves, so there is one
  * place to change when the route moves.
  */
-export function recipeHref(recipeId: string): Href {
+// `Href` also admits an object form, so child routes interpolate this string
+// rather than the `Href` — which would stringify as "[object Object]".
+function recipePath(recipeId: string): string {
   return `/recipe/${encodeURIComponent(recipeId)}`;
+}
+
+export function recipeHref(recipeId: string): Href {
+  return recipePath(recipeId);
 }
 
 /** Cooking mode for one recipe: the same screen's step-by-step child route. */
 export function cookModeHref(recipeId: string): Href {
-  return `${recipeHref(recipeId)}/cook`;
+  return `${recipePath(recipeId)}/cook`;
 }
 
 export interface MobileNavItem {
