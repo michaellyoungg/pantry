@@ -18,6 +18,7 @@ const mockListEquipment = jest.fn(async () => [] as unknown);
 const mockMutations: Record<string, jest.Mock> = {};
 const mockOwned = { rows: [] as unknown[] };
 const mockNavigate = jest.fn();
+const mockParams = { current: {} as { section?: string } };
 
 jest.mock("convex/react", () => {
   const { getFunctionName } = require("convex/server");
@@ -42,8 +43,11 @@ jest.mock("convex/react", () => {
   };
 });
 
+// `mockParams` is what the route reads to pick a segment — Settings points at
+// the kitchen that way (BL-0066).
 jest.mock("expo-router", () => ({
   useRouter: () => ({ navigate: mockNavigate, back: jest.fn() }),
+  useLocalSearchParams: () => mockParams.current,
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -75,6 +79,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const key of Object.keys(mockMutations)) delete mockMutations[key];
   mockOwned.rows = [];
+  mockParams.current = {};
   mockList.mockResolvedValue([recipe()]);
   mockRemove.mockResolvedValue(undefined);
   mockListCatalog.mockResolvedValue([]);
@@ -106,6 +111,25 @@ describe("the three views", () => {
     await fireEvent.press(screen.getByTestId("recipes.section.kitchen"));
 
     expect(await screen.findByTestId("recipes.equipment.oven")).toBeOnTheScreen();
+  });
+
+  // Settings does not draw a second inventory; it links here (BL-0066), and the
+  // link has to land on the kitchen rather than on whatever segment was last
+  // chosen.
+  it("opens on the segment the route asks for", async () => {
+    mockParams.current = { section: "kitchen" };
+
+    await render(<RecipesRoute />);
+
+    expect(await screen.findByTestId("recipes.equipment.oven")).toBeOnTheScreen();
+  });
+
+  it("ignores a segment name it does not have", async () => {
+    mockParams.current = { section: "puddings" };
+
+    await render(<RecipesRoute />);
+
+    expect(screen.getByTestId("recipes.section.mine").props.accessibilityState.selected).toBe(true);
   });
 });
 
