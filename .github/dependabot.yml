@@ -25,6 +25,13 @@ updates:
       # Scoped names such as `@testing-library/react-native` are unaffected: this
       # is a whole-name glob, and that package is ours to upgrade.
       - dependency-name: "react-native-*"
+      # Bundled too, but the glob above cannot reach it — the name is scoped, so
+      # `react-native-*` never matches. v3 renames the native module
+      # (`RNCAsyncStorage` → `RNAsyncStorage`), which Expo Go for SDK 57 does not
+      # ship: the offline grocery cache would find no native module at all on a
+      # device, while CI stayed green because the suites mock the package
+      # outright (PR #202). `expo install --check` expects 2.2.0.
+      - dependency-name: "@react-native-async-storage/async-storage"
       # Pinned by `jest-expo`, which depends on an exact `react-test-renderer`.
       - dependency-name: "react-test-renderer"
 
