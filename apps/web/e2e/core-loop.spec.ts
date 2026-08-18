@@ -3,6 +3,7 @@ import {
   createRecipeAndAddToBasket,
   groceryLine,
   navigateTo,
+  pantryRow,
   scheduleAndGenerate,
   signUp,
   uniqueSuffix,
@@ -104,17 +105,14 @@ test("checking an item off fills the pantry", async ({ page }) => {
   // the check-off mutation just fired above, which is the write this test is
   // actually verifying (the pantry upsert happens as a side effect of it).
   await navigateTo(page, "Pantry");
-  // Scoped to the INVENTORY row, not to any text mentioning garlic: since
-  // BL-0050 /pantry also renders the use-it-up suggestions card, whose recipe
-  // rows can mention garlic too (a seeded catalog has several). Only inventory
-  // rows carry the state and use-up buttons, so this proves a pantry row exists
-  // rather than merely that the word appears on the page.
-  const pantryRow = page
-    .getByRole("listitem")
-    .filter({ has: page.getByRole("button", { name: /is: (have|low|out)/i }) })
-    .filter({ hasText: /garlic/i });
-  await expect(pantryRow).toBeVisible();
-  await expect(pantryRow.getByRole("button", { name: /is: have/i })).toBeVisible();
+  // An INVENTORY row, not any text mentioning garlic: since BL-0050 /pantry
+  // also renders the use-it-up suggestions card, whose recipe rows can mention
+  // garlic too (a seeded catalog has several). `pantryRow` matches on the row's
+  // own id, so it says what it means rather than inferring inventory-ness from
+  // the buttons the row happens to contain.
+  const row = pantryRow(page, /garlic/i);
+  await expect(row).toBeVisible();
+  await expect(row.getByRole("button", { name: /is: have/i })).toBeVisible();
 
   expect(pageErrors, `Uncaught page errors during the loop:\n${pageErrors.join("\n")}`).toEqual([]);
 });

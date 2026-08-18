@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -73,6 +74,16 @@ describe("Pantry", () => {
     expect(screen.getByRole("heading", { name: /produce/i })).toBeTruthy();
     expect(screen.getByText("Butter")).toBeTruthy();
     expect(screen.getByText("Green onion")).toBeTruthy();
+  });
+
+  it("keys each inventory row off its canonical item, not its display form", () => {
+    // BL-0071. The native pantry row keys on the same string, so one name
+    // reaches the same row from a Playwright spec and a Maestro flow — and the
+    // id survives the display form being retitled by the normalization table.
+    render(<Pantry />);
+    const row = screen.getByTestId(TEST_IDS.pantry.item("green onion"));
+    expect(row.textContent).toContain("Green onion");
+    expect(screen.getByTestId(TEST_IDS.pantry.markUseUp("green onion"))).toBeTruthy();
   });
 
   it("cycles state have -> low when the state button is clicked", () => {

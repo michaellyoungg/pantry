@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { type ConfirmOptions, useConfirm } from "./useConfirm";
@@ -33,6 +34,26 @@ describe("useConfirm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
 
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
+  });
+
+  it("carries the question's testIds onto the dialog and both answers", async () => {
+    // BL-0071. The clear-the-list question is asked from a web dialog here and
+    // from a sheet on the native client; these three ids are what make it one
+    // flow in two renderings rather than two flows that happen to look alike.
+    const onResult = vi.fn();
+    render(
+      <Harness
+        onResult={onResult}
+        options={{ title: "Clear the grocery list?", testIds: TEST_IDS.list.clearConfirm }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    expect(await screen.findByTestId("list.confirm-sheet")).toBeTruthy();
+    expect(screen.getByTestId("list.confirm-cancel")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("list.confirm-clear"));
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
   });
 

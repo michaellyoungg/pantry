@@ -1,7 +1,9 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
   groceryLine,
+  groceryLines,
   navigateTo,
   scheduleAndGenerate,
   signUp,
@@ -55,15 +57,14 @@ test("aggregates ingredients across recipes and isolates data per user", async (
 
   // --- sign out returns to the auth gate -----------------------------------
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByTestId("auth-form")).toBeVisible();
+  await expect(page.getByTestId(TEST_IDS.auth.form)).toBeVisible();
 
   // --- user B: a fresh account starts with an empty list -------------------
   await signUp(page);
   await page.goto("/list");
   await expect(page.getByText(/Nothing yet — generate from your basket/)).toBeVisible();
-  // Scoped to the grocery card: asserting the whole document has no listitems
-  // makes an isolation test hostage to any future <li> anywhere in the shell.
-  await expect(
-    page.getByRole("region", { name: "Grocery list" }).getByRole("listitem"),
-  ).toHaveCount(0);
+  // Counted as grocery lines rather than as listitems inside the card:
+  // asserting on <li>s made an isolation test hostage to any other list the
+  // card might grow (the leftover prompts already are one).
+  await expect(groceryLines(page)).toHaveCount(0);
 });

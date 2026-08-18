@@ -1,5 +1,18 @@
+import type { TestID } from "@pantry/core/testing";
 import { useEffect, useId, useRef } from "react";
 import { Button } from "./Button";
+
+/**
+ * Selectors for a confirmation, named per question rather than per platform:
+ * the same three ids sit on this dialog and on the native client's sheet, so
+ * "clear the grocery list" is one flow described once (BL-0071). Take them from
+ * `TEST_IDS` — `TEST_IDS.list.clearConfirm` is the worked example.
+ */
+type ConfirmTestIDs = {
+  dialog?: TestID;
+  confirm?: TestID;
+  cancel?: TestID;
+};
 
 /**
  * What a confirmation asks. Deliberately data-only — no DOM types, no web
@@ -12,6 +25,7 @@ export type ConfirmOptions = {
   cancelLabel?: string;
   /** Style the confirm action as destructive (delete, clear, …). */
   destructive?: boolean;
+  testIds?: ConfirmTestIDs;
 };
 
 /**
@@ -40,6 +54,7 @@ export function ConfirmDialog({
     confirmLabel = "Confirm",
     cancelLabel = "Cancel",
     destructive = false,
+    testIds,
   } = options;
 
   // The dialog takes focus (autoFocus on cancel); hand it back when it goes,
@@ -56,6 +71,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         role="alertdialog"
+        data-testid={testIds?.dialog}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={message ? messageId : undefined}
@@ -79,10 +95,19 @@ export function ConfirmDialog({
         )}
         <div className="mt-4 flex items-center justify-end gap-2">
           {/* Focus belongs in the modal the moment it opens, on the safe action. */}
-          <Button variant="ghost" autoFocus onClick={() => onResolve(false)}>
+          <Button
+            variant="ghost"
+            autoFocus
+            testId={testIds?.cancel}
+            onClick={() => onResolve(false)}
+          >
             {cancelLabel}
           </Button>
-          <Button variant={destructive ? "danger" : "primary"} onClick={() => onResolve(true)}>
+          <Button
+            variant={destructive ? "danger" : "primary"}
+            testId={testIds?.confirm}
+            onClick={() => onResolve(true)}
+          >
             {confirmLabel}
           </Button>
         </div>

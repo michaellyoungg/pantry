@@ -204,19 +204,24 @@ research directly — it sets up the `jest-expo` + React Native Testing Library
 harness, and establishes the `testID` conventions before any screen is built.
 Those are therefore **not** separate testing items. Both have now landed: the
 harness is in `apps/mobile`, and the selector contract is written up in
-[`mobile-testid-conventions.md`](mobile-testid-conventions.md). What remains:
+[`mobile-testid-conventions.md`](mobile-testid-conventions.md).
+
+Two more have landed since: [BL-0070](backlog/BL-0070-parallel-e2e-backend-isolation.md)
+unpinned the Playwright suite from a single worker, and
+[BL-0071](backlog/BL-0071-portable-test-selectors.md) moved the selector
+contract into `@pantry/core/testing`, so the web client emits the same strings
+as `data-testid` that the native client emits as `testID`. Both were worth doing
+**before** the mobile e2e layer exists, because they pay for themselves on the
+web side alone — and naming the selectors is far cheaper with one client
+emitting them than two. What remains:
 
 | Item | | Blocked on |
 | --- | --- | --- |
-| [BL-0070](backlog/BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker | nothing |
-| [BL-0071](backlog/BL-0071-portable-test-selectors.md) | Portable test selectors, web half | nothing |
 | [BL-0072](backlog/BL-0072-maestro-e2e-harness.md) | Maestro harness + first flow | BL-0056 |
 | [BL-0073](backlog/BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | BL-0072 |
 
-BL-0070 and BL-0071 are worth doing **before** the mobile client exists, because
-they pay for themselves on the web side alone: BL-0070 is the highest-leverage
-item here and unblocks parallel Playwright runs, and BL-0071 is far cheaper to
-establish while there is one client than two.
+A flow written for BL-0072 should select with `TEST_IDS` rather than inventing
+names: the whole point of the web half is that there is now a list to draw from.
 
 ## Sources
 

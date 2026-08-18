@@ -1,7 +1,7 @@
 ---
 id: BL-0071
 title: Emit portable test selectors from the shared web primitives
-status: in-progress
+status: done
 area: web
 effort: M
 related_specs: [2026-08-16-mobile-client-parity-design.md]

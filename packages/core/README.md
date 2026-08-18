@@ -14,6 +14,7 @@ can reuse it instead of reimplementing it.
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
 | `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
+| `@pantry/core/testing` | The test-selector contract: `testID()`, and `TEST_IDS`, the names both clients emit | nothing |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
 
@@ -103,6 +104,27 @@ components, and carry their own migration when they are ported.
 | Grocery list | `useGroceryList` | `apps/web/src/components/GroceryList.tsx` |
 | Home | `useHome` | `apps/web/src/components/Home.tsx` |
 | Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
+
+## Test selectors (`@pantry/core/testing`)
+
+BL-0071. `testID()` builds a `surface.element[.key]` string; `TEST_IDS` names
+the elements both clients render. The web app emits them as `data-testid` and
+`apps/mobile` as `testID`, so a Playwright spec and a Maestro flow describing
+the same journey are pointing at the same elements.
+
+```ts
+import { TEST_IDS, testID } from "@pantry/core/testing";
+
+TEST_IDS.list.item("Whole Milk"); // "list.item.whole-milk"
+testID("pantry", "empty-state"); // "pantry.empty-state"
+```
+
+It sits in the headless package for the same reason `NAV_ITEMS` does: it is
+string handling that both clients need and neither owns. The return type is
+branded `TestID`, so a component prop can insist the value came from here rather
+than being typed out by hand. The conventions — what may be a surface, what may
+key a row, and which locators should stay role-based — are in
+[`docs/mobile-testid-conventions.md`](../../docs/mobile-testid-conventions.md).
 
 ## The rule this package exists to enforce
 

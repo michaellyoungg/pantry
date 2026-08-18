@@ -15,6 +15,7 @@ import {
 } from "@pantry/core";
 import { removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction } from "@pantry/core/react";
+import { TEST_IDS } from "@pantry/core/testing";
 import { useMutation, useQuery } from "convex/react";
 import { usePlanPrep } from "../lib/usePlanPrep";
 import { useTracedAction } from "../telemetry/useTracedAction";
@@ -232,7 +233,11 @@ export function WeekPlan() {
         ) : (
           <ul aria-label="Not yet planned" className="flex flex-col divide-y divide-border">
             {unscheduled.map((i) => (
-              <li key={i._id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <li
+                key={i._id}
+                data-testid={TEST_IDS.plan.unplanned(i.title)}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
                 <span className="text-text">{i.title}</span>
                 <div className="flex items-center gap-2">
                   <DayPicker

@@ -1,3 +1,4 @@
+import type { TestID } from "@pantry/core/testing";
 import { type ReactNode, useId, useState } from "react";
 
 /**
@@ -19,6 +20,7 @@ export function CollapsibleSection({
   countLabel,
   defaultOpen = true,
   description,
+  testId,
   children,
 }: {
   title: string;
@@ -27,6 +29,8 @@ export function CollapsibleSection({
   countLabel: string;
   defaultOpen?: boolean;
   description?: ReactNode;
+  /** See `Button`'s `testId` — one contract, both clients (BL-0071). */
+  testId?: TestID;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -37,7 +41,7 @@ export function CollapsibleSection({
     // Named by its own heading, which makes it a landmark a screen-reader user
     // can jump between — and the only way to address one section of the list
     // unambiguously, since the card wrapping them all is a <section> too.
-    <section aria-labelledby={headingId}>
+    <section aria-labelledby={headingId} data-testid={testId}>
       <h3 id={headingId} className="text-xs font-semibold uppercase tracking-wide text-muted">
         <button
           type="button"

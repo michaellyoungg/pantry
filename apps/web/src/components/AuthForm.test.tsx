@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,7 +59,7 @@ describe("AuthForm", () => {
     render(<AuthForm />);
     fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "hunter2" } });
-    fireEvent.submit(screen.getByTestId("auth-form"));
+    fireEvent.submit(screen.getByTestId(TEST_IDS.auth.form));
 
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(signIn).toHaveBeenCalledWith("password", {
@@ -73,7 +74,7 @@ describe("AuthForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /need an account/i }));
     fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "hunter2" } });
-    fireEvent.submit(screen.getByTestId("auth-form"));
+    fireEvent.submit(screen.getByTestId(TEST_IDS.auth.form));
 
     expect(signIn).toHaveBeenCalledWith("password", {
       email: "a@b.com",

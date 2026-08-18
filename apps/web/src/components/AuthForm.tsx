@@ -1,5 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useAsyncAction } from "@pantry/core/react";
+import { TEST_IDS } from "@pantry/core/testing";
 import { useState } from "react";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -23,7 +24,7 @@ export function AuthForm() {
 
   return (
     <Card title={flow === "signIn" ? "Sign in" : "Create account"}>
-      <form data-testid="auth-form" onSubmit={submit} className="flex flex-col gap-3">
+      <form data-testid={TEST_IDS.auth.form} onSubmit={submit} className="flex flex-col gap-3">
         {/*
           Password managers only offer to fill (and to save) a credential when
           they can pair an identifier field with a password field. The pairing
@@ -34,6 +35,7 @@ export function AuthForm() {
         */}
         <Input
           id="email"
+          testId={TEST_IDS.auth.email}
           name="email"
           type="email"
           placeholder="Email"
@@ -48,6 +50,7 @@ export function AuthForm() {
         />
         <Input
           id="password"
+          testId={TEST_IDS.auth.password}
           name="password"
           type="password"
           placeholder="Password"
@@ -57,18 +60,19 @@ export function AuthForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" testId={TEST_IDS.auth.submit} disabled={pending}>
           {pending ? "…" : flow === "signIn" ? "Sign in" : "Sign up"}
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="sm"
+          testId={TEST_IDS.auth.toggleFlow}
           onClick={() => setFlow((f) => (f === "signIn" ? "signUp" : "signIn"))}
         >
           {flow === "signIn" ? "Need an account? Sign up" : "Have an account? Sign in"}
         </Button>
-        <ErrorText message={error} />
+        <ErrorText message={error} testId={TEST_IDS.auth.error} />
       </form>
     </Card>
   );

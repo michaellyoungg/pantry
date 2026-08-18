@@ -2,6 +2,7 @@ import { api } from "@pantry/convex/api";
 import { defaultServingsMultiplier } from "@pantry/core";
 import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
+import { TEST_IDS } from "@pantry/core/testing";
 import type { Recipe } from "@pantry/types";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
@@ -127,7 +128,11 @@ export function RecipeList({
           list the same recipe titles. */}
       <ul aria-label="My recipes" className="flex flex-col divide-y divide-border">
         {recipes.map((r) => (
-          <li key={r.id} className="flex flex-col gap-1.5 py-2">
+          <li
+            key={r.id}
+            data-testid={TEST_IDS.recipes.item(r.title)}
+            className="flex flex-col gap-1.5 py-2"
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium text-text">{r.title}</span>

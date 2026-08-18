@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -14,6 +15,15 @@ describe("CollapsibleSection", () => {
   it("is open by default — arriving at a folded list would hide the work", () => {
     renderSection();
     expect(screen.getByText("onion")).toBeTruthy();
+  });
+
+  it("emits its testId on the section, which stays put as it folds (BL-0071)", () => {
+    renderSection({ testId: TEST_IDS.list.inCartSection });
+    const section = screen.getByTestId("list.in-cart-section");
+
+    fireEvent.click(screen.getByRole("button", { name: /produce/i }));
+    // The contents come and go; the section a selector points at does not.
+    expect(screen.getByTestId("list.in-cart-section")).toBe(section);
   });
 
   it("folds and unfolds on the header", () => {

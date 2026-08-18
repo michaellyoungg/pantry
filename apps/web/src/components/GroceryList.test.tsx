@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -101,6 +102,19 @@ describe("GroceryList", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(mutationMock).not.toHaveBeenCalled();
+  });
+
+  it("names each line by its ingredient, and the clear question by its own ids", async () => {
+    // BL-0071: the line is keyed off what it is, not where it sits — the walk
+    // reorders as lines are ticked off — and the confirmation carries the same
+    // three ids the native sheet does.
+    render(<GroceryList />);
+    expect(screen.getByTestId(TEST_IDS.list.item("egg")).textContent).toContain("egg");
+
+    fireEvent.click(screen.getByTestId(TEST_IDS.list.clear));
+    expect(await screen.findByTestId("list.confirm-sheet")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("list.confirm-cancel"));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
   });
 
   it("hides the Clear list button when the list is empty", () => {
