@@ -1,6 +1,5 @@
-import { titleCase } from "@pantry/core";
+import { formatUseBy, isOverdue, titleCase } from "@pantry/core";
 import { usePantry } from "@pantry/core/data";
-import { formatUseBy, isOverdue } from "../lib/expiry";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";

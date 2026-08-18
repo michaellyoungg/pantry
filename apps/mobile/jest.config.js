@@ -43,6 +43,13 @@ if (!jsTransform) {
 
 module.exports = {
   preset: "jest-expo",
+  // Jest's 5s default is too tight for this runner. The FIRST `render` in a
+  // worker pays React Native's one-time initialisation on top of the component
+  // itself — locally that is ~2s, and CI's runners are roughly 2.5x slower, so
+  // the first test of a screen suite lands right on the limit and fails as a
+  // timeout that looks nothing like its cause. Every subsequent test in the
+  // same file runs in milliseconds.
+  testTimeout: 20_000,
   transformIgnorePatterns,
   transform: { ...expoPreset.transform, "\\.mjs$": jsTransform },
   resolver: "<rootDir>/jest.resolver.js",

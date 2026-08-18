@@ -1,7 +1,7 @@
 ---
 id: BL-0059
 title: Native pantry route
-status: in-progress
+status: done
 area: mobile
 effort: M
 related_specs: [2026-08-16-mobile-client-parity-design.md]

@@ -1,114 +1,33 @@
-import { api } from "@pantry/convex/api";
-import { useAsyncData } from "@pantry/core/react";
-import type { GeneratedRecipeDraft, Recommendation } from "@pantry/types";
+import { formatUseBy, isOverdue } from "@pantry/core";
+import { type UseItUpVariant, useUseItUp } from "@pantry/core/data";
 import { Link } from "@tanstack/react-router";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { useCallback } from "react";
-import { expiringSoon, formatUseBy, isOverdue, type PantryRow } from "../lib/expiry";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 
 /**
- * The ONE "use it up" surface (BL-0050).
+ * The ONE "use it up" surface (BL-0050), rendered for web.
  *
- * /pantry used to render two cards that both suggested recipes to use things
- * up, built independently and merged without ever having been designed
- * together. Worse than the duplication: the expiry one called an endpoint that
- * applied no preference filtering, so it could recommend a recipe containing an
- * avoided ingredient a few hundred pixels below a card that was filtering that
- * exact ingredient out. Both now route through `recommendations.pantry`, where
- * the avoid list is a hard pre-filter.
+ * All of the wiring — the expiring batch, the nudge gate, the refetch key, and
+ * the save-then-plan dance a generated suggestion needs — lives in
+ * `useUseItUp()` (`@pantry/core/data`), so the native pantry screen renders the
+ * same surface rather than re-wiring it. See that hook for why each of those
+ * pieces is shaped the way it is.
  *
- * The card expresses TWO different signals and deliberately keeps them apart:
+ * What is left here is presentation, and the presentation has one job: keep the
+ * card's two signals visibly apart.
  *
  *  - **"Use this soon"** — a fact about the fridge with a deadline. It appears
  *    as the amber items strip and, per recipe, as the amber urgency line. This
- *    half needs no network call: it is derived from local Convex state, so it
- *    still renders when the ranker is slow or down.
+ *    half needs no network call, so it still renders when the ranker is down.
  *  - **"You'd like this"** — a prediction about taste, rendered muted beneath.
- *
- * Urgency arrives as a structured field rather than as another reason string,
- * so telling the two apart is a property check, not a prefix match on English.
  *
  * A third kind of row can appear here: a GENERATED suggestion (BL-0034), which
  * the server adds only when the corpus came up thin. It is an idea a model
- * invented, not a curated and tested recipe, so it is labelled as such — and it
- * exists nowhere until the user accepts it, which is why adding one saves it
- * first and only then puts the real recipe on the plan.
+ * invented, not a curated and tested recipe, so it is labelled as such.
  */
-
-type Variant = "nudge" | "page";
-
-export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
-  const rows = (useQuery(api.pantry.list) ?? []) as PantryRow[];
-  const recommend = useAction(api.recommendations.pantry);
-  const acceptGenerated = useAction(api.recommendations.acceptGenerated);
-  const addToBasket = useMutation(api.basket.add);
-
-  const now = Date.now();
-  const batch = expiringSoon(rows, now);
-
-  // On Home the card is an INTERRUPT: it appears only when there is genuinely
-  // food about to be wasted, so it never competes with the weekly loop's single
-  // next action. That gate also means the common case — nothing expiring —
-  // costs no request at all.
-  const silent = variant === "nudge" && batch.length === 0;
-
-  // Suggestions refetch when the pantry changes rather than waiting for a button
-  // press. A card that only appears when something is about to spoil and THEN
-  // asks you to click before it says what to do about it is the "alert with
-  // nothing to do about it" the expiry design exists to avoid.
-  //
-  // The pantry is carried through the dependency list as a serialized string:
-  // the rows are a fresh reference every render, which would re-request
-  // forever, and a string compares by value.
-  // `useItUp` MUST be in the key: it is the strongest signal the ranker reads,
-  // so marking an item to use up has to re-ask. Leaving it out looks like the
-  // flag doing nothing.
-  const pantryKey = JSON.stringify(
-    rows.map((r) => `${r.canonicalItem}:${r.state}:${r.useBy ?? ""}:${r.useItUp ?? false}`),
-  );
-  const load = useCallback(() => {
-    // Referenced so the fetch re-runs when the pantry changes; the action reads
-    // the pantry itself, server-side, so nothing needs to be passed.
-    void pantryKey;
-    return silent
-      ? Promise.resolve<{ results: Recommendation[]; generated: GeneratedRecipeDraft[] }>({
-          results: [],
-          generated: [],
-        })
-      : recommend({});
-  }, [pantryKey, recommend, silent]);
-  const { data, loading, error } = useAsyncData(load);
-  const recipes = data?.results;
-
-  // Generated suggestions carry their full text in a sidecar keyed by the same
-  // synthetic id, because a `gen-` id names no stored recipe — there is nothing
-  // to fetch it back with later.
-  const drafts = new Map((data?.generated ?? []).map((d) => [d.recipeId, d]));
-
-  /**
-   * Put a suggestion on the plan.
-   *
-   * A generated one has to become a real recipe first: the plan holds recipe
-   * ids, and a `gen-` id resolves to nothing. Saving on accept is also the only
-   * time anything generated is stored — suggestions nobody takes are never
-   * written anywhere.
-   */
-  const addRecipe = async (r: Recommendation) => {
-    const draft = drafts.get(r.recipeId);
-    if (draft === undefined) {
-      await addToBasket({ recipeId: r.recipeId, title: r.title });
-      return;
-    }
-    const saved = await acceptGenerated({
-      title: draft.title,
-      servings: draft.servings,
-      ingredients: draft.ingredients,
-      steps: draft.steps,
-    });
-    await addToBasket({ recipeId: saved.id, title: saved.title });
-  };
+export function UseItUp({ variant = "nudge" }: { variant?: UseItUpVariant }) {
+  const { batch, suggestions, loading, error, addError, silent, now, addToPlan } =
+    useUseItUp(variant);
 
   if (silent) return null;
 
@@ -154,14 +73,14 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
       <div className="mt-4">
         {loading && <p className="text-sm text-muted">Looking for recipes…</p>}
 
-        {!loading && recipes !== undefined && recipes.length > 0 && (
+        {!loading && suggestions !== undefined && suggestions.length > 0 && (
           <>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Cook these</h3>
             <ul
               aria-label="Recipes that use these"
               className="mt-1 flex flex-col divide-y divide-border"
             >
-              {recipes.map((r) => (
+              {suggestions.map((r) => (
                 <li key={r.recipeId} className="flex items-start justify-between gap-2 py-2">
                   <div className="min-w-0">
                     {/* A generated idea has no recipe page to link to — it does
@@ -224,9 +143,7 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
                     variant="secondary"
                     size="sm"
                     aria-label={`Add ${r.title} to plan`}
-                    onClick={() => {
-                      void addRecipe(r);
-                    }}
+                    onClick={() => addToPlan(r)}
                   >
                     {r.source === "generated" ? "Save & plan" : "Add to plan"}
                   </Button>
@@ -239,7 +156,7 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
         {/* Empty is a first-class state, distinct from failure. The wording
             differs by variant because the question differs: on Home the user is
             looking at food about to spoil, on /pantry they are browsing. */}
-        {!loading && error === null && recipes !== undefined && recipes.length === 0 && (
+        {!loading && error === null && suggestions !== undefined && suggestions.length === 0 && (
           <p className="text-sm text-muted">
             {batch.length > 0 ? (
               <>
@@ -259,6 +176,10 @@ export function UseItUp({ variant = "nudge" }: { variant?: Variant }) {
             lookup collapses to this line; the items strip above came from local
             state and is still useful on its own. */}
         {!loading && error !== null && <ErrorText message="Couldn't load suggestions just now." />}
+
+        {/* A failed ADD is a different failure and was previously silent: the
+            card looked fine and the recipe simply never reached the plan. */}
+        <ErrorText message={addError} />
       </div>
 
       {batch.length > 0 && (

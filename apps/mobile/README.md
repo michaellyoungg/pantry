@@ -9,8 +9,21 @@ architecture is
 [`docs/superpowers/specs/2026-08-16-mobile-client-parity-design.md`](../../docs/superpowers/specs/2026-08-16-mobile-client-parity-design.md).
 
 **No view code is shared with `apps/web`, in either direction.** What is shared
-is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks) and
-`@pantry/design-tokens` (palette as data).
+is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks),
+`@pantry/core/data` (one headless hook per screen) and `@pantry/design-tokens`
+(palette as data).
+
+## Ported screens
+
+| Route | Status | Item |
+| --- | --- | --- |
+| `pantry` | ported — `src/pantry/` | [BL-0059](../../docs/backlog/BL-0059-native-pantry.md) |
+| everything else | placeholder | see each screen's `portedBy` |
+
+A ported screen is presentation over a `@pantry/core/data` hook and nothing
+else. If a screen needs domain logic that is not in one of those hooks yet, the
+logic goes into the hook — not into the view, and not into a second copy beside
+web's.
 
 ## Running it
 
@@ -112,15 +125,17 @@ which means the drift check fails once, on purpose, as the prompt to regenerate.
 
 ## Known gaps
 
-- `@pantry/convex` and `@pantry/types` are **not** direct dependencies. Nothing
-  here imports them yet — `@pantry/core/data` owns the `@pantry/convex/api`
-  import on the app's behalf — and a declared-but-unused dependency is just
-  something for Knip to flag. Both are in the Metro source map already, so the
-  first screen that needs one only adds a line to `package.json`.
+- `@pantry/convex` and `@pantry/types` are **not** direct dependencies, and
+  still do not need to be. `@pantry/core/data` owns the `@pantry/convex/api`
+  import on the app's behalf, and the one reference to `@pantry/types` (the
+  `Recommendation` row on the pantry screen) is `import type`, so it is erased
+  before anything has to resolve it. Both are in the Metro source map already,
+  so the first screen needing a *runtime* import only adds a line to
+  `package.json`.
 - `@pantry/core/data` ([BL-0055](../../docs/backlog/BL-0055-core-data-screen-hooks.md))
-  is what real screens should call. Placeholder screens are deliberately thin so
-  none of that work is duplicated here; the resolver test proves the entry point
-  resolves to source.
+  is what real screens call — see `src/pantry/` for the worked example. The
+  remaining placeholder screens are deliberately thin so none of that work is
+  duplicated here; the resolver test proves the entry point resolves to source.
 - No app icon or splash screen — that is
   [BL-0060](../../docs/backlog/BL-0060-eas-private-distribution.md), along with
   EAS build and distribution.

@@ -1,6 +1,13 @@
-// Shelf-life presentation (BL-0029). Pure functions over pantry rows so both
-// surfaces that show the nudge — Home and the Pantry page — derive the same
-// batch, and so the rules are testable without React or Convex.
+// Shelf-life presentation (BL-0029). Pure functions over pantry rows so every
+// surface that shows the nudge derives the same batch, and so the rules are
+// testable without React, Convex or a renderer.
+//
+// This lives in `@pantry/core` rather than in a client because there are now
+// two clients (BL-0059). Web's Home and Pantry screens and the native pantry
+// screen all read the same horizon, the same sort order and the same phrasing;
+// a second copy of `expiringSoon` would let two platforms disagree about which
+// items are about to spoil, which is exactly the drift the headless rule
+// exists to prevent.
 //
 // Every date here is APPROXIMATE: it was computed from a shelf-life table when
 // the item entered the pantry, not read off a printed label. The formatting

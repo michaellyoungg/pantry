@@ -36,3 +36,4 @@ export {
   useGroceryList,
 } from "./useGroceryList";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
+export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";
