@@ -12,6 +12,7 @@
     "test:coverage": "turbo run test:coverage",
     "test:integration": "bash scripts/integration.sh",
     "test:e2e": "bash scripts/e2e.sh",
+    "test:e2e:mobile": "bash scripts/mobile-e2e.sh",
     "lint": "oxlint && oxfmt --check && turbo run lint",
     "format": "oxfmt && oxlint --fix",
     "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
@@ -19,6 +20,7 @@
     "backlog:index:check": "node scripts/backlog-index.mjs --check",
     "contract:codegen": "node scripts/contract-codegen.mjs",
     "contract:check": "node scripts/contract-codegen.mjs --check",
+    "maestro:install": "bash scripts/install-maestro.sh",
     "check": "pnpm lint && pnpm contract:check && pnpm typecheck && pnpm lint:types && pnpm test",
     "lint:types": "turbo run build && oxlint --type-aware"
   },

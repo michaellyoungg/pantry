@@ -21,10 +21,24 @@ export const DEFAULT_CONVEX_URL = "http://127.0.0.1:3210";
  * A physical device cannot reach `127.0.0.1` — that is the simulator's own
  * loopback. Until BL-0006 puts the backend on a public host, run
  * `pnpm --filter @pantry/mobile start:tunnel` and set `EXPO_PUBLIC_CONVEX_URL`
- * to the tunnelled address. See `apps/mobile/README.md`.
+ * to the tunnelled address. See `apps/mobile/README.md`. The Android emulator
+ * has the same problem and a fixed answer — `10.0.2.2` — which
+ * `scripts/mobile-e2e.sh` supplies through this same variable.
+ *
+ * The default argument reads the variable through an explicit
+ * `process.env.EXPO_PUBLIC_CONVEX_URL` rather than defaulting to `process.env`
+ * itself, and that is load-bearing. `babel-preset-expo` rewrites
+ * `process.env.EXPO_PUBLIC_*` **member expressions** and nothing else, so an
+ * aliased `env.EXPO_PUBLIC_CONVEX_URL` is left for the runtime to answer. In a
+ * dev build it still works, because Metro's serializer defines the same
+ * variables on the runtime `process.env`; in a release build that serializer
+ * step is skipped in favour of the Babel inlining, and the read silently
+ * returns `undefined` — a production app quietly falling back to loopback.
  */
 export function resolveConvexUrl(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = {
+    EXPO_PUBLIC_CONVEX_URL: process.env.EXPO_PUBLIC_CONVEX_URL,
+  },
   extra: Record<string, unknown> | undefined = Constants.expoConfig?.extra,
 ): string {
   const fromEnv = env.EXPO_PUBLIC_CONVEX_URL;

@@ -109,6 +109,6 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0069](BL-0069-public-store-launch.md) | Public store launch (App Store + Google Play) | proposed | mobile | M |
 | [BL-0070](BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | done | infra | M |
 | [BL-0071](BL-0071-portable-test-selectors.md) | Emit portable test selectors from the shared web primitives | done | web | M |
-| [BL-0072](BL-0072-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | in-progress | mobile | M |
+| [BL-0072](BL-0072-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | done | mobile | M |
 | [BL-0073](BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e — flow parity with the browser suite | proposed | mobile | L |
 | [BL-0074](BL-0074-e2e-residual-write-flakes.md) | Three e2e assertions that fail when a write quietly does not land | done | infra | S |

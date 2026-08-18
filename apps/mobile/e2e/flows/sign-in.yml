@@ -1,0 +1,32 @@
+# The first flow, and the one that proves the harness rather than the product.
+#
+# It is the whole auth loop rather than only the sign-in half because the
+# deployment is fresh: there is no account to sign in as until one is
+# registered. Once there is, signing out and back in costs three steps and is
+# the only path that reads a session back out of SecureStore.
+#
+# Landing on the plan is the navigation assertion, and it stops at the screen's
+# root: what this proves is that the tab bar routes, not what the planner draws.
+appId: com.pantry.app
+name: sign-in
+tags:
+  - smoke
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+- tapOn:
+    id: "nav.tab.settings"
+- tapOn:
+    id: "settings.sign-out"
+- extendedWaitUntil:
+    visible:
+      id: "auth.form"
+    timeout: 30000
+
+- runFlow: ../subflows/sign-in.yml
+
+- tapOn:
+    id: "nav.tab.plan"
+- assertVisible:
+    id: "plan.screen"

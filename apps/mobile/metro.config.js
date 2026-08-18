@@ -4,6 +4,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 const { createWorkspaceSourceResolver } = require("./metro.workspace-source");
 const { withIgnoredPathsBlocked } = require("./metro.crawler-ignore");
+const { applyE2ESourceExts } = require("./metro.e2e-source-ext");
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
@@ -45,5 +46,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
 };
+
+// --- e2e builds -----------------------------------------------------------
+// Inert unless PANTRY_E2E=1, which only scripts/mobile-e2e.sh sets. See
+// metro.e2e-source-ext.js for what it swaps, and for why copying Bluesky's
+// RN_SRC_EXT would do nothing under Expo.
+applyE2ESourceExts(config);
 
 module.exports = withNativeWind(config, { input: "./global.css" });

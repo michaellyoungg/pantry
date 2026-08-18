@@ -1,0 +1,19 @@
+# Launch with no session, on either platform.
+#
+# `clearState` alone is not enough on iOS. It empties the app's data container,
+# but `expo-secure-store` keeps the Convex Auth tokens in the **keychain**,
+# which is not in that container and survives both a data clear and a reinstall.
+# Without `clearKeychain` the second run launches already signed in as the
+# previous run's account, and the failure reads as "the form never appeared".
+# It is a no-op on Android, where SecureStore is inside the data container.
+appId: com.pantry.app
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+# The session is read from SecureStore on a cold start, so `app.loading` is on
+# screen first and the form replaces it.
+- extendedWaitUntil:
+    visible:
+      id: "auth.form"
+    timeout: 30000

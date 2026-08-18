@@ -1,0 +1,28 @@
+# Register the account this run owns, and land in the authenticated shell.
+#
+# Every run minting its own account is the isolation that matters — the same
+# reason the browser suite's `signUp()` does it, and the finding behind
+# `docs/e2e-parallelism.md`. E2E_EMAIL / E2E_PASSWORD come from
+# `scripts/mobile-e2e.sh`, because Maestro's scripting has no clock worth
+# trusting for uniqueness.
+appId: com.pantry.app
+---
+- tapOn:
+    id: "auth.toggle-flow"
+- tapOn:
+    id: "auth.email"
+- inputText: ${E2E_EMAIL}
+- hideKeyboard
+- tapOn:
+    id: "auth.password"
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "auth.submit"
+# Sign-up is a Convex round-trip on a cold backend, so this is the longest wait
+# in the harness. The tab bar renders only inside `<Authenticated>`, which makes
+# it the honest "we are in" signal.
+- extendedWaitUntil:
+    visible:
+      id: "nav.tab.home"
+    timeout: 60000

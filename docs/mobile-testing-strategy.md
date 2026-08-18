@@ -215,10 +215,21 @@ as `data-testid` that the native client emits as `testID`. Both were worth doing
 web side alone — and naming the selectors is far cheaper with one client
 emitting them than two. What remains:
 
-| Item | | Blocked on |
+| Item | | Status |
 | --- | --- | --- |
-| [BL-0072](backlog/BL-0072-maestro-e2e-harness.md) | Maestro harness + first flow | BL-0056 |
-| [BL-0073](backlog/BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | BL-0072 |
+| [BL-0072](backlog/BL-0072-maestro-e2e-harness.md) | Maestro harness + first flow | landed — [`mobile-e2e.md`](mobile-e2e.md) |
+| [BL-0073](backlog/BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e, flow parity | blocked on nothing |
+
+Two things BL-0072 found that this research did not predict, and that BL-0073
+inherits:
+
+- **`RN_SRC_EXT` does not exist under Expo.** The build-time substitution
+  described above is real and worth having, but the env var Bluesky sets is a
+  bare-React-Native convention that appears nowhere in Expo's toolchain. The
+  seam had to be wired explicitly in `metro.config.js`.
+- **The harness cannot run on a `ubuntu-latest` runner at all** — no KVM, so no
+  Android emulator, and iOS needs macOS regardless. "Nightly, not per-PR" was
+  the right call for cost; it turns out to also be the only call available.
 
 A flow written for BL-0072 should select with `TEST_IDS` rather than inventing
 names: the whole point of the web half is that there is now a list to draw from.

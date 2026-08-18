@@ -6,8 +6,7 @@
 import { colorTokens } from "@pantry/design-tokens";
 import { Tabs } from "expo-router";
 import { NAV_ICONS } from "../../src/navigation/navIcons";
-import { NAV_ITEMS } from "../../src/navigation/navItems";
-import { testID } from "../../src/testing/testIDs";
+import { NAV_ITEMS, tabTestID } from "../../src/navigation/navItems";
 
 export default function TabsLayout() {
   return (
@@ -30,7 +29,7 @@ export default function TabsLayout() {
             name={item.name}
             options={{
               title: item.label,
-              tabBarButtonTestID: testID("nav", "tab", item.name === "index" ? "home" : item.name),
+              tabBarButtonTestID: tabTestID(item.name),
               tabBarIcon: ({ color, size }) => (
                 <Icon color={color} size={size} strokeWidth={1.75} />
               ),

@@ -134,6 +134,28 @@ unit-only and fast) or the per-PR CI gate — it needs Docker, Go, and a browser
 Set `E2E_KEEP_STACK=1` to leave the stack up for debugging; pass extra flags
 through to Playwright, e.g. `pnpm test:e2e --headed`.
 
+### End-to-end (device)
+
+The same idea for the native client, driven by [Maestro](https://maestro.dev) on
+an iOS simulator or an Android emulator. Playwright cannot drive a native app,
+so this is the only end-to-end coverage `apps/mobile` has.
+
+```bash
+# once, to install the pinned, checksum-verified CLI:
+pnpm maestro:install
+# then, with a simulator or emulator already booted:
+pnpm test:e2e:mobile --platform android
+```
+
+`pnpm test:e2e:mobile` runs [`scripts/mobile-e2e.sh`](scripts/mobile-e2e.sh),
+which shares the backend bring-up with the browser runner
+([`scripts/lib/e2e-stack.sh`](scripts/lib/e2e-stack.sh)), starts Metro pointed at
+a URL the device can actually reach, builds and installs a debug app, and runs
+the flows in `apps/mobile/e2e/`. It is **local and nightly, not a merge gate** —
+a native build plus a booted device image is minutes of wall clock and gigabytes
+of toolchain. Prerequisites, the platform traps, and what has and has not been
+verified on a device are in [`docs/mobile-e2e.md`](docs/mobile-e2e.md).
+
 ## Observability
 
 Traces and structured logs go to a local Grafana stack (BL-0027). It is opt-in —
