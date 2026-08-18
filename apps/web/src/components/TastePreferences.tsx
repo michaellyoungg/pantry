@@ -1,8 +1,8 @@
 import { api } from "@pantry/convex/api";
+import { COOK_TIME_BUCKETS, humanizeSlug, slugifyFacet } from "@pantry/core";
 import { useAsyncAction } from "@pantry/core/react";
 import { useMutation, useQuery } from "convex/react";
 import { useId, useState } from "react";
-import { COOK_TIME_BUCKETS, humanizeSlug, slugifyFacet } from "../lib/discovery";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";

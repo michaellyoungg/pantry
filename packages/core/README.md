@@ -10,10 +10,10 @@ can reuse it instead of reimplementing it.
 
 | Import | Contains | May depend on |
 | --- | --- | --- |
-| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
+| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads, derived-prep windows and due dates, the discovery/cook-time formatting and the cooking-method labels — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
-| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
+| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry`, `usePlanPrep`, `useRecipeDetail` | React, `convex/react`, `@pantry/convex`, and the three above |
 | `@pantry/core/testing` | The test-selector contract: `testID()`, and `TEST_IDS`, the names both clients emit | nothing |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
@@ -104,6 +104,10 @@ components, and carry their own migration when they are ported.
 | Grocery list | `useGroceryList` | `apps/web/src/components/GroceryList.tsx` |
 | Home | `useHome` | `apps/web/src/components/Home.tsx` |
 | Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
+| Use it up | `useUseItUp` | `apps/web/src/components/UseItUp.tsx` |
+| This week's prep | `usePlanPrep` | `apps/web/src/components/BeforeYouCook.tsx` |
+| A recipe's prep | `useRecipePrep` | `apps/web/src/components/RecipePrep.tsx` |
+| Recipe / cooking | `useRecipeDetail` | *(native only — web expands a recipe row inside a list it already holds)* |
 
 ### Offline, and why only one hook has it
 

@@ -1,5 +1,5 @@
+import { PREP_WINDOW_LABELS } from "@pantry/core";
 import type { PrepTask, PrepTaskInput, PrepWindow } from "@pantry/types";
-import { PREP_WINDOW_LABELS } from "../lib/prep";
 import { PrepSourceBadge } from "./PrepSourceBadge";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";

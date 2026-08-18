@@ -1,10 +1,10 @@
+import { COOKING_METHOD_LABELS, COOKING_METHODS } from "@pantry/core";
 import type {
   CookingMethod,
   EquipmentCategory,
   EquipmentDef,
   RecipeEquipment,
 } from "@pantry/types";
-import { COOKING_METHOD_LABELS, COOKING_METHODS } from "../lib/cookingMethods";
 import { equipmentName } from "../lib/useEquipmentCatalog";
 import { Button } from "./ui/Button";
 

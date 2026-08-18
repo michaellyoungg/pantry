@@ -10,8 +10,12 @@
  * a recipe title and turns every cell into an ellipsis. Seven full-width rows
  * read down the screen instead, and each row is a whole tap target.
  *
- * Read-and-route, as on web: rows go to the planner rather than deep-linking a
- * focused day, because `/plan` has no day parameter yet.
+ * Read-and-route, as on web — but with two destinations rather than one. An
+ * empty day goes to the planner, because what it offers is "add something". A
+ * planned meal goes to that recipe's cooking screen (BL-0061), because on a
+ * phone "Thursday: chili" is most often tapped by someone about to cook it,
+ * and routing them to the planner instead makes them find it twice. There is
+ * still no deep link to a focused day: `/plan` has no day parameter yet.
  */
 import type { PlannedDay } from "@pantry/core";
 import type { HomeMeal } from "@pantry/core/data";
@@ -29,6 +33,7 @@ export function WeekStrip({
   days,
   unscheduled,
   onOpenPlan,
+  onOpenRecipe,
 }: {
   days: PlannedDay<HomeMeal>[];
   /**
@@ -38,6 +43,8 @@ export function WeekStrip({
    */
   unscheduled: number;
   onOpenPlan: () => void;
+  /** Open one planned meal's recipe. Routing itself stays in the screen. */
+  onOpenRecipe: (recipeId: string) => void;
 }) {
   return (
     <View className="gap-2" testID={id("week-strip")}>
@@ -62,13 +69,22 @@ export function WeekStrip({
           ) : (
             <View className="flex-1 gap-0.5">
               {day.items.map((row) => (
-                <Text
-                  className={`text-sm ${row.type === "leftover" ? "text-muted" : "text-text"}`}
+                // Its own target inside the day row: tapping the meal opens the
+                // recipe, tapping the rest of the row still opens the planner.
+                <Pressable
+                  accessibilityLabel={`Cook ${describe(row)}`}
+                  accessibilityRole="button"
                   key={row._id}
-                  numberOfLines={1}
+                  onPress={() => onOpenRecipe(row.recipeId)}
+                  testID={id("meal", testIDKey(row.title))}
                 >
-                  {describe(row)}
-                </Text>
+                  <Text
+                    className={`text-sm ${row.type === "leftover" ? "text-muted" : "text-text"}`}
+                    numberOfLines={1}
+                  >
+                    {describe(row)}
+                  </Text>
+                </Pressable>
               ))}
             </View>
           )}

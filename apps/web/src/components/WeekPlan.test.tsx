@@ -32,7 +32,8 @@ vi.mock("./PlanNutrition", () => ({ PlanNutrition: () => null }));
 // Same reason for derived prep (BL-0042): usePlanPrep runs its own action, and
 // the badge it feeds has its own test. Stubbed to a loaded, empty week so this
 // file stays about scheduling.
-vi.mock("../lib/usePlanPrep", () => ({
+vi.mock("@pantry/core/data", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@pantry/core/data")>()),
   usePlanPrep: () => ({
     meals: [],
     today: "2026-08-05",
