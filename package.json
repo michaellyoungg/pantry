@@ -17,7 +17,9 @@
     "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
     "backlog:index": "node scripts/backlog-index.mjs",
     "backlog:index:check": "node scripts/backlog-index.mjs --check",
-    "check": "pnpm lint && pnpm typecheck && pnpm lint:types && pnpm test",
+    "contract:codegen": "node scripts/contract-codegen.mjs",
+    "contract:check": "node scripts/contract-codegen.mjs --check",
+    "check": "pnpm lint && pnpm contract:check && pnpm typecheck && pnpm lint:types && pnpm test",
     "lint:types": "turbo run build && oxlint --type-aware"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
     "turbo": "^2.10.10",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "yaml": "^2.9.0"
   }
 }

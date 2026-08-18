@@ -9,5 +9,8 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // The codegen test drives a root script; it is not part of the published
+  // types, so it stays out of `dist` exactly as packages/core does.
+  "exclude": ["src/**/*.test.ts"]
 }

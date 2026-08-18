@@ -47,6 +47,8 @@ function rec(over: Partial<Recommendation> = {}): Recommendation {
     reasons: ["Uses 2 things you have"],
     have: ["spinach"],
     missing: [],
+    nutritionFit: null,
+    nutritionUnverified: [],
     ...over,
   };
 }

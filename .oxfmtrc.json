@@ -18,6 +18,7 @@
   "ignorePatterns": [
     "**/.claude/**",
     "**/_generated/**",
+    "**/*.generated.ts",
     "**/dist/**",
     "**/node_modules/**",
     "**/.turbo/**",

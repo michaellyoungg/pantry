@@ -46,6 +46,8 @@ function rec(over: Partial<Recommendation> = {}): Recommendation {
     reasons: ["Uses 2 things you have"],
     have: ["spinach"],
     missing: [],
+    nutritionFit: null,
+    nutritionUnverified: [],
     ...over,
   };
 }
@@ -214,7 +216,7 @@ describe("suggestions", () => {
   it("says what a recipe still needs, so it is not a dead end at the fridge", async () => {
     mockState.pantry = [row()];
     mockRecommend.mockImplementation(
-      ranked([rec({ missing: [{ canonicalItem: "cream", display: "Cream" }] })]),
+      ranked([rec({ missing: [{ canonicalItem: "cream", display: "Cream", staple: false }] })]),
     );
 
     await render(<UseItUpCard variant="page" />);

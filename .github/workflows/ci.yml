@@ -56,6 +56,14 @@ jobs:
       - name: Backlog index is current
         run: pnpm backlog:index:check
 
+      # contract/openapi.yaml is the single source of truth for the
+      # recipe-service HTTP contract; the TypeScript wire types are generated
+      # from it. Regenerating in-memory and comparing is what stops a spec edit
+      # from shipping without the types that go with it (BL-0007). The Go half
+      # of the same contract is checked by TestStructsMatchSpec in the Go job.
+      - name: Contract codegen is current
+        run: pnpm contract:check
+
       - name: Typecheck
         run: pnpm typecheck
 
