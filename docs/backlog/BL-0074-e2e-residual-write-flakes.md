@@ -1,7 +1,7 @@
 ---
 id: BL-0074
 title: Three e2e assertions that fail when a write quietly does not land
-status: proposed
+status: in-progress
 area: infra
 effort: S
 related_specs: [../e2e-parallelism.md]
