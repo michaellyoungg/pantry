@@ -36,5 +36,11 @@ export {
   type UseGroceryList,
   useGroceryList,
 } from "./useGroceryList";
+export {
+  type GenerateGroceryList,
+  type HomeMeal,
+  type UseHome,
+  useHome,
+} from "./useHome";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
 export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";
