@@ -59,12 +59,14 @@ describe("TastePreferences", () => {
     await waitFor(() => expect(setMock).toHaveBeenCalledWith({ cuisines: ["thai", "italian"] }));
   });
 
+  // Re-adding one costs no round trip at all now that the write lives in
+  // `useTastePreferences` — the list it would send is the list already stored.
   it("does not store the same cuisine twice", async () => {
     state.prefs = { cuisines: ["thai"] };
     render(<TastePreferences />);
     fireEvent.change(screen.getByLabelText(/cuisine you like/i), { target: { value: "Thai" } });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    await waitFor(() => expect(setMock).toHaveBeenCalledWith({ cuisines: ["thai"] }));
+    await waitFor(() => expect(setMock).not.toHaveBeenCalled());
   });
 
   it("removes a cuisine", async () => {

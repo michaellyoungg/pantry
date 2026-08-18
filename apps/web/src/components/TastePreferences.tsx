@@ -1,7 +1,4 @@
-import { api } from "@pantry/convex/api";
-import { COOK_TIME_BUCKETS, humanizeSlug, slugifyFacet } from "@pantry/core";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
+import { useTastePreferences } from "@pantry/core/data";
 import { useId, useState } from "react";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -9,7 +6,8 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
 /**
- * What the cook likes, as opposed to what they refuse (BL-0030).
+ * What the cook likes, as opposed to what they refuse (BL-0030): presentation
+ * over `useTastePreferences()`.
  *
  * It sits beside the avoid list but is a different KIND of setting, and the copy
  * says so: an avoid entry removes recipes, while a taste only reorders them.
@@ -21,32 +19,29 @@ import { Input } from "./ui/Input";
  * recommendations exactly as they were before it existed.
  */
 export function TastePreferences() {
-  const prefs = useQuery(api.preferences.get);
-  const save = useMutation(api.preferences.set);
-  const { run, error } = useAsyncAction();
+  const {
+    cuisines,
+    maxMinutes,
+    buckets,
+    loading,
+    error,
+    addCuisine,
+    removeCuisine,
+    setMaxMinutes,
+  } = useTastePreferences();
   const [draft, setDraft] = useState("");
   const cuisineFieldId = useId();
   const timeFieldId = useId();
 
-  // Nothing may be written against the `[]` fallback: until the stored list is
+  // Nothing may be written against the empty fallback: until the stored list is
   // known, adding one cuisine would submit a list that silently drops every
   // taste the user already had.
-  if (prefs === undefined) return null;
+  if (loading) return null;
 
-  const cuisines = prefs.cuisines ?? [];
-
-  const addCuisine = () => {
-    // Slugified here, not on the way out, so the stored value is the same string
-    // a recipe carries. An entry with no usable characters is not a taste.
-    const slug = slugifyFacet(draft);
+  const add = () => {
+    addCuisine(draft);
     setDraft("");
-    if (slug === "") return;
-    const next = cuisines.includes(slug) ? cuisines : [...cuisines, slug];
-    void run(() => save({ cuisines: next }));
   };
-
-  const removeCuisine = (slug: string) =>
-    void run(() => save({ cuisines: cuisines.filter((c) => c !== slug) }));
 
   return (
     <Card title="Tastes">
@@ -69,27 +64,27 @@ export function TastePreferences() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  addCuisine();
+                  add();
                 }
               }}
             />
-            <Button variant="secondary" size="sm" onClick={addCuisine}>
+            <Button variant="secondary" size="sm" onClick={add}>
               Add
             </Button>
           </div>
 
           <ul aria-label="Cuisines you like" className="mt-2 flex flex-wrap gap-1.5">
-            {cuisines.map((slug) => (
+            {cuisines.map((cuisine) => (
               <li
-                key={slug}
+                key={cuisine.slug}
                 className="flex items-center gap-1 rounded-full bg-border px-2 py-0.5 text-xs text-text"
               >
-                <span>{humanizeSlug(slug)}</span>
+                <span>{cuisine.label}</span>
                 <button
                   type="button"
-                  aria-label={`Remove ${humanizeSlug(slug)}`}
+                  aria-label={`Remove ${cuisine.label}`}
                   className="text-muted hover:text-text"
-                  onClick={() => removeCuisine(slug)}
+                  onClick={() => removeCuisine(cuisine.slug)}
                 >
                   ×
                 </button>
@@ -109,14 +104,14 @@ export function TastePreferences() {
           <select
             id={timeFieldId}
             className="mt-2 rounded-md border border-border bg-surface px-2 py-1 text-sm text-text"
-            value={String(prefs.maxMinutes ?? 0)}
+            value={String(maxMinutes)}
             // Saved on change rather than behind a Save button: it is a single
             // choice from a short list, and there is nothing to review.
-            onChange={(e) => void run(() => save({ maxMinutes: Number(e.target.value) }))}
+            onChange={(e) => setMaxMinutes(Number(e.target.value))}
           >
             {/* 0 is the wire value for "no opinion" — see preferences.set. */}
             <option value="0">No preference</option>
-            {COOK_TIME_BUCKETS.map((bucket) => (
+            {buckets.map((bucket) => (
               <option key={bucket.id} value={bucket.maxMinutes}>
                 {bucket.label}
               </option>
