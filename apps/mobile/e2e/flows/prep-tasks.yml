@@ -1,0 +1,74 @@
+# Derived prep (BL-0042), and the mobile counterpart of
+# `apps/web/e2e/prep-tasks.spec.ts`.
+#
+# The feature only exists as a whole across three services: the rule engine and
+# the cook-date arithmetic are Go, the check-off is Convex state, and the
+# weekday→date resolution happens on the device against its own clock. Each has
+# a unit test; this is the pass that proves they line up.
+#
+# The meal goes on the day the planner opens on — today. A night-before thaw for
+# today is due or already overdue whichever day the nightly runs, which is the
+# same reason the web spec pins its meal to Monday: scheduling onto "tomorrow"
+# would pass six days a week and fail on the seventh.
+#
+# "frozen chicken breast" is the ingredient because the modifier is what the
+# rule fires on, while `chicken breast` is what it canonicalizes to and
+# interpolates into the task text. That mapping is why one rule covers the whole
+# database.
+#
+# What this flow does NOT do is check the task off and prove the tick survives a
+# reload, which is the web spec's second half. The task's testID is keyed on
+# `stateKey(task.key, cookDate)` — it contains the date the run happens on, so
+# no flow can name it in advance. `flowParity.ts` records that.
+appId: com.pantry.app
+name: prep-tasks
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Thaw Test
+      E2E_RECIPE_INGREDIENT: frozen chicken breast
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-thaw-test"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-thaw-test"
+
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-thaw-test"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-thaw-test"
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.e2e-thaw-test"
+    timeout: 30000
+
+# The planner badge: the lead time is visible where the meal is scheduled, which
+# is the whole point of deriving against the cook date rather than the plan
+# date. It arrives from a `prepTasks.forPlan` action, so it is waited for.
+- extendedWaitUntil:
+    visible:
+      id: "plan.prep.e2e-thaw-test"
+    timeout: 60000
+
+# And Home surfaces it, because a thaw missed today cannot be made up tomorrow.
+# The card renders nothing at all unless something is genuinely due, so its
+# presence is the assertion.
+- tapOn:
+    id: "nav.tab.home"
+- extendedWaitUntil:
+    visible:
+      id: "home.before-you-cook"
+    timeout: 60000

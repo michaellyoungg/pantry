@@ -1,18 +1,22 @@
-# Per-user isolation, across a sign-out (BL-0004).
+# Two cross-service guarantees no unit test can prove end to end (BL-0003,
+# BL-0004), and the mobile counterpart of
+# `apps/web/e2e/aggregation-and-isolation.spec.ts`:
 #
-# The mobile counterpart of `apps/web/e2e/aggregation-and-isolation.spec.ts`,
-# and deliberately only half of it. That spec proves two things: that two
-# recipes calling for garlic collapse into one grocery line, and that a
-# brand-new account sees none of the previous account's data. The first needs
-# two authored recipes, which this client cannot do yet (BL-0063);
-# `flowParity.ts` records it as the missing half rather than letting the file
-# name imply coverage it does not have.
+#   1. Aggregation — two recipes that each call for garlic collapse into ONE
+#      grocery line.
+#   2. Isolation — a brand-new account sees none of the previous one's data.
 #
-# The isolation half is worth having on its own, and is more than a repeat of
-# the web assertion: the native client keeps its session in the keychain and its
-# grocery list in a device cache (BL-0058), so "a second account sees an empty
-# list" is a claim about the client's own storage as much as about the server's
-# scoping. A sign-out that left either behind would show account A's line here.
+# The aggregation half is asserted through provenance rather than by counting
+# rows, and that is the better assertion rather than a workaround for Maestro
+# having no count: a line that says "2 recipes" is one line carrying both
+# sources, which is exactly the claim. A regression that stopped merging would
+# leave two lines each saying "1 recipe", and this fails.
+#
+# The isolation half is more than a repeat of the web assertion on this client.
+# The session lives in the keychain and the grocery list in a device cache
+# (BL-0058), so "a second account sees an empty list" is a claim about local
+# storage as much as about server scoping: a sign-out that left either behind
+# would show account A's line here.
 appId: com.pantry.app
 name: aggregation-and-isolation
 tags:
@@ -21,14 +25,75 @@ tags:
 - runFlow: ../subflows/launch-signed-out.yml
 - runFlow: ../subflows/sign-up.yml
 
-# --- account A puts one line on its list ---
+# --- account A: two recipes wanting the same thing ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 20000
 - tapOn:
-    id: "nav.tab.list"
+    id: "recipes.basket.e2e-garlic-bread"
+
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Toast
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-toast"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-toast"
+
+# Both onto the day the planner opened on. Web puts them on different days; what
+# aggregation reads is the week, not the day, so one day is the shorter path to
+# the same claim.
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-toast"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-toast"
 - extendedWaitUntil:
     visible:
-      id: "list.empty-state"
-    timeout: 60000
-- runFlow: ../subflows/add-manual-item.yml
+      id: "plan.meal.e2e-garlic-toast"
+    timeout: 30000
+
+# --- one line, naming both recipes ---
+- runFlow: ../subflows/generate-list.yml
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 120000
+- assertVisible:
+    id: "list.provenance.garlic"
+    text: "2 recipes"
+- tapOn:
+    id: "list.provenance.garlic"
+- assertVisible:
+    id: "list.provenance-source.e2e-garlic-bread"
+- assertVisible:
+    id: "list.provenance-source.e2e-garlic-toast"
+- tapOn:
+    id: "list.provenance-close"
 
 # --- sign out returns to the auth gate ---
 - tapOn:
@@ -40,7 +105,7 @@ tags:
       id: "auth.form"
     timeout: 30000
 
-# --- account B is a different account, minted by the runner for this run ---
+# --- account B: a fresh account starts with an empty list ---
 - runFlow:
     file: ../subflows/sign-up.yml
     env:

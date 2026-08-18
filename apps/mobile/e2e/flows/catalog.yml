@@ -1,0 +1,80 @@
+# The shared catalog, end to end (BL-0051 / BL-0063).
+#
+# The mobile counterpart of `apps/web/e2e/catalog.spec.ts`, and the one corner
+# of the app where a recipe the user did not write is planned, aggregated and
+# shopped: catalog rows are owned by the `catalog` sentinel user, so every read
+# on this path has to resolve a second ownership scope. A user-scoped lookup
+# that "works" in unit tests comes back with an empty list here — which is the
+# shape of the bug this path has already produced once.
+#
+# `baguette` is the assertion for the same reason it is on web: no recipe any
+# other flow writes calls for one, so a grocery line bearing it can only have
+# come from the catalog's copy of this recipe. Other catalog entries want a
+# baguette too, but only this one is ever basketed, and a list is aggregated
+# from BASKETED recipes alone.
+appId: com.pantry.app
+name: catalog
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- browse: GET /catalog through the Convex action ---
+- tapOn:
+    id: "nav.tab.recipes"
+- tapOn:
+    id: "recipes.section.catalog"
+# Searching rather than scrolling: the catalog is ~50 rows and growing, and the
+# search box narrows it to the one this flow means.
+- extendedWaitUntil:
+    visible:
+      id: "recipes.catalog-search"
+    timeout: 60000
+- tapOn:
+    id: "recipes.catalog-search"
+- inputText: Garlic Bread
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "recipes.catalog-item.garlic-bread"
+    direction: DOWN
+    timeout: 30000
+
+# --- add: the write that stores a recipe belonging to another user ---
+- tapOn:
+    id: "recipes.catalog-add.garlic-bread"
+
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.garlic-bread"
+    direction: DOWN
+    timeout: 60000
+- tapOn:
+    id: "plan.rail-schedule.garlic-bread"
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.garlic-bread"
+    timeout: 30000
+
+# --- the payoff ---
+- runFlow: ../subflows/generate-list.yml
+- scrollUntilVisible:
+    element:
+      id: "list.item.baguette"
+    direction: DOWN
+    timeout: 120000
+
+# And it is attributed to the catalog recipe, not merely present: provenance is
+# resolved from the same recipe lookup, so a scope bug that dropped the title
+# while keeping the quantity would show up right here.
+- tapOn:
+    id: "list.provenance.baguette"
+- assertVisible:
+    id: "list.provenance-sheet"
+- assertVisible:
+    id: "list.provenance-source.garlic-bread"
+- tapOn:
+    id: "list.provenance-close"

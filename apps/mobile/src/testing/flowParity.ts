@@ -1,13 +1,13 @@
 /**
  * What the Maestro flows cover, measured against the browser suite (BL-0073).
  *
- * The eight-and-then-some specs in `apps/web/e2e` describe journeys, not pages,
- * and the journeys are the same on a phone. Written independently, a native
- * flow set drifts into covering a different, accidental subset — and nobody can
- * say which client is under-tested, because there is no file whose absence says
- * so. So each flow is NAMED AFTER ITS WEB SPEC, and this is the file that
- * insists on it: `flowParity.test.ts` reads both directories and fails when a
- * journey has neither a flow nor an entry here.
+ * The ten specs in `apps/web/e2e` describe journeys, not pages, and the
+ * journeys are the same on a phone. Written independently, a native flow set
+ * drifts into covering a different, accidental subset — and nobody can say
+ * which client is under-tested, because there is no file whose absence says so.
+ * So each flow is NAMED AFTER ITS WEB SPEC, and this is the file that insists
+ * on it: `flowParity.test.ts` reads both directories and fails when a journey
+ * has neither a flow nor an entry here.
  *
  * Three states, because "covered" and "not covered" are not enough for a client
  * that is still being ported:
@@ -17,19 +17,16 @@
  *            in the spec's own terms.
  *   gap      there is no flow. `missing` says why.
  *
- * `partial` and `gap` both name the backlog item that would close them, and the
- * test checks that item exists — a waiver pointing at nothing is how a known
- * gap turns into an unknown one.
- *
- * The honest summary today: everything downstream of a recipe is covered, and
- * nothing that starts by writing one is, because the Recipes tab is still a
- * placeholder. Four of the ten journeys are blocked on that single screen.
+ * `blockedBy` names the backlog item that would close it, and the test checks
+ * that item exists — a waiver pointing at nothing is how a known gap turns back
+ * into an unknown one. It is OPTIONAL, and an entry without one is the most
+ * interesting row in the table: a gap nobody owns yet.
  */
 
 export type FlowParity =
   | { state: "covered" }
-  | { state: "partial"; missing: string; blockedBy: string }
-  | { state: "gap"; missing: string; blockedBy: string };
+  | { state: "partial"; missing: string; blockedBy?: string }
+  | { state: "gap"; missing: string; blockedBy?: string };
 
 /**
  * One entry per spec in `apps/web/e2e`, keyed by its basename — which is also
@@ -37,54 +34,44 @@ export type FlowParity =
  */
 export const FLOW_PARITY: Readonly<Record<string, FlowParity>> = {
   "core-loop": { state: "covered" },
+  catalog: { state: "covered" },
   "grocery-list-ux": { state: "covered" },
+  "home-dashboard": { state: "covered" },
   "suggest-week": { state: "covered" },
 
-  "home-dashboard": {
+  "aggregation-and-isolation": {
+    state: "covered",
+  },
+
+  "prep-tasks": {
     state: "partial",
     missing:
-      "the 'shopped' state, which needs every line on a generated list ticked off — " +
-      "and an aggregated line is named by whichever dinners the ranker proposed, so no " +
-      "flow can select one by id",
-    blockedBy: "BL-0063",
+      "checking a derived task off and proving the tick survives a relaunch. The task's " +
+      "testID is keyed on `stateKey(task.key, cookDate)`, which contains the date the run " +
+      "happens on, so no flow can name it in advance. Closing this means giving the row a " +
+      "second, date-free selector — nothing owns that today. The derivation itself, the " +
+      "planner badge and the Home card are covered",
   },
   recommendations: {
     state: "partial",
     missing:
-      "asserting WHICH recipe is suggested and that its reason names the use-up item; " +
-      "the web spec authors the recipe it then expects, and this client cannot author one",
-    blockedBy: "BL-0063",
-  },
-  "aggregation-and-isolation": {
-    state: "partial",
-    missing:
-      "the aggregation half — two recipes calling for garlic collapsing into one line — " +
-      "which needs two authored recipes. The isolation half is covered",
-    blockedBy: "BL-0063",
+      'asserting the "Uses up:" reason specifically, rather than that the suggestion is ' +
+      "offered at all. The reason is rendered as free text with no id of its own, and the " +
+      "flows select by id and nothing else (see docs/mobile-testid-conventions.md). Both " +
+      "halves of the candidate pool — the user's own recipe and a catalog row — are covered",
   },
 
-  catalog: {
-    state: "gap",
-    missing: "browsing the shared catalog and adding one of its recipes to the basket",
-    blockedBy: "BL-0063",
-  },
   discover: {
     state: "gap",
     missing:
-      "the 'For you' card — dismissals, adding a suggestion to the plan, avoid-list filtering",
-    blockedBy: "BL-0063",
-  },
-  "prep-tasks": {
-    state: "gap",
-    missing:
-      "a thaw task surviving check-off. Both surfaces exist natively (BL-0061), but deriving " +
-      "a task needs a recipe with a known frozen protein on a known day, and the only dinners " +
-      "this client can plan are whichever ones the ranker proposes",
-    blockedBy: "BL-0063",
+      'the whole journey. There is no native counterpart to web\'s "For you" card: ' +
+      "BL-0063 ported browse, the catalog and the kitchen, and cold-start discovery was " +
+      "not part of it. This is the only journey with no native surface at all AND no " +
+      "backlog item that would give it one",
   },
   "nutrition-facts": {
     state: "gap",
-    missing: "the Nutrition Facts panel, which the native client does not render at all yet",
+    missing: "the Nutrition Facts panel, which the native client does not render yet",
     blockedBy: "BL-0065",
   },
 };

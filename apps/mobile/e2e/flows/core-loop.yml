@@ -1,17 +1,15 @@
-# The cross-service loop, on a device: plan a week, turn it into one grocery
-# list, check something off, and prove both survive a cold start.
+# The cross-service loop, on a device: write a recipe, plan it, turn it into one
+# grocery list, check something off, and prove the tick outlived the app.
 #
 # The mobile counterpart of `apps/web/e2e/core-loop.spec.ts`, and the same two
-# claims that spec makes, in the order it makes them. What differs is where the
-# week comes from. The web spec authors a recipe and baskets it; this client has
-# no Recipes tab yet (BL-0063), so the week is filled from the seeded catalog by
-# "Suggest my week" — see `subflows/plan-a-week.yml`. That covers the loop from
-# the plan onward; authoring a recipe on a phone is the one link still missing,
-# and `flowParity.ts` records it.
+# claims that spec makes, in the order it makes them: the loop runs end to end,
+# and checking a line off fills the pantry.
 #
-# The manual line is what makes the check-off assertable. Aggregated lines are
-# named by whichever dinners the ranker proposed, so no flow can select one by
-# id; a line the shopper typed is `list.item.garlic` every run.
+# What this reaches that no unit test can: Convex Auth over the self-hosted
+# backend, Convex reactivity, the Convex→recipe-service aggregation, and the
+# check-off round trip. The recipe is authored by the flow rather than assumed,
+# which is what makes `list.item.garlic` a selector instead of a bet on whatever
+# the ranker proposed.
 #
 # The relaunch is a full sign-out-and-back-in rather than a bare `launchApp`,
 # and that is load-bearing. `useOfflineGroceryList` caches the list in device
@@ -27,37 +25,54 @@ tags:
 - runFlow: ../subflows/launch-signed-out.yml
 - runFlow: ../subflows/sign-up.yml
 
-# --- a week, and one list built from it ---
-- runFlow: ../subflows/plan-a-week.yml
-
+# --- a recipe, on a day ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
 - scrollUntilVisible:
     element:
-      id: "plan.generate"
+      id: "recipes.basket.e2e-garlic-bread"
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: "plan.generate"
+    id: "recipes.basket.e2e-garlic-bread"
 
 - tapOn:
-    id: "nav.tab.list"
-# Aggregation is a Convex action calling recipe-service, over every recipe in
-# the week — the slowest single step in the suite. "N of M in cart" replaces
-# "Nothing on the list" only once lines exist, so this asserts a NON-EMPTY
-# generated list without naming a line the catalog decides.
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+# The meal appearing on the day is the scheduling write having landed.
+# Generating against an unscheduled week aggregates nothing, and that failure
+# surfaces a long way from its cause.
 - extendedWaitUntil:
     visible:
-      id: "list.progress"
-      text: "\\d+ of \\d+ in cart"
+      id: "plan.meal.e2e-garlic-bread"
+    timeout: 30000
+
+# --- one grocery list, built from it ---
+- runFlow: ../subflows/generate-list.yml
+# Aggregation is a Convex action calling recipe-service — the slowest single
+# step in the suite. Scrolling as well as waiting, because the line lands in its
+# own aisle rather than at the top.
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
     timeout: 120000
 
-# --- check one off ---
-- runFlow: ../subflows/add-manual-item.yml
+# --- check it off ---
 - tapOn:
     id: "list.toggle.garlic"
-# "In cart" is a footer under the whole walk, so on a generated list it is far
-# below the fold — scrolled to rather than waited for. The tick is optimistic,
-# so this proves only that the device believes it; the relaunch below is what
-# makes it a claim about Convex.
+# "In cart" is a footer under the whole walk. The tick is optimistic, so this
+# proves only that the device believes it; the relaunch below is what makes it a
+# claim about Convex.
 - scrollUntilVisible:
     element:
       id: "list.in-cart-section"

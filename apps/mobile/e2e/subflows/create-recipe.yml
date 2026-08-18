@@ -1,0 +1,55 @@
+# Author one recipe through the add funnel, and land back on the collection.
+#
+# Parameterised, because four journeys need a recipe of their own and the only
+# things that differ are the title and the one ingredient. The caller passes
+# both with `runFlow: {file:, env:}`; `maestroFlows.test.ts` pins the values it
+# may pass to `E2E_RECIPES` in `e2eSelectors.ts`, so the row ids a caller then
+# selects by cannot drift from the recipe it asked for.
+#
+# Only the title and one ingredient are filled in. A draft is submittable with
+# a title alone (`draftSubmission`), the ingredient row the editor always shows
+# is already there, and its quantity already reads 1 — `inputText` appends to
+# whatever a field holds, so typing a quantity into it would produce "11".
+appId: com.pantry.app
+---
+- tapOn:
+    id: "nav.tab.recipes"
+- scrollUntilVisible:
+    element:
+      id: "recipes.add"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.add"
+- extendedWaitUntil:
+    visible:
+      id: "recipes.editor"
+    timeout: 30000
+
+- tapOn:
+    id: "recipes.field-title"
+- inputText: ${E2E_RECIPE_TITLE}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "recipes.field-ingredient-item.row-1"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.field-ingredient-item.row-1"
+- inputText: ${E2E_RECIPE_INGREDIENT}
+- hideKeyboard
+
+- scrollUntilVisible:
+    element:
+      id: "recipes.save"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.save"
+# Saving goes BACK rather than forward, so the collection is what appears next —
+# and the caller's next step is the new row's own control.
+- extendedWaitUntil:
+    visible:
+      id: "recipes.mine"
+    timeout: 60000

@@ -18,7 +18,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseAllDocuments } from "yaml";
-import { E2E_MANUAL_ITEM, E2E_SELECTOR_IDS } from "./e2eSelectors";
+import { E2E_MANUAL_ITEM, E2E_RECIPES, E2E_SELECTOR_IDS } from "./e2eSelectors";
 
 const E2E_ROOT = path.resolve(__dirname, "../../e2e");
 const APP_JSON = JSON.parse(readFileSync(path.resolve(__dirname, "../../app.json"), "utf8"));
@@ -91,6 +91,20 @@ function globToRegExp(glob: string): RegExp {
 
 const ALL = [...FLOWS, ...SUBFLOWS];
 
+/**
+ * For each file, the `env:` block of every `runFlow` that reaches it — keyed by
+ * the same workspace-relative path `ymlFiles` produces, so a subflow's callers
+ * can be asked what they supply it with.
+ */
+const CALLERS = new Map<string, Record<string, unknown>[]>();
+for (const flow of ALL) {
+  const dir = path.dirname(path.join(E2E_ROOT, flow));
+  for (const { file, env } of runFlowsIn(parseFlow(flow).commands)) {
+    const target = path.relative(E2E_ROOT, path.resolve(dir, file));
+    CALLERS.set(target, [...(CALLERS.get(target) ?? []), env]);
+  }
+}
+
 describe("the Maestro workspace", () => {
   it("has flows to check, so nothing below can pass vacuously", () => {
     expect(FLOWS.length).toBeGreaterThan(0);
@@ -161,17 +175,45 @@ describe("the Maestro workspace", () => {
     }
   });
 
-  it("only interpolates variables the runner actually sets", () => {
+  it("only interpolates variables something actually sets", () => {
     // An unset `${VAR}` is not an error in Maestro — it interpolates to the
     // literal text, so `${E2E_MAIL}` types itself into the email field and the
     // failure is a rejected sign-up.
+    //
+    // A subflow's variables may come from the runner or from its callers, and
+    // "every caller passes it" is the whole condition: one caller forgetting is
+    // exactly the case that leaves the literal `${E2E_RECIPE_TITLE}` in a
+    // recipe title, and the ids keyed off that title then match nothing.
     for (const flow of ALL) {
       for (const name of interpolationsIn(read(flow))) {
-        expect({ flow, name, known: RUNNER_ENV.includes(name) }).toEqual({
+        const callers = CALLERS.get(flow) ?? [];
+        const known =
+          RUNNER_ENV.includes(name) || (callers.length > 0 && callers.every((env) => name in env));
+
+        expect({ flow, name, known }).toEqual({ flow, name, known: true });
+      }
+    }
+  });
+
+  it("asks for recipes the selectors are keyed to", () => {
+    // The add funnel is driven with a title the caller chooses and then
+    // selected by ids slugged from that title. Nothing in a YAML file connects
+    // the two, so a re-worded title leaves every id valid and every assertion
+    // on the recipe unmatched — which reads on the report as the recipes tab
+    // being broken rather than as this flow asking for the wrong thing.
+    const authored = Object.values(E2E_RECIPES.authored);
+
+    for (const flow of ALL) {
+      for (const { file, env } of runFlowsIn(parseFlow(flow).commands)) {
+        if (!file.endsWith("create-recipe.yml")) continue;
+
+        const asked = { title: env.E2E_RECIPE_TITLE, ingredient: env.E2E_RECIPE_INGREDIENT };
+        expect({ flow, ...asked, known: authored.some((r) => r.title === asked.title) }).toEqual({
           flow,
-          name,
+          ...asked,
           known: true,
         });
+        expect(authored.find((r) => r.title === asked.title)?.ingredient).toBe(asked.ingredient);
       }
     }
   });

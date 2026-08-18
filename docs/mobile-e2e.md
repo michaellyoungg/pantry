@@ -59,24 +59,31 @@ has exactly one entry:
 | **partial** | the flow exists and drives part of it; `missing` says which part |
 | **gap** | there is no flow; `missing` says why |
 
-`partial` and `gap` both name the backlog item that would close them, and the
+Where a blocker is a piece of work, `blockedBy` names the backlog item and the
 test checks that item exists — a waiver pointing at nothing is how a known gap
-becomes an unknown one.
+becomes an unknown one. It is optional, and an entry **without** one is the most
+interesting row in the table: a gap nobody owns.
 
-Today: `core-loop`, `grocery-list-ux` and `suggest-week` are covered;
-`home-dashboard`, `recommendations` and `aggregation-and-isolation` are partial;
-`catalog`, `discover`, `prep-tasks` and `nutrition-facts` are gaps. Six of the
-seven entries with something missing name **[BL-0063]**, and that is the honest
-summary of this client's coverage: everything downstream of a recipe is
-reachable, and nothing that starts by writing one is, because the Recipes tab is
-still a placeholder. There is no way for a flow to author a recipe, add one to
-the basket, or open the catalog.
+Today, six of the ten journeys are covered — `core-loop`, `catalog`,
+`grocery-list-ux`, `home-dashboard`, `suggest-week` and
+`aggregation-and-isolation`. Two are partial and two are gaps, and none of the
+four is waiting on a screen:
 
-What fills the gap in the meantime is "Suggest my week" over the seeded catalog
-— `subflows/plan-a-week.yml`. A brand-new account with no recipes still has ~50
-candidates, because `recommendCandidates` in recipe-service pools the caller's
-recipes with the catalog's, and `scripts/lib/e2e-stack.sh` seeds it. That is how
-three flows get a planned week without a Recipes tab.
+- **`prep-tasks`** derives the task, badges the planned meal and surfaces the
+  card on Home. What it cannot do is tick the task off and prove the tick
+  survives a relaunch: the row's `testID` is keyed on
+  `stateKey(task.key, cookDate)`, which contains the date the run happens on, so
+  no flow can name it in advance. Closing it means giving that row a second,
+  date-free selector.
+- **`recommendations`** asserts that both halves of the candidate pool answer —
+  the flow's own recipe and a catalog row. The web spec goes one further and
+  reads the `Uses up:` reason, which is free text with no id, and the flows
+  select by id and nothing else.
+- **`discover`** has no native surface at all. BL-0063 ported browse, the
+  catalog and the kitchen; cold-start discovery — web's "For you" card — was not
+  part of it, and no backlog item covers it. This is the one journey with
+  neither coverage nor an owner.
+- **`nutrition-facts`** waits on [BL-0065]; the native client renders no panel.
 
 ### Two rules the flows follow
 
@@ -84,14 +91,21 @@ three flows get a planned week without a Recipes tab.
 set; a flow may not use an id that is not in it, and an id in it that no flow
 uses is deleted. Growing coverage means growing that file.
 
-**A flow may only name a grocery line it typed itself.** An aggregated line is
-named by whichever dinners the ranker proposed, so `list.item.<something>` is a
-bet on the catalog rather than a selector. `subflows/add-manual-item.yml` types
-one word — `garlic`, which round-trips through the normalization dictionary
-unchanged — and that is the only line the suite addresses by name. Everything
-else is asserted through elements that do not depend on the data:
-`list.progress` matching `\d+ of \d+ in cart` says the list is non-empty
-without claiming to know what is on it.
+**A flow may only name a row it caused to exist.** Every grocery line, planned
+meal and suggestion a flow asserts on traces back to a recipe that flow
+authored (through the add funnel, BL-0063) or added from the catalog. The
+counter-example is what the rule is for: `plan-a-week`-style flows that let the
+ranker choose the week get a list whose lines are named by whichever dinners it
+proposed, so `list.item.<x>` would be a bet on the catalog rather than a
+selector. `suggest-week.yml` is the one flow that works that way, and it asserts
+only on elements that do not depend on the data.
+
+The fixtures live in `E2E_RECIPES` in `e2eSelectors.ts` — three authored
+recipes, two catalog rows — and `maestroFlows.test.ts` pins the titles the flows
+type to that table, so a re-worded title cannot leave the ids pointing at
+nothing. `garlic` and `baguette` are the ingredients because both are canonical
+items in the normalization dictionary: the server hands back "Garlic" and
+"Baguette", which slug to the keys the flows already hold.
 
 ## The nightly job
 
@@ -190,15 +204,15 @@ Verified against Maestro 2.8.0:
 - every flow and subflow passes `maestro check-syntax`, including the ones added
   by BL-0073;
 - `maestro test apps/mobile/e2e` discovers the workspace, selects exactly the
-  seven flows and none of the subflows, resolves every `runFlow` target
-  (including the object form that passes `E2E_EMAIL_2` down), and gets each one
-  as far as launching `com.pantry.app`.
+  nine flows and none of the subflows, resolves every `runFlow` target
+  (including the object form that passes a recipe title, or `E2E_EMAIL_2`, down)
+  and gets each one as far as launching `com.pantry.app`.
 
 Not verified, because this development machine is Linux/WSL2 with no KVM, no
 Android SDK and no macOS: **no flow has ever been executed on a device, and no
 job in `nightly-mobile-e2e.yml` has ever executed on a runner.** BL-0072 said
 the same of its one flow and named the two things most likely to break; both are
-still open questions, and they now apply to seven flows instead of one. The
+still open questions, and they now apply to nine flows instead of one. The
 first person with a simulator should expect to fix something. Turning the
 Android variable on is how that stops being a guess.
 
@@ -327,16 +341,16 @@ right for the device — the runner prints it when Metro starts.
 **Metro will not start.** `apps/mobile/e2e-results/metro.log` has the reason. A
 dev server squatting 8081 is the usual one — `MOBILE_E2E_METRO_PORT=8082`.
 
-**A flow fails on `plan.suggest-preamble` or `plan.suggest-empty`.** The
-suggester had no candidates, which for a brand-new account means the catalog
-seed did not run — the whole planned-week half of the suite rests on it. Check
-the `seeding the shared recipe catalog` step in the stack output.
+**A flow fails on a catalog row — `recipes.catalog-item.garlic-bread`,
+`pantry.suggestion.spaghetti-aglio-e-olio`, `plan.suggest-preamble`.** The
+catalog is empty, which means the seed job did not run. Three flows rest on it.
+Check the `seeding the shared recipe catalog` step in the stack output.
 
 **Local sign-ups start failing for no reason.** A long-lived local deployment
 accumulates e2e accounts until Convex functions breach their 1s limit. Same trap
 the browser suite documents; `docker compose down -v` and start over.
 
-[BL-0063]: backlog/BL-0063-native-recipes-browse.md
+[BL-0065]: backlog/BL-0065-native-nutrition-surfaces.md
 [BL-0071]: backlog/BL-0071-portable-test-selectors.md
 [BL-0072]: backlog/BL-0072-maestro-e2e-harness.md
 [BL-0073]: backlog/BL-0073-nightly-mobile-e2e.md

@@ -5,13 +5,13 @@
  *
  * Every selector in `E2E_SELECTORS` is asserted here, on the real screen, in
  * the state the flow drives it into — the flows themselves run nightly at best
- * (BL-0073), so this is the check that turns a renamed `testID` into a failed
- * pull request rather than a red run six hours later.
+ * (BL-0073), so this is what turns a renamed `testID` into a failed pull
+ * request rather than a red run six hours later.
  *
  * It is deliberately not a second suite of screen tests. Each screen already
  * has one asserting what it does with real data; these assertions only ask
  * whether the handful of elements a flow reaches for still exist. Where a state
- * needs setting up (a checked line, a proposal, a planned week) the setup is
+ * needs setting up — a checked line, a proposal, a due prep task — the setup is
  * the shortest one that reaches it.
  *
  * The tab bar is the exception — `expo-router`'s `<Tabs>` wants a navigation
@@ -30,23 +30,24 @@ jest.mock("@convex-dev/auth/react", () => ({
 /**
  * One backend for every screen below, dispatched by Convex function name.
  *
- * Shapeless mocks are what the other tests in this file used to use, and they
- * cannot reach any of the states a flow actually drives — an empty list has no
- * row to check off and an empty basket has nothing to propose. So this serves
- * real rows, and each test sets only the ones its screen reads.
+ * Shapeless mocks cannot reach the states a flow actually drives — an empty
+ * list has no row to check off and an empty basket has nothing to schedule — so
+ * this serves real rows, and each test sets only the ones its screen reads.
  */
 const mockState = {
   basket: [] as unknown[],
   list: [] as unknown[],
   pantry: [] as unknown[],
-  leftovers: [] as unknown[],
-  recent: [] as unknown[],
-  /** What `recommendations.weekCandidates` answers the suggester with. */
-  candidates: [] as unknown[],
+  /** What `recipes.list` answers "My recipes" with. */
+  mine: [] as unknown[],
+  /** What `recipes.listCatalog` answers the catalog browser with. */
+  catalog: [] as unknown[],
   /** What `recommendations.pantry` answers the use-it-up card with. */
   suggestions: { results: [] as unknown[], generated: [] as unknown[] },
-  /** Set to leave the card's request in flight, which is its loading state. */
-  suggestionsPending: false,
+  /** What `recommendations.weekCandidates` answers the suggester with. */
+  candidates: [] as unknown[],
+  /** What `prepTasks.forPlan` derives for the week. */
+  prep: { rulesVersion: "t.1", meals: [] as unknown[] },
 };
 
 /**
@@ -56,16 +57,19 @@ const mockState = {
  * re-render forever — which presents as a suite that hangs rather than as a
  * mock that is wrong.
  */
-const mockRecommend = jest.fn(async (): Promise<unknown> =>
-  mockState.suggestionsPending ? new Promise(() => {}) : mockState.suggestions,
-);
+const mockMine = jest.fn(async (): Promise<unknown> => mockState.mine);
+const mockCatalog = jest.fn(async (): Promise<unknown> => mockState.catalog);
+const mockRecommend = jest.fn(async (): Promise<unknown> => mockState.suggestions);
 const mockCandidates = jest.fn(async (): Promise<unknown> => mockState.candidates);
-const mockPrep = jest.fn(async () => ({ rulesVersion: "t.1", meals: [] }));
-const mockGenerate = jest.fn(async () => ({ count: 1 }));
+const mockPrep = jest.fn(async (): Promise<unknown> => mockState.prep);
+const mockEquipment = jest.fn(async (): Promise<unknown> => []);
+const mockMakeability = jest.fn(async (): Promise<unknown> => ({ fits: {}, counts: {} }));
+const mockWrite = jest.fn(async (): Promise<unknown> => ({ count: 1 }));
 /** The plan rollup (BL-0065), landed after this table: a week with nothing in it. */
-const mockNutrition = jest.fn(async () => ({ days: [], week: null }));
-/** One array for every query with nothing to say, for the same reason. */
+const mockNutrition = jest.fn(async (): Promise<unknown> => ({ days: [], week: null }));
+/** One array for every query with nothing to say, for the same identity reason. */
 const mockEmpty: unknown[] = [];
+const mockPreferences = { householdSize: undefined };
 
 jest.mock("convex/react", () => {
   // Function references are lazily-built proxies, so identity comparison is not
@@ -78,8 +82,9 @@ jest.mock("convex/react", () => {
     useQuery: (ref: never, args?: unknown) => {
       if (args === "skip") return undefined;
       const name = getFunctionName(ref);
-      if (name.includes("leftoverProposals")) return mockState.leftovers;
-      if (name.includes("recentItems")) return mockState.recent;
+      if (name.includes("leftoverProposals")) return mockEmpty;
+      if (name.includes("recentItems")) return mockEmpty;
+      if (name.startsWith("preferences")) return mockPreferences;
       if (name.startsWith("basket")) return mockState.basket;
       if (name.startsWith("pantry")) return mockState.pantry;
       if (name.startsWith("groceryList")) return mockState.list;
@@ -87,17 +92,26 @@ jest.mock("convex/react", () => {
     },
     useAction: (ref: never) => {
       const name = getFunctionName(ref);
+      if (name === "recipes:list") return mockMine;
+      if (name === "recipes:listCatalog") return mockCatalog;
+      if (name === "recipes:listEquipment") return mockEquipment;
+      if (name === "equipment:makeability") return mockMakeability;
       if (name.includes("weekCandidates")) return mockCandidates;
       if (name.startsWith("recommendations")) return mockRecommend;
       if (name.startsWith("prepTasks")) return mockPrep;
       if (name.startsWith("nutrition")) return mockNutrition;
-      return mockGenerate;
+      return mockWrite;
     },
     useMutation: () => mutation,
   };
 });
 
-jest.mock("expo-router", () => ({ useRouter: () => ({ navigate: jest.fn() }) }));
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ navigate: jest.fn(), back: jest.fn() }),
+  // The recipes tab picks its segment from the route (BL-0066): Settings links
+  // to the kitchen by passing one. No params here means the default segment.
+  useLocalSearchParams: () => ({}),
+}));
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
@@ -109,13 +123,14 @@ import HomeRoute from "../../app/(tabs)/index";
 import ListRoute from "../../app/(tabs)/list";
 import PantryRoute from "../../app/(tabs)/pantry";
 import PlanRoute from "../../app/(tabs)/plan";
+import RecipesRoute from "../../app/(tabs)/recipes";
 import SettingsRoute from "../../app/(tabs)/settings";
+import NewRecipeRoute from "../../app/recipes/new";
 import { AuthForm } from "../auth/AuthForm";
 import { NAV_ITEMS, tabTestID } from "../navigation/navItems";
-import { E2E_MANUAL_ITEM, E2E_SELECTORS } from "./e2eSelectors";
+import { E2E_MANUAL_ITEM, E2E_RECIPES, E2E_SELECTORS } from "./e2eSelectors";
 
-/** The item every grocery and pantry selector is keyed to. */
-const ITEM = E2E_MANUAL_ITEM;
+const { authored, catalog } = E2E_RECIPES;
 
 /** The day the planner opens on, so nothing here depends on when it runs. */
 const TODAY = weekdayOf(new Date());
@@ -128,47 +143,114 @@ function groceryLine(over: Record<string, unknown> = {}) {
     // The display form the server hands back, not the typed text — the id is
     // slugged from this, which is the round trip the flows depend on.
     item: "Garlic",
-    canonicalItem: ITEM,
+    canonicalItem: E2E_MANUAL_ITEM,
     unit: "",
     quantity: 1,
     aisle: "produce",
     checked: false,
     manual: true,
+    sources: [
+      { recipeId: "r1", title: authored.garlicBread.title, quantity: 1 },
+      { recipeId: "r2", title: authored.garlicToast.title, quantity: 1 },
+    ],
     ...over,
   };
 }
 
-function pantryItem(over: Record<string, unknown> = {}) {
+/** The line only the catalog's copy of a recipe produces. */
+function baguetteLine() {
+  return groceryLine({
+    _id: "g2",
+    item: "Baguette",
+    canonicalItem: catalog.garlicBread.catalogOnlyIngredient,
+    aisle: "bakery",
+    manual: false,
+    sources: [{ recipeId: "r3", title: catalog.garlicBread.title, quantity: 1 }],
+  });
+}
+
+function pantryItem() {
   return {
     _id: "p1",
     _creationTime: 0,
     userId: "u1",
-    canonicalItem: ITEM,
+    canonicalItem: E2E_MANUAL_ITEM,
     display: "Garlic",
     aisle: "produce",
     state: "have",
     source: "auto",
     updatedAt: 0,
+  };
+}
+
+function basketRow(title: string, over: Record<string, unknown> = {}) {
+  return {
+    _id: `b-${title}`,
+    _creationTime: 0,
+    userId: "u1",
+    recipeId: `r-${title}`,
+    title,
     ...over,
   };
 }
 
-function basketRow(over: Record<string, unknown> = {}) {
-  return { _id: "b1", _creationTime: 0, userId: "u1", recipeId: "r1", title: "Roast", ...over };
+function recipe(title: string) {
+  return {
+    id: `r-${title}`,
+    userId: "u1",
+    title,
+    ingredients: [{ item: E2E_MANUAL_ITEM, quantity: 1, unit: "" }],
+    steps: [],
+    equipment: [],
+    methods: [],
+    tags: [],
+    prepTasks: [],
+    createdAt: "2026-08-01T00:00:00Z",
+  };
 }
 
-/** One ranked candidate, the shape `recommendations.weekCandidates` answers with. */
-function candidate() {
-  return { recipeId: "c1", title: "Aglio e Olio", score: 0.9, reasons: [], have: [], missing: [] };
+/** One ranked suggestion, the shape `recommendations.pantry` answers with. */
+function suggestion(title: string) {
+  return {
+    recipeId: `r-${title}`,
+    title,
+    score: 0.9,
+    reasons: ["Uses up: garlic"],
+    have: [E2E_MANUAL_ITEM],
+    missing: [],
+  };
+}
+
+/**
+ * A prep task that is due whenever this suite runs. `dueByToday` compares ISO
+ * dates, so a date in the past is due today and every other day.
+ */
+function duePrepMeal(title: string) {
+  return {
+    recipeId: `r-${title}`,
+    title,
+    cookDate: "2020-01-02",
+    tasks: [
+      {
+        key: "thaw_frozen_protein:chicken breast",
+        ruleId: "thaw_frozen_protein",
+        subject: "chicken breast",
+        window: "night_before",
+        text: "Move the chicken breast to the fridge to thaw",
+        source: "rule",
+        dueOn: "2020-01-01",
+      },
+    ],
+  };
 }
 
 /**
  * Renders and lets the mount-time async work settle.
  *
  * These screens all start something on mount — the grocery cache read
- * (BL-0058), the use-it-up request, the prep derivation — and each resolves a
- * microtask after `render`'s own `act` has closed. Without this the state
- * update leaks out of `act` and warns in front of every real failure.
+ * (BL-0058), the recipe list, the use-it-up request, the prep derivation — and
+ * each resolves a microtask after `render`'s own `act` has closed. Without this
+ * the state update leaks out of `act` and warns in front of every real failure.
  */
 async function renderScreen(element: React.ReactElement) {
   await render(element);
@@ -189,11 +271,11 @@ beforeEach(() => {
   mockState.basket = [];
   mockState.list = [];
   mockState.pantry = [];
-  mockState.leftovers = [];
-  mockState.recent = [];
-  mockState.candidates = [];
+  mockState.mine = [];
+  mockState.catalog = [];
   mockState.suggestions = { results: [], generated: [] };
-  mockState.suggestionsPending = false;
+  mockState.candidates = [];
+  mockState.prep = { rulesVersion: "t.1", meals: [] };
   return AsyncStorage.clear();
 });
 
@@ -229,20 +311,42 @@ describe("the selectors on Home", () => {
   });
 
   it("offer the build action once the week is planned", async () => {
-    mockState.basket = [basketRow({ weekday: TODAY })];
+    mockState.basket = [basketRow(authored.garlicBread.title, { weekday: TODAY })];
     await renderScreen(<HomeRoute />);
 
     expectOnScreen(home.buildList);
   });
 
   it("offer the shopping handoff once a list exists", async () => {
-    mockState.basket = [basketRow({ weekday: TODAY })];
+    mockState.basket = [basketRow(authored.garlicBread.title, { weekday: TODAY })];
     mockState.list = [groceryLine()];
     await renderScreen(<HomeRoute />);
 
     expectOnScreen(home.shop);
   });
+
+  it("surface prep that is due, and nothing when none is", async () => {
+    // The card renders nothing at all unless something is due, which is what
+    // `flows/prep-tasks.yml` asserts on — so the empty case is asserted too,
+    // or its presence would say nothing.
+    await renderScreen(<HomeRoute />);
+    expect(screen.queryByTestId(home.beforeYouCook)).toBeNull();
+
+    mockState.basket = [basketRow(authored.thawTest.title, { weekday: TODAY })];
+    mockState.prep = { rulesVersion: "t.1", meals: [duePrepMeal(authored.thawTest.title)] };
+    await renderScreen(<HomeRoute />);
+
+    expectOnScreen(home.beforeYouCook);
+  });
 });
+
+/** Every recipe the planner's keyed selectors are named after. */
+const SCHEDULABLE = [
+  authored.garlicBread.title,
+  authored.garlicToast.title,
+  authored.thawTest.title,
+  catalog.garlicBread.title,
+];
 
 describe("the selectors on the planner", () => {
   const { plan } = E2E_SELECTORS;
@@ -253,8 +357,39 @@ describe("the selectors on the planner", () => {
     expectOnScreen(plan.screen, plan.title, plan.dayEmpty, plan.suggest, plan.generate);
   });
 
+  it("offer a day to every basket row that has none", async () => {
+    mockState.basket = SCHEDULABLE.map((title) => basketRow(title));
+    await renderScreen(<PlanRoute />);
+
+    expectOnScreen(...Object.values(plan.schedule));
+  });
+
+  it("name every meal once it is sitting on a day", async () => {
+    mockState.basket = SCHEDULABLE.map((title) => basketRow(title, { weekday: TODAY }));
+    await renderScreen(<PlanRoute />);
+
+    expectOnScreen(...Object.values(plan.meal));
+  });
+
+  it("badge a planned meal with its lead time", async () => {
+    mockState.basket = [basketRow(authored.thawTest.title, { weekday: TODAY })];
+    mockState.prep = { rulesVersion: "t.1", meals: [duePrepMeal(authored.thawTest.title)] };
+    await renderScreen(<PlanRoute />);
+
+    expectOnScreen(plan.prep);
+  });
+
   it("are all rendered by a proposal", async () => {
-    mockState.candidates = [candidate()];
+    mockState.candidates = [
+      {
+        recipeId: "c1",
+        title: catalog.aglioEOlio.title,
+        score: 0.9,
+        reasons: [],
+        have: [],
+        missing: [],
+      },
+    ];
     await renderScreen(<PlanRoute />);
 
     await press(plan.suggest);
@@ -266,14 +401,53 @@ describe("the selectors on the planner", () => {
     // The second half of `flows/suggest-week.yml`: a week with no open day is
     // how that flow proves the suggester leaves planned days alone.
     mockState.basket = [0, 1, 2, 3, 4, 5, 6].map((weekday) =>
-      basketRow({ _id: `b${weekday}`, recipeId: `r${weekday}`, weekday }),
+      basketRow(`Dinner ${weekday}`, { weekday }),
     );
-    mockState.candidates = [candidate()];
+    mockState.candidates = [
+      {
+        recipeId: "c1",
+        title: catalog.aglioEOlio.title,
+        score: 0.9,
+        reasons: [],
+        have: [],
+        missing: [],
+      },
+    ];
     await renderScreen(<PlanRoute />);
 
     await press(plan.suggest);
 
     expectOnScreen(plan.suggestEmpty);
+  });
+});
+
+describe("the selectors on the recipes tab", () => {
+  const { recipes } = E2E_SELECTORS;
+
+  it("are all rendered by the collection", async () => {
+    mockState.mine = [
+      recipe(authored.garlicBread.title),
+      recipe(authored.garlicToast.title),
+      recipe(authored.thawTest.title),
+    ];
+    await renderScreen(<RecipesRoute />);
+
+    expectOnScreen(recipes.add, recipes.mine, ...Object.values(recipes.basket));
+  });
+
+  it("are all rendered by the catalog view", async () => {
+    mockState.catalog = [recipe(catalog.garlicBread.title)];
+    await renderScreen(<RecipesRoute />);
+
+    await press(recipes.catalogSection);
+
+    expectOnScreen(recipes.catalogSearch, recipes.catalogItem, recipes.catalogAdd);
+  });
+
+  it("are all rendered by the add funnel", async () => {
+    await renderScreen(<NewRecipeRoute />);
+
+    expectOnScreen(recipes.editor, recipes.fieldTitle, recipes.fieldIngredient, recipes.save);
   });
 });
 
@@ -287,10 +461,43 @@ describe("the selectors on the grocery list", () => {
   });
 
   it("are all rendered by a line to buy", async () => {
+    mockState.list = [groceryLine(), baguetteLine()];
+    await renderScreen(<ListRoute />);
+
+    expectOnScreen(
+      list.garlic,
+      list.garlicToggle,
+      list.garlicRemove,
+      list.garlicProvenance,
+      list.baguette,
+      list.baguetteProvenance,
+      list.progress,
+      list.addToggle,
+      list.doneShopping,
+    );
+  });
+
+  it("name every recipe an aggregated line came from", async () => {
     mockState.list = [groceryLine()];
     await renderScreen(<ListRoute />);
 
-    expectOnScreen(list.item, list.toggle, list.remove, list.progress, list.addToggle);
+    await press(list.garlicProvenance);
+
+    expectOnScreen(
+      list.provenanceSheet,
+      list.source.garlicBread,
+      list.source.garlicToast,
+      list.provenanceClose,
+    );
+  });
+
+  it("name the catalog recipe a catalog-only line came from", async () => {
+    mockState.list = [baguetteLine()];
+    await renderScreen(<ListRoute />);
+
+    await press(list.baguetteProvenance);
+
+    expectOnScreen(list.source.catalogBread);
   });
 
   it("are all rendered by a line in the cart", async () => {
@@ -321,7 +528,7 @@ describe("the selectors on the grocery list", () => {
     mockState.list = [groceryLine()];
     await renderScreen(<ListRoute />);
 
-    await press(list.remove);
+    await press(list.garlicRemove);
 
     expectOnScreen(list.undo, list.undoButton);
   });
@@ -334,23 +541,17 @@ describe("the selectors on the pantry", () => {
     mockState.pantry = [pantryItem()];
     await renderScreen(<PantryRoute />);
 
-    expectOnScreen(pantry.item, pantry.markUseUp, pantry.useItUp);
+    expectOnScreen(pantry.garlic, pantry.markUseUp, pantry.useItUp);
   });
 
-  it("say when the suggestion request is still in flight", async () => {
+  it("name both halves of the candidate pool the ranker answers with", async () => {
     mockState.pantry = [pantryItem()];
-    mockState.suggestionsPending = true;
+    mockState.suggestions = {
+      results: [suggestion(authored.garlicToast.title), suggestion(catalog.aglioEOlio.title)],
+      generated: [],
+    };
     await renderScreen(<PantryRoute />);
 
-    expectOnScreen(pantry.suggestionsLoading);
-  });
-
-  it("say when the ranker came back with nothing", async () => {
-    // `flows/recommendations.yml` asserts this element is ABSENT, which is only
-    // an assertion at all while the app can still render it.
-    mockState.pantry = [pantryItem()];
-    await renderScreen(<PantryRoute />);
-
-    expectOnScreen(pantry.suggestionsEmpty);
+    expectOnScreen(...Object.values(pantry.suggestion));
   });
 });

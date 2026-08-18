@@ -1,0 +1,19 @@
+# Turn whatever is on the week into one grocery list, and open it.
+#
+# Shared by every flow that plans something, and parameter-free on purpose: the
+# recipe-specific half — which row goes on which day — stays in the caller,
+# because a selector cannot be interpolated without putting an id the guards
+# cannot check into a flow file.
+appId: com.pantry.app
+---
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.generate"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan.generate"
+- tapOn:
+    id: "nav.tab.list"

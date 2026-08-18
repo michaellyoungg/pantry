@@ -80,16 +80,24 @@ describe("flow parity with the browser suite", () => {
     expect(stale).toEqual([]);
   });
 
-  it("points every gap and partial at a backlog item that exists", () => {
+  it("says what is missing, and points any blocker at a real backlog item", () => {
+    // `blockedBy` is optional, because an unowned gap is a legitimate thing to
+    // record and naming an item that does not cover it would be worse. What is
+    // not optional is saying what is missing — and a blocker that names nothing
+    // is the stale waiver this whole file exists to prevent.
     for (const [journey, parity] of Object.entries(FLOW_PARITY)) {
       if (parity.state === "covered") continue;
 
+      expect({ journey, explained: parity.missing.length > 0 }).toEqual({
+        journey,
+        explained: true,
+      });
+      if (parity.blockedBy === undefined) continue;
       expect({
         journey,
         blockedBy: parity.blockedBy,
         exists: backlogItemExists(parity.blockedBy),
       }).toEqual({ journey, blockedBy: parity.blockedBy, exists: true });
-      expect(parity.missing.length).toBeGreaterThan(0);
     }
   });
 
