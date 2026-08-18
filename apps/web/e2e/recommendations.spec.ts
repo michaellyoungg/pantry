@@ -1,8 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   myRecipeRow,
   navigateTo,
+  pantryRow,
   planRailRow,
   signUp,
   uniqueSuffix,
@@ -43,10 +45,7 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
-  const line = page
-    .getByRole("listitem")
-    .filter({ hasText: /garlic/i })
-    .first();
+  const line = groceryLine(page, /garlic/i);
   await expect(line).toBeVisible();
   await line.getByRole("checkbox").check();
 
@@ -65,13 +64,12 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
 
   // The pantry now holds garlic. Mark it to use up.
   //
-  // Targeted by the BUTTON's own label rather than by finding a listitem that
-  // mentions garlic: since BL-0050 the suggestions card sits ABOVE the
-  // inventory and its recipe rows are listitems mentioning garlic too, so
-  // `.first()` on a text filter picks a suggestion, which has no such button.
-  // Only inventory rows carry "Mark … to use up", so this is unambiguous.
+  // Scoped to the inventory ROW: since BL-0050 the suggestions card sits ABOVE
+  // the inventory and its recipe rows mention garlic too, so a text filter over
+  // the page picks a suggestion as readily as an inventory row. The row's id
+  // says which is meant; the button inside it keeps its accessible name.
   await navigateTo(page, "Pantry");
-  const markUseUp = page.getByRole("button", { name: /Mark .*garlic.* to use up/i });
+  const markUseUp = pantryRow(page, /garlic/i).getByRole("button", { name: /to use up/i });
   await expect(markUseUp).toBeVisible();
   await markUseUp.click();
 
@@ -119,10 +117,7 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
-  const garlicLine = page
-    .getByRole("listitem")
-    .filter({ hasText: /garlic/i })
-    .first();
+  const garlicLine = groceryLine(page, /garlic/i);
   await expect(garlicLine).toBeVisible();
   await garlicLine.getByRole("checkbox").check();
 

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   navigateTo,
   planRailRow,
   signUp,
@@ -46,7 +47,7 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   // the destination card and scope to it rather than querying the whole page.
   const groceryCard = page.getByRole("region", { name: "Grocery list" });
   await expect(groceryCard).toBeVisible();
-  await expect(groceryCard.getByRole("listitem").filter({ hasText: "beans" })).toBeVisible();
+  await expect(groceryLine(page, "beans")).toBeVisible();
 
   // --- shopping: an unchecked list drives the shopping-day card ---
   await navigateTo(page, "Home");

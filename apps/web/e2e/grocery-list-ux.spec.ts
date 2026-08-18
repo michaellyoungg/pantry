@@ -1,3 +1,4 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
@@ -39,7 +40,7 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
   await expect(aisle).toBeVisible();
   await expect(aisle).toHaveAttribute("aria-expanded", "true");
 
-  const garlic = page.getByRole("listitem").filter({ hasText: "garlic" });
+  const garlic = groceryLine(page, "garlic");
   await expect(garlic).toBeVisible();
 
   // Folding takes the aisle's lines with it, and unfolding brings them back.
@@ -54,15 +55,15 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
   await garlic.getByRole("checkbox").check();
   const inCart = page.getByRole("button", { name: /^In cart, \d+ items?$/ });
   await expect(inCart).toBeVisible();
-  const inCartSection = page.getByRole("region", { name: /^In cart,/ });
+  const inCartSection = page.getByTestId(TEST_IDS.list.inCartSection);
   await expect(inCartSection.getByRole("listitem").filter({ hasText: "garlic" })).toBeVisible();
 
   // The thumb-zone bar tracks the trip.
-  await expect(page.getByText(/^\d+ of \d+ in cart$/)).toBeVisible();
+  await expect(page.getByTestId(TEST_IDS.list.progress)).toHaveText(/^\d+ of \d+ in cart$/);
 
   // Closing the trip: what was bought goes, because check-off already put it in
   // the pantry.
-  await page.getByRole("button", { name: "Done shopping" }).click();
+  await page.getByTestId(TEST_IDS.list.doneShopping).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: "Keep what I didn't buy" }).click();
@@ -88,11 +89,13 @@ test("a manual line can be removed and put back with undo", async ({ page }) => 
   await page.goto("/list");
 
   // The add field lives in the thumb zone, behind one always-reachable control.
-  await page.getByRole("button", { name: "Add item" }).click();
+  // By id: the control's label is also its state ("Add item" / "Close"), so a
+  // spec that names it is asserting the copy on the way past.
+  await page.getByTestId(TEST_IDS.list.addToggle).click();
   await page.getByLabel("Add an item").fill("2 rolls foil");
   await page.getByRole("button", { name: "Add", exact: true }).click();
 
-  const foil = page.getByRole("listitem").filter({ hasText: /foil/i });
+  const foil = groceryLine(page, /foil/i);
   await expect(foil).toBeVisible();
 
   // Removal is offered as an ordinary button — the swipe only ever accelerates
@@ -105,12 +108,12 @@ test("a manual line can be removed and put back with undo", async ({ page }) => 
   // display form. Pinning the result here asserts their content, not this
   // feature.
   await foil.getByRole("button", { name: /^Remove / }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: /foil/i })).toHaveCount(0);
+  await expect(groceryLine(page, /foil/i)).toHaveCount(0);
 
   // ...and it is undoable, with the line's own state intact.
-  await expect(page.getByText(/^Removed /)).toBeVisible();
+  await expect(page.getByTestId(TEST_IDS.list.undo)).toHaveText(/^Removed /);
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: /foil/i })).toBeVisible();
+  await expect(groceryLine(page, /foil/i)).toBeVisible();
 
   expect(pageErrors, `Uncaught page errors:\n${pageErrors.join("\n")}`).toEqual([]);
 });

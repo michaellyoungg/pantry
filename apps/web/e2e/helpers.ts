@@ -1,8 +1,22 @@
+import { TEST_IDS } from "@pantry/core/testing";
 import { expect, type Page } from "@playwright/test";
 
 // Shared steps for the end-to-end specs. Each helper drives the real UI the way
-// a user would; selectors target visible text / roles / aria-labels (the app has
-// almost no test ids by design).
+// a user would.
+//
+// Selectors are mixed, on purpose (BL-0071). Roles, labels and visible text
+// stay wherever they are working: they assert accessibility as a side effect
+// and they fail loudly when the UI stops being reachable the way a user reaches
+// it. What moved to `data-testid` is the *identity* of a repeated row — which
+// grocery line, which recipe, which pantry item — because that is where
+// role-based locators kept breaking: they described the DOM's shape, so a
+// neighbouring card growing a list of its own turned one match into two and
+// Playwright hard-failed on strict mode.
+//
+// The ids come from `@pantry/core/testing`, which is also where the native
+// client's `testID`s come from, so a journey described here and a Maestro flow
+// describing the same journey are pointing at the same elements rather than
+// agreeing by convention.
 
 /** A per-run token so parallel or repeated runs never collide on data. */
 export function uniqueSuffix(): string {
@@ -17,11 +31,15 @@ export async function signUp(page: Page): Promise<{ email: string; password: str
   const email = `e2e-${uniqueSuffix()}@example.test`;
   const password = "e2e-password-1234";
   await page.goto("/");
-  await expect(page.getByTestId("auth-form")).toBeVisible();
-  await page.getByRole("button", { name: "Need an account? Sign up" }).click();
-  await page.getByPlaceholder("Email").fill(email);
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Sign up" }).click();
+  await expect(page.getByTestId(TEST_IDS.auth.form)).toBeVisible();
+  // By id rather than by copy: every one of these controls is labelled with a
+  // sentence ("Need an account? Sign up"), and this runs at the top of every
+  // spec in the suite — a wording change should not be able to break all of
+  // them at once. The native sign-in screen carries the same four ids.
+  await page.getByTestId(TEST_IDS.auth.toggleFlow).click();
+  await page.getByTestId(TEST_IDS.auth.email).fill(email);
+  await page.getByTestId(TEST_IDS.auth.password).fill(password);
+  await page.getByTestId(TEST_IDS.auth.submit).click();
   // The "Sign out" control only renders when authenticated.
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   return { email, password };
@@ -114,48 +132,69 @@ export async function navigateToRecipesTab(page: Page, label: string): Promise<v
 /**
  * A row in the user's own recipe list on /recipes.
  *
- * Scoped deliberately. /recipes renders the same recipe title twice — once in
- * <RecipeList> and once in the "For you" suggestions panel above it, which can
- * recommend a recipe you own. An unscoped
- * `getByRole("listitem").filter({ hasText: title })` therefore matches one or
- * two elements depending on whether the suggestion query has resolved yet, and
- * the two-match case is a Playwright strict-mode violation — a hard error, not
- * something it retries away. That race is why the suite could not be trusted at
- * any worker count (BL-0070).
+ * /recipes renders the same recipe title twice — once in <RecipeList> and once
+ * in the "For you" suggestions panel above it, which can recommend a recipe you
+ * own. An unscoped `getByRole("listitem").filter({ hasText: title })` therefore
+ * matched one or two elements depending on whether the suggestion query had
+ * resolved yet, and the two-match case is a Playwright strict-mode violation —
+ * a hard error, not something it retries away. That race is why the suite could
+ * not be trusted at any worker count (BL-0070).
+ *
+ * The id says which row is meant instead of describing where it sits, so the
+ * "For you" panel can render whatever it likes above it.
  */
 export function myRecipeRow(page: Page, title: string) {
-  return page
-    .getByRole("list", { name: "My recipes" })
-    .getByRole("listitem")
-    .filter({ hasText: title });
+  return page.getByTestId(TEST_IDS.recipes.item(title));
 }
 
 /**
  * A row in the "Not yet planned" rail on /plan — a basket recipe waiting for a
- * day. Scoped for the same reason as `myRecipeRow`: if the page we are leaving
- * is still mounted, a scoped locator matches nothing and Playwright simply keeps
- * polling, whereas the unscoped one can match two elements and hard-fail.
+ * day. Identified for the same reason as `myRecipeRow`: if the page we are
+ * leaving is still mounted, this matches nothing and Playwright simply keeps
+ * polling, whereas a text filter over the whole page can match two elements and
+ * hard-fail.
  */
 export function planRailRow(page: Page, title: string) {
-  return page
-    .getByRole("list", { name: "Not yet planned" })
-    .getByRole("listitem")
-    .filter({ hasText: title });
+  return page.getByTestId(TEST_IDS.plan.unplanned(title));
 }
 
 /**
- * A line in the grocery card on /list, matched by ingredient text.
+ * Every line of the grocery walk, and nothing else on /list.
  *
- * Scoped because /list is not only the grocery card: once a line has been
- * checked off, <LeftoverProposals> renders listitems naming the same
- * ingredient, so an unscoped filter starts matching two elements — a
- * strict-mode violation, which is a hard error rather than a retried poll.
+ * The page is not only the grocery card: once a line has been checked off,
+ * <LeftoverProposals> renders its own listitems naming the same ingredient, and
+ * the pantry-shaped cards elsewhere do too. Matching on the row's own id stem
+ * says "a grocery line" rather than "an <li> somewhere inside this region",
+ * which is the distinction the old locator could not draw.
+ */
+export function groceryLines(page: Page) {
+  return page.locator(`[data-testid^="${TEST_IDS.list.itemPrefix}"]`);
+}
+
+/**
+ * One line of the grocery walk, matched by ingredient text.
+ *
+ * Text rather than `TEST_IDS.list.item(name)` because the ingredient's final
+ * name is not this suite's to predict: `parseManualEntry` decides how much of
+ * the input is the item, and the server then replaces it with the
+ * normalization table's display form. The id stem narrows the search to
+ * grocery lines; the text picks one out of them.
  */
 export function groceryLine(page: Page, text: string | RegExp) {
-  return page
-    .getByRole("region", { name: "Grocery list" })
-    .getByRole("listitem")
-    .filter({ hasText: text });
+  return groceryLines(page).filter({ hasText: text });
+}
+
+/**
+ * A row of the pantry inventory on /pantry, matched by item text.
+ *
+ * Since BL-0050 the use-it-up suggestions card sits *above* the inventory and
+ * its recipe rows mention the same ingredients, so a text filter over the page
+ * picks a suggestion as readily as an inventory row. Specs used to work around
+ * that by filtering for a row that also contained a state button; the id says
+ * it directly.
+ */
+export function pantryRow(page: Page, text: string | RegExp) {
+  return page.locator(`[data-testid^="${TEST_IDS.pantry.itemPrefix}"]`).filter({ hasText: text });
 }
 
 /** Create a manual recipe with one ingredient row and add it to the basket. */
