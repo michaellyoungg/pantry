@@ -52,7 +52,22 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
 
   // Ticking a line moves it out of the walk and into "In cart" — the point of
   // the whole section, so the top of the list is only ever what is left.
-  await garlic.getByRole("checkbox").check();
+  //
+  // click + expect rather than check(), and then a wait on the card settling.
+  // The tick is optimistic (`groceryList.toggleItem` carries
+  // `.withOptimisticUpdate`), so the row moves sections before the server has
+  // seen anything and check()'s single, non-retryable state read can catch it
+  // mid-move. aria-busy is `useGroceryList().pending`: false again only once the
+  // mutation resolved, and a rejection would have taken the tick back with it,
+  // so this is where the check-off is known to have been stored (BL-0074).
+  const garlicCheckbox = garlic.getByRole("checkbox");
+  await garlicCheckbox.click();
+  await expect(page.getByRole("region", { name: "Grocery list" })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(garlicCheckbox).toBeChecked();
+
   const inCart = page.getByRole("button", { name: /^In cart, \d+ items?$/ });
   await expect(inCart).toBeVisible();
   const inCartSection = page.getByTestId(TEST_IDS.list.inCartSection);

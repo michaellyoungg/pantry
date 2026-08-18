@@ -56,14 +56,43 @@ test("Home walks the weekly loop from empty to shopped", async ({ page }) => {
   await expect(page).toHaveURL(/\/list$/);
 
   // --- shopped: everything checked closes the loop back to planning ---
-  // Scoped to the grocery card, and only once it has rendered. `toHaveURL`
-  // above is satisfied the moment the location changes, which is before the
-  // lazily-loaded route swaps in — so an unscoped `getByRole("checkbox")` can
-  // still resolve against Home, whose "Before you cook" card has checkboxes of
-  // its own. Ticking one of those produces the memorably unhelpful "Clicking
-  // the checkbox did not change its state". (BL-0070.)
+  // Wait for the card, then name the line. `toHaveURL` above is satisfied the
+  // moment the location changes, which is before the lazily-loaded route swaps
+  // in — so an unscoped `getByRole("checkbox")` could still resolve against
+  // Home, whose "Before you cook" card has checkboxes of its own, and ticking
+  // one of those produced the memorably unhelpful "Clicking the checkbox did
+  // not change its state". BL-0070 answered that by scoping to the card.
+  //
+  // Scoping was not the whole of it (BL-0074). `getByRole("checkbox").first()`
+  // still took whichever checkbox existed at the instant the card appeared —
+  // and the card appears before `getGroceryList` resolves, so the spec acted on
+  // the first frame the list rendered, which is the same frame that inserts the
+  // row being clicked. Naming the line through the shared selector contract
+  // (BL-0071) says which row is meant instead of where it sits, and waiting for
+  // it means the query has settled before anything is touched.
   await expect(groceryCard).toBeVisible();
-  await groceryCard.getByRole("checkbox").first().check();
+  const beans = groceryLine(page, "beans");
+  await expect(beans).toBeVisible();
+  const beansCheckbox = beans.getByRole("checkbox");
+
+  // click + expect rather than check(). They assert the same thing, but check()
+  // reads the control's state ONCE, immediately after the click, and a false
+  // reading is a non-retryable error. The tick is optimistic —
+  // `groceryList.toggleItem` carries `.withOptimisticUpdate` — so the row is
+  // unmounted out of its aisle and back in again while the 300ms cart
+  // transition settles. Polling tells the two apart: a control one render
+  // behind is not a control whose write never landed.
+  await beansCheckbox.click();
+  // The backend agreeing is a separate claim from the box looking ticked, and
+  // this is the one that makes it. aria-busy on the card is
+  // `useGroceryList().pending`, false again only once the mutation resolved,
+  // and a rejected toggle would have taken the optimistic tick back with it —
+  // so "settled AND still ticked" is the check-off having actually been stored.
+  // Everything below depends on that: an unstored tick leaves Home in the
+  // shopping state and the two assertions after the nav fail instead.
+  await expect(groceryCard).toHaveAttribute("aria-busy", "false");
+  await expect(beansCheckbox).toBeChecked();
+
   await navigateTo(page, "Home");
   await expect(page.getByRole("link", { name: "Plan next week" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Getting started" })).toBeHidden();
