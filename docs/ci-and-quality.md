@@ -57,17 +57,26 @@ from the spec but *checked against* it, by the tests in
 [`contract/README.md`](../contract/README.md) for why, and for what the check can
 and cannot see.
 
-Two heavier suites are **not** part of the per-PR gate and run on demand:
+Three heavier suites are **not** part of the per-PR gate and run on demand:
 
 ```bash
 pnpm test:integration  # cross-service contract (Convex ⇄ recipe-service ⇄ Postgres)
 pnpm test:e2e          # full loop in a real browser (Playwright) against a compose stack
+pnpm test:e2e:mobile   # Maestro flows on a simulator/emulator, against the same stack
 ```
 
 `test:e2e` (see [`README.md`](../README.md#end-to-end-browser)) drives the whole
 user loop against a live stack; it needs Docker, Go, and a Playwright browser
 (`pnpm --filter @pantry/web exec playwright install --with-deps chromium`), so it
 stays out of the fast unit gate.
+
+`test:e2e:mobile` (BL-0072, see [`mobile-e2e.md`](mobile-e2e.md)) is the device
+equivalent, and is further out still: it needs a native build and a booted iOS
+simulator or Android emulator, neither of which a `ubuntu-latest` runner has.
+It is a local command today, and BL-0073 makes it a nightly job. What the PR
+gate does carry for it is static: `apps/mobile`'s jest suite parses the Maestro
+flows and renders the screens they drive, so a renamed `testID` fails a pull
+request rather than a nightly run.
 
 Go tooling (run from `apps/recipe-service`):
 

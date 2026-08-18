@@ -39,6 +39,7 @@ pnpm --filter @pantry/mobile start          # Metro; press i / a for a simulator
 pnpm --filter @pantry/mobile start:tunnel   # reachable from a physical device
 pnpm --filter @pantry/mobile typecheck
 pnpm --filter @pantry/mobile test
+pnpm test:e2e:mobile --platform android     # Maestro, from the repo root
 ```
 
 `typecheck` and `test` also run from the repo root (`pnpm typecheck`,
@@ -117,8 +118,16 @@ It lives in `@pantry/core/testing` (BL-0071), which the web client reads too —
 there. The same strings are that client's `data-testid` values, which is what
 lets a Maestro flow and a Playwright spec describe one journey.
 
-Device e2e (Maestro) is [BL-0072](../../docs/backlog/BL-0072-maestro-e2e-harness.md)
-and runs nightly, not as a merge gate.
+Device e2e is Maestro, in `e2e/`
+([BL-0072](../../docs/backlog/BL-0072-maestro-e2e-harness.md)): one flow, run
+locally with `pnpm test:e2e:mobile --platform android|ios` against a booted
+simulator or emulator. It is not a merge gate — a native build plus a device
+image is far too slow — and the nightly job that runs it is
+[BL-0073](../../docs/backlog/BL-0073-nightly-mobile-e2e.md). What *is* in the PR
+gate is the pair of guards in `src/testing/`: one parses the flows and rejects a
+selector the app no longer emits, the other renders the screens and rejects a
+declared selector nothing renders. See
+[`docs/mobile-e2e.md`](../../docs/mobile-e2e.md).
 
 ## Screens
 
