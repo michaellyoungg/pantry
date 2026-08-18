@@ -1,14 +1,13 @@
-import { api } from "@pantry/convex/api";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
-import { useId, useState } from "react";
+import { useHouseholdSizeEditor } from "@pantry/core/data";
+import { useId } from "react";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 
 /**
- * How many people this household cooks for (BL-0018).
+ * How many people this household cooks for (BL-0018): presentation over
+ * `useHouseholdSizeEditor()`.
  *
  * One number, and it earns its place by removing taps rather than adding a
  * screen: the planner seeds each recipe's servings dial from it, so a household
@@ -17,41 +16,13 @@ import { Input } from "./ui/Input";
  * which is exactly the behaviour before this existed.
  */
 export function HouseholdSize() {
-  const prefs = useQuery(api.preferences.get);
-  const save = useMutation(api.preferences.setHouseholdSize);
-  const { run, error, pending } = useAsyncAction();
-  const [draft, setDraft] = useState<string | null>(null);
-  const [invalid, setInvalid] = useState(false);
+  const { value, setValue, invalid, loading, pending, error, save } = useHouseholdSizeEditor();
   const fieldId = useId();
 
   // Rendering the field before the query resolves would show an empty box —
   // indistinguishable from "you have not set this", and one stray keystroke
   // away from overwriting a real answer.
-  if (prefs === undefined) return null;
-
-  const value = draft ?? (prefs.householdSize === undefined ? "" : String(prefs.householdSize));
-
-  function submit() {
-    const text = value.trim();
-    if (text === "") {
-      setInvalid(false);
-      void run(async () => {
-        await save({});
-        setDraft(null);
-      });
-      return;
-    }
-    const size = Number(text);
-    if (!Number.isInteger(size) || size < 1) {
-      setInvalid(true);
-      return;
-    }
-    setInvalid(false);
-    void run(async () => {
-      await save({ householdSize: size });
-      setDraft(null);
-    });
-  }
+  if (loading) return null;
 
   return (
     <Card title="Household">
@@ -69,10 +40,10 @@ export function HouseholdSize() {
             className="w-24"
             value={value}
             placeholder="—"
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setValue(e.target.value)}
           />
         </label>
-        <Button onClick={submit} disabled={pending}>
+        <Button onClick={save} disabled={pending}>
           {pending ? "Saving…" : "Save"}
         </Button>
       </div>

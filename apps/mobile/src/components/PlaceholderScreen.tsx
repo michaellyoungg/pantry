@@ -7,9 +7,8 @@
  * indistinguishable from a broken screen.
  *
  * Kept intentionally thin: `@pantry/core/data` (BL-0055) is what the real
- * screens will call, and duplicating any of that here would only be thrown away.
+ * screens call, and duplicating any of that here would only be thrown away.
  */
-import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { surfaceTestIDs, type TestIDSurface } from "../testing/testIDs";
 
@@ -17,13 +16,10 @@ export function PlaceholderScreen({
   surface,
   title,
   portedBy,
-  children,
 }: {
   surface: TestIDSurface;
   title: string;
   portedBy: string;
-  /** Anything already built for this route — see `settings.tsx`. */
-  children?: ReactNode;
 }) {
   const id = surfaceTestIDs(surface);
 
@@ -38,7 +34,6 @@ export function PlaceholderScreen({
       <Text className="text-sm text-muted" testID={id("ported-by")}>
         {portedBy}
       </Text>
-      {children}
     </View>
   );
 }

@@ -96,6 +96,19 @@ export function editRecipeHref(recipeId: string): Href {
  */
 export const NUTRITION_GOALS_HREF: Href = "/nutrition/goals";
 
+/**
+ * The equipment inventory (BL-0043), which lives inside the recipes tab as a
+ * segment rather than as a route of its own.
+ *
+ * Web can link straight to `/recipes/kitchen`; here the segment is chosen by a
+ * control on a screen that stays mounted, so the destination is the tab plus a
+ * parameter saying which segment to show. Settings points at this rather than
+ * drawing a second copy of the inventory — the web settings page makes the same
+ * choice, for the same reason: two surfaces over one inventory is how the two
+ * stop agreeing.
+ */
+export const KITCHEN_HREF: Href = { pathname: "/recipes", params: { section: "kitchen" } };
+
 export interface MobileNavItem {
   /** File-based route name inside `app/(tabs)`. */
   readonly name: string;

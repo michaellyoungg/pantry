@@ -13,7 +13,7 @@
  */
 import { TEST_IDS } from "@pantry/core/testing";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
@@ -33,12 +33,27 @@ const SECTIONS = [
 
 type Section = (typeof SECTIONS)[number]["key"];
 
-export function RecipesScreen() {
+/** A section name off the route, or nothing if it names no segment we have. */
+function asSection(value: string | undefined): Section | undefined {
+  return SECTIONS.find((tab) => tab.key === value)?.key;
+}
+
+export function RecipesScreen({ section: requested }: { section?: string } = {}) {
   // The tab navigator renders no header (`headerShown: false`), so the screen
   // owns its own top inset.
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [section, setSection] = useState<Section>("mine");
+  const [section, setSection] = useState<Section>(asSection(requested) ?? "mine");
+
+  // The tab stays mounted once visited, so a later "manage your kitchen" from
+  // Settings arrives as a changed parameter on a screen that has already picked
+  // a segment — the initial state above would never see it. Switching segments
+  // by hand afterwards leaves the parameter alone, so this does not fight the
+  // control.
+  useEffect(() => {
+    const wanted = asSection(requested);
+    if (wanted !== undefined) setSection(wanted);
+  }, [requested]);
 
   return (
     <View className="flex-1 bg-bg" testID={id("screen")}>
