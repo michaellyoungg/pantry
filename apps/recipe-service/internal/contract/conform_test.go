@@ -45,8 +45,17 @@ func bind(schema string, goType reflect.Type, strict bool, fields ...field) bind
 // TestStructsMatchSpec is the whole point of this package: every Go type the
 // spec names must marshal to the shape the spec promises.
 func TestStructsMatchSpec(t *testing.T) {
+	// A generated table that came out empty would make every subtest below
+	// vanish and the package pass, which is the one failure this test cannot
+	// report on its own.
+	if len(specBindings) == 0 {
+		t.Fatal("spec_gen_test.go bound no Go types; run `pnpm contract:codegen`")
+	}
 	for _, b := range specBindings {
 		t.Run(b.Schema+"/"+b.Go.String(), func(t *testing.T) {
+			if b.Go.Kind() != reflect.Struct {
+				t.Fatalf("%s is bound to %s, which is not a struct", b.Schema, b.Go)
+			}
 			for _, problem := range compare(b.Fields, jsonShape(b.Go), b.Strict) {
 				t.Errorf("%s vs %s: %s", b.Schema, b.Go, problem)
 			}
