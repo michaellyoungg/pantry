@@ -15,9 +15,11 @@ const mockState = {
   basket: [] as Array<Record<string, unknown>> | undefined,
   list: [] as Array<Record<string, unknown>> | undefined,
   pantry: [] as Array<Record<string, unknown>>,
+  prepStates: [] as Array<Record<string, unknown>>,
 };
 const mockGenerate = jest.fn(async () => ({ count: 3 }) as unknown);
 const mockRecommend = jest.fn(async () => ({ results: [], generated: [] }) as unknown);
+const mockDerivePrep = jest.fn(async () => ({ rulesVersion: "test.1", meals: [] }) as unknown);
 const mockNavigate = jest.fn();
 
 jest.mock("convex/react", () => {
@@ -30,10 +32,18 @@ jest.mock("convex/react", () => {
       const name = getFunctionName(ref);
       if (name.startsWith("basket")) return mockState.basket;
       if (name.startsWith("pantry")) return mockState.pantry;
+      if (name.startsWith("prepTasks")) return mockState.prepStates;
       return mockState.list;
     },
-    useAction: (ref: never) =>
-      getFunctionName(ref).startsWith("recommendations") ? mockRecommend : mockGenerate,
+    useAction: (ref: never) => {
+      const name = getFunctionName(ref);
+      if (name.startsWith("recommendations")) return mockRecommend;
+      // Home runs THREE actions now, and they must not share a spy: the prep
+      // derivation fires on mount, so a rejection staged for the build button
+      // would be swallowed by it.
+      if (name.startsWith("prepTasks")) return mockDerivePrep;
+      return mockGenerate;
+    },
     useMutation: () => Object.assign(noop, { withOptimisticUpdate: () => noop }),
   };
 });
@@ -82,7 +92,16 @@ beforeEach(() => {
   mockState.basket = [];
   mockState.list = [];
   mockState.pantry = [];
+  mockState.prepStates = [];
+  mockDerivePrep.mockImplementation(async () => ({ rulesVersion: "test.1", meals: [] }));
 });
+
+/** An ISO date `days` from now, in the local calendar the hook derives against. */
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 describe("the home route", () => {
   it("is a real screen now, not the placeholder", async () => {
@@ -234,12 +253,65 @@ describe("HomeScreen — the week strip", () => {
     expect(screen.queryByTestId("home.unscheduled")).toBeNull();
   });
 
-  it("routes a day to the planner", async () => {
+  it("routes an empty day to the planner, because what it offers is 'add'", async () => {
     await render(<HomeScreen />);
 
     await press("home.day.sun");
 
     expect(mockNavigate).toHaveBeenCalledWith("/plan");
+  });
+
+  // On a phone, "Thursday: chili" is most often tapped by someone about to cook
+  // it (BL-0061). Routing them to the planner would make them find it twice.
+  it("routes a planned meal to its recipe, ready to cook", async () => {
+    mockState.basket = [meal("a", { weekday: 3, title: "Chili", recipeId: "r-chili" })];
+    await render(<HomeScreen />);
+
+    await press("home.meal.chili");
+
+    expect(mockNavigate).toHaveBeenCalledWith("/recipe/r-chili");
+  });
+});
+
+describe("HomeScreen — prep due today", () => {
+  // It sits above the expiry nudge because it is the only card here that is
+  // time-critical in a way the user cannot recover from: a thaw missed today
+  // cannot be made up tomorrow.
+  it("surfaces what has to happen before tonight's dinner", async () => {
+    mockDerivePrep.mockImplementation(async () => ({
+      rulesVersion: "test.1",
+      meals: [
+        {
+          recipeId: "r1",
+          title: "Roast turkey",
+          cookDate: isoDaysFromNow(1),
+          tasks: [
+            {
+              key: "thaw_frozen_protein:turkey",
+              ruleId: "thaw_frozen_protein",
+              subject: "turkey",
+              window: "night_before",
+              text: "Move the turkey to the fridge to thaw",
+              source: "rule",
+              dueOn: isoDaysFromNow(0),
+            },
+          ],
+        },
+      ],
+    }));
+
+    await render(<HomeScreen />);
+
+    expect(await screen.findByTestId("home.before-you-cook-heading")).toHaveTextContent(
+      "1 thing to do before you cook",
+    );
+  });
+
+  it("renders no prep card when nothing is due", async () => {
+    await render(<HomeScreen />);
+
+    await waitFor(() => expect(mockDerivePrep).toHaveBeenCalled());
+    expect(screen.queryByTestId("home.before-you-cook")).toBeNull();
   });
 });
 

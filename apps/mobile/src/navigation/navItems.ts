@@ -40,6 +40,24 @@ export function tabHref(route: NavRoute): Href {
   return NATIVE_TABS[route].href;
 }
 
+/**
+ * Where one recipe's screen lives in *this* router (BL-0061).
+ *
+ * Recipe detail is a stack route rather than a tab, so it has no entry in
+ * `NAV_ITEMS` and no `NavRoute` — but the path is still native-router
+ * vocabulary, and rule 5 keeps that out of shared code and out of the views.
+ * Screens ask here rather than building the string themselves, so there is one
+ * place to change when the route moves.
+ */
+export function recipeHref(recipeId: string): Href {
+  return `/recipe/${encodeURIComponent(recipeId)}`;
+}
+
+/** Cooking mode for one recipe: the same screen's step-by-step child route. */
+export function cookModeHref(recipeId: string): Href {
+  return `${recipeHref(recipeId)}/cook`;
+}
+
 export interface MobileNavItem {
   /** File-based route name inside `app/(tabs)`. */
   readonly name: string;

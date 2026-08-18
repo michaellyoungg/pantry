@@ -20,7 +20,8 @@ import { useHome } from "@pantry/core/data";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { tabHref } from "../navigation/navItems";
+import { BeforeYouCook } from "../cooking/BeforeYouCook";
+import { recipeHref, tabHref } from "../navigation/navItems";
 import { UseItUpCard } from "../pantry/UseItUpCard";
 import { surfaceTestIDs } from "../testing/testIDs";
 import { GettingStarted } from "./GettingStarted";
@@ -38,6 +39,7 @@ export function HomeScreen() {
   const { state, days, unscheduled, pending, error, buildList } = useHome();
 
   const open = (route: NavRoute) => router.navigate(tabHref(route));
+  const openRecipe = (recipeId: string) => router.navigate(recipeHref(recipeId));
 
   // Building from Home saves a hop through the planner on the most common
   // weekly action; on success we land on the list, ready to shop.
@@ -64,6 +66,14 @@ export function HomeScreen() {
           state={state}
         />
 
+        {/* Lead-time prep due today (BL-0042), ported native by BL-0061. It
+            sits ABOVE the expiry nudge and directly under the next action for
+            the same reason it does on web: it is the only card here that is
+            time-critical in a way the user cannot recover from — a thaw missed
+            today cannot be made up tomorrow. Renders nothing when nothing is
+            due. */}
+        <BeforeYouCook />
+
         {/* The expiry nudge (BL-0029), in its interrupt form: it renders
             nothing unless food is actually about to be wasted, so it never
             competes with the single next action above. It stays the pantry's
@@ -71,7 +81,12 @@ export function HomeScreen() {
             testIDs are `pantry.*` on this screen too. */}
         <UseItUpCard variant="nudge" />
 
-        <WeekStrip days={days} onOpenPlan={() => open("/plan")} unscheduled={unscheduled} />
+        <WeekStrip
+          days={days}
+          onOpenPlan={() => open("/plan")}
+          onOpenRecipe={openRecipe}
+          unscheduled={unscheduled}
+        />
 
         <QuickActions onOpen={open} />
 
