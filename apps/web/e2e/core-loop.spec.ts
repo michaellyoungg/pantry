@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   navigateTo,
   scheduleAndGenerate,
   signUp,
@@ -32,17 +33,35 @@ test("full loop: sign up, plan a recipe, generate list, check off, persist", asy
   await scheduleAndGenerate(page, [{ title: recipeTitle, day: "Monday" }]);
 
   // Grocery list: check off, then confirm it persists across a reload.
-  await page.goto("/list");
-  const item = page.getByRole("listitem").filter({ hasText: "garlic" });
+  // Nav link, not page.goto(): `scheduleAndGenerate` fires the generate action
+  // on its last line and a full load would cancel it.
+  await navigateTo(page, "List");
+  // Scoped to the grocery card. Once a line is checked off, <LeftoverProposals>
+  // renders its own listitems naming the same ingredient, so an unscoped filter
+  // matches two elements and hard-fails on a strict-mode violation.
+  const item = groceryLine(page, "garlic");
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");
   await expect(checkbox).not.toBeChecked();
   await checkbox.check();
   await expect(checkbox).toBeChecked();
 
+  // That tick proves nothing on its own: `groceryList.toggleItem` carries an
+  // optimistic update, so the box flips locally before the server has seen the
+  // mutation. Reloading here is a full load, which drops the Convex socket and
+  // cancels anything not yet flushed — the write the next assertion is about.
+  // aria-busy clears when the mutation is acknowledged, so it is the barrier
+  // that makes the reload meaningful. (BL-0070: this lost race is rare on an
+  // idle machine and common under parallel load, which is exactly the kind of
+  // flake that made the suite untrustworthy at more than one worker.)
+  await expect(page.getByRole("region", { name: "Grocery list" })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+
   // Reload: the checked state is server-persisted (Convex), not just local.
   await page.reload();
-  const itemAfterReload = page.getByRole("listitem").filter({ hasText: "garlic" });
+  const itemAfterReload = groceryLine(page, "garlic");
   await expect(itemAfterReload.getByRole("checkbox")).toBeChecked();
 
   expect(pageErrors, `Uncaught page errors during the loop:\n${pageErrors.join("\n")}`).toEqual([]);
@@ -67,9 +86,14 @@ test("checking an item off fills the pantry", async ({ page }) => {
   });
   await scheduleAndGenerate(page, [{ title: recipeTitle, day: "Monday" }]);
 
-  // Initial navigation to the list: page.goto() is fine here, nothing is in flight yet.
-  await page.goto("/list");
-  const item = page.getByRole("listitem").filter({ hasText: "garlic" });
+  // Nav link, not page.goto(). The comment that used to sit here claimed
+  // nothing was in flight, but `scheduleAndGenerate` fires the generate action
+  // on its last line, so a full load can cancel it and leave the list empty.
+  await navigateTo(page, "List");
+  // Scoped to the grocery card. Once a line is checked off, <LeftoverProposals>
+  // renders its own listitems naming the same ingredient, so an unscoped filter
+  // matches two elements and hard-fails on a strict-mode violation.
+  const item = groceryLine(page, "garlic");
   await expect(item).toBeVisible();
   const checkbox = item.getByRole("checkbox");
   await expect(checkbox).not.toBeChecked();

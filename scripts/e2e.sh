@@ -27,6 +27,7 @@
 #
 # Env knobs:
 #   E2E_KEEP_STACK=1   leave the compose stack running afterwards (debugging).
+#   E2E_PORT=5174      run the Vite dev server on a different port (see below).
 #
 # Extra args after `pnpm test:e2e` are forwarded to `playwright test`
 # (e.g. `pnpm test:e2e --headed --debug`).
@@ -36,7 +37,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 CONVEX_URL="http://127.0.0.1:3210"
-SITE_URL="http://localhost:5173"
+# The Vite dev server's port. Overridable because a stale dev server left behind
+# on the default port is silently *reused* by Playwright (`reuseExistingServer`
+# is on outside CI), so the suite then exercises whatever that server is
+# serving — someone else's branch — and reports it as your result. Both a false
+# pass and a false failure are reachable that way. Set E2E_PORT to sidestep it.
+# SITE_URL must track the port: Convex Auth validates its JWTs against the
+# deployment's SITE_URL, so a mismatch fails every sign-up in the suite.
+E2E_PORT="${E2E_PORT:-5173}"
+export E2E_PORT
+SITE_URL="http://localhost:${E2E_PORT}"
 # recipe-service is reached from INSIDE the convex-backend container, so use the
 # compose service name + in-container port, not the host mapping.
 RECIPE_SERVICE_INTERNAL_URL="http://recipe-service:8090"

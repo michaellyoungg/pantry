@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  planRailRow,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 /**
  * "Suggest my week" (BL-0033) end to end.
@@ -70,7 +76,7 @@ test("regenerating leaves an already-planned day alone", async ({ page }) => {
 
   // Plan Wednesday by hand first — this is the meal that must survive.
   await navigateTo(page, "Plan");
-  const railRow = page.getByRole("listitem").filter({ hasText: planned });
+  const railRow = planRailRow(page, planned);
   await expect(railRow).toBeVisible();
   await railRow.getByRole("button", { name: "Wednesday" }).click();
   await expect(dayColumn(page, "Wednesday").getByText(planned)).toBeVisible();

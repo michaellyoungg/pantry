@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp, uniqueSuffix } from "./helpers";
+import { myRecipeRow, signUp, uniqueSuffix } from "./helpers";
 
 // BL-0049: the Nutrition Facts panel, end to end against a live stack.
 //
@@ -43,7 +43,7 @@ test("a recipe shows its estimate as a Nutrition Facts panel", async ({ page }) 
   await page.getByPlaceholder("item").first().fill("flour");
   await page.getByRole("button", { name: "Create recipe" }).click();
 
-  const row = page.getByRole("listitem").filter({ hasText: recipeTitle });
+  const row = myRecipeRow(page, recipeTitle);
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Nutrition" }).click();
 

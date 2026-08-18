@@ -1,5 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  myRecipeRow,
+  navigateTo,
+  planRailRow,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 /**
  * The one "use it up" card on /pantry.
@@ -26,9 +33,13 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await createRecipeAndAddToBasket(page, base, { quantity: "2", unit: "cloves", item: "garlic" });
 
   await navigateTo(page, "Plan");
-  const planRow = page.getByRole("listitem").filter({ hasText: base });
+  const planRow = planRailRow(page, base);
   await expect(planRow).toBeVisible();
   await planRow.getByRole("button", { name: "Monday" }).click();
+  // Wait for the scheduling write to land before generating: the aggregation
+  // reads the plan server-side, so firing it against an unscheduled week comes
+  // back with an empty list and the failure surfaces far from its cause.
+  await expect(page.getByRole("button", { name: `Remove ${base} from Monday` })).toBeVisible();
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
@@ -50,7 +61,7 @@ test("suggests a recipe for a pantry item marked to use up", async ({ page }) =>
   await page.getByPlaceholder("unit").first().fill("clove");
   await page.getByPlaceholder("item").first().fill("garlic");
   await page.getByRole("button", { name: "Create recipe" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+  await expect(myRecipeRow(page, title)).toBeVisible();
 
   // The pantry now holds garlic. Mark it to use up.
   //
@@ -101,9 +112,10 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await createRecipeAndAddToBasket(page, base, { quantity: "2", unit: "cloves", item: "garlic" });
 
   await navigateTo(page, "Plan");
-  const baseRow = page.getByRole("listitem").filter({ hasText: base });
+  const baseRow = planRailRow(page, base);
   await expect(baseRow).toBeVisible();
   await baseRow.getByRole("button", { name: "Monday" }).click();
+  await expect(page.getByRole("button", { name: `Remove ${base} from Monday` })).toBeVisible();
   await page.getByRole("button", { name: "Generate grocery list" }).click();
 
   await navigateTo(page, "List");
@@ -134,7 +146,7 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByPlaceholder("unit").last().fill("tbsp");
   await page.getByPlaceholder("item").last().fill("creamy peanut butter");
   await page.getByRole("button", { name: "Create recipe" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+  await expect(myRecipeRow(page, title)).toBeVisible();
 
   // A control recipe with no peanut in it. The avoid list must not touch this
   // one, which is what makes the negative assertion below meaningful: navigating
@@ -148,7 +160,7 @@ test("never suggests a recipe containing an avoided ingredient", async ({ page }
   await page.getByPlaceholder("unit").first().fill("clove");
   await page.getByPlaceholder("item").first().fill("garlic");
   await page.getByRole("button", { name: "Create recipe" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: control })).toBeVisible();
+  await expect(myRecipeRow(page, control)).toBeVisible();
 
   // BASELINE: with no avoid list, both recipes surface.
   await navigateTo(page, "Pantry");

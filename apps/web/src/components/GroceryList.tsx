@@ -37,6 +37,7 @@ export function GroceryList() {
     toBuy,
     groups,
     pendingLeftovers,
+    pending,
     leaving,
     highlighted,
     undo,
@@ -70,7 +71,12 @@ export function GroceryList() {
   }
 
   return (
-    <Card title="Grocery list">
+    // aria-busy marks the window between firing an (optimistic) write and the
+    // server acknowledging it. Assistive tech gets told the region is settling,
+    // and the e2e suite gets the one signal that distinguishes "the checkbox
+    // looks ticked" from "the backend stored it" — see `pending` on
+    // useGroceryList().
+    <Card title="Grocery list" label="Grocery list" busy={pending}>
       <ShoppingPresence />
       {lines.length === 0 && (
         <p className="text-sm text-muted">

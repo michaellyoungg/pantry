@@ -230,7 +230,7 @@ export function WeekPlan() {
             Everything in your basket is planned. Add recipes from the Recipes tab to plan more.
           </p>
         ) : (
-          <ul className="flex flex-col divide-y divide-border">
+          <ul aria-label="Not yet planned" className="flex flex-col divide-y divide-border">
             {unscheduled.map((i) => (
               <li key={i._id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span className="text-text">{i.title}</span>

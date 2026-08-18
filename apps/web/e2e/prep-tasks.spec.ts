@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createRecipeAndAddToBasket, navigateTo, signUp, uniqueSuffix } from "./helpers";
+import {
+  createRecipeAndAddToBasket,
+  navigateTo,
+  planRailRow,
+  signUp,
+  uniqueSuffix,
+} from "./helpers";
 
 // Derived prep (BL-0042) only exists as a whole across three services: the rule
 // engine and the cook-date arithmetic are in Go, the check-off is Convex state,
@@ -22,7 +28,7 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
   });
 
   await navigateTo(page, "Plan");
-  const row = page.getByRole("listitem").filter({ hasText: title });
+  const row = planRailRow(page, title);
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Monday" }).click();
   // Wait for the scheduling write to land before navigating away — leaving with
@@ -31,7 +37,12 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
 
   // The planner badge: the lead time is visible where the meal is scheduled,
   // which is the whole point of deriving against the cook date.
-  const planned = page.getByRole("listitem").filter({ hasText: title });
+  // Scoped to the day column: the title is now in Monday, but the rail row it
+  // came from may not have unmounted yet, and two matches is a hard error.
+  const planned = page
+    .getByRole("region", { name: "Monday", exact: true })
+    .getByRole("listitem")
+    .filter({ hasText: title });
   await expect(planned.getByText(/prep:/)).toBeVisible();
 
   // --- Home surfaces it, named against its meal ---
@@ -48,9 +59,16 @@ test("a frozen protein produces a thaw task that survives check-off", async ({ p
   });
   await expect(box).not.toBeChecked();
   await box.check();
-  // The tick is not optimistic: it round-trips through Convex and comes back
-  // over the socket, so a checked box means the mutation actually landed.
   await expect(box).toBeChecked();
+  // A checked box does NOT mean the mutation landed — `prepTasks.setDone` is
+  // optimistic, so this flips locally first. (The comment that used to sit here
+  // claimed the opposite.) aria-busy on the card clears only once the server
+  // acknowledges, and waiting for it is what stops the reload below from
+  // cancelling the very write it is meant to be testing. (BL-0070.)
+  await expect(page.getByRole("region", { name: "Before you cook" })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
 
   // --- and the tick survives a full reload, keyed on the stable task key ---
   await page.reload();

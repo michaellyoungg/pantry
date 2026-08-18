@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { navigateTo, signUp } from "./helpers";
+import { navigateTo, planRailRow, signUp } from "./helpers";
 
 /**
  * The "For you" card on /recipes — the discovery surface (BL-0005 increment 2).
@@ -93,7 +93,7 @@ test("adding a suggestion puts it on the plan", async ({ page }) => {
     .click();
 
   await navigateTo(page, "Plan");
-  await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+  await expect(planRailRow(page, title)).toBeVisible();
 
   // And it stops being offered, because a recipe already on the week's plan is
   // not a discovery.

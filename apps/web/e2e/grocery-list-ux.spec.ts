@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipeAndAddToBasket,
+  groceryLine,
   navigateTo,
   scheduleAndGenerate,
   signUp,
@@ -66,7 +67,7 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: "Keep what I didn't buy" }).click();
 
-  await expect(page.getByRole("listitem").filter({ hasText: "garlic" })).toHaveCount(0);
+  await expect(groceryLine(page, "garlic")).toHaveCount(0);
 
   // Re-mounted from the server rather than reloaded: the assertion above is
   // satisfied by the optimistic update, and a reload here would tear down the
@@ -74,7 +75,7 @@ test("aisle sections fold, checked lines move to In cart, and the trip closes", 
   // keeps it open, so coming back re-renders from what the server actually has.
   await navigateTo(page, "Plan");
   await navigateTo(page, "List");
-  await expect(page.getByRole("listitem").filter({ hasText: "garlic" })).toHaveCount(0);
+  await expect(groceryLine(page, "garlic")).toHaveCount(0);
 
   expect(pageErrors, `Uncaught page errors:\n${pageErrors.join("\n")}`).toEqual([]);
 });
