@@ -44,7 +44,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0004](BL-0004-real-auth-convex-auth.md) | Real authentication (Convex Auth) | done | auth | M |
 | [BL-0005](BL-0005-recommendations-service.md) | Recommendations / preference-lookup service | done | recommendations | L |
 | [BL-0006](BL-0006-railway-deploy.md) | Railway deployment | in-progress | infra | M |
-| [BL-0007](BL-0007-openapi-contract-codegen.md) | OpenAPI contract codegen | in-progress | infra | M |
+| [BL-0007](BL-0007-openapi-contract-codegen.md) | OpenAPI contract codegen | done | infra | M |
 | [BL-0008](BL-0008-self-hosted-convex-prod-hardening.md) | Self-hosted Convex prod hardening | done | infra | M |
 | [BL-0009](BL-0009-recipe-service-http-hardening.md) | recipe-service HTTP hardening (timeouts, body cap, graceful shutdown) | done | infra | S |
 | [BL-0010](BL-0010-wire-go-into-turborepo.md) | Wire the Go recipe-service into the Turborepo task graph | done | infra | S |
