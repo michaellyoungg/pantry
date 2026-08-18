@@ -46,6 +46,9 @@ export {
   titleCase,
   trackSwipe,
 } from "./grocery";
+// Only the state itself crosses the boundary: `deriveHomeState` is called by
+// `useHome` in @pantry/core/data, and a view renders the answer, never derives it.
+export type { HomeState } from "./home";
 export { type ManualEntry, parseManualEntry } from "./manualEntry";
 export { NAV_ITEMS, type NavIconName, type NavItem, type NavRoute } from "./nav";
 export {

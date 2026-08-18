@@ -1,4 +1,4 @@
-import type { HomeState } from "../../lib/homeState";
+import type { HomeState } from "@pantry/core";
 import { Card } from "../ui/Card";
 
 /**

@@ -11,21 +11,34 @@
  * `lucide-react-native`; the web app binds the same names to `lucide-react`.
  */
 import { type NavIconName, type NavRoute, NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
+import type { Href } from "expo-router";
 
 /**
  * Per-tab facts only the native client has. Typed `Record<NavRoute, …>` so a
  * destination added in `@pantry/core` is a compile error here until it is
  * given a route file and an owner.
  */
-const NATIVE_TABS: Record<NavRoute, { name: string; portedBy: string }> = {
-  "/": { name: "index", portedBy: "BL-0062" },
-  "/plan": { name: "plan", portedBy: "BL-0064" },
-  "/recipes": { name: "recipes", portedBy: "BL-0063" },
-  "/list": { name: "list", portedBy: "BL-0057" },
-  "/pantry": { name: "pantry", portedBy: "BL-0059" },
-  "/history": { name: "history", portedBy: "BL-0067" },
-  "/settings": { name: "settings", portedBy: "BL-0066" },
+const NATIVE_TABS: Record<NavRoute, { name: string; href: Href; portedBy: string }> = {
+  "/": { name: "index", href: "/", portedBy: "BL-0062" },
+  "/plan": { name: "plan", href: "/plan", portedBy: "BL-0064" },
+  "/recipes": { name: "recipes", href: "/recipes", portedBy: "BL-0063" },
+  "/list": { name: "list", href: "/list", portedBy: "BL-0057" },
+  "/pantry": { name: "pantry", href: "/pantry", portedBy: "BL-0059" },
+  "/history": { name: "history", href: "/history", portedBy: "BL-0067" },
+  "/settings": { name: "settings", href: "/settings", portedBy: "BL-0066" },
 };
+
+/**
+ * Where a shared destination lives in *this* router.
+ *
+ * Written out per tab rather than derived from the web path: the `(tabs)`
+ * group happens to be transparent in the URL today, so the two coincide, but
+ * that is a fact about this file tree and not something shared code may
+ * assume. A screen that wants to send someone to the planner asks here.
+ */
+export function tabHref(route: NavRoute): Href {
+  return NATIVE_TABS[route].href;
+}
 
 export interface MobileNavItem {
   /** File-based route name inside `app/(tabs)`. */

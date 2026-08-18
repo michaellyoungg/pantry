@@ -1,3 +1,4 @@
+import type { PlannedItem } from "@pantry/core";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,12 +9,14 @@ import {
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BasketRow, GroceryRow } from "../lib/homeState";
+
+/** A list row as the server stores it; Home reads only `checked`/`removed`. */
+type GroceryRow = { _id: string; item: string; checked: boolean; removed?: boolean };
 
 // Home reads two queries, so the mock dispatches on which query ref was asked for.
 // `basket`/`list` are mutable so each test can stage a different point in the loop.
 const state = vi.hoisted(() => ({
-  basket: undefined as BasketRow[] | undefined,
+  basket: undefined as PlannedItem[] | undefined,
   list: undefined as GroceryRow[] | undefined,
   pantry: [] as unknown[],
   generate: vi.fn(async () => ({ count: 3 })),
@@ -66,7 +69,7 @@ async function renderHome() {
   return router;
 }
 
-function meal(id: string, over: Partial<BasketRow> = {}): BasketRow {
+function meal(id: string, over: Partial<PlannedItem> = {}): PlannedItem {
   return { _id: id, recipeId: `r-${id}`, title: `Recipe ${id}`, ...over };
 }
 

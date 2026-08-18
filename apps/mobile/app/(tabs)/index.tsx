@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { HomeScreen } from "../../src/home/HomeScreen";
 
-export default function HomeScreen() {
-  return <PlaceholderScreen surface="home" title="Home" portedBy="BL-0062" />;
+export default function Home() {
+  return <HomeScreen />;
 }
