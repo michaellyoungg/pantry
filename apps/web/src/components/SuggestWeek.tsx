@@ -1,118 +1,17 @@
-import { api } from "@pantry/convex/api";
-import {
-  DAY_FULL,
-  type PlannedItem,
-  type SuggestionCandidate,
-  suggestWeek,
-  type WeekSuggestion,
-} from "@pantry/core";
-import { useAsyncAction } from "@pantry/core/react";
-import type { Recommendation } from "@pantry/types";
-import { useAction, useMutation } from "convex/react";
-import { useState } from "react";
+import { DAY_FULL, type PlannedItem } from "@pantry/core";
+import { useWeekSuggestion } from "@pantry/core/data";
+import { TEST_IDS } from "@pantry/core/testing";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 
-// "Suggest my week" (BL-0033) — the one action that proposes a whole week.
-//
-// The load-bearing property is that this component PROPOSES and never applies.
-// Nothing reaches the basket until the user presses Add; until then the whole
-// week lives in this component's state, where dropping a dinner costs one tap
-// and changes nothing. The UX plan's anti-friction principle is explicit that a
-// suggestion you have to undo is worse than no suggestion at all, and a planner
-// that silently rewrote itself would be exactly that.
-//
-// Selection itself is pure and lives in @pantry/core; this file is the surface.
-
-/**
- * Recipes the user has already turned down this session.
- *
- * Kept so "Try again" means something. Without it, regenerating re-proposes the
- * dinner just rejected — the top of the ranking has not moved — which reads as
- * the button being broken.
- */
-type Dismissed = ReadonlySet<string>;
-
-function proposalFor(
-  candidates: readonly SuggestionCandidate[],
-  planned: readonly PlannedItem[],
-  dismissed: Dismissed,
-): WeekSuggestion {
-  return suggestWeek({
-    candidates: candidates.filter((c) => !dismissed.has(c.recipeId)),
-    planned,
-  });
-}
+// "Suggest my week" — the web surface over `useWeekSuggestion()`, which owns
+// the candidate pool, the dismissed set, and the accept that is the only thing
+// in the flow that writes.
 
 export function SuggestWeek({ items }: { items: readonly PlannedItem[] }) {
-  const fetchCandidates = useAction(api.recommendations.weekCandidates);
-  const addToBasket = useMutation(api.basket.add);
-  const schedule = useMutation(api.basket.schedule);
-  const ask = useAsyncAction();
-  const apply = useAsyncAction();
-
-  // The candidate pool is fetched once per "Suggest" press and reused for every
-  // local edit, so dropping a dinner and trying again costs no round trip.
-  const [candidates, setCandidates] = useState<Recommendation[] | null>(null);
-  const [proposal, setProposal] = useState<WeekSuggestion | null>(null);
-  const [dismissed, setDismissed] = useState<Dismissed>(new Set<string>());
-
-  const suggest = () =>
-    ask.run(async () => {
-      apply.clearError();
-      const found = await fetchCandidates({});
-      setCandidates(found);
-      setDismissed(new Set());
-      setProposal(proposalFor(found, items, new Set()));
-    });
-
-  /**
-   * Show a different week.
-   *
-   * Selection is deterministic, so this has to turn the current picks down to
-   * mean anything — re-running it unchanged would hand back the identical week
-   * and read as a dead button.
-   */
-  const regenerate = () => {
-    if (!candidates || !proposal) return;
-    const next = new Set(dismissed);
-    for (const pick of proposal.picks) next.add(pick.recipeId);
-    setDismissed(next);
-    setProposal(proposalFor(candidates, items, next));
-  };
-
-  /** Turn one dinner down and refill its day from what is left. */
-  const dropPick = (recipeId: string) => {
-    if (!candidates) return;
-    const next = new Set(dismissed).add(recipeId);
-    setDismissed(next);
-    setProposal(proposalFor(candidates, items, next));
-  };
-
-  const discard = () => {
-    setProposal(null);
-    setCandidates(null);
-    setDismissed(new Set());
-  };
-
-  /**
-   * Accept the proposal — the ONLY thing here that writes.
-   *
-   * `add` is idempotent and `schedule` patches whatever row exists, so a pick
-   * that is already in the basket (an unscheduled one off the rail) is placed
-   * rather than duplicated. Days the user had already planned were never in the
-   * proposal, so they cannot be touched from here.
-   */
-  const accept = () =>
-    apply.run(async () => {
-      if (!proposal) return;
-      for (const pick of proposal.picks) {
-        await addToBasket({ recipeId: pick.recipeId, title: pick.title });
-        await schedule({ recipeId: pick.recipeId, weekday: pick.weekday });
-      }
-      discard();
-    });
+  const { proposal, thinking, applying, error, suggest, regenerate, dropPick, discard, accept } =
+    useWeekSuggestion(items);
 
   return (
     // aria-busy marks the window between pressing Add and the server having
@@ -128,8 +27,14 @@ export function SuggestWeek({ items }: { items: readonly PlannedItem[] }) {
       </p>
 
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" onClick={suggest} disabled={ask.pending}>
-          {ask.pending ? "Thinking…" : proposal ? "Start over" : "Suggest my week"}
+        <Button
+          variant="secondary"
+          size="sm"
+          testId={TEST_IDS.plan.suggest}
+          onClick={suggest}
+          disabled={thinking}
+        >
+          {thinking ? "Thinking…" : proposal ? "Start over" : "Suggest my week"}
         </Button>
       </div>
 
@@ -196,7 +101,7 @@ export function SuggestWeek({ items }: { items: readonly PlannedItem[] }) {
                   size="sm"
                   aria-label={`Not ${pick.title}`}
                   onClick={() => dropPick(pick.recipeId)}
-                  disabled={apply.pending}
+                  disabled={applying}
                 >
                   Not this
                 </Button>
@@ -205,20 +110,25 @@ export function SuggestWeek({ items }: { items: readonly PlannedItem[] }) {
           </ul>
 
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={accept} disabled={apply.pending}>
-              {apply.pending ? "Adding…" : "Add to my week"}
+            <Button
+              size="sm"
+              testId={TEST_IDS.plan.suggestAccept}
+              onClick={accept}
+              disabled={applying}
+            >
+              {applying ? "Adding…" : "Add to my week"}
             </Button>
-            <Button variant="secondary" size="sm" onClick={regenerate} disabled={apply.pending}>
+            <Button variant="secondary" size="sm" onClick={regenerate} disabled={applying}>
               Try again
             </Button>
-            <Button variant="ghost" size="sm" onClick={discard} disabled={apply.pending}>
+            <Button variant="ghost" size="sm" onClick={discard} disabled={applying}>
               Discard
             </Button>
           </div>
         </div>
       )}
 
-      <ErrorText message={ask.error ?? apply.error} />
+      <ErrorText message={error} />
     </Card>
   );
 }

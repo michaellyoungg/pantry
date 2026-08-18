@@ -103,22 +103,14 @@ export const TEST_IDS = {
     /** A basket recipe waiting for a day, in the "Not yet planned" rail. */
     unplanned: (title: string): TestID => plan("unplanned", testIDKey(title)),
     /**
-     * A meal sitting on a day. Keyed by title for the same reason the rail is:
-     * it is the only identity a spec can name in advance, since the recipe's id
-     * is server-minted.
-     *
-     * The two clients draw a very different thing here — web a cell in a
-     * seven-column grid, native a card under a day pager (BL-0064) — which is
-     * precisely why the journey that reaches it needs one name.
+     * A meal sitting on a day. Web draws a cell in a seven-column grid, native
+     * a card under a day pager, so the shared journey needs one name.
      */
     meal: (title: string): TestID => plan("meal", testIDKey(title)),
-    /** Every planned meal at once, for counting them without knowing their names. */
     mealPrefix: testIDPrefix("plan", "meal"),
-    /** Turns the planned week into the week's grocery list. */
     generate: plan("generate"),
-    /** Asks for a whole proposed week (BL-0033). */
     suggest: plan("suggest"),
-    /** Accepts that proposal — the one control in the flow that writes. */
+    /** Accepts the proposal — the one control in that flow that writes. */
     suggestAccept: plan("suggest-accept"),
   },
 

@@ -3,14 +3,10 @@ import { DAY_FULL, DAYS, weekdayOf } from "./week";
 
 describe("weekdayOf", () => {
   it("puts Monday first, matching basket.weekday", () => {
-    // 2026-08-17 is a Monday. Date#getDay() calls it 1; the planner calls it 0,
-    // and every bucket in the app is indexed the planner's way.
-    expect(weekdayOf(new Date(2026, 7, 17))).toBe(0);
+    expect(weekdayOf(new Date(2026, 7, 17))).toBe(0); // a Monday
   });
 
   it("puts Sunday last rather than wrapping it to the front", () => {
-    // The off-by-one this exists to prevent: an unshifted getDay() files
-    // Sunday's dinner under Monday.
     expect(weekdayOf(new Date(2026, 7, 23))).toBe(6);
   });
 
@@ -22,9 +18,7 @@ describe("weekdayOf", () => {
   });
 
   it("reads the local calendar day, not UTC", () => {
-    // A late-evening Sunday in a negative-offset zone is already Monday in UTC.
-    // Filing it under Monday would move the meal a day, which is the bug the
-    // calendar module's own docblock is about.
+    // A late Sunday in a negative-offset zone is already Monday in UTC.
     expect(weekdayOf(new Date(2026, 7, 23, 23, 30))).toBe(6);
   });
 });

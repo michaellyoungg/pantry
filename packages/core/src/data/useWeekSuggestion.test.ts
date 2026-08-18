@@ -3,9 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlannedItem } from "../planner";
 
-// One spy per mutation, dispatched on the api ref's function name: `add` and
-// `schedule` are called back to back for every pick, so a shared spy could not
-// say which of the two a given call was.
+// `add` and `schedule` fire back to back per pick, so they need separate spies.
 const { fetchCandidates, addMock, scheduleMock } = vi.hoisted(() => ({
   fetchCandidates: vi.fn(),
   addMock: vi.fn(() => Promise.resolve()),
@@ -66,8 +64,6 @@ describe("useWeekSuggestion", () => {
   });
 
   it("leaves a day the user has already planned alone", async () => {
-    // The non-destructive rule: pressing a button that offered you more must
-    // never cost you the Wednesday you had already decided on.
     fetchCandidates.mockResolvedValue([candidate("a", 0.9)]);
     const { result } = renderHook(() => useWeekSuggestion([planned({ weekday: 2 })]));
     await act(async () => result.current.suggest());
@@ -109,13 +105,10 @@ describe("useWeekSuggestion", () => {
     await act(async () => result.current.dropPick("a"));
 
     expect(result.current.proposal?.picks.map((p) => p.recipeId)).toEqual(["b"]);
-    // No second round trip: the pool is fetched once and reused for edits.
-    expect(fetchCandidates).toHaveBeenCalledTimes(1);
+    expect(fetchCandidates).toHaveBeenCalledTimes(1); // pool reused, no refetch
   });
 
   it("offers a genuinely different week on 'try again'", async () => {
-    // Selection is deterministic, so re-running it unchanged would hand back the
-    // identical week and read as a dead button.
     fetchCandidates.mockResolvedValue([candidate("a", 0.9), candidate("b", 0.8)]);
     const { result } = renderHook(() => useWeekSuggestion([]));
     await act(async () => result.current.suggest());
@@ -153,9 +146,7 @@ describe("useWeekSuggestion", () => {
   });
 
   it("reports an empty proposal rather than nothing at all", async () => {
-    // An empty answer is a real answer, and the view says which of its two
-    // causes applies — so it has to be able to tell "not asked yet" from
-    // "asked, and there is nothing".
+    // The view has to tell "not asked yet" from "asked, and there is nothing".
     const { result } = renderHook(() => useWeekSuggestion([]));
     await act(async () => result.current.suggest());
 
@@ -173,8 +164,7 @@ describe("useWeekSuggestion", () => {
   });
 
   it("surfaces a failed accept and keeps the proposal on screen", async () => {
-    // Half a week may have landed, so the offer stays: discarding it would hide
-    // what the user still has to finish.
+    // Half a week may have landed; discarding would hide what is left to finish.
     fetchCandidates.mockResolvedValue([candidate("a", 0.9)]);
     addMock.mockRejectedValueOnce(new Error("basket is down") as never);
     const { result } = renderHook(() => useWeekSuggestion([]));

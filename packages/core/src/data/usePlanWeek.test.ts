@@ -2,10 +2,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Hoisted and mutable so each test seeds the basket. `useMutation` dispatches on
-// the api ref's function name, which is what lets a test say "the servings
-// mutation fired" rather than inspecting args on one shared spy — the seven
-// planner mutations take overlapping shapes, so args alone are ambiguous.
+// One spy per mutation, dispatched on the api ref's function name: the seven
+// planner mutations take overlapping args, so a shared spy could not say which
+// of them fired.
 const { state, mutations, actionMock } = vi.hoisted(() => ({
   state: { rows: undefined as Array<Record<string, unknown>> | undefined },
   mutations: {} as Record<string, ReturnType<typeof vi.fn>>,
@@ -20,8 +19,7 @@ vi.mock("convex/react", async () => {
     useMutation: (ref: Parameters<typeof getFunctionName>[0]) => {
       const name = getFunctionName(ref).split(":").pop() as string;
       mutations[name] ??= vi.fn(() => Promise.resolve());
-      // Looked up on every CALL, not captured at render: a test that wants one
-      // mutation to fail swaps the entry after the hook has already rendered.
+      // Looked up per call, so a test can swap in a failing spy after render.
       const fn = ((...args: unknown[]) =>
         (mutations[name] as (...a: unknown[]) => Promise<unknown>)(...args)) as unknown as {
         (...a: unknown[]): Promise<unknown>;
@@ -44,7 +42,6 @@ const row = (over: Record<string, unknown>) => ({
   ...over,
 });
 
-/** The first row, typed as the hook hands it back. */
 const first = (result: { current: { items: PlannedRow[] } }) => result.current.items[0];
 
 beforeEach(() => {
@@ -77,8 +74,6 @@ describe("usePlanWeek", () => {
   });
 
   it("puts a row with no day on the rail rather than on Monday", () => {
-    // A missing weekday is not weekday 0 — conflating them would silently plan
-    // every fresh basket add onto Monday.
     state.rows = [row({})];
     const { result } = renderHook(() => usePlanWeek());
 
@@ -140,8 +135,6 @@ describe("usePlanWeek servings dial", () => {
   });
 
   it("clamps at the quarter-batch floor rather than reaching zero", async () => {
-    // Re-asserted here rather than left to planner.test.ts: the clamp is the one
-    // arithmetic rule a second client could plausibly re-derive by hand.
     state.rows = [row({ weekday: 0, servingsMultiplier: 0.25 })];
     const { result } = renderHook(() => usePlanWeek());
     await act(async () => result.current.decreaseServings(first(result)));
@@ -176,8 +169,6 @@ describe("usePlanWeek leftovers and cooking", () => {
   });
 
   it("undoes a cooked mark rather than marking it twice", async () => {
-    // markCooked is idempotent server-side, so sending it again would be a
-    // silent no-op and the tap would look broken.
     state.rows = [row({ weekday: 0, cookedAt: 1 })];
     const { result } = renderHook(() => usePlanWeek());
     await act(async () => result.current.toggleCooked(first(result)));
@@ -243,9 +234,6 @@ describe("usePlanWeek building the list", () => {
   });
 
   it("clears a stale generation failure when the next write starts", async () => {
-    // The two slots are read in one place on both clients. Without the
-    // cross-clear, a week that failed to build keeps its message next to a
-    // scheduling change that just succeeded.
     actionMock.mockRejectedValueOnce(new Error("recipe service is down") as never);
     state.rows = [row({})];
     const { result } = renderHook(() => usePlanWeek());
@@ -259,8 +247,7 @@ describe("usePlanWeek building the list", () => {
   });
 
   it("keeps the row type usable as the mutation argument", () => {
-    // A compile-level guard: if PlannedRow stopped carrying the branded `_id`,
-    // this assignment would still pass vitest but fail `tsc`.
+    // A tsc-level guard: vitest would still pass if `_id` lost its brand.
     state.rows = [row({})];
     const { result } = renderHook(() => usePlanWeek());
     const planned: PlannedRow = result.current.items[0];
