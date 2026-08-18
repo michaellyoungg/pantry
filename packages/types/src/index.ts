@@ -867,3 +867,14 @@ export interface PrepTasksResponse {
   rulesVersion: string;
   meals: PrepMeal[];
 }
+
+/**
+ * The word a user types to confirm account deletion (BL-0068).
+ *
+ * A type, not a runtime constant, for the reason `CookingMethod` is one: this
+ * package ships as `dist` only and every import of it must be `import type`.
+ * Convex declares the literal (`convex/account.ts`) and each client declares
+ * its own; all three prove they match this union at compile time, so the
+ * confirmation the UI asks for and the one the server accepts cannot drift.
+ */
+export type AccountDeletionConfirmation = "DELETE";
