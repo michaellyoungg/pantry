@@ -3,7 +3,7 @@ const path = require("node:path");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 const { createWorkspaceSourceResolver } = require("./metro.workspace-source");
-const { withDockerVolumesBlocked } = require("./metro.crawler-ignore");
+const { withIgnoredPathsBlocked } = require("./metro.crawler-ignore");
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
@@ -15,11 +15,9 @@ const config = getDefaultConfig(projectRoot);
 // neither rebuild nor hot-reload.
 config.watchFolders = [workspaceRoot];
 
-// Watching the workspace root means crawling it, and `.data/` under it holds the
-// docker-compose volumes — one of which (Postgres) is `drwx------` by necessity,
-// so the crawl would die with EACCES before Metro ever listens. See
-// metro.crawler-ignore.js.
-config.resolver.blockList = withDockerVolumesBlocked(config.resolver.blockList, workspaceRoot);
+// Watching the root means crawling it; see metro.crawler-ignore.js for what must
+// be skipped and why.
+config.resolver.blockList = withIgnoredPathsBlocked(config.resolver.blockList, workspaceRoot);
 
 // pnpm puts a package's own dependencies in a nested `node_modules` inside the
 // virtual store, so hierarchical lookup must stay ON (the usual
