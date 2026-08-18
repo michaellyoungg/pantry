@@ -111,4 +111,4 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0071](BL-0071-portable-test-selectors.md) | Emit portable test selectors from the shared web primitives | done | web | M |
 | [BL-0072](BL-0072-maestro-e2e-harness.md) | Maestro e2e harness for the mobile client | proposed | mobile | M |
 | [BL-0073](BL-0073-nightly-mobile-e2e.md) | Nightly mobile e2e — flow parity with the browser suite | proposed | mobile | L |
-| [BL-0074](BL-0074-e2e-residual-write-flakes.md) | Three e2e assertions that fail when a write quietly does not land | proposed | infra | S |
+| [BL-0074](BL-0074-e2e-residual-write-flakes.md) | Three e2e assertions that fail when a write quietly does not land | in-progress | infra | S |
