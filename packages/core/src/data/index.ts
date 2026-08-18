@@ -24,6 +24,7 @@
 // Screens are migrated one at a time, as the native client reaches them; the
 // remaining routes still wire Convex in their components.
 
+export { type AvoidEntry, DIET_SEEDS, type UseAvoidList, useAvoidList } from "./useAvoidList";
 export { type UseDeleteAccount, useDeleteAccount } from "./useDeleteAccount";
 export {
   CART_TRANSITION_MS,
@@ -52,6 +53,7 @@ export {
 } from "./useEquipmentCatalog";
 export { type GenerateGroceryList, type HomeMeal, type UseHome, useHome } from "./useHome";
 export { useHouseholdSize } from "./useHouseholdSize";
+export { type UseHouseholdSizeEditor, useHouseholdSizeEditor } from "./useHouseholdSizeEditor";
 export { type UnlockedBy, type UseKitchenUnlocks, useKitchenUnlocks } from "./useKitchenUnlocks";
 export { type UseMyKitchen, useMyKitchen } from "./useMyKitchen";
 export {
@@ -105,5 +107,10 @@ export {
   useRecipeNutrition,
 } from "./useRecipeNutrition";
 export { type PrepForRecipe, type UseRecipePrep, useRecipePrep } from "./useRecipePrep";
+export {
+  type TasteCuisine,
+  type UseTastePreferences,
+  useTastePreferences,
+} from "./useTastePreferences";
 export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";
 export { type UseWeekSuggestion, useWeekSuggestion } from "./useWeekSuggestion";

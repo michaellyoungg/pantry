@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DIET_SEEDS } from "./Preferences";
+import { DIET_SEEDS } from "./useAvoidList";
 
 // This is the assertion that would have caught BL-0005's avoid-list bug: the
 // diet seeds looked plausible ("beef", "cheese", "fish") but were not actual
@@ -12,7 +12,7 @@ import { DIET_SEEDS } from "./Preferences";
 describe("DIET_SEEDS", () => {
   const normalizationPath = path.resolve(
     import.meta.dirname,
-    "../../../recipe-service/internal/recipe/normalization.json",
+    "../../../../apps/recipe-service/internal/recipe/normalization.json",
   );
   const normalization = JSON.parse(readFileSync(normalizationPath, "utf-8")) as {
     items: Record<string, unknown>;
