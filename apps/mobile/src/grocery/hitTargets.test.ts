@@ -1,6 +1,6 @@
+import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import {
   CHIP_HIT_SLOP,
-  CONTROL_TARGET_HEIGHT,
   ROW_PRESS_PROPS,
   ROW_PRESS_RETENTION,
   ROW_TARGET_HEIGHT,

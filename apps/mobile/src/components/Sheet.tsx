@@ -1,10 +1,10 @@
 /**
  * A bottom sheet.
  *
- * Anchored to the bottom of the screen, always — not centred, and not a
- * top-anchored dialog. The top third of a phone held one-handed is the part a
- * thumb cannot reach, and everything this screen puts in a sheet is something
- * the shopper has to answer before they can carry on.
+ * Anchored to the bottom, always — not centred, and not a top-anchored dialog.
+ * The top third of a phone held one-handed is the part a thumb cannot reach,
+ * and a sheet is what the app uses for a question that has to be answered
+ * before the user can carry on.
  *
  * Built on React Native's `Modal` so the OS back button dismisses it on Android
  * (`onRequestClose`), which is the one dismissal gesture a user will try

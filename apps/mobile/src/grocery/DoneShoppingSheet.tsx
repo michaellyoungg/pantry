@@ -16,8 +16,8 @@
 
 import type { FinishChoice } from "@pantry/core/data";
 import { Text } from "react-native";
+import { Sheet, SheetButton } from "../components/Sheet";
 import { surfaceTestIDs } from "../testing/testIDs";
-import { Sheet, SheetButton } from "./Sheet";
 
 const id = surfaceTestIDs("list");
 

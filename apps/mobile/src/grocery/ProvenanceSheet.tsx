@@ -12,8 +12,8 @@
  */
 import { formatQuantity } from "@pantry/core";
 import { Text, View } from "react-native";
+import { Sheet, SheetButton } from "../components/Sheet";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
-import { Sheet, SheetButton } from "./Sheet";
 
 const id = surfaceTestIDs("list");
 

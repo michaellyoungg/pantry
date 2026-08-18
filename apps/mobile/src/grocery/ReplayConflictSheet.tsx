@@ -21,8 +21,8 @@
  */
 import type { ReplayConflict } from "@pantry/core";
 import { Text } from "react-native";
+import { Sheet, SheetButton } from "../components/Sheet";
 import { surfaceTestIDs } from "../testing/testIDs";
-import { Sheet, SheetButton } from "./Sheet";
 
 const id = surfaceTestIDs("list");
 

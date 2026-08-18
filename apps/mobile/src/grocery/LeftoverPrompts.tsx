@@ -16,8 +16,8 @@
  */
 import { formatQuantity, type PurchasedLine, purchaseText, residueText } from "@pantry/core";
 import { Pressable, Text, View } from "react-native";
+import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
-import { CONTROL_TARGET_HEIGHT } from "./hitTargets";
 
 const id = surfaceTestIDs("list");
 

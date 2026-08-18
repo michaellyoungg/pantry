@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { AddItemField } from "./AddItemField";
-import { CONTROL_TARGET_HEIGHT } from "./hitTargets";
 
 const onAdd = jest.fn();
 
