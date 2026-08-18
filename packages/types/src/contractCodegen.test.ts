@@ -119,6 +119,40 @@ describe("TypeScript rendering", () => {
     expect(ts).toContain("/** Why this exists. */");
     expect(ts).toContain("  /** Why this field exists. */");
   });
+
+  it("rewraps long prose, so a folded YAML scalar reads like a literal one", () => {
+    const { ts } = render({
+      Thing: {
+        type: "object",
+        // One paragraph-long line, as `>-` produces.
+        description: `${"word ".repeat(40)}end`,
+        ...unbound,
+        required: [],
+        properties: {},
+      },
+    });
+
+    const doc = ts.split("\n").filter((line) => line.startsWith(" *"));
+    expect(doc.length).toBeGreaterThan(1);
+    for (const line of doc) expect(line.length).toBeLessThanOrEqual(96);
+  });
+
+  it("keeps a wrapped line's own indent, so a bullet stays attached to its bullet", () => {
+    const { ts } = render({
+      Thing: {
+        type: "object",
+        description: `- a bullet whose text ${"runs on ".repeat(12)}past the width`,
+        ...unbound,
+        required: [],
+        properties: {},
+      },
+    });
+
+    const doc = ts.split("\n").filter((line) => line.startsWith(" * "));
+    const start = doc.findIndex((line) => line.includes("- a bullet"));
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(doc[start + 1]).toMatch(/^ \* {3}\S/);
+  });
 });
 
 describe("Go binding table", () => {

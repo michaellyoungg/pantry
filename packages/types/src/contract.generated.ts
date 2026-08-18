@@ -260,7 +260,8 @@ export interface ImportRecipeRequest {
 }
 
 /**
- * One recipe on a plan, at the servings dial it is planned at. The same shape feeds POST /grocery-list and POST /nutrition/estimate.
+ * One recipe on a plan, at the servings dial it is planned at. The same shape feeds POST
+ * /grocery-list and POST /nutrition/estimate.
  */
 export interface GroceryListItem {
   recipeId: string;
@@ -391,13 +392,15 @@ export interface ItemDetails {
   display: string;
   aisle: string;
   /**
-   * Absent rather than zero when unknown, so callers can tell "we don't know" from "it expires today".
+   * Absent rather than zero when unknown, so callers can tell "we don't know" from "it expires
+   * today".
    */
   shelfLifeDays?: number;
   /** The what-is-it axis prep rules match on; absent when unclassified. */
   category?: string;
   /**
-   * A keep-on-hand ingredient. Absent (false) for every unknown item: we do not assume something we failed to recognize is one.
+   * A keep-on-hand ingredient. Absent (false) for every unknown item: we do not assume
+   * something we failed to recognize is one.
    */
   staple?: boolean;
   /**
@@ -409,7 +412,8 @@ export interface ItemDetails {
    */
   allergens?: string[];
   /**
-   * The typical purchase size, when the dataset knows one. Absent means "sold however the recipe measures it, as far as we know".
+   * The typical purchase size, when the dataset knows one. Absent means "sold however the
+   * recipe measures it, as far as we know".
    */
   purchase?: PurchasePack;
   /**
@@ -466,7 +470,8 @@ export interface AvoidResolutionResponse {
 }
 
 /**
- * One piece of ingredient text the dictionary did not recognize, with how often it appeared and where.
+ * One piece of ingredient text the dictionary did not recognize, with how often it appeared and
+ * where.
  */
 export interface UnresolvedIngredient {
   /** The text as the normalizer saw it, lowercased and trimmed. */
@@ -483,7 +488,8 @@ export interface CoverageReport {
   /** resolved/lines in [0,1], and 0 for an empty corpus — nothing measured is not full marks. */
   share: number;
   /**
-   * Ordered by count descending, then item ascending, so the most valuable dictionary entry to write next is always first.
+   * Ordered by count descending, then item ascending, so the most valuable dictionary entry to
+   * write next is always first.
    */
   unresolved: UnresolvedIngredient[];
 }
@@ -559,7 +565,8 @@ export interface NutritionEstimate {
   ingredients: NutritionIngredient[];
   estimatedAt: string;
   /**
-   * Present only on a rollup (POST /nutrition/estimate), where "which dish is missing?" is a question the blended coverage figure cannot answer.
+   * Present only on a rollup (POST /nutrition/estimate), where "which dish is missing?" is a
+   * question the blended coverage figure cannot answer.
    */
   recipes?: NutritionRecipeCoverage[];
 }
@@ -683,7 +690,8 @@ export type NutritionTargetOperator = "<=" | ">=" | "==";
 export type NutritionTargetPeriod = "day" | "week" | "meal";
 
 /**
- * One nutrition goal as the recommender sees it (BL-0040) — the stored `nutritionTargets` row minus `active`, because only active goals are ever sent.
+ * One nutrition goal as the recommender sees it (BL-0040) — the stored `nutritionTargets` row
+ * minus `active`, because only active goals are ever sent.
  */
 export interface RecommendationNutritionTarget {
   nutrientId: string;
@@ -695,7 +703,8 @@ export interface RecommendationNutritionTarget {
 }
 
 /**
- * What the week's plan ALREADY commits, so a `week` target is scored on the gap that remains rather than on the whole goal.
+ * What the week's plan ALREADY commits, so a `week` target is scored on the gap that remains
+ * rather than on the whole goal.
  */
 export interface RecommendationPlanNutrition {
   /** nutrientId -> amount, in the estimate's units. */
@@ -716,7 +725,8 @@ export interface RecommendationInteraction {
 }
 
 /**
- * Everything the ranker knows about the caller for one request. The ranker is stateless by construction: it holds no user state, so all of it arrives here.
+ * Everything the ranker knows about the caller for one request. The ranker is stateless by
+ * construction: it holds no user state, so all of it arrives here.
  */
 export interface RecommendationRequest {
   pantry: PantryContextItem[];
@@ -733,7 +743,8 @@ export interface RecommendationRequest {
    */
   affinities?: Record<string, number>;
   /**
-   * Recipes the user already has a copy of. The discover surface REMOVES them; the pantry surface ignores the field.
+   * Recipes the user already has a copy of. The discover surface REMOVES them; the pantry
+   * surface ignores the field.
    */
   savedRecipeIds?: string[];
   /**
@@ -748,11 +759,15 @@ export interface RecommendationRequest {
   excludeRecipeIds?: string[];
   limit?: number;
   /**
-   * Keep candidates that share nothing with the pantry (BL-0033). The "cook what you have" surface drops them as noise; set selection needs them, because a dish can earn its place by sharing ingredients with the other dinners.
+   * Keep candidates that share nothing with the pantry (BL-0033). The "cook what you have"
+   * surface drops them as noise; set selection needs them, because a dish can earn its place by
+   * sharing ingredients with the other dinners.
    */
   includeUnmatched?: boolean;
   /**
-   * The caller's clock, epoch ms. Sent rather than read from the server clock so scoring stays a pure function of its input. Omitting it makes expiry unavailable — absent data degrades to "no signal", never to a guess.
+   * The caller's clock, epoch ms. Sent rather than read from the server clock so scoring stays
+   * a pure function of its input. Omitting it makes expiry unavailable — absent data degrades
+   * to "no signal", never to a guess.
    */
   now?: number;
   /** ACTIVE goals only: a paused goal is not a goal. */
@@ -804,7 +819,8 @@ export interface RecommendationUrgency {
 }
 
 /**
- * One ranked recommendation, carrying the reasons that produced it so the UI can explain itself without knowing anything about scoring.
+ * One ranked recommendation, carrying the reasons that produced it so the UI can explain itself
+ * without knowing anything about scoring.
  */
 export interface Recommendation {
   recipeId: string;
@@ -824,7 +840,9 @@ export interface Recommendation {
   /** Absent when nothing this recipe uses is expiring within the horizon. */
   urgency?: RecommendationUrgency;
   /**
-   * 0..1 for how well this candidate closes the plan's remaining gap, or null when nothing could be measured. Null rather than 0: a data gap is not a bad score, and the two must never look alike.
+   * 0..1 for how well this candidate closes the plan's remaining gap, or null when nothing
+   * could be measured. Null rather than 0: a data gap is not a bad score, and the two must
+   * never look alike.
    */
   nutritionFit: number | null;
   nutritionUnverified: RecommendationUnverifiedConstraint[];
@@ -857,7 +875,9 @@ export interface GeneratedRecipeDraft {
 export interface RecommendationResponse {
   results: Recommendation[];
   /**
-   * The full text of every generated candidate in `results`. Always present and always an array — empty whenever generation is unconfigured, ungated or unproductive, which is the common case.
+   * The full text of every generated candidate in `results`. Always present and always an array
+   * — empty whenever generation is unconfigured, ungated or unproductive, which is the common
+   * case.
    */
   generated: GeneratedRecipeDraft[];
 }
@@ -876,7 +896,8 @@ export interface DiscoverResponse {
 /** One piece of lead-time work for one meal on one date. */
 export interface PrepTask {
   /**
-   * Stable across re-derivation: `ruleId:subject`. Check-off is keyed on it, so editing a rule's text preserves the tick and changing a rule's id deliberately does not.
+   * Stable across re-derivation: `ruleId:subject`. Check-off is keyed on it, so editing a
+   * rule's text preserves the tick and changing a rule's id deliberately does not.
    */
   key: string;
   ruleId: string;
@@ -888,7 +909,8 @@ export interface PrepTask {
   /** ISO date the task is due: the cook date minus the window's lead time. */
   dueOn: string;
   /**
-   * The due date has already passed. A missed task is still returned — the whole point of lead time is that forgetting it is the failure worth reporting, not something to hide.
+   * The due date has already passed. A missed task is still returned — the whole point of lead
+   * time is that forgetting it is the failure worth reporting, not something to hide.
    */
   missed?: boolean;
 }
@@ -916,7 +938,8 @@ export interface PrepTasksRequestMeal {
 export interface PrepTasksRequest {
   meals: PrepTasksRequestMeal[];
   /**
-   * The caller's local date. Supplied rather than read from the server clock: a prep schedule that slips a day is worse than no prep schedule. Omit to leave `missed` unset.
+   * The caller's local date. Supplied rather than read from the server clock: a prep schedule
+   * that slips a day is worse than no prep schedule. Omit to leave `missed` unset.
    */
   today?: string;
 }

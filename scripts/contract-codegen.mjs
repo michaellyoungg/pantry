@@ -124,10 +124,19 @@ export function generate(spec) {
     }
   }
 
-  /** Renders a description as a JSDoc block at the given indent. */
+  /**
+   * Renders a description as a JSDoc block at the given indent.
+   *
+   * Long lines are re-wrapped so a folded YAML scalar (`>-`), which arrives as
+   * one paragraph-long line, reads the same as a literal one (`|-`). The spec
+   * author picks whichever suits the prose; the output looks the same either way.
+   */
   function tsDoc(description, indent) {
     if (!description) return null;
-    const lines = description.replace(/\s+$/, "").split("\n");
+    const lines = description
+      .replace(/\s+$/, "")
+      .split("\n")
+      .flatMap((line) => rewrap(line, indent));
     if (lines.length === 1 && `${indent} * ${lines[0]}`.length <= 98)
       return `${indent}/** ${lines[0]} */`;
     const body = lines.map((line) => (line ? `${indent} * ${line}` : `${indent} *`)).join("\n");
@@ -288,6 +297,36 @@ export function generate(spec) {
   }
 
   return { ts: renderTs(), go: renderGo() };
+}
+
+/** How wide a JSDoc line may get, counting the indent and the leading `* `. */
+const DOC_WIDTH = 96;
+
+/**
+ * Greedily wraps one line of prose. Continuations keep the line's own
+ * indentation, plus a hanging indent under a markdown bullet, so a wrapped list
+ * item still reads as one item.
+ */
+function rewrap(line, indent) {
+  const own = /^\s*/.exec(line)[0];
+  const words = line.trim().split(/\s+/);
+  if (words[0] === "") return [""];
+  const hanging = /^[-*]$/.test(words[0]) ? `${own}  ` : own;
+
+  const out = [];
+  let current = "";
+  for (const word of words) {
+    const lead = out.length === 0 ? own : hanging;
+    if (current === "") current = word;
+    else if (`${lead}${current} ${word}`.length <= DOC_WIDTH - indent.length - 3)
+      current += ` ${word}`;
+    else {
+      out.push(lead + current);
+      current = word;
+    }
+  }
+  out.push((out.length === 0 ? own : hanging) + current);
+  return out;
 }
 
 /**
