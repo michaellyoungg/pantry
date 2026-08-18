@@ -5,13 +5,19 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 // close over names prefixed `mock`.
 const mockState = { basket: [] as unknown[] };
 const mockAction = jest.fn(async () => ({ count: 3 }));
+const mockPrep = jest.fn(async () => ({ meals: [] }));
 const mockMutations: Record<string, jest.Mock> = {};
 
+// Dispatched by function name: the screen's own action and the prep derivation
+// both go through `useAction`, and a `mockRejectedValueOnce` meant for one
+// would otherwise be consumed by the other on mount.
 jest.mock("convex/react", () => {
   const { getFunctionName } = require("convex/server");
   return {
-    useQuery: () => mockState.basket,
-    useAction: () => mockAction,
+    useQuery: (ref: unknown) =>
+      getFunctionName(ref).startsWith("basket:") ? mockState.basket : [],
+    useAction: (ref: unknown) =>
+      getFunctionName(ref).endsWith("generateGroceryList") ? mockAction : mockPrep,
     useMutation: (ref: unknown) => {
       const name = getFunctionName(ref).split(":").pop() as string;
       mockMutations[name] ??= jest.fn(async () => undefined);
@@ -26,9 +32,7 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
-// The route module is the screen under test, but the test cannot live beside it:
-// expo-router bundles every file under `app/` into the app. See
-// `src/testing/appRouteTree.test.ts`.
+// Not colocated with the route on purpose — see appRouteTree.test.ts.
 import PlanRoute from "../../app/(tabs)/plan";
 
 const row = (over: Record<string, unknown>) => ({
@@ -47,6 +51,7 @@ const TOMORROW_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][(today 
 beforeEach(() => {
   jest.clearAllMocks();
   for (const key of Object.keys(mockMutations)) delete mockMutations[key];
+  mockPrep.mockResolvedValue({ meals: [] });
   mockState.basket = [];
 });
 
@@ -172,6 +177,27 @@ describe("the plan route", () => {
 
     await waitFor(() =>
       expect(screen.getByTestId("plan.error")).toHaveTextContent("recipe service is down"),
+    );
+  });
+
+  it("badges a planned meal's lead-time prep, so a thaw is seen at planning time", async () => {
+    mockState.basket = [row({ weekday: today })];
+    mockPrep.mockResolvedValue({
+      meals: [
+        {
+          recipeId: "r1",
+          title: "Roast Chicken",
+          cookDate: "2026-08-20",
+          tasks: [
+            { key: "thaw", text: "Take the chicken out", window: "night_before", missed: false },
+          ],
+        },
+      ],
+    } as never);
+    await render(<PlanRoute />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("plan.prep.roast-chicken")).toHaveTextContent(/the night before/),
     );
   });
 

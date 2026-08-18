@@ -1,4 +1,6 @@
-import type { PlannedRow } from "@pantry/core/data";
+import { stateKey } from "@pantry/core";
+import type { WeekPlanRow } from "@pantry/core/data";
+import type { PrepMeal } from "@pantry/types";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { PlannedMeal } from "./PlannedMeal";
@@ -11,16 +13,30 @@ const handlers = {
   onMove: jest.fn(),
 };
 
-async function meal(over: Partial<PlannedRow> = {}) {
+async function meal(
+  over: Partial<WeekPlanRow> = {},
+  prep?: PrepMeal,
+  prepDone = new Set<string>(),
+) {
   const row = {
     _id: "b1",
     recipeId: "r1",
     title: "Roast Chicken",
     weekday: 0,
     ...over,
-  } as PlannedRow;
-  return await render(<PlannedMeal row={row} {...handlers} />);
+  } as WeekPlanRow;
+  return await render(<PlannedMeal prep={prep} prepDone={prepDone} row={row} {...handlers} />);
 }
+
+const THAW = {
+  recipeId: "r1",
+  title: "Roast Chicken",
+  cookDate: "2026-08-20",
+  tasks: [
+    { key: "thaw", text: "Take the chicken out", window: "night_before", missed: false },
+    { key: "preheat", text: "Heat the oven", window: "at_start", missed: false },
+  ],
+} as unknown as PrepMeal;
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -91,6 +107,28 @@ describe("PlannedMeal", () => {
     await fireEvent.press(screen.getByTestId("plan.move.roast-chicken"));
 
     expect(handlers.onMove).toHaveBeenCalled();
+  });
+
+  it("names the earliest lead-time prep, so a thaw is seen when the meal is planned", async () => {
+    await meal({}, THAW);
+
+    expect(screen.getByTestId("plan.prep.roast-chicken")).toHaveTextContent(
+      "⏱ Prep: the night before",
+    );
+  });
+
+  it("ignores prep that is just cooking, or every dish would carry a badge", async () => {
+    // `at_start` is the only task left once the thaw is ticked.
+    await meal({}, THAW, new Set([stateKey("thaw", "2026-08-20")]));
+
+    expect(screen.queryByTestId("plan.prep.roast-chicken")).toBeNull();
+    expect(screen.getByTestId("plan.prep-done.roast-chicken")).toBeOnTheScreen();
+  });
+
+  it("badges nothing on a leftover, which is reheated rather than prepped", async () => {
+    await meal({ type: "leftover" }, THAW);
+
+    expect(screen.queryByTestId("plan.prep.roast-chicken")).toBeNull();
   });
 
   it("keeps every control on the 44pt floor", async () => {

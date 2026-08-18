@@ -1,14 +1,14 @@
-import type { PlannedRow } from "@pantry/core/data";
+import type { WeekPlanRow } from "@pantry/core/data";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { UnplannedRail } from "./UnplannedRail";
 
 const onSchedule = jest.fn();
 const onRemove = jest.fn();
 
-const row = (title: string, id: string): PlannedRow =>
-  ({ _id: id, recipeId: id, title }) as PlannedRow;
+const row = (title: string, id: string): WeekPlanRow =>
+  ({ _id: id, recipeId: id, title }) as WeekPlanRow;
 
-async function rail(rows: PlannedRow[], dayLabel = "Thursday") {
+async function rail(rows: WeekPlanRow[], dayLabel = "Thursday") {
   return await render(
     <UnplannedRail dayLabel={dayLabel} onRemove={onRemove} onSchedule={onSchedule} rows={rows} />,
   );

@@ -5,7 +5,7 @@
  * decides is written up in `docs/backlog/BL-0064-native-week-planner.md`.
  */
 import { weekdayOf } from "@pantry/core";
-import { type PlannedRow, usePlanWeek } from "@pantry/core/data";
+import { usePlanPrep, type WeekPlanRow, usePlanWeek } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -42,10 +42,13 @@ export function PlanScreen() {
     buildList,
   } = usePlanWeek();
 
+  const { meals: prepMeals, done: prepDone } = usePlanPrep();
+  const prepByRecipe = new Map(prepMeals.map((m) => [m.recipeId, m]));
+
   // Opening on today is the only defensible default: the question a planner is
   // opened with is almost always "what am I cooking tonight?".
   const [selected, setSelected] = useState(() => weekdayOf(new Date()));
-  const [moving, setMoving] = useState<PlannedRow | null>(null);
+  const [moving, setMoving] = useState<WeekPlanRow | null>(null);
 
   const day = days[selected];
 
@@ -91,6 +94,8 @@ export function PlanScreen() {
               onMove={() => setMoving(row)}
               onToggleCooked={() => toggleCooked(row)}
               onToggleType={() => toggleType(row)}
+              prep={prepByRecipe.get(row.recipeId)}
+              prepDone={prepDone}
               row={row}
             />
           ))}

@@ -1,5 +1,5 @@
 import type { PlannedDay } from "@pantry/core";
-import type { PlannedRow } from "@pantry/core/data";
+import type { WeekPlanRow } from "@pantry/core/data";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { DayPager } from "./DayPager";
@@ -18,14 +18,14 @@ const FULL = [
 ] as const;
 
 /** Seven buckets with `counts[i]` placeholder meals on day `i`. */
-function week(counts: number[] = [0, 0, 0, 0, 0, 0, 0]): PlannedDay<PlannedRow>[] {
+function week(counts: number[] = [0, 0, 0, 0, 0, 0, 0]): PlannedDay<WeekPlanRow>[] {
   return LABELS.map((label, weekday) => ({
     weekday,
     label,
     fullLabel: FULL[weekday],
     items: Array.from(
       { length: counts[weekday] },
-      (_, n) => ({ _id: `b${weekday}-${n}`, recipeId: `r${n}`, title: `Meal ${n}` }) as PlannedRow,
+      (_, n) => ({ _id: `b${weekday}-${n}`, recipeId: `r${n}`, title: `Meal ${n}` }) as WeekPlanRow,
     ),
   }));
 }

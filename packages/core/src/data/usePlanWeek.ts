@@ -17,30 +17,34 @@ import {
 import { useAsyncAction } from "../react/useAsyncAction";
 import type { GenerateGroceryList } from "./useHome";
 
-/** Derived from the query so `_id` keeps its `Id<"basket">` brand. */
-export type PlannedRow = FunctionReturnType<typeof api.basket.list>[number];
+/**
+ * Derived from the query so `_id` keeps its `Id<"basket">` brand. Named for the
+ * screen rather than `PlannedRow`, which `prep.ts` already uses for the much
+ * smaller shape its signature reads.
+ */
+export type WeekPlanRow = FunctionReturnType<typeof api.basket.list>[number];
 
 export type UsePlanWeek = {
-  items: PlannedRow[];
+  items: WeekPlanRow[];
   /** The seven day buckets, Mon…Sun. */
-  days: PlannedDay<PlannedRow>[];
+  days: PlannedDay<WeekPlanRow>[];
   /** Basket rows with no day yet — the "not yet planned" rail. */
-  unscheduled: PlannedRow[];
+  unscheduled: WeekPlanRow[];
   /** True until the first response; distinct from "the basket is empty". */
   loading: boolean;
   generating: boolean;
   error: string | null;
   canGenerate: boolean;
   /** Put a row on a day (0=Mon … 6=Sun), moving it if it was on another. */
-  schedule: (row: PlannedRow, weekday: number) => void;
+  schedule: (row: WeekPlanRow, weekday: number) => void;
   /** Off its day, but still in the basket. */
-  unschedule: (row: PlannedRow) => void;
-  increaseServings: (row: PlannedRow) => void;
-  decreaseServings: (row: PlannedRow) => void;
-  toggleType: (row: PlannedRow) => void;
-  toggleCooked: (row: PlannedRow) => void;
+  unschedule: (row: WeekPlanRow) => void;
+  increaseServings: (row: WeekPlanRow) => void;
+  decreaseServings: (row: WeekPlanRow) => void;
+  toggleType: (row: WeekPlanRow) => void;
+  toggleCooked: (row: WeekPlanRow) => void;
   /** Drop the recipe from the basket entirely. */
-  remove: (row: PlannedRow) => void;
+  remove: (row: WeekPlanRow) => void;
   /** Resolves `true` when the list landed, so the caller can route. */
   buildList: () => Promise<boolean>;
 };
@@ -91,18 +95,18 @@ export function usePlanWeek({ generate }: { generate?: GenerateGroceryList } = {
   }, [build, clearWriteError, runGenerate]);
 
   const scheduleRow = useCallback(
-    (row: PlannedRow, weekday: number) =>
+    (row: WeekPlanRow, weekday: number) =>
       write(() => schedule({ recipeId: row.recipeId, weekday })),
     [schedule, write],
   );
 
   const unscheduleRow = useCallback(
-    (row: PlannedRow) => write(() => unschedule({ recipeId: row.recipeId })),
+    (row: WeekPlanRow) => write(() => unschedule({ recipeId: row.recipeId })),
     [unschedule, write],
   );
 
   const dialServings = useCallback(
-    (row: PlannedRow, next: (multiplier: number) => number) =>
+    (row: WeekPlanRow, next: (multiplier: number) => number) =>
       write(() =>
         setServings({ recipeId: row.recipeId, servingsMultiplier: next(servingsMultiplier(row)) }),
       ),
@@ -110,22 +114,22 @@ export function usePlanWeek({ generate }: { generate?: GenerateGroceryList } = {
   );
 
   const increaseServings = useCallback(
-    (row: PlannedRow) => dialServings(row, increaseMultiplier),
+    (row: WeekPlanRow) => dialServings(row, increaseMultiplier),
     [dialServings],
   );
 
   const decreaseServings = useCallback(
-    (row: PlannedRow) => dialServings(row, decreaseMultiplier),
+    (row: WeekPlanRow) => dialServings(row, decreaseMultiplier),
     [dialServings],
   );
 
   const toggleType = useCallback(
-    (row: PlannedRow) => write(() => setType({ recipeId: row.recipeId, type: toggledType(row) })),
+    (row: WeekPlanRow) => write(() => setType({ recipeId: row.recipeId, type: toggledType(row) })),
     [setType, write],
   );
 
   const toggleCooked = useCallback(
-    (row: PlannedRow) =>
+    (row: WeekPlanRow) =>
       write(() =>
         isCooked(row)
           ? unmarkCooked({ recipeId: row.recipeId })
@@ -135,7 +139,7 @@ export function usePlanWeek({ generate }: { generate?: GenerateGroceryList } = {
   );
 
   const remove = useCallback(
-    (row: PlannedRow) => write(() => removeFromBasket({ recipeId: row.recipeId })),
+    (row: WeekPlanRow) => write(() => removeFromBasket({ recipeId: row.recipeId })),
     [removeFromBasket, write],
   );
 

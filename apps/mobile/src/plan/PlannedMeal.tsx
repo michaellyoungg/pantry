@@ -3,23 +3,30 @@
  * grid cell, which only works with a cursor.
  */
 import { isCooked, isLeftover, servingsMultiplier } from "@pantry/core";
-import type { PlannedRow } from "@pantry/core/data";
+import type { WeekPlanRow } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
+import type { PrepMeal } from "@pantry/types";
 import { Pressable, Text, View } from "react-native";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
+import { MealPrepBadge } from "./MealPrepBadge";
 
 const id = surfaceTestIDs("plan");
 
 export function PlannedMeal({
   row,
+  prep,
+  prepDone,
   onIncreaseServings,
   onDecreaseServings,
   onToggleType,
   onToggleCooked,
   onMove,
 }: {
-  row: PlannedRow;
+  row: WeekPlanRow;
+  /** This meal's derived prep, if the week has been derived yet. */
+  prep?: PrepMeal;
+  prepDone: Set<string>;
   onIncreaseServings: () => void;
   onDecreaseServings: () => void;
   onToggleType: () => void;
@@ -44,6 +51,9 @@ export function PlannedMeal({
       >
         {row.title}
       </Text>
+
+      {/* Leftovers are reheated, so they have no prep of their own. */}
+      {!leftover && <MealPrepBadge done={prepDone} meal={prep} title={row.title} />}
 
       {leftover ? (
         <Text className="text-sm text-muted" testID={id("leftover-note", key)}>

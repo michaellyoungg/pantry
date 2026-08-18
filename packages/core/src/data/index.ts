@@ -46,7 +46,7 @@ export {
 } from "./useOfflineGroceryList";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
 export { type PrepForPlan, type UsePlanPrep, usePlanPrep } from "./usePlanPrep";
-export { type PlannedRow, type UsePlanWeek, usePlanWeek } from "./usePlanWeek";
+export { type WeekPlanRow, type UsePlanWeek, usePlanWeek } from "./usePlanWeek";
 export {
   type GetRecipe,
   type ListEquipment,

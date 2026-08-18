@@ -3,7 +3,7 @@
  * each day ~50pt, which is not enough for a recipe title.
  */
 import type { PlannedDay } from "@pantry/core";
-import type { PlannedRow } from "@pantry/core/data";
+import type { WeekPlanRow } from "@pantry/core/data";
 import { Pressable, Text, View } from "react-native";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
@@ -15,7 +15,7 @@ export function DayPager({
   selected,
   onSelect,
 }: {
-  days: PlannedDay<PlannedRow>[];
+  days: PlannedDay<WeekPlanRow>[];
   selected: number;
   onSelect: (weekday: number) => void;
 }) {

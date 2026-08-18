@@ -2,7 +2,7 @@
  * Basket recipes with no day yet. The pager above has already established which
  * day is meant, so planning one is a single tap rather than a picker per row.
  */
-import type { PlannedRow } from "@pantry/core/data";
+import type { WeekPlanRow } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
 import { Pressable, Text, View } from "react-native";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
@@ -16,11 +16,11 @@ export function UnplannedRail({
   onSchedule,
   onRemove,
 }: {
-  rows: PlannedRow[];
+  rows: WeekPlanRow[];
   /** The day the pager is showing — where one tap puts a recipe. */
   dayLabel: string;
-  onSchedule: (row: PlannedRow) => void;
-  onRemove: (row: PlannedRow) => void;
+  onSchedule: (row: WeekPlanRow) => void;
+  onRemove: (row: WeekPlanRow) => void;
 }) {
   return (
     <View className="gap-2" testID={id("rail")}>

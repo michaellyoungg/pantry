@@ -46,9 +46,10 @@ Settled during implementation, as this item asked.
 - **Moving follows the meal.** Choosing a new day also moves the pager to it,
   or the meal appears to vanish.
 
-Two strips the web planner carries are **not** in scope here: the nutrition and
-goal rollup (BL-0065), and the lead-time prep badge, whose derivation still
-lives in `apps/web/src/lib` and moves down with BL-0061.
+The nutrition and goal rollup is **not** in scope here — it is BL-0065. The
+lead-time prep badge is, because BL-0061 landed `usePlanPrep` in
+`@pantry/core/data` while this was in flight; it is the same derivation the web
+planner badges from.
 
 ## Alternatives considered
 

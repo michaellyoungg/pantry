@@ -31,7 +31,7 @@ vi.mock("convex/react", async () => {
   };
 });
 
-import { type PlannedRow, usePlanWeek } from "./usePlanWeek";
+import { type WeekPlanRow, usePlanWeek } from "./usePlanWeek";
 
 const row = (over: Record<string, unknown>) => ({
   _id: "b1",
@@ -42,7 +42,7 @@ const row = (over: Record<string, unknown>) => ({
   ...over,
 });
 
-const first = (result: { current: { items: PlannedRow[] } }) => result.current.items[0];
+const first = (result: { current: { items: WeekPlanRow[] } }) => result.current.items[0];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -250,7 +250,7 @@ describe("usePlanWeek building the list", () => {
     // A tsc-level guard: vitest would still pass if `_id` lost its brand.
     state.rows = [row({})];
     const { result } = renderHook(() => usePlanWeek());
-    const planned: PlannedRow = result.current.items[0];
+    const planned: WeekPlanRow = result.current.items[0];
     expect(planned.title).toBe("Toast");
   });
 });
