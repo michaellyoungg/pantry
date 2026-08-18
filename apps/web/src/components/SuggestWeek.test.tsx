@@ -208,4 +208,30 @@ describe("SuggestWeek", () => {
 
     expect(await screen.findByText(/recipe-service unreachable/)).toBeTruthy();
   });
+
+  // The card clearing is NOT evidence that the week was saved: the proposal is
+  // local state, and a spec that reads "the Add button went away" as "the plan
+  // is on the server" is asserting nothing about the writes. aria-busy is the
+  // signal that does say it — see the note on the Card (BL-0074).
+  it("marks itself busy until every accepted pick has been acknowledged", async () => {
+    fetchCandidates.mockResolvedValue([candidate("a", 0.9, ["chicken"])]);
+    let acknowledge!: () => void;
+    schedule.mockReturnValue(
+      new Promise<void>((resolve) => {
+        acknowledge = resolve;
+      }),
+    );
+
+    const { container } = render(<SuggestWeek items={[]} />);
+    const card = () => container.querySelector("section");
+    fireEvent.click(suggestButton());
+    await screen.findByText(/Recipe a/);
+    expect(card()?.getAttribute("aria-busy")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to my week" }));
+
+    await waitFor(() => expect(card()?.getAttribute("aria-busy")).toBe("true"));
+    acknowledge();
+    await waitFor(() => expect(card()?.getAttribute("aria-busy")).toBe("false"));
+  });
 });

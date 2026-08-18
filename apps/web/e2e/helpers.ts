@@ -224,6 +224,28 @@ export async function createRecipeAndAddToBasket(
 /**
  * On the Plan page, schedule each basket recipe onto the matching day (DayPicker
  * buttons are aria-labelled by full weekday name), then generate the grocery list.
+ *
+ * The wait after each day is picked is load-bearing, and it is why the aisle
+ * heading used to go missing (BL-0074). `recipes.generateGroceryList` is a Convex
+ * ACTION: it reads the basket with `ctx.runQuery(api.basket.list)` on the SERVER,
+ * so it aggregates whatever the backend has committed at the moment it runs, and
+ * it never re-runs. Neither of the two things this helper could previously wait
+ * on proves the backend has anything:
+ *
+ *   - the rail row is satisfied by `addToBasketOptimistic`, applied locally the
+ *     instant "Add to basket" is pressed, and
+ *   - `Generate grocery list` is enabled by `canGenerateList(items)`, which is
+ *     `items.length > 0` — the same optimistic basket, and nothing about days.
+ *
+ * So a `basket.add` still in flight when Generate is pressed produced an empty
+ * aggregation, `mergeGroceryList` stored an empty list, and /list then had no
+ * aisle sections for the rest of the run. A longer timeout could not have helped:
+ * nothing further was coming.
+ *
+ * The remove control is the barrier because it is the one thing here rendered
+ * from server state alone — `basket.schedule` carries no optimistic update, and
+ * it is a silent no-op unless the row it patches already exists. Seeing it
+ * therefore proves BOTH writes landed.
  */
 export async function scheduleAndGenerate(
   page: Page,
@@ -234,6 +256,7 @@ export async function scheduleAndGenerate(
     const row = planRailRow(page, title);
     await expect(row).toBeVisible();
     await row.getByRole("button", { name: day }).click();
+    await expect(page.getByRole("button", { name: `Remove ${title} from ${day}` })).toBeVisible();
   }
   const generate = page.getByRole("button", { name: "Generate grocery list" });
   await expect(generate).toBeEnabled();

@@ -115,7 +115,13 @@ export function SuggestWeek({ items }: { items: readonly PlannedItem[] }) {
     });
 
   return (
-    <Card title="Suggest my week">
+    // aria-busy marks the window between pressing Add and the server having
+    // stored the week. `accept` awaits an add and a schedule per pick, so
+    // `apply.pending` only goes false once every one of them was acknowledged
+    // — and none of those writes is optimistic, which makes this the only
+    // signal on the card that separates "the proposal cleared" from "the week
+    // is saved". Same contract as GroceryList and BeforeYouCook (BL-0070).
+    <Card title="Suggest my week" busy={apply.pending}>
       <p className="text-sm text-muted">
         Fill your empty days with dinners that share ingredients — one short shopping list, no two
         nights alike.

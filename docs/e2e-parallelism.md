@@ -24,7 +24,7 @@ What genuinely is shared:
 
 | Shared thing | Written by specs? | Risk |
 | --- | --- | --- |
-| The seeded catalog (owned by the `catalog` sentinel user) | No — read-only | None observed |
+| The seeded catalog (owned by the `catalog` sentinel user) | No — read-only | No collision, but it is *ranked* alongside the caller's own recipes — BL-0074 |
 | Convex Auth tables (`users`, `authAccounts`, sessions) | Yes, one row per spec | Contention, not collision |
 | One self-hosted Convex backend's CPU | — | The real limit |
 | Postgres + recipe-service | — | Shared with the above |
@@ -99,11 +99,24 @@ the same three assertions:
 - the aisle heading never appearing (grocery list UX)
 
 All three occur at one worker and at four. Whatever they are, worker count is not
-the variable, so serialising was buying nothing. They are separate latent bugs —
-writes that occasionally do not land — and are tracked in their own item rather
-than fixed here. In practice the per-PR gate absorbs them, because it runs with
-`retries: 1`; these numbers were taken with `--retries=0` deliberately, so that
-nothing was hidden.
+the variable, so serialising was buying nothing. They are separate latent bugs,
+tracked in their own item rather than fixed here. In practice the per-PR gate
+absorbs them, because it runs with `retries: 1`; these numbers were taken with
+`--retries=0` deliberately, so that nothing was hidden.
+
+> **Since resolved (BL-0074), and not by the cause guessed at here.** This
+> paragraph originally called all three "writes that occasionally do not land".
+> One of them is: the aisle heading goes missing because
+> `recipes.generateGroceryList` is an *action* that reads the basket
+> server-side, and the only barriers the spec had — the "Not yet planned" rail
+> row and the Generate button being enabled — are both satisfied by
+> `addToBasketOptimistic` and by `canGenerateList(items)`, neither of which
+> involves the server. It aggregated an empty basket and stored an empty list,
+> permanently. The other two are not writes at all: the suggest-week failure is
+> the ranker's documented id tiebreak choosing a seeded catalog recipe over the
+> spec's own (a consequence of BL-0051 that the spec did not know about), and
+> the home-dashboard one is a positional `getByRole("checkbox").first()`
+> resolved before the list query had settled. See BL-0074.
 
 **The benefit saturates at two workers.** 1 → 2 is worth ~8s; 2 → 4 is worth
 nothing measurable. With `fullyParallel: false` the critical path is the longest
