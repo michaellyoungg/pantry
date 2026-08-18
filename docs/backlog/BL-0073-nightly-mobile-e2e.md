@@ -1,10 +1,10 @@
 ---
 id: BL-0073
 title: Nightly mobile e2e — flow parity with the browser suite
-status: in-progress
+status: done
 area: mobile
 effort: L
-related_specs: []
+related_specs: [../mobile-e2e.md]
 created: 2026-08-16
 ---
 

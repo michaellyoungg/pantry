@@ -72,11 +72,15 @@ stays out of the fast unit gate.
 
 `test:e2e:mobile` (BL-0072, see [`mobile-e2e.md`](mobile-e2e.md)) is the device
 equivalent, and is further out still: it needs a native build and a booted iOS
-simulator or Android emulator, neither of which a `ubuntu-latest` runner has.
-It is a local command today, and BL-0073 makes it a nightly job. What the PR
-gate does carry for it is static: `apps/mobile`'s jest suite parses the Maestro
-flows and renders the screens they drive, so a renamed `testID` fails a pull
-request rather than a nightly run.
+simulator or Android emulator, plus — on Linux — a runner whose `/dev/kvm` it
+can actually open. It runs nightly rather than per PR
+(`.github/workflows/nightly-mobile-e2e.yml`, BL-0073), and its two device jobs
+are **gated on repository variables** so nobody turns on a macOS runner by
+accident; `mobile-e2e.md` has the switches, the costs and the triage rule for a
+red run. What the PR gate carries for it is static: `apps/mobile`'s jest suite
+parses the Maestro flows, renders the screens they drive, and compares the flow
+set against `apps/web/e2e`, so a renamed `testID` or a new Playwright spec with
+no native answer fails a pull request rather than a nightly run.
 
 Go tooling (run from `apps/recipe-service`):
 
