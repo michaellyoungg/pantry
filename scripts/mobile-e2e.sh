@@ -10,10 +10,12 @@
 # installed on a real device image, and a Convex URL that device can actually
 # reach.
 #
-# It is NOT part of any CI gate. A native build plus a booted device image is
+# It is NOT part of any PR gate. A native build plus a booted device image is
 # minutes of wall clock and gigabytes of toolchain; per the research in
-# docs/mobile-testing-strategy.md this belongs in a nightly job, which is
-# BL-0073. Run it locally before touching a screen the flows drive.
+# docs/mobile-testing-strategy.md that belongs in a nightly job, and
+# .github/workflows/nightly-mobile-e2e.yml is it (BL-0073) — the same command,
+# on a runner that has a device. Run it locally before touching a screen the
+# flows drive.
 #
 # Requirements (see docs/mobile-e2e.md for the full list):
 #   - Docker + Docker Compose, Go, pnpm, a JDK 17+.
@@ -182,13 +184,21 @@ fi
 # nothing a flow writes is visible to another flow or to a Playwright spec
 # sharing the deployment. Minted here rather than in the flow because Maestro's
 # scripting has no clock worth trusting for uniqueness.
-E2E_EMAIL="e2e-$(date +%s)-${RANDOM}@example.test"
+RUN_ID="$(date +%s)-${RANDOM}"
+E2E_EMAIL="e2e-$RUN_ID@example.test"
+# A second account, for the flow that signs out and proves the next one sees
+# none of the first one's data. Minted here rather than derived inside the flow
+# for the same reason as the first: Maestro's scripting has no clock worth
+# trusting, and two accounts that collide make an isolation test pass by being
+# the same user.
+E2E_EMAIL_2="e2e-$RUN_ID-b@example.test"
 E2E_PASSWORD="e2e-password-1234"
 
 echo "==> running Maestro flows as $E2E_EMAIL"
 "$MAESTRO" test \
   --platform "$PLATFORM" \
   -e E2E_EMAIL="$E2E_EMAIL" \
+  -e E2E_EMAIL_2="$E2E_EMAIL_2" \
   -e E2E_PASSWORD="$E2E_PASSWORD" \
   --format JUNIT \
   --output "$RESULTS_DIR/junit.xml" \

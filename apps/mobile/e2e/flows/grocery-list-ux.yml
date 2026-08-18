@@ -1,0 +1,71 @@
+# The shop-floor screen (BL-0019 / BL-0057), one-handed.
+#
+# The mobile counterpart of `apps/web/e2e/grocery-list-ux.spec.ts`: a checked
+# line leaves the walk and joins "In cart" so the top of the list is only ever
+# what is left, the trip closes and stays closed, and a line removed by mistake
+# comes back.
+#
+# One assertion of that spec has no counterpart here and is not a gap: web folds
+# an aisle section by clicking its header, and the native screen deliberately
+# does not — its headers are sticky rather than collapsible, because the
+# question a shopper asks mid-aisle is "which section am I in", not "hide this
+# one" (see `GroceryScreen`). Testing a control the client does not have would
+# be testing the wrong client.
+appId: com.pantry.app
+name: grocery-list-ux
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+- tapOn:
+    id: "nav.tab.list"
+# A brand-new account, so this is the empty state rather than a stale list —
+# and it is what makes the counts below mean exactly one line.
+- extendedWaitUntil:
+    visible:
+      id: "list.empty-state"
+    timeout: 60000
+
+- runFlow: ../subflows/add-manual-item.yml
+
+# --- ticking a line moves it out of the walk ---
+- tapOn:
+    id: "list.toggle.garlic"
+- extendedWaitUntil:
+    visible:
+      id: "list.in-cart-section"
+    timeout: 30000
+# The thumb bar tracks the trip. One line, in the cart: the count is exact
+# because the list started empty.
+- assertVisible:
+    id: "list.progress"
+    text: "1 of 1 in cart"
+
+# --- closing the trip removes what was bought ---
+- tapOn:
+    id: "list.done-shopping"
+- assertVisible:
+    id: "list.finish-sheet"
+- tapOn:
+    id: "list.finish-keep"
+- extendedWaitUntil:
+    notVisible:
+      id: "list.item.garlic"
+    timeout: 30000
+
+# --- a removal is undoable, and the line comes back intact ---
+- runFlow: ../subflows/add-manual-item.yml
+- tapOn:
+    id: "list.remove.garlic"
+- extendedWaitUntil:
+    visible:
+      id: "list.undo"
+    timeout: 30000
+- tapOn:
+    id: "list.undo-button"
+- extendedWaitUntil:
+    visible:
+      id: "list.item.garlic"
+    timeout: 30000

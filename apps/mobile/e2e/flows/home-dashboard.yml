@@ -1,0 +1,121 @@
+# Home's state machine (BL-0017 / BL-0062), walked end to end.
+#
+# The mobile counterpart of `apps/web/e2e/home-dashboard.spec.ts`. Every
+# transition is derived from live Convex queries, so they only hold against a
+# real backend: the build-list CTA runs the recipe-service aggregation through a
+# Convex action, and each state change depends on Convex reactivity pushing the
+# new plan or list down to a screen that is already open.
+#
+# Home matters more on this client than on web — it is the launch screen, the
+# first thing seen after unlocking, and the only surface that answers "what do I
+# do now?" before the user has chosen a tab.
+#
+# The recipe has exactly one ingredient on purpose. The last state — "shopped" —
+# needs every line on the list ticked off, and a one-ingredient recipe makes
+# that one tap on a line this flow can name.
+appId: com.pantry.app
+name: home-dashboard
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- empty: nothing planned, nothing to shop ---
+# `sign-up.yml` lands on the tab bar, which is Home. The onboarding card sits
+# under the week strip's seven rows, so it starts below the fold.
+- scrollUntilVisible:
+    element:
+      id: "home.getting-started"
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "home.plan-week"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    id: "home.plan-week"
+- assertVisible:
+    id: "plan.screen"
+
+# --- planned: a meal in the week, no list yet ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-bread"
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.e2e-garlic-bread"
+    timeout: 30000
+
+- tapOn:
+    id: "nav.tab.home"
+# The CTA counts meals rather than grocery lines, because the list does not
+# exist yet — reaching it at all is the "planned" state.
+- extendedWaitUntil:
+    visible:
+      id: "home.build-list"
+    timeout: 60000
+
+# --- the handoff: generate in place, land on the list ---
+- tapOn:
+    id: "home.build-list"
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 120000
+
+# --- shopping: an unchecked list drives the shopping-day card ---
+- tapOn:
+    id: "nav.tab.home"
+- extendedWaitUntil:
+    visible:
+      id: "home.shop"
+    timeout: 60000
+- tapOn:
+    id: "home.shop"
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 60000
+- tapOn:
+    id: "list.toggle.garlic"
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 30000
+
+# --- shopped: everything checked closes the loop back to planning ---
+# Nothing clears a fully-checked list, so this state persists while next week is
+# planned — which is why it has to keep offering a way forward rather than
+# dead-ending. The onboarding card is gone by now: by the time a shop is done,
+# the loop has spoken for itself.
+- tapOn:
+    id: "nav.tab.home"
+- extendedWaitUntil:
+    visible:
+      id: "home.plan-week"
+    timeout: 60000
+- assertNotVisible:
+    id: "home.getting-started"

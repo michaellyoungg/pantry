@@ -1,0 +1,102 @@
+# The cross-service loop, on a device: write a recipe, plan it, turn it into one
+# grocery list, check something off, and prove the tick outlived the app.
+#
+# The mobile counterpart of `apps/web/e2e/core-loop.spec.ts`, and the same two
+# claims that spec makes, in the order it makes them: the loop runs end to end,
+# and checking a line off fills the pantry.
+#
+# What this reaches that no unit test can: Convex Auth over the self-hosted
+# backend, Convex reactivity, the Convex→recipe-service aggregation, and the
+# check-off round trip. The recipe is authored by the flow rather than assumed,
+# which is what makes `list.item.garlic` a selector instead of a bet on whatever
+# the ranker proposed.
+#
+# The relaunch is a full sign-out-and-back-in rather than a bare `launchApp`,
+# and that is load-bearing. `useOfflineGroceryList` caches the list in device
+# storage (BL-0058), so a warm relaunch would render the same list from the
+# cache even if the write had never reached Convex — which is precisely the
+# claim being made. `clearState` drops the cache, `clearKeychain` drops the
+# session, and what comes back on screen afterwards came back from the server.
+appId: com.pantry.app
+name: core-loop
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- a recipe, on a day ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-bread"
+
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+# The meal appearing on the day is the scheduling write having landed.
+# Generating against an unscheduled week aggregates nothing, and that failure
+# surfaces a long way from its cause.
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.e2e-garlic-bread"
+    timeout: 30000
+
+# --- one grocery list, built from it ---
+- runFlow: ../subflows/generate-list.yml
+# Aggregation is a Convex action calling recipe-service — the slowest single
+# step in the suite. Scrolling as well as waiting, because the line lands in its
+# own aisle rather than at the top.
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 120000
+
+# --- check it off ---
+- tapOn:
+    id: "list.toggle.garlic"
+# "In cart" is a footer under the whole walk. The tick is optimistic, so this
+# proves only that the device believes it; the relaunch below is what makes it a
+# claim about Convex.
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 60000
+
+# --- and it is the server that remembers ---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-in.yml
+- tapOn:
+    id: "nav.tab.list"
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 60000
+
+# Checking a line off is also the pantry's inflow signal (BL-0021), written in
+# the same transaction as the tick — so an empty pantry here means the tick that
+# survived the relaunch above was only half of what it claimed to be.
+- tapOn:
+    id: "nav.tab.pantry"
+- scrollUntilVisible:
+    element:
+      id: "pantry.item.garlic"
+    direction: DOWN
+    timeout: 60000

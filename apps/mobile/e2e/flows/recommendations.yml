@@ -1,0 +1,102 @@
+# The one "use it up" surface on the pantry screen (BL-0050 / BL-0059), and the
+# mobile counterpart of `apps/web/e2e/recommendations.spec.ts`.
+#
+# What only a live stack can show is that the whole chain lines up: a line
+# checked off the grocery list becomes a pantry row (BL-0021 inflow), the use-up
+# flag is sent to the ranker, and recipe-service answers with candidates drawn
+# from the user's own recipes AND the seeded catalog.
+#
+# Two recipes, and the difference between them is the test. The first is
+# shopped, which is the only way anything enters the pantry — the pantry screen
+# has no manual add. The second is never basketed, so it stays an eligible
+# candidate; a recipe already in the basket is excluded from results, which
+# would make its absence prove nothing.
+#
+# Both halves of the candidate pool are asserted. The user recipe is the one
+# this flow controls; the catalog row exists only because the stack script seeds
+# it, so a break in the catalog leg of `recommendCandidates` — an empty seed, a
+# user-scoped lookup, a dropped source — takes that assertion with it while the
+# first keeps passing.
+appId: com.pantry.app
+name: recommendations
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- get garlic into the pantry, the only way this app allows ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-bread"
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.e2e-garlic-bread"
+    timeout: 30000
+
+- runFlow: ../subflows/generate-list.yml
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 120000
+- tapOn:
+    id: "list.toggle.garlic"
+- scrollUntilVisible:
+    element:
+      id: "list.in-cart-section"
+    direction: DOWN
+    timeout: 30000
+
+# --- a second recipe sharing the ingredient, left out of the basket ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Toast
+      E2E_RECIPE_INGREDIENT: garlic
+
+# --- mark it to use up, and the ranker answers with both kinds of candidate ---
+- tapOn:
+    id: "nav.tab.pantry"
+- scrollUntilVisible:
+    element:
+      id: "pantry.item.garlic"
+    direction: DOWN
+    timeout: 60000
+- tapOn:
+    id: "pantry.use-up.garlic"
+
+# The card is above the inventory, and it anchors its own scroll: on this screen
+# it renders whether or not anything is expiring, so it is always there.
+- scrollUntilVisible:
+    element:
+      id: "pantry.use-it-up"
+    direction: UP
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "pantry.suggestion.e2e-garlic-toast"
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "pantry.suggestion.spaghetti-aglio-e-olio"
+    direction: DOWN
+    timeout: 60000

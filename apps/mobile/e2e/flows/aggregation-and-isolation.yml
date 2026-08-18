@@ -1,0 +1,118 @@
+# Two cross-service guarantees no unit test can prove end to end (BL-0003,
+# BL-0004), and the mobile counterpart of
+# `apps/web/e2e/aggregation-and-isolation.spec.ts`:
+#
+#   1. Aggregation — two recipes that each call for garlic collapse into ONE
+#      grocery line.
+#   2. Isolation — a brand-new account sees none of the previous one's data.
+#
+# The aggregation half is asserted through provenance rather than by counting
+# rows, and that is the better assertion rather than a workaround for Maestro
+# having no count: a line that says "2 recipes" is one line carrying both
+# sources, which is exactly the claim. A regression that stopped merging would
+# leave two lines each saying "1 recipe", and this fails.
+#
+# The isolation half is more than a repeat of the web assertion on this client.
+# The session lives in the keychain and the grocery list in a device cache
+# (BL-0058), so "a second account sees an empty list" is a claim about local
+# storage as much as about server scoping: a sign-out that left either behind
+# would show account A's line here.
+appId: com.pantry.app
+name: aggregation-and-isolation
+tags:
+  - core
+---
+- runFlow: ../subflows/launch-signed-out.yml
+- runFlow: ../subflows/sign-up.yml
+
+# --- account A: two recipes wanting the same thing ---
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Bread
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-bread"
+
+- runFlow:
+    file: ../subflows/create-recipe.yml
+    env:
+      E2E_RECIPE_TITLE: E2E Garlic Toast
+      E2E_RECIPE_INGREDIENT: garlic
+- scrollUntilVisible:
+    element:
+      id: "recipes.basket.e2e-garlic-toast"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "recipes.basket.e2e-garlic-toast"
+
+# Both onto the day the planner opened on. Web puts them on different days; what
+# aggregation reads is the week, not the day, so one day is the shorter path to
+# the same claim.
+- tapOn:
+    id: "nav.tab.plan"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-bread"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-bread"
+- scrollUntilVisible:
+    element:
+      id: "plan.rail-schedule.e2e-garlic-toast"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "plan.rail-schedule.e2e-garlic-toast"
+- extendedWaitUntil:
+    visible:
+      id: "plan.meal.e2e-garlic-toast"
+    timeout: 30000
+
+# --- one line, naming both recipes ---
+- runFlow: ../subflows/generate-list.yml
+- scrollUntilVisible:
+    element:
+      id: "list.item.garlic"
+    direction: DOWN
+    timeout: 120000
+- assertVisible:
+    id: "list.provenance.garlic"
+    text: "2 recipes"
+- tapOn:
+    id: "list.provenance.garlic"
+- assertVisible:
+    id: "list.provenance-source.e2e-garlic-bread"
+- assertVisible:
+    id: "list.provenance-source.e2e-garlic-toast"
+- tapOn:
+    id: "list.provenance-close"
+
+# --- sign out returns to the auth gate ---
+- tapOn:
+    id: "nav.tab.settings"
+- tapOn:
+    id: "settings.sign-out"
+- extendedWaitUntil:
+    visible:
+      id: "auth.form"
+    timeout: 30000
+
+# --- account B: a fresh account starts with an empty list ---
+- runFlow:
+    file: ../subflows/sign-up.yml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL_2}
+- tapOn:
+    id: "nav.tab.list"
+- extendedWaitUntil:
+    visible:
+      id: "list.empty-state"
+    timeout: 60000

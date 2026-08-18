@@ -2,11 +2,11 @@
  * Static checks on `apps/mobile/e2e`, run by `pnpm test`.
  *
  * Executing a flow needs a simulator, a native build and the compose stack, so
- * no PR run does (BL-0073). That would leave the breaks these files are most
- * prone to — a renamed selector, a moved subflow, a `${VAR}` nobody sets —
- * landing green and surfacing hours later as "the app is broken". These
- * assertions launch nothing; they only ask whether the flows still describe the
- * app in the tree.
+ * no PR run does — it happens nightly (BL-0073). That would leave the breaks
+ * these files are most prone to — a renamed selector, a moved subflow, a
+ * `${VAR}` nobody sets — landing green and surfacing hours later as "the app is
+ * broken". These assertions launch nothing; they only ask whether the flows
+ * still describe the app in the tree.
  *
  * The export conditions are overridden because this file reads YAML in Node,
  * not on a device: `jest-expo` resolves with React Native's conditions, under
@@ -18,13 +18,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseAllDocuments } from "yaml";
-import { E2E_SELECTOR_IDS } from "./e2eSelectors";
+import { E2E_MANUAL_ITEM, E2E_RECIPES, E2E_SELECTOR_IDS } from "./e2eSelectors";
 
 const E2E_ROOT = path.resolve(__dirname, "../../e2e");
 const APP_JSON = JSON.parse(readFileSync(path.resolve(__dirname, "../../app.json"), "utf8"));
 
 /** Env vars `scripts/mobile-e2e.sh` passes with `maestro test -e`. */
-const RUNNER_ENV = ["E2E_EMAIL", "E2E_PASSWORD"];
+const RUNNER_ENV = ["E2E_EMAIL", "E2E_PASSWORD", "E2E_EMAIL_2"];
 
 function ymlFiles(dir: string): string[] {
   return readdirSync(path.join(E2E_ROOT, dir))
@@ -63,6 +63,22 @@ function selectorsIn(node: unknown): string[] {
   );
 }
 
+/**
+ * Every `runFlow` in a command tree, in both spellings Maestro accepts: a bare
+ * path, and the object form that also passes variables down.
+ */
+function runFlowsIn(node: unknown): { file: string; env: Record<string, unknown> }[] {
+  if (Array.isArray(node)) return node.flatMap(runFlowsIn);
+  if (node === null || typeof node !== "object") return [];
+
+  return Object.entries(node).flatMap(([key, value]) => {
+    if (key !== "runFlow") return runFlowsIn(value);
+    if (typeof value === "string") return [{ file: value, env: {} }];
+    const { file, env } = value as { file?: unknown; env?: unknown };
+    return typeof file === "string" ? [{ file, env: (env ?? {}) as Record<string, unknown> }] : [];
+  });
+}
+
 /** Every `${VAR}` reference in a file, whatever command it sits in. */
 function interpolationsIn(source: string): string[] {
   return [...source.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g)].map((match) => match[1]);
@@ -74,6 +90,20 @@ function globToRegExp(glob: string): RegExp {
 }
 
 const ALL = [...FLOWS, ...SUBFLOWS];
+
+/**
+ * For each file, the `env:` block of every `runFlow` that reaches it — keyed by
+ * the same workspace-relative path `ymlFiles` produces, so a subflow's callers
+ * can be asked what they supply it with.
+ */
+const CALLERS = new Map<string, Record<string, unknown>[]>();
+for (const flow of ALL) {
+  const dir = path.dirname(path.join(E2E_ROOT, flow));
+  for (const { file, env } of runFlowsIn(parseFlow(flow).commands)) {
+    const target = path.relative(E2E_ROOT, path.resolve(dir, file));
+    CALLERS.set(target, [...(CALLERS.get(target) ?? []), env]);
+  }
+}
 
 describe("the Maestro workspace", () => {
   it("has flows to check, so nothing below can pass vacuously", () => {
@@ -109,9 +139,8 @@ describe("the Maestro workspace", () => {
   it("only runs subflows that exist", () => {
     for (const flow of ALL) {
       const dir = path.dirname(path.join(E2E_ROOT, flow));
-      const referenced = [...read(flow).matchAll(/runFlow:\s*(\S+)/g)].map((match) => match[1]);
 
-      for (const target of referenced) {
+      for (const { file: target } of runFlowsIn(parseFlow(flow).commands)) {
         expect({ flow, target, exists: existsRelative(dir, target) }).toEqual({
           flow,
           target,
@@ -121,17 +150,70 @@ describe("the Maestro workspace", () => {
     }
   });
 
-  it("only interpolates variables the runner actually sets", () => {
+  it("only passes a subflow variables that subflow reads", () => {
+    // The object form of `runFlow` overrides a variable for the callee — how
+    // the isolation flow signs up a second account through the same subflow.
+    // A key the callee never interpolates is a typo that changes nothing, and
+    // the run then does the first account's work twice and asserts isolation
+    // between an account and itself.
+    for (const flow of ALL) {
+      const dir = path.dirname(path.join(E2E_ROOT, flow));
+
+      for (const { file: target, env } of runFlowsIn(parseFlow(flow).commands)) {
+        const readsInTarget = new Set(
+          interpolationsIn(readFileSync(path.resolve(dir, target), "utf8")),
+        );
+        for (const name of Object.keys(env)) {
+          expect({ flow, target, name, read: readsInTarget.has(name) }).toEqual({
+            flow,
+            target,
+            name,
+            read: true,
+          });
+        }
+      }
+    }
+  });
+
+  it("only interpolates variables something actually sets", () => {
     // An unset `${VAR}` is not an error in Maestro — it interpolates to the
     // literal text, so `${E2E_MAIL}` types itself into the email field and the
     // failure is a rejected sign-up.
+    //
+    // A subflow's variables may come from the runner or from its callers, and
+    // "every caller passes it" is the whole condition: one caller forgetting is
+    // exactly the case that leaves the literal `${E2E_RECIPE_TITLE}` in a
+    // recipe title, and the ids keyed off that title then match nothing.
     for (const flow of ALL) {
       for (const name of interpolationsIn(read(flow))) {
-        expect({ flow, name, known: RUNNER_ENV.includes(name) }).toEqual({
+        const callers = CALLERS.get(flow) ?? [];
+        const known =
+          RUNNER_ENV.includes(name) || (callers.length > 0 && callers.every((env) => name in env));
+
+        expect({ flow, name, known }).toEqual({ flow, name, known: true });
+      }
+    }
+  });
+
+  it("asks for recipes the selectors are keyed to", () => {
+    // The add funnel is driven with a title the caller chooses and then
+    // selected by ids slugged from that title. Nothing in a YAML file connects
+    // the two, so a re-worded title leaves every id valid and every assertion
+    // on the recipe unmatched — which reads on the report as the recipes tab
+    // being broken rather than as this flow asking for the wrong thing.
+    const authored = Object.values(E2E_RECIPES.authored);
+
+    for (const flow of ALL) {
+      for (const { file, env } of runFlowsIn(parseFlow(flow).commands)) {
+        if (!file.endsWith("create-recipe.yml")) continue;
+
+        const asked = { title: env.E2E_RECIPE_TITLE, ingredient: env.E2E_RECIPE_INGREDIENT };
+        expect({ flow, ...asked, known: authored.some((r) => r.title === asked.title) }).toEqual({
           flow,
-          name,
+          ...asked,
           known: true,
         });
+        expect(authored.find((r) => r.title === asked.title)?.ingredient).toBe(asked.ingredient);
       }
     }
   });
@@ -148,6 +230,22 @@ describe("the flows' selectors", () => {
     // Otherwise the render assertions next door go on passing for an element no
     // flow can reach.
     expect(E2E_SELECTOR_IDS.filter((id) => !used.has(id))).toEqual([]);
+  });
+
+  it("type the item their grocery selectors are keyed to", () => {
+    // `list.item.garlic` is only findable because a subflow types the word the
+    // key is slugged from. Changing the typed text and nothing else leaves
+    // every id here valid and every assertion on the line unmatched, which
+    // reads on the report as the grocery screen being broken.
+    const typed = parseFlow("subflows/add-manual-item.yml")
+      .commands.map((command) =>
+        typeof command === "object" && command !== null
+          ? (command as { inputText?: unknown }).inputText
+          : undefined,
+      )
+      .filter((value) => typeof value === "string");
+
+    expect(typed).toEqual([E2E_MANUAL_ITEM]);
   });
 });
 
