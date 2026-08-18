@@ -1,5 +1,5 @@
+import type { HomeState } from "@pantry/core";
 import { Link } from "@tanstack/react-router";
-import type { HomeState } from "../../lib/homeState";
 import { ErrorText } from "../ErrorText";
 import { Button } from "../ui/Button";
 

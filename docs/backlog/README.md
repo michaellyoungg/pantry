@@ -95,11 +95,11 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0055](BL-0055-core-data-screen-hooks.md) | @pantry/core/data — push Convex wiring out of view components | done | infra | L |
 | [BL-0056](BL-0056-expo-app-foundation.md) | Expo app foundation (apps/mobile — Metro, Convex, auth, navigation, styling) | done | mobile | L |
 | [BL-0057](BL-0057-native-grocery-list.md) | Native grocery list (aisle sections, one-handed check-off) | done | mobile | M |
-| [BL-0058](BL-0058-offline-grocery-cache-replay.md) | Offline grocery cache + collapse-and-replay reconciliation | proposed | mobile | L |
+| [BL-0058](BL-0058-offline-grocery-cache-replay.md) | Offline grocery cache + collapse-and-replay reconciliation | in-progress | mobile | L |
 | [BL-0059](BL-0059-native-pantry.md) | Native pantry route | done | mobile | M |
 | [BL-0060](BL-0060-eas-private-distribution.md) | EAS build + private distribution (TestFlight, Play internal) | proposed | mobile | M |
 | [BL-0061](BL-0061-native-cooking-mode.md) | Native cooking mode (recipe detail, steps, Before You Cook, prep) | proposed | mobile | M |
-| [BL-0062](BL-0062-native-home-dashboard.md) | Native home dashboard | in-progress | mobile | M |
+| [BL-0062](BL-0062-native-home-dashboard.md) | Native home dashboard | done | mobile | M |
 | [BL-0063](BL-0063-native-recipes-browse.md) | Native recipes browse (list, catalog, kitchen, filters, add funnel) | proposed | mobile | L |
 | [BL-0064](BL-0064-native-week-planner.md) | Native week planner | proposed | mobile | L |
 | [BL-0065](BL-0065-native-nutrition-surfaces.md) | Native nutrition surfaces (facts panel, goals, plan rollup, recipe fit) | proposed | mobile | L |

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { type BasketRow, countMeals, deriveHomeState, type GroceryRow } from "./homeState";
+import { countMeals, deriveHomeState, type HomeGroceryLine } from "./home";
+import type { PlannedItem } from "./planner";
 
-function meal(id: string, over: Partial<BasketRow> = {}): BasketRow {
+/** A list row as the server stores it — richer than Home reads, on purpose. */
+type Line = HomeGroceryLine & { _id: string; item: string };
+
+function meal(id: string, over: Partial<PlannedItem> = {}): PlannedItem {
   return { _id: id, recipeId: `r-${id}`, title: `Recipe ${id}`, ...over };
 }
 
-function line(id: string, checked: boolean): GroceryRow {
+function line(id: string, checked: boolean): Line {
   return { _id: id, item: `item-${id}`, checked };
 }
 
@@ -88,7 +92,7 @@ describe("countMeals", () => {
 });
 
 describe("lines the plan has dropped (BL-0018)", () => {
-  const removedLine = (id: string): GroceryRow => ({
+  const removedLine = (id: string): Line => ({
     _id: id,
     item: `item-${id}`,
     checked: true,

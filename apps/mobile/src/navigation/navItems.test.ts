@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
 import { TEST_ID_PATTERN, testID } from "../testing/testIDs";
-import { NAV_ITEMS } from "./navItems";
+import { NAV_ITEMS, tabHref } from "./navItems";
 
 const appRoot = path.resolve(__dirname, "../..");
 
@@ -30,6 +30,15 @@ describe("NAV_ITEMS", () => {
   it("has a route file for every tab", () => {
     for (const item of NAV_ITEMS) {
       expect(existsSync(path.join(appRoot, "app", "(tabs)", `${item.name}.tsx`))).toBe(true);
+    }
+  });
+
+  it("routes every destination to a tab this app actually has", () => {
+    // The hrefs are hand-written per tab, so this is the assertion that keeps
+    // them honest: each one must address the route file its tab renders. Home
+    // is "/" rather than "/index" because the group's index route is the root.
+    for (const item of NAV_ITEMS) {
+      expect(tabHref(item.webPath)).toBe(item.name === "index" ? "/" : `/${item.name}`);
     }
   });
 
