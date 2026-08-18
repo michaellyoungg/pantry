@@ -1,7 +1,7 @@
 ---
 id: BL-0063
 title: Native recipes browse (list, catalog, kitchen, filters, add funnel)
-status: proposed
+status: in-progress
 area: mobile
 effort: L
 related_specs: [2026-08-16-mobile-client-parity-design.md]
