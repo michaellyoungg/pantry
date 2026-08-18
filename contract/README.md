@@ -37,9 +37,9 @@ What the audit can and cannot see: it compares JSON field names, a coarse kind
 (`string`, `number`, `integer`, `boolean`, `array`, `object`), presence, and
 nullability. It does not compare array element types or map value types — a
 schema and a Go struct agree on "array", and pretending to check more than that
-would be a check that lies. In practice it catches every drift this contract has
-actually suffered: a renamed field, a field one side forgot, a number that became
-a string, and an optional that became required.
+would be a check that lies. It is enough for the drift this contract actually
+suffered: a field one side never grew (`EquipmentDef.implies`), and three the
+server always emits that TypeScript had as optional.
 
 ## Adding or changing an endpoint
 
