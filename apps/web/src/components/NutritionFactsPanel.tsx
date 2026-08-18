@@ -1,4 +1,11 @@
-import { formatNutrientAmount, hasTargetColumn, type NutritionFactsRow } from "@pantry/core";
+import {
+  formatNutrientAmount,
+  hasTargetColumn,
+  NUTRITION_FACTS_FOOTNOTES,
+  NUTRITION_FACTS_NOT_ESTIMATED,
+  NUTRITION_FACTS_TITLE,
+  type NutritionFactsRow,
+} from "@pantry/core";
 
 /**
  * The Nutrition Facts panel (BL-0049).
@@ -12,30 +19,11 @@ import { formatNutrientAmount, hasTargetColumn, type NutritionFactsRow } from "@
  *
  * It is a real `<table>` with scoped headers rather than a div grid, because the
  * row-and-column relationship the visual rules are drawing is information, and
- * assistive technology should get it too.
+ * assistive technology should get it too. The native panel (BL-0065) has no
+ * table to reach for and rebuilds that relationship out of accessible labels;
+ * the title, the em-dash and the footnotes come from `@pantry/core` so the two
+ * cannot say different things.
  */
-
-/** What the em-dash prints as, and what the footnote is about. */
-const NOT_ESTIMATED = "—";
-
-const NUTRITION_FACTS_TITLE = "Nutrition Facts";
-
-/**
- * The footnote, verbatim.
- *
- * Three sentences doing three different jobs, and none of them is decoration.
- * The first is the standard 2,000-calorie sentence that makes the right-hand
- * column mean something. The second is load-bearing for the honesty rule this
- * whole nutrition track runs on: a panel that looks quasi-official must say out
- * loud that a dash is absent data and not a measured zero. The third refuses the
- * authority the layout borrows — these are estimates from parsed ingredient text
- * matched against USDA food data, not a lab assay, and not a regulated label.
- */
-export const NUTRITION_FACTS_FOOTNOTES = [
-  "The % Daily Value tells you how much a nutrient in a serving contributes to a daily diet. 2,000 calories a day is used for general nutrition advice.",
-  "— means we could not estimate that nutrient. It is not zero.",
-  "Estimated from your ingredient list using USDA food data. This is not a regulated Nutrition Facts label.",
-] as const;
 
 export interface NutritionFactsPanelProps {
   rows: readonly NutritionFactsRow[];
@@ -157,7 +145,7 @@ function Row({
           {row.label}
         </th>
         <td colSpan={columns - 1} className="py-1 text-right align-baseline text-2xl font-black">
-          {row.amount ? formatNutrientAmount(row.amount) : NOT_ESTIMATED}
+          {row.amount ? formatNutrientAmount(row.amount) : NUTRITION_FACTS_NOT_ESTIMATED}
         </td>
       </tr>
     );
@@ -169,7 +157,7 @@ function Row({
         {row.label}
       </th>
       <td className="py-0.5 pl-2 align-baseline">
-        {row.amount ? formatNutrientAmount(row.amount) : NOT_ESTIMATED}
+        {row.amount ? formatNutrientAmount(row.amount) : NUTRITION_FACTS_NOT_ESTIMATED}
       </td>
       <PercentCell has={row.hasDailyValue} percent={row.dvPercent} />
       {withTargets && <PercentCell has={row.hasTarget} percent={row.targetPercent} />}
@@ -191,7 +179,7 @@ function PercentCell({ has, percent }: { has: boolean; percent: number | null })
   if (!has) return <td className="py-0.5 text-right align-baseline" />;
   return (
     <td className="py-0.5 pl-2 text-right align-baseline font-bold">
-      {percent === null ? NOT_ESTIMATED : `${percent}%`}
+      {percent === null ? NUTRITION_FACTS_NOT_ESTIMATED : `${percent}%`}
     </td>
   );
 }

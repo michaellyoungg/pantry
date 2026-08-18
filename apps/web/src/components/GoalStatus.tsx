@@ -1,11 +1,11 @@
+import { type GoalTone, goalChips, goalSummary } from "@pantry/core";
 import type { NutritionTargetEvaluation } from "@pantry/types";
-import { type GoalTone, goalChips, goalSummary } from "../lib/nutritionGoals";
 
 /**
  * How a set of nutrition goals is currently doing (BL-0038).
  *
  * Presentation only — every decision about what may be said is made by the pure
- * evaluator in `@pantry/core` and the pure shaping in `lib/nutritionGoals`. The
+ * evaluator and the pure shaping in `@pantry/core`. The
  * one rule this file must not break: an `unknown` goal renders its reason, never
  * a figure. A number beside a cholesterol cap is read as a measurement, and on a
  * health screen an unmeasured zero dressed as a measurement is the worst thing
