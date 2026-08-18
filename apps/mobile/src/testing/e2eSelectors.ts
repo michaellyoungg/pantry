@@ -38,8 +38,7 @@ export const E2E_SELECTORS = {
 
   /**
    * The plan screen's root. The flow asserts the container rather than anything
-   * inside it: what is under test is that the tab routes, not what it renders —
-   * which is also why a `PlaceholderScreen` (BL-0064) is a fine target.
+   * inside it, because what is under test is that the tab routes.
    */
   plan: { screen: testID("plan", "screen") },
 

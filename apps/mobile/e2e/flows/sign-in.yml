@@ -5,9 +5,8 @@
 # registered. Once there is, signing out and back in costs three steps and is
 # the only path that reads a session back out of SecureStore.
 #
-# Landing on the plan is the navigation assertion. `plan` is a
-# `PlaceholderScreen` until BL-0064, which is fine — what this asserts is that
-# the tab bar routes.
+# Landing on the plan is the navigation assertion, and it stops at the screen's
+# root: what this proves is that the tab bar routes, not what the planner draws.
 appId: com.pantry.app
 name: sign-in
 tags:

@@ -15,7 +15,18 @@ const mockNoop = jest.fn(() => Promise.resolve());
 jest.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signIn: mockNoop, signOut: mockNoop }),
 }));
-jest.mock("convex/react", () => ({ useAction: () => mockNoop }));
+
+// Deliberately shapeless: each screen has its own test asserting what it does
+// with real data, and this one only asks whether the selectors render at all.
+jest.mock("convex/react", () => {
+  const empty = async () => ({ meals: [] });
+  const mutation = Object.assign(async () => undefined, { withOptimisticUpdate: () => mutation });
+  return { useQuery: () => [], useAction: () => empty, useMutation: () => mutation };
+});
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
+}));
 
 import PlanRoute from "../../app/(tabs)/plan";
 import SettingsRoute from "../../app/(tabs)/settings";
@@ -33,7 +44,7 @@ describe("the selectors apps/mobile/e2e drives", () => {
   });
 
   it("are all rendered by the plan route", async () => {
-    // The route module, not the component under it: whatever BL-0064 puts here
+    // The route module, not the component under it: whatever the route renders
     // has to keep emitting `plan.screen`, or the flow's navigation assertion
     // has nothing to land on.
     await render(<PlanRoute />);
