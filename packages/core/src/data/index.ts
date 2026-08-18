@@ -24,6 +24,7 @@
 // Screens are migrated one at a time, as the native client reaches them; the
 // remaining routes still wire Convex in their components.
 
+export { type UseDeleteAccount, useDeleteAccount } from "./useDeleteAccount";
 export {
   CART_TRANSITION_MS,
   type FinishChoice,
