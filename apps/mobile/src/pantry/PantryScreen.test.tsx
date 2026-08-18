@@ -22,12 +22,7 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
-// The screen under test is the route module itself. The test deliberately does
-// NOT live next to it: expo-router builds its route tree with `require.context`
-// over `app/`, whose only exclusions are `+api`/`+html`, so any file under
-// `app/` is bundled into the APP — and a test file drags
-// `@testing-library/react-native` (which requires Node's `console`) in with it,
-// breaking `expo start` for the whole client. See `appRouteTree.test.ts`.
+// Not colocated with the route on purpose — see appRouteTree.test.ts.
 import PantryScreen from "../../app/(tabs)/pantry";
 
 beforeEach(() => {
