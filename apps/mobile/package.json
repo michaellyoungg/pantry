@@ -17,7 +17,7 @@
     "@convex-dev/auth": "^0.0.95",
     "@pantry/core": "workspace:^",
     "@pantry/design-tokens": "workspace:^",
-    "@react-native-async-storage/async-storage": "~2.2.0",
+    "@react-native-async-storage/async-storage": "~3.1.1",
     "convex": "^1.44.0",
     "expo": "~57.0.13",
     "expo-constants": "~57.0.11",
