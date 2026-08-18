@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
 import { TEST_ID_PATTERN, testID } from "../testing/testIDs";
-import { cookModeHref, NAV_ITEMS, recipeHref, tabHref } from "./navItems";
+import { cookModeHref, NAV_ITEMS, recipeHref, tabHref, tabTestID } from "./navItems";
 
 const appRoot = path.resolve(__dirname, "../..");
 
@@ -57,10 +57,16 @@ describe("NAV_ITEMS", () => {
   });
 
   it("yields a valid tab testID for every entry", () => {
+    // These are the strings `apps/mobile/e2e` taps to change tab, so a
+    // malformed one is a broken flow rather than a cosmetic problem.
     for (const item of NAV_ITEMS) {
-      const id = testID("nav", "tab", item.name === "index" ? "home" : item.name);
-      expect(TEST_ID_PATTERN.test(id)).toBe(true);
+      expect(TEST_ID_PATTERN.test(tabTestID(item.name))).toBe(true);
     }
+  });
+
+  it("calls the index route's tab `home`, not `index`", () => {
+    expect(tabTestID("index")).toBe(testID("nav", "tab", "home"));
+    expect(tabTestID("pantry")).toBe(testID("nav", "tab", "pantry"));
   });
 });
 

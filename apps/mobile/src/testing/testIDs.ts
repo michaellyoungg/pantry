@@ -10,6 +10,7 @@
  */
 export {
   surfaceTestIDs,
+  type TestID,
   TEST_ID_PATTERN,
   type TestIDSurface,
   testID,

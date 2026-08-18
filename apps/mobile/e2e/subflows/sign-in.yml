@@ -1,0 +1,17 @@
+# Sign in as the account `sign-up.yml` already registered.
+appId: com.pantry.app
+---
+- tapOn:
+    id: "auth.email"
+- inputText: ${E2E_EMAIL}
+- hideKeyboard
+- tapOn:
+    id: "auth.password"
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "auth.submit"
+- extendedWaitUntil:
+    visible:
+      id: "nav.tab.home"
+    timeout: 60000

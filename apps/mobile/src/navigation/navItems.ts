@@ -12,6 +12,7 @@
  */
 import { type NavIconName, type NavRoute, NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
 import type { Href } from "expo-router";
+import { type TestID, testID } from "../testing/testIDs";
 
 /**
  * Per-tab facts only the native client has. Typed `Record<NavRoute, …>` so a
@@ -57,6 +58,18 @@ function recipePath(recipeId: string): string {
 
 export function recipeHref(recipeId: string): Href {
   return recipePath(recipeId);
+}
+
+/**
+ * The `testID` on one tab's bar button, from its file-based route name.
+ *
+ * Spelled `home` rather than `index`: a Maestro flow tapping `nav.tab.index`
+ * would be reading the router's file tree rather than the app. Three callers
+ * need the same mapping — the tab layout that emits it, `src/testing/
+ * e2eSelectors.ts` which the flows select by, and the test over both.
+ */
+export function tabTestID(routeName: string): TestID {
+  return testID("nav", "tab", routeName === "index" ? "home" : routeName);
 }
 
 /** Cooking mode for one recipe: the same screen's step-by-step child route. */

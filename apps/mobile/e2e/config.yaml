@@ -1,0 +1,10 @@
+# Maestro workspace configuration (BL-0072).
+#
+# `subflows/` is outside `flows:` deliberately: each one assumes a caller has
+# launched the app and set E2E_EMAIL, so running one standalone fails in a way
+# that looks like a product bug.
+flows:
+  - "flows/*.yml"
+
+executionOrder:
+  continueOnFailure: false

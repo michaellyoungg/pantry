@@ -16,6 +16,9 @@ apps/web/playwright-report/
 apps/web/blob-report/
 apps/web/playwright/.cache/
 
+# Maestro (mobile e2e) generated artifacts
+apps/mobile/e2e-results/
+
 # Go
 bin/
 *.exe
