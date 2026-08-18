@@ -10,8 +10,8 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | oxlint (syntax lint) · oxfmt (format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · oxlint --type-aware · Knip (dead code / unused deps) |
-| **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
+| **Node** | oxlint (syntax lint) · oxfmt (format + import order) · backlog index freshness · contract codegen freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · oxlint --type-aware · Knip (dead code / unused deps) |
+| **Go** | `gofmt` check · `go vet` · `go test -race -cover` (incl. the OpenAPI conformance tests) · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
 and the GitHub Actions we use. Combined with **Dependabot alerts** (enabled in
@@ -29,15 +29,16 @@ repo.
 Everything CI runs is available through pnpm from the repo root:
 
 ```bash
-pnpm lint            # oxlint (syntax) + oxfmt --check (TS) + go vet (via turbo)
-pnpm lint:types      # builds workspace deps, then oxlint --type-aware
-pnpm format          # oxfmt (format + import order), then oxlint --fix
-pnpm typecheck       # tsc across all packages
-pnpm test            # Vitest + jest-expo (apps/mobile) + go test
-pnpm test:coverage   # Vitest with coverage thresholds enforced
-pnpm knip            # unused files / exports / dependencies
-pnpm check           # lint + typecheck + lint:types + test in one shot
-pnpm backlog:index   # regenerate the docs/backlog/README.md index table
+pnpm lint             # oxlint (syntax) + oxfmt --check (TS) + go vet (via turbo)
+pnpm lint:types       # builds workspace deps, then oxlint --type-aware
+pnpm format           # oxfmt (format + import order), then oxlint --fix
+pnpm typecheck        # tsc across all packages
+pnpm test             # Vitest + jest-expo (apps/mobile) + go test
+pnpm test:coverage    # Vitest with coverage thresholds enforced
+pnpm knip             # unused files / exports / dependencies
+pnpm check            # lint + contract check + typecheck + lint:types + test in one shot
+pnpm backlog:index    # regenerate the docs/backlog/README.md index table
+pnpm contract:codegen # regenerate the wire types from contract/openapi.yaml
 ```
 
 The backlog index table is generated from each item's frontmatter
@@ -45,6 +46,16 @@ The backlog index table is generated from each item's frontmatter
 hand-maintained table. CI runs `pnpm backlog:index:check`, which regenerates
 in-memory and fails if the committed table is stale — run `pnpm backlog:index`
 and commit the result.
+
+The recipe-service HTTP contract is written once, in
+[`contract/openapi.yaml`](../contract/openapi.yaml). CI runs
+`pnpm contract:check`, which re-renders the TypeScript wire types and the Go
+conformance table and fails if either committed file is stale — run
+`pnpm contract:codegen` and commit the result. The Go structs are not generated
+from the spec but *checked against* it, by the tests in
+`apps/recipe-service/internal/contract`; see
+[`contract/README.md`](../contract/README.md) for why, and for what the check can
+and cannot see.
 
 Two heavier suites are **not** part of the per-PR gate and run on demand:
 
@@ -136,6 +147,14 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
   against an in-memory backend. See `packages/convex/convex/groceryList.test.ts`.
 - **golangci-lint** (`apps/recipe-service/.golangci.yml`) — the standard linter
   set plus `misspell`/`unconvert`.
+- **Contract codegen** (`scripts/contract-codegen.mjs`) — renders
+  `packages/types/src/contract.generated.ts` and
+  `apps/recipe-service/internal/contract/spec_gen_test.go` from
+  `contract/openapi.yaml`. It understands a deliberately small subset of
+  OpenAPI 3.1 and throws on anything else rather than dropping it, because a
+  generator that silently skips a field hides exactly the drift it exists to
+  catch. Generated TypeScript is excluded from oxlint and oxfmt via the
+  `**/*.generated.ts` ignore pattern in both configs.
 - **Knip** (`knip.json`) — flags unused files, exports, and dependencies.
 - **Design-token drift guard** (`apps/web/scripts/generate-theme-css.mjs`) —
   `apps/web/src/theme.generated.css` is rendered from `@pantry/design-tokens`,
