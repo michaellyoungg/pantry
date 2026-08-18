@@ -10,3 +10,14 @@ export const DAY_FULL = [
   "Saturday",
   "Sunday",
 ] as const;
+
+/**
+ * Which bucket a real date falls in, 0=Mon … 6=Sun.
+ *
+ * `Date#getDay()` counts from Sunday, so every caller that wants the planner's
+ * indexing has to shift it. Doing that inline is how a week silently starts on
+ * the wrong day in one place and not another, so the shift is named once here.
+ */
+export function weekdayOf(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}

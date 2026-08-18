@@ -46,6 +46,7 @@ export {
 } from "./useOfflineGroceryList";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
 export { type PrepForPlan, type UsePlanPrep, usePlanPrep } from "./usePlanPrep";
+export { type PlannedRow, type UsePlanWeek, usePlanWeek } from "./usePlanWeek";
 export {
   type GetRecipe,
   type ListEquipment,
@@ -55,3 +56,4 @@ export {
 } from "./useRecipeDetail";
 export { type PrepForRecipe, type UseRecipePrep, useRecipePrep } from "./useRecipePrep";
 export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";
+export { type UseWeekSuggestion, useWeekSuggestion } from "./useWeekSuggestion";
