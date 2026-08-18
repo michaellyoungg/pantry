@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "productId": "0001111041660",
+      "upc": "0001111041660",
+      "brand": "Kroger",
+      "description": "Vitamin D Whole Milk",
+      "categories": ["Dairy"],
+      "items": [
+        {
+          "itemId": "0001111041660",
+          "favorite": false,
+          "fulfillment": {
+            "curbside": true,
+            "delivery": true,
+            "inStore": true,
+            "shipToHome": false
+          },
+          "price": { "regular": 3.99, "promo": 2.99 },
+          "size": "1 gal",
+          "soldBy": "UNIT"
+        }
+      ],
+      "aisleLocations": [{ "description": "Dairy", "number": "12", "side": "L" }]
+    }
+  ],
+  "meta": { "pagination": { "start": 0, "limit": 5, "total": 1 } }
+}

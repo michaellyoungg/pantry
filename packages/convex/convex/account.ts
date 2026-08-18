@@ -55,6 +55,7 @@ const BY_USER_TABLES = [
   "nutritionTargets",
   "prepTaskState",
   "pantryItems",
+  "storeSelection",
 ] as const;
 
 async function deleteRows<T extends TableNames>(

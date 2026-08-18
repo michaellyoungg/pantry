@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"pantry/apps/recipe-service/internal/kroger"
 	"pantry/apps/recipe-service/internal/nutrition"
 	"pantry/apps/recipe-service/internal/recipe"
 	"pantry/apps/recipe-service/internal/telemetry"
@@ -115,6 +116,18 @@ func run() error {
 		nutrition.SnapshotNutrients(),
 	)
 	routerOpts = append(routerOpts, recipe.WithNutrition(estimator))
+
+	// Real store prices (BL-0046) are off unless an operator turns them on.
+	// PRICING_STORE_PROVIDER is the feature flag — it names the provider rather
+	// than being a bare boolean, so a second retailer later is a new value here
+	// and not a second flag. Both the flag and credentials are required: either
+	// alone leaves the route disabled and every list priced from the checked-in
+	// BLS averages, which is exactly what every user sees today.
+	if provider := os.Getenv("PRICING_STORE_PROVIDER"); provider != "" {
+		routerOpts = appendStorePricer(routerOpts, provider)
+	} else {
+		slog.Info("pricing: real store prices disabled", "reason", "PRICING_STORE_PROVIDER unset")
+	}
 	handler := recipe.NewRouterWithImporter(store, secret, importer, routerOpts...)
 
 	srv := &http.Server{
@@ -153,4 +166,25 @@ func run() error {
 		slog.Info("shutdown complete")
 		return nil
 	}
+}
+
+// appendStorePricer turns the named store-price provider on, or explains why it
+// stayed off. An unknown name or missing credentials is a misconfiguration, not
+// a reason to refuse to boot: the service still prices every list from the BLS
+// averages, so the cost of getting this wrong is a missing upgrade, never an
+// outage.
+func appendStorePricer(opts []recipe.RouterOption, provider string) []recipe.RouterOption {
+	if provider != kroger.ProviderName {
+		slog.Warn("pricing: unknown store price provider; real store prices disabled",
+			"provider", provider, "known", kroger.ProviderName)
+		return opts
+	}
+	client := kroger.New(os.Getenv("KROGER_CLIENT_ID"), os.Getenv("KROGER_CLIENT_SECRET"))
+	if client == nil {
+		slog.Warn("pricing: real store prices disabled",
+			"provider", provider, "reason", "KROGER_CLIENT_ID/KROGER_CLIENT_SECRET unset")
+		return opts
+	}
+	slog.Info("pricing: real store prices enabled", "provider", provider)
+	return append(opts, recipe.WithStorePricer(client))
 }

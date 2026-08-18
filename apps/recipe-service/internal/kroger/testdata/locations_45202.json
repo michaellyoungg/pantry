@@ -1,0 +1,30 @@
+{
+  "data": [
+    {
+      "locationId": "01400376",
+      "chain": "KROGER",
+      "name": "Corryville",
+      "address": {
+        "addressLine1": "1420 Vine St",
+        "city": "Cincinnati",
+        "state": "OH",
+        "zipCode": "45202",
+        "county": "HAMILTON"
+      },
+      "geolocation": { "latitude": 39.1155, "longitude": -84.5163 },
+      "phone": "5136211913"
+    },
+    {
+      "locationId": "01400943",
+      "chain": "KROGER",
+      "name": "",
+      "address": {
+        "addressLine1": "2000 Madison Rd",
+        "city": "Cincinnati",
+        "state": "OH",
+        "zipCode": "45208"
+      }
+    }
+  ],
+  "meta": { "pagination": { "start": 0, "limit": 10, "total": 2 } }
+}

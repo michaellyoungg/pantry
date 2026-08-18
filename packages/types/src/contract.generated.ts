@@ -587,6 +587,7 @@ export interface PriceBasis {
   /** "YYYY-MM" the prices were observed. */
   observationMonth: string;
   staleness: PriceStaleness;
+  store?: StorePriceBasis;
 }
 
 /** Per-line outcome. Unpriced lines carry a reason and contribute nothing to the total. */
@@ -600,6 +601,17 @@ export interface PricedLine {
   bucketLabel?: string;
   /** Why the line could not be priced, when `priced` is false. */
   reason?: string;
+  source?: PriceSource;
+  /**
+   * The shelf item a store price came from, so a number can be shown as the price of something
+   * specific. Absent for an average.
+   */
+  product?: string;
+  /**
+   * True when the store price is a promotion rather than the regular shelf price, and so will
+   * not last.
+   */
+  onSale?: boolean;
 }
 
 /**
@@ -628,6 +640,75 @@ export interface PricingLine {
 
 export interface PricingEstimateRequest {
   lines: PricingLine[];
+  /**
+   * The store the user opted into (BL-0046). Absent — which is every user who has not chosen
+   * one — prices the list from the national averages alone.
+   */
+  storeLocationId?: string;
+  /**
+   * Who `storeLocationId` belongs to. A selection outlives the deployment that made it, and a
+   * location id means something else at a different retailer, so a mismatch is ignored rather
+   * than priced.
+   */
+  storeProvider?: string;
+}
+
+/** Which table priced a line. Absent on an unpriced line, where there is no number to attribute. */
+export type PriceSource = "average" | "store";
+
+/**
+ * Provenance for the store-priced half of an estimate (BL-0046).
+ *
+ * It sits alongside the averages basis rather than replacing it, because a
+ * mixed estimate genuinely has two sources, and is present only when the
+ * chosen store actually priced something.
+ */
+export interface StorePriceBasis {
+  provider: string;
+  locationId: string;
+  storeName?: string;
+  /** RFC 3339. Shelf prices move daily, so the age of the quote is part of the number. */
+  fetchedAt: string;
+  /**
+   * How many lines the store priced. The rest came from the averages, and saying so is what
+   * keeps a mixed total honest.
+   */
+  pricedCount: number;
+}
+
+/** One store a user can choose to price against. */
+export interface StoreLocation {
+  locationId: string;
+  name: string;
+  chain?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+}
+
+export interface StoreSearchRequest {
+  zipCode: string;
+  /** Defaults to 10 and is capped at 100 by the provider. */
+  radiusMiles?: number;
+}
+
+/**
+ * Nearby stores. An empty provider means real store prices are not configured, which a client
+ * renders by offering no chooser at all.
+ */
+export interface StoreSearchResult {
+  provider: string;
+  stores: StoreLocation[];
+}
+
+/**
+ * Whether real store prices are configured on this deployment. This is the BL-0046 feature flag
+ * as seen from outside the service.
+ */
+export interface StoreProviderStatus {
+  enabled: boolean;
+  provider: string;
 }
 
 /** One pantry row as the recommender sees it. */

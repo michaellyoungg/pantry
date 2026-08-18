@@ -1,15 +1,23 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { actionMock } = vi.hoisted(() => ({
+const { actionMock, storeMock } = vi.hoisted(() => ({
   actionMock: vi.fn(),
+  storeMock: vi.fn(),
 }));
 
 vi.mock("convex/react", () => ({
   useAction: () => actionMock,
+  useQuery: () => storeMock(),
 }));
 
-import { formatCents, formatObservationMonth, PricingSummary } from "./PricingSummary";
+// The store chooser runs its own action, query and mutations, and has its own
+// suite; stubbing it keeps this file about the bill.
+vi.mock("./StorePicker", () => ({
+  StorePicker: () => <div data-testid="store-picker" />,
+}));
+
+import { formatCents, formatObservationMonth, PricingSummary, storeLabel } from "./PricingSummary";
 
 const line = { canonicalItem: "eggs", item: "Eggs", unit: "", quantity: 12 };
 
@@ -35,6 +43,10 @@ describe("PricingSummary", () => {
   beforeEach(() => {
     actionMock.mockReset();
     actionMock.mockResolvedValue(estimate());
+    storeMock.mockReset();
+    // No store chosen is the default, and every assertion below is what a user
+    // who never opts in still sees.
+    storeMock.mockReturnValue(null);
   });
 
   it("renders nothing when the list is empty", () => {
@@ -96,6 +108,75 @@ describe("PricingSummary", () => {
     await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
     rerender(<PricingSummary lines={[{ ...line, alreadyHave: true }]} />);
     await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(2));
+  });
+
+  // BL-0046. A store changes where every price comes from, so it belongs in the
+  // signature exactly as quantities do.
+  it("re-estimates when the chosen store changes", async () => {
+    const { rerender } = render(<PricingSummary lines={[line]} />);
+    await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
+
+    storeMock.mockReturnValue({ provider: "kroger", locationId: "01400376", name: "Corryville" });
+    rerender(<PricingSummary lines={[line]} />);
+    await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("names the store and how much of the list it covered", async () => {
+    actionMock.mockResolvedValue(
+      estimate({
+        pricedCount: 15,
+        unpricedCount: 0,
+        basis: {
+          ...estimate().basis,
+          store: {
+            provider: "kroger",
+            locationId: "01400376",
+            storeName: "Corryville",
+            fetchedAt: "2026-08-17T12:00:00Z",
+            pricedCount: 9,
+          },
+        },
+      }),
+    );
+    render(<PricingSummary lines={[line]} />);
+
+    // A mixed total must not imply one accuracy throughout: six of these lines
+    // are still national averages, and the line above says so.
+    await waitFor(() => expect(screen.getByText(/9 of 15 priced at Corryville/)).toBeTruthy());
+    expect(screen.getByText(/the rest from U\.S\. city average averages, Jun 2026/)).toBeTruthy();
+  });
+
+  it("does not call BLS vintage stale when the shelf priced the list", async () => {
+    actionMock.mockResolvedValue(
+      estimate({
+        basis: {
+          ...estimate().basis,
+          staleness: "stale",
+          store: {
+            provider: "kroger",
+            locationId: "01400376",
+            storeName: "Corryville",
+            fetchedAt: "2026-08-17T12:00:00Z",
+            pricedCount: 15,
+          },
+        },
+      }),
+    );
+    render(<PricingSummary lines={[line]} />);
+
+    await waitFor(() => expect(screen.getByText(/priced at Corryville/)).toBeTruthy());
+    expect(screen.queryByText(/may be out of date/)).toBeNull();
+  });
+});
+
+describe("storeLabel", () => {
+  it("prefers the store's own name", () => {
+    expect(storeLabel({ provider: "kroger", storeName: "Corryville" })).toBe("Corryville");
+  });
+
+  it("falls back to the provider rather than showing a blank", () => {
+    expect(storeLabel({ provider: "kroger" })).toBe("kroger");
+    expect(storeLabel({ provider: "kroger", storeName: "" })).toBe("kroger");
   });
 });
 

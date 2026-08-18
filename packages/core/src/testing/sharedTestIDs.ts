@@ -79,6 +79,29 @@ export const TEST_IDS = {
     progress: list("progress"),
     /** The undo offer shown after a line is removed. */
     undo: list("undo"),
+    /**
+     * Opting into real store prices (BL-0046). Absent from the DOM entirely on
+     * a deployment without the feature flag, which is what the "hidden" case in
+     * the web suite asserts on.
+     */
+    storePicker: {
+      root: list("store-picker"),
+      open: list("store-picker-open"),
+      zip: list("store-picker-zip"),
+      search: list("store-picker-search"),
+      /**
+       * One nearby store, keyed by its provider location id.
+       *
+       * The `id-` prefix is not decoration: a Kroger location id is wholly
+       * numeric, and `testIDKey` rejects a bare number as the array-index smell
+       * it usually is. The id is the store's real identity — two stores in one
+       * search can share a name — so it is prefixed rather than swapped for
+       * something less stable.
+       */
+      store: (locationId: string): TestID =>
+        list("store-picker-store", testIDKey(`id-${locationId}`)),
+      clear: list("store-picker-clear"),
+    },
   },
 
   /** The pantry inventory. */

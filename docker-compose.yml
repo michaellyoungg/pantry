@@ -32,6 +32,12 @@ services:
       # (BL-0036). Unset = the checked-in snapshot alone, which still resolves
       # common ingredients and reports coverage honestly for the rest.
       FDC_API_KEY: ${FDC_API_KEY:-}
+      # Optional: real store prices (BL-0046). Unset — the default — means every
+      # list is priced from the checked-in BLS averages and nothing here reaches
+      # a retailer. Both credentials are needed alongside the provider name.
+      PRICING_STORE_PROVIDER: ${PRICING_STORE_PROVIDER:-}
+      KROGER_CLIENT_ID: ${KROGER_CLIENT_ID:-}
+      KROGER_CLIENT_SECRET: ${KROGER_CLIENT_SECRET:-}
       # Unset by default: telemetry is a no-op without it, so the plain
       # `docker compose up` stack and CI never try to reach a collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}

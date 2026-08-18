@@ -86,6 +86,13 @@ const SEED_ROWS: Record<TableNames, ((ids: SeedIds) => Record<string, unknown>) 
     source: "manual",
     updatedAt: 1_000,
   }),
+  storeSelection: ({ userId }) => ({
+    userId,
+    provider: "kroger",
+    locationId: "01400376",
+    name: "Corryville",
+    updatedAt: 1_000,
+  }),
   recommendationEvents: ({ userId }) => ({
     userId,
     recipeId: "r1",
