@@ -45,6 +45,19 @@ updates:
       # `Requires Babel "^7.0.0-0", but was loaded with "8.0.1"` on load (PR #170).
       - dependency-name: "@babel/core"
         update-types: ["version-update:semver-major"]
+      # `apps/mobile` styles with NativeWind 4, which is a Tailwind **v3**
+      # toolchain: its peer range says `>3.3.0`, so pnpm installs v4 without
+      # complaint, and then NativeWind's own check throws `NativeWind only
+      # supports Tailwind CSS v3` while loading `metro.config.js`. That kills
+      # `expo start` outright — the mobile client could not be run at all
+      # between #166 and this pin. Nothing caught it: Jest and `tsc` never load
+      # the Metro config, and mobile e2e is nightly rather than a merge gate.
+      # `apps/web` is legitimately on Tailwind v4 (`@tailwindcss/vite`), and a
+      # workspace-wide ignore would freeze it too — so only the major is held,
+      # which is exactly the bump that splits the two apps. Lift it when
+      # NativeWind ships v4 support.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for the routine minor/patch bumps to cut review noise.
       minor-and-patch:
