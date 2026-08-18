@@ -38,8 +38,14 @@ jobs:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
 
-      - name: Lint & format (Biome)
-        run: pnpm biome check
+      # oxlint fails the build on errors only; the warn-level rules
+      # (exhaustive-deps, no-array-index-key, no-non-null-assertion) surface
+      # without blocking, which is the posture Biome ran with before it.
+      - name: Lint (oxlint)
+        run: pnpm exec oxlint
+
+      - name: Format (oxfmt)
+        run: pnpm exec oxfmt --check
 
       # The backlog index table is generated from each item's frontmatter, so a
       # claim is a one-file edit and parallel agents stop conflicting on it.

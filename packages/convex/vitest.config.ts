@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 import { defineConfig } from "vitest/config";
 
 // convex-test runs Convex functions against an in-memory backend. It needs the

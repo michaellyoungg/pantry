@@ -86,7 +86,7 @@ errors differently.
 
 `src/data` is the one subtree besides `src/react` allowed to import React, and
 the one besides `src/convex` excluded from `tsconfig.dom-free.json` (the Convex
-client declarations `/// <reference lib="dom" />`). The `biome.json` ban on
+client declarations `/// <reference lib="dom" />`). The `.oxlintrc.json` ban on
 browser globals still applies, so `document`/`window` remain errors there.
 
 ### Migrated screens
@@ -113,11 +113,14 @@ Three mechanisms keep that honest, so it doesn't rely on reviewer memory:
    project because `src/convex` pulls in the Convex client's declarations, which
    `/// <reference lib="dom" />` and would otherwise hand DOM globals back to the
    whole program.
-2. **`biome.json` overrides** (`packages/core/src/**`) deny the browser globals
+2. **`.oxlintrc.json` overrides** (`packages/core/src/**`) deny the browser globals
    that survive type-erasure — including in `src/convex`, which the type-level
    guard can't cover — and ban `react-dom` / stylesheet imports. A second
    override bans `react` itself outside `src/react/`, keeping the pure entry
-   point importable by a non-React client.
+   point importable by a non-React client. Note that oxlint `overrides`
+   *replace* a rule's options rather than merging them, so the second override
+   has to restate the `react-dom`/stylesheet patterns — dropping them there
+   silently un-bans both. `src/oxlintConfig.test.ts` fails if it happens.
 3. **Tests default to the `node` environment** (`vitest.config.ts`). Only the
    hook tests opt into jsdom, per file, with a `@vitest-environment` docblock —
    so pure logic that quietly grew a DOM dependency fails rather than passes.

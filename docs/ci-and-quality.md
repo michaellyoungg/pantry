@@ -10,7 +10,7 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | Biome (lint + format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · Knip (dead code / unused deps) |
+| **Node** | oxlint (lint) · oxfmt (format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · Knip (dead code / unused deps) |
 | **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
@@ -29,8 +29,8 @@ repo.
 Everything CI runs is available through pnpm from the repo root:
 
 ```bash
-pnpm lint            # Biome (TS) + go vet (via turbo)
-pnpm format          # Biome: auto-fix formatting, imports, safe lint fixes
+pnpm lint            # oxlint + oxfmt --check (TS) + go vet (via turbo)
+pnpm format          # oxfmt (format + import order), then oxlint --fix
 pnpm typecheck       # tsc across all packages
 pnpm test            # Vitest + jest-expo (apps/mobile) + go test
 pnpm test:coverage   # Vitest with coverage thresholds enforced
@@ -68,14 +68,34 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
 
 ## Tooling reference
 
-- **Biome** (`biome.json`) — linter + formatter for JS/TS. A few opinionated
-  rules (`noNonNullAssertion`, `noArrayIndexKey`, `useExhaustiveDependencies`)
-  are set to `warn` so they surface without blocking; tighten them to `error`
-  as the code is cleaned up. CSS and `public/` static assets are excluded. The
+- **oxlint** (`.oxlintrc.json`) — the linter, from the same oxc toolchain Vite 8
+  and Vitest 4 already build on. The `correctness` category is an error; a few
+  opinionated rules (`typescript/no-non-null-assertion`,
+  `react/no-array-index-key`, `react/exhaustive-deps`) are `warn` so they
+  surface without blocking — tighten them to `error` as the code is cleaned up.
+  CI fails on errors only, which is the posture Biome ran with before it. The
   `overrides` block is what keeps `packages/core` platform-free: browser globals
   and `react-dom`/stylesheet imports are errors there, and `react` itself is an
   error outside `packages/core/src/react`. See
   [`packages/core/README.md`](../packages/core/README.md).
+
+  Three ways this config fails **silently**, all covered by
+  `packages/core/src/oxlintConfig.test.ts` — read that file before editing it:
+
+  1. An unknown rule name makes oxlint discard the whole `rules` object it sits
+     in. The rule is configured as `react/exhaustive-deps` even though the
+     diagnostic prints `react-hooks(exhaustive-deps)`.
+  2. `overrides` **replace** a rule's options instead of merging them, so both
+     `packages/core` overrides must restate the `react-dom`/stylesheet patterns.
+  3. A nested `.oxlintrc.json` replaces the root config for its entire subtree.
+     `apps/web` shipped one from the Vite React scaffold; it sat inert under
+     Biome and took over the moment oxlint started running.
+- **oxfmt** (`.oxfmtrc.json`) — the formatter, and the import sorter that
+  replaced Biome's `organizeImports` assist. `sortImports.newlinesBetween` is
+  `false` deliberately: the default inserts a blank line between the external
+  and relative import groups, which is a ~180-file reformat for no gain.
+  Markdown, YAML, CSS and `public/` assets are excluded, matching what Biome
+  actually formatted.
 - **Vitest coverage** (`apps/web/vite.config.ts`, `packages/core/vitest.config.ts`)
   — thresholds are a ratchet set just below current coverage. Raise them as tests
   are added; the domain layer in `packages/core` is near 100% and the web feature

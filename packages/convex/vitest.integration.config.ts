@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 import { defineConfig } from "vitest/config";
 
 // Integration suite: Convex actions call a REAL recipe-service (no fetch mock).
