@@ -7,9 +7,9 @@ import {
   parseTags,
   parseTotalMinutes,
 } from "@pantry/core";
+import { useEquipmentCatalog } from "@pantry/core/data";
 import { useAsyncAction, useRecipeDraft } from "@pantry/core/react";
 import type { PrepTaskInput, Recipe } from "@pantry/types";
-import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeFields, type RecipeFieldsValue } from "./RecipeFields";
@@ -40,7 +40,9 @@ export function RecipeForm({ onCreated }: { onCreated: () => void }) {
     submission,
     importUrl,
   } = useRecipeDraft();
-  const { catalog } = useEquipmentCatalog();
+  const { catalog } = useEquipmentCatalog({
+    listEquipment: useTracedAction(api.recipes.listEquipment, "recipes.listEquipment"),
+  });
   const createRecipe = useTracedAction(api.recipes.create, "recipes.create");
   const importFromUrl = useTracedAction(api.recipes.importFromUrl, "recipes.importFromUrl");
   const { run, error, pending } = useAsyncAction();

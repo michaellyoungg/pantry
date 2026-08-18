@@ -16,6 +16,7 @@ import { hiddenSummary, tallyFits } from "../equipmentFit";
 import { defaultServingsMultiplier } from "../planner";
 import { useAsyncAction } from "../react/useAsyncAction";
 import { useAsyncData } from "../react/useAsyncData";
+import { type ListEquipmentDefs, useEquipmentCatalog } from "./useEquipmentCatalog";
 import { useHouseholdSize } from "./useHouseholdSize";
 
 /** `recipes.listCatalog`. Injectable so web can pass its traced wrapper. */
@@ -32,11 +33,6 @@ export type Makeability = (
 export type AddFromCatalog = (
   args: FunctionArgs<typeof api.recipes.addFromCatalog>,
 ) => Promise<FunctionReturnType<typeof api.recipes.addFromCatalog>>;
-
-/** `recipes.listEquipment`. Injectable for the same reason. */
-export type ListEquipmentDefs = (
-  args: FunctionArgs<typeof api.recipes.listEquipment>,
-) => Promise<FunctionReturnType<typeof api.recipes.listEquipment>>;
 
 export type UseCatalog = {
   /** Every seeded recipe, unfiltered. */
@@ -105,11 +101,9 @@ export function useCatalog({
   const listCatalogAction = useAction(api.recipes.listCatalog);
   const makeabilityAction = useAction(api.equipment.makeability);
   const addFromCatalogAction = useAction(api.recipes.addFromCatalog);
-  const listEquipmentAction = useAction(api.recipes.listEquipment);
   const fetchCatalog = listCatalog ?? listCatalogAction;
   const fetchFits = makeability ?? makeabilityAction;
   const clone = addFromCatalog ?? addFromCatalogAction;
-  const fetchEquipment = listEquipment ?? listEquipmentAction;
 
   const householdSize = useHouseholdSize();
   const { run, error } = useAsyncAction();
@@ -118,8 +112,7 @@ export function useCatalog({
   const { data, loading, error: loadError, reload } = useAsyncData(load);
   const loadFits = useCallback(() => fetchFits({}), [fetchFits]);
   const { data: fitData, error: fitError } = useAsyncData(loadFits);
-  const loadEquipment = useCallback(() => fetchEquipment({}), [fetchEquipment]);
-  const { data: equipmentData } = useAsyncData(loadEquipment);
+  const { catalog: equipment } = useEquipmentCatalog({ listEquipment });
 
   const [filter, setFilter] = useState<CatalogFilter>(emptyCatalogFilter);
   const [onlyMakeable, setOnlyMakeable] = useState(false);
@@ -193,7 +186,7 @@ export function useCatalog({
     cuisines: useMemo(() => cuisinesIn(recipes), [recipes]),
     diets: useMemo(() => dietsIn(recipes), [recipes]),
     fits,
-    equipment: useMemo(() => equipmentData ?? [], [equipmentData]),
+    equipment,
     canFilter,
     onlyMakeable,
     setOnlyMakeable,

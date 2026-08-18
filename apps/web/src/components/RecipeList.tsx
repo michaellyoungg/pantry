@@ -1,9 +1,8 @@
 import { api } from "@pantry/convex/api";
-import { type RecipeEdit, useMyRecipes } from "@pantry/core/data";
+import { type RecipeEdit, useEquipmentCatalog, useMyRecipes } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
 import type { Recipe } from "@pantry/types";
 import { useEffect, useRef, useState } from "react";
-import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
@@ -50,7 +49,9 @@ export function RecipeList({
   const { confirm, confirmDialog } = useConfirm();
   // The equipment catalog is reference data: load it once here and pass it to
   // every row rather than having each RecipeDetails fetch its own copy.
-  const { catalog } = useEquipmentCatalog();
+  const { catalog } = useEquipmentCatalog({
+    listEquipment: useTracedAction(api.recipes.listEquipment, "recipes.listEquipment"),
+  });
 
   // The create form beside this list writes through a different action, so a
   // new recipe only reaches here when it says so. Compared against the last

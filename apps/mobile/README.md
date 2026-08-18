@@ -18,14 +18,21 @@ is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks),
 | Route | Status | Item |
 | --- | --- | --- |
 | `index` (home) | ported — `src/home/` | [BL-0062](../../docs/backlog/BL-0062-native-home-dashboard.md) |
+| `plan` | ported — `src/plan/` | [BL-0064](../../docs/backlog/BL-0064-native-week-planner.md) |
+| `recipes` | ported — `src/recipes/` | [BL-0063](../../docs/backlog/BL-0063-native-recipes-browse.md) |
 | `list` | ported — `src/grocery/`, offline-capable | [BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md), [BL-0058](../../docs/backlog/BL-0058-offline-grocery-cache-replay.md) |
 | `pantry` | ported — `src/pantry/` | [BL-0059](../../docs/backlog/BL-0059-native-pantry.md) |
 | `recipe/[id]`, `recipe/[id]/cook` | ported — `src/cooking/` | [BL-0061](../../docs/backlog/BL-0061-native-cooking-mode.md) |
+| `recipes/new`, `recipe/[id]/edit` | ported — `src/recipes/` | [BL-0063](../../docs/backlog/BL-0063-native-recipes-browse.md) |
 | everything else | placeholder | see each screen's `portedBy` |
 
 The recipe routes are a **stack**, not a tab: cooking is entered from a specific
-meal and left again, and the tab bar is the shared destination list in
-`@pantry/core` (BL-0054), which they are deliberately not part of.
+meal and left again, the add funnel is entered and finished, and the tab bar is
+the shared destination list in `@pantry/core` (BL-0054), which they are
+deliberately not part of. Web's three `/recipes` sub-routes are one tab here
+with a segmented control — a phone has no room for a second row of navigation
+under a tab bar, and the three views are peers over one subject rather than
+places you go.
 
 A ported screen is presentation over a `@pantry/core/data` hook and nothing
 else. If a screen needs domain logic that is not in one of those hooks yet, the

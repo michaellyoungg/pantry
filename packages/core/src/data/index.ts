@@ -41,11 +41,15 @@ export {
 export {
   type AddFromCatalog,
   type ListCatalog,
-  type ListEquipmentDefs,
   type Makeability,
   type UseCatalog,
   useCatalog,
 } from "./useCatalog";
+export {
+  type ListEquipmentDefs,
+  type UseEquipmentCatalog,
+  useEquipmentCatalog,
+} from "./useEquipmentCatalog";
 export { type GenerateGroceryList, type HomeMeal, type UseHome, useHome } from "./useHome";
 export { useHouseholdSize } from "./useHouseholdSize";
 export { type UnlockedBy, type UseKitchenUnlocks, useKitchenUnlocks } from "./useKitchenUnlocks";
@@ -66,6 +70,12 @@ export {
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
 export { type PrepForPlan, type UsePlanPrep, usePlanPrep } from "./usePlanPrep";
 export { type WeekPlanRow, type UsePlanWeek, usePlanWeek } from "./usePlanWeek";
+export {
+  type CreateRecipe,
+  type ImportFromUrl,
+  type UseRecipeEditor,
+  useRecipeEditor,
+} from "./useRecipeEditor";
 export {
   type GetRecipe,
   type ListEquipment,

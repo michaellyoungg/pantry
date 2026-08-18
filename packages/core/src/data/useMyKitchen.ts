@@ -1,12 +1,11 @@
 import { api } from "@pantry/convex/api";
 import type { EquipmentDef } from "@pantry/types";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo } from "react";
 import { setEquipmentOwnedOptimistic } from "../convex/optimistic";
 import { type EquipmentGroup, groupByCategory } from "../equipmentFit";
 import { useAsyncAction } from "../react/useAsyncAction";
-import { useAsyncData } from "../react/useAsyncData";
-import type { ListEquipmentDefs } from "./useCatalog";
+import { type ListEquipmentDefs, useEquipmentCatalog } from "./useEquipmentCatalog";
 
 export type UseMyKitchen = {
   /** The curated equipment catalog (BL-0041), in catalog order. */
@@ -47,18 +46,13 @@ export type UseMyKitchen = {
 export function useMyKitchen({
   listEquipment,
 }: { listEquipment?: ListEquipmentDefs } = {}): UseMyKitchen {
-  const listEquipmentAction = useAction(api.recipes.listEquipment);
-  const fetchCatalog = listEquipment ?? listEquipmentAction;
-
-  const load = useCallback(() => fetchCatalog({}), [fetchCatalog]);
-  const { data, loading, error: catalogError } = useAsyncData(load);
+  const { catalog, loading, error: catalogError } = useEquipmentCatalog({ listEquipment });
   const owned = useQuery(api.equipment.list);
   const setOwnedMutation = useMutation(api.equipment.setOwned).withOptimisticUpdate(
     setEquipmentOwnedOptimistic,
   );
   const { run, error } = useAsyncAction();
 
-  const catalog = useMemo(() => data ?? [], [data]);
   const ownedIds = useMemo(() => new Set((owned ?? []).map((row) => row.equipmentId)), [owned]);
 
   const setOwned = useCallback(

@@ -30,16 +30,30 @@ export type UseRecipePrep = {
  *
  * The derivation still needs *a* date to resolve windows against, so today is
  * passed and the resulting dates are deliberately not part of this contract.
+ *
+ * `enabled: false` makes the whole thing a no-op, for a screen that mounts
+ * before it knows whether there is a recipe at all — the rules of hooks mean it
+ * cannot simply skip the call.
  */
 export function useRecipePrep(
   recipeId: string,
-  { forRecipe, now = new Date() }: { forRecipe?: PrepForRecipe; now?: Date } = {},
+  {
+    forRecipe,
+    now = new Date(),
+    enabled = true,
+  }: { forRecipe?: PrepForRecipe; now?: Date; enabled?: boolean } = {},
 ): UseRecipePrep {
   const forRecipeAction = useAction(api.prepTasks.forRecipe);
   const derive = forRecipe ?? forRecipeAction;
   const cookDate = toISODate(now);
 
-  const load = useCallback(() => derive({ recipeId, cookDate }), [derive, recipeId, cookDate]);
+  const load = useCallback(
+    () =>
+      enabled
+        ? derive({ recipeId, cookDate })
+        : Promise.resolve<FunctionReturnType<typeof api.prepTasks.forRecipe>>(null),
+    [enabled, derive, recipeId, cookDate],
+  );
   const { data, loading, error } = useAsyncData(load);
 
   // `null` is a recipe the derivation could not read at all, which is the same
