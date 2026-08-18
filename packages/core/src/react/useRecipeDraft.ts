@@ -1,6 +1,13 @@
-import type { CookingMethod, Ingredient, PrepTaskInput, RecipeEquipment } from "@pantry/types";
+import type {
+  CookingMethod,
+  Ingredient,
+  PrepTaskInput,
+  Recipe,
+  RecipeEquipment,
+} from "@pantry/types";
 import { useCallback, useMemo, useState } from "react";
 import {
+  draftFromRecipe,
   draftImportUrl,
   draftSubmission,
   emptyDraft,
@@ -68,6 +75,11 @@ export function useRecipeDraft() {
     [],
   );
   const reset = useCallback(() => setDraft(emptyDraft()), []);
+  // Editing an existing recipe is the same review surface with a different
+  // starting point, so it seeds the same draft rather than getting a second
+  // one. A callback rather than an initial value because the recipe is fetched:
+  // the editor mounts before it arrives.
+  const seed = useCallback((recipe: Recipe) => setDraft(draftFromRecipe(recipe)), []);
 
   const submission = useMemo(() => draftSubmission(draft), [draft]);
   const importUrl = useMemo(() => draftImportUrl(draft), [draft]);
@@ -89,6 +101,7 @@ export function useRecipeDraft() {
     setPrepTasks,
     applyImported,
     reset,
+    seed,
     /** The payload to save, or `null` while the draft isn't submittable. */
     submission,
     /** The URL to import, or `null` when the field is blank. */

@@ -1,22 +1,25 @@
 import { api } from "@pantry/convex/api";
-import { defaultServingsMultiplier } from "@pantry/core";
-import { addToBasketOptimistic, removeFromBasketOptimistic } from "@pantry/core/convex";
-import { useAsyncAction, useAsyncData } from "@pantry/core/react";
+import { type RecipeEdit, useEquipmentCatalog, useMyRecipes } from "@pantry/core/data";
 import { TEST_IDS } from "@pantry/core/testing";
 import type { Recipe } from "@pantry/types";
-import { useMutation } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
-import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
-import { useHouseholdSize } from "../lib/useHouseholdSize";
+import { useEffect, useRef, useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { RecipeDetails } from "./RecipeDetails";
-import { type RecipeEdit, RecipeEditDialog } from "./RecipeEditDialog";
+import { RecipeEditDialog } from "./RecipeEditDialog";
 import { RecipeNutrition } from "./RecipeNutrition";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { useConfirm } from "./ui/useConfirm";
 
+/**
+ * "My recipes" (BL-0013): presentation over `useMyRecipes()`.
+ *
+ * The list request, the three writes and the best-effort basket reconciliation
+ * each of them needs afterwards live in `@pantry/core/data`, so the native list
+ * cannot come to different conclusions about the same collection. Confirmation
+ * and the edit dialog stay here — they are the platform's, not the domain's.
+ */
 export function RecipeList({
   refreshKey,
   openRecipeId,
@@ -27,44 +30,40 @@ export function RecipeList({
 }) {
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [showNutrition, setShowNutrition] = useState<string | null>(null);
-  const listRecipes = useTracedAction(api.recipes.list, "recipes.list");
-  const deleteRecipe = useTracedAction(api.recipes.remove, "recipes.remove");
-  const updateRecipe = useTracedAction(api.recipes.update, "recipes.update");
-  const addToBasket = useMutation(api.basket.add).withOptimisticUpdate(addToBasketOptimistic);
-  const householdSize = useHouseholdSize();
-  const removeFromBasket = useMutation(api.basket.remove).withOptimisticUpdate(
-    removeFromBasketOptimistic,
-  );
-  const updateBasketTitle = useMutation(api.basket.updateTitle);
-  // Convex actions require an args object; pass an empty traceCtx-less one. Wrap in
-  // useCallback so useAsyncData's effect (keyed on fn) doesn't refire every render.
-  const load = useCallback(() => listRecipes({}), [listRecipes]);
-  const { data, loading, error: loadError, reload } = useAsyncData(load, [refreshKey]);
-  const { run, error, clearError, showError } = useAsyncAction();
+  const {
+    recipes,
+    loading,
+    loadError,
+    error,
+    isDuplicate,
+    addToBasket,
+    remove,
+    save,
+    reload,
+    clearError,
+  } = useMyRecipes({
+    listRecipes: useTracedAction(api.recipes.list, "recipes.list"),
+    removeRecipe: useTracedAction(api.recipes.remove, "recipes.remove"),
+    updateRecipe: useTracedAction(api.recipes.update, "recipes.update"),
+  });
   const { confirm, confirmDialog } = useConfirm();
   // The equipment catalog is reference data: load it once here and pass it to
   // every row rather than having each RecipeDetails fetch its own copy.
-  const { catalog } = useEquipmentCatalog();
-  const recipes = data ?? [];
+  const { catalog } = useEquipmentCatalog({
+    listEquipment: useTracedAction(api.recipes.listEquipment, "recipes.listEquipment"),
+  });
 
-  // De-dup (BL-0013): duplicate titles stay LEGAL. Importing the same page
-  // twice, or keeping two takes on "Chili", is normal and blocking the write
-  // would be worse than the mess. So the fix is visibility, not a constraint —
-  // flag the collisions and let the user prune them with Edit/Delete.
-  // Normalized on trim + case so "Garlic Bread" and "garlic bread " collide.
-  const duplicateTitles = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of recipes) {
-      const key = r.title.trim().toLowerCase();
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return new Set([...counts].filter(([, n]) => n > 1).map(([key]) => key));
-  }, [recipes]);
+  // The create form beside this list writes through a different action, so a
+  // new recipe only reaches here when it says so. Compared against the last
+  // value rather than run on every change, so mounting does not immediately
+  // re-request what `useMyRecipes` is already fetching.
+  const lastRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (lastRefresh.current === refreshKey) return;
+    lastRefresh.current = refreshKey;
+    reload();
+  }, [refreshKey, reload]);
 
-  // The recipe-service op is the source of truth. The Convex basket cleanup that
-  // follows is best-effort: once the recipe is deleted/updated we must never let
-  // a basket failure roll the UI back into an inconsistent state — always reload
-  // so the list reflects reality, and surface a targeted note instead.
   async function onDelete(r: Recipe) {
     const confirmed = await confirm({
       title: `Delete "${r.title}"?`,
@@ -72,41 +71,12 @@ export function RecipeList({
       destructive: true,
     });
     if (!confirmed) return;
-    const deleted = await run(async () => {
-      await deleteRecipe({ id: r.id });
-      return true;
-    });
-    if (!deleted) return;
-    try {
-      await removeFromBasket({ recipeId: r.id }); // idempotent no-op if not in basket
-    } catch {
-      showError(
-        `Deleted "${r.title}", but couldn't update the basket — it may show a stale item until reload.`,
-      );
-    }
-    reload();
+    await remove(r);
   }
 
   async function onSaveEdit(edit: RecipeEdit) {
     if (!editing) return;
-    const id = editing.id;
-    const saved = await run(async () => {
-      // update replaces the whole recipe, so every field must be sent every
-      // time — omitting one clears the stored value.
-      await updateRecipe({ id, ...edit });
-      return true;
-    });
-    if (!saved) return;
-    setEditing(null);
-    try {
-      // idempotent no-op if not in basket
-      await updateBasketTitle({ recipeId: id, title: edit.title });
-    } catch {
-      showError(
-        `Saved "${edit.title}", but couldn't update the basket title — it may show the old title until reload.`,
-      );
-    }
-    reload();
+    if (await save(editing.id, edit)) setEditing(null);
   }
 
   return (
@@ -136,7 +106,10 @@ export function RecipeList({
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium text-text">{r.title}</span>
-                {duplicateTitles.has(r.title.trim().toLowerCase()) && (
+                {/* De-dup (BL-0013): duplicate titles stay LEGAL. The fix is
+                    visibility, not a constraint — flag the collisions and let
+                    the user prune them with Edit/Delete. */}
+                {isDuplicate(r) && (
                   <span
                     className="shrink-0 rounded-full bg-border px-2 py-0.5 text-xs text-muted"
                     title="Another recipe has this title — edit or delete one to clean up"
@@ -146,19 +119,7 @@ export function RecipeList({
                 )}
               </span>
               <span className="flex items-center gap-1.5">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    run(() =>
-                      addToBasket({
-                        recipeId: r.id,
-                        title: r.title,
-                        servingsMultiplier: defaultServingsMultiplier(householdSize, r.servings),
-                      }),
-                    )
-                  }
-                >
+                <Button variant="secondary" size="sm" onClick={() => addToBasket(r)}>
                   Add to basket
                 </Button>
                 <Button
@@ -172,6 +133,7 @@ export function RecipeList({
                 <Button
                   variant="ghost"
                   size="sm"
+                  data-testid={TEST_IDS.recipes.edit(r.title)}
                   onClick={() => {
                     clearError();
                     setEditing(r);
@@ -179,7 +141,12 @@ export function RecipeList({
                 >
                   Edit
                 </Button>
-                <Button variant="danger" size="sm" onClick={() => onDelete(r)}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  data-testid={TEST_IDS.recipes.remove(r.title)}
+                  onClick={() => onDelete(r)}
+                >
                   Delete
                 </Button>
               </span>

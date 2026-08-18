@@ -1,5 +1,7 @@
+import type { Recipe } from "@pantry/types";
 import { describe, expect, it } from "vitest";
 import {
+  draftFromRecipe,
   draftImportUrl,
   draftSubmission,
   emptyDraft,
@@ -179,5 +181,65 @@ describe("draftImportUrl", () => {
     expect(draftImportUrl({ ...emptyDraft(), url: "  https://example.com/x " })).toBe(
       "https://example.com/x",
     );
+  });
+});
+
+describe("draftFromRecipe", () => {
+  const stored: Recipe = {
+    id: "r1",
+    userId: "u1",
+    title: "Chilli",
+    servings: 4,
+    ingredients: [{ item: "beans", quantity: 1, unit: "tin" }],
+    steps: ["Simmer."],
+    equipment: [{ id: "skillet", required: true }],
+    methods: ["fry"],
+    cuisine: "mexican",
+    totalMinutes: 45,
+    tags: ["weeknight"],
+    sourceUrl: "https://example.test/chilli",
+    prepTasks: [
+      { key: "soak", window: "night_before", text: "Soak the beans", source: "manual" },
+      { key: "thaw", window: "night_before", text: "Thaw the mince", source: "rule" },
+    ],
+    createdAt: "2026-08-01T00:00:00Z",
+  };
+
+  it("renders the numeric fields back into field text", () => {
+    const draft = draftFromRecipe(stored);
+
+    expect(draft.servings).toBe("4");
+    expect(draft.totalMinutes).toBe("45");
+  });
+
+  it("carries attribution through, so an edit cannot erase it", () => {
+    // update replaces the whole recipe: a field dropped here is a field the
+    // next save clears.
+    expect(draftFromRecipe(stored).sourceUrl).toBe("https://example.test/chilli");
+  });
+
+  it("leaves the import box empty — it is scratch input, not provenance", () => {
+    expect(draftFromRecipe(stored).url).toBe("");
+  });
+
+  it("adopts only the user's own prep tasks", () => {
+    // Rule- and model-derived tasks have their own producer; rewriting them
+    // here would freeze a rule that may since have changed.
+    expect(draftFromRecipe(stored).prepTasks).toEqual([
+      { key: "soak", window: "night_before", text: "Soak the beans" },
+    ]);
+  });
+
+  it("leaves a blank row to type into when the recipe has no ingredients", () => {
+    expect(draftFromRecipe({ ...stored, ingredients: [] }).ingredients).toEqual([
+      emptyIngredient(),
+    ]);
+  });
+
+  it("renders an unknown yield and an unknown cook time as blank, not zero", () => {
+    const draft = draftFromRecipe({ ...stored, servings: undefined, totalMinutes: undefined });
+
+    expect(draft.servings).toBe("");
+    expect(draft.totalMinutes).toBe("");
   });
 });

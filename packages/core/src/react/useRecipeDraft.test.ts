@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { Recipe } from "@pantry/types";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useRecipeDraft } from "./useRecipeDraft";
@@ -177,5 +178,29 @@ describe("useRecipeDraft", () => {
       sourceUrl: "",
       prepTasks: [],
     });
+  });
+
+  it("seeds from a stored recipe, so editing is the same review surface", () => {
+    const stored: Recipe = {
+      id: "r1",
+      userId: "u1",
+      title: "Chilli",
+      servings: 4,
+      ingredients: [{ item: "beans", quantity: 1, unit: "tin" }],
+      steps: ["Simmer."],
+      equipment: [],
+      methods: [],
+      totalMinutes: 45,
+      tags: ["weeknight"],
+      prepTasks: [],
+      createdAt: "2026-08-01T00:00:00Z",
+    };
+
+    const { result } = renderHook(() => useRecipeDraft());
+    act(() => result.current.seed(stored));
+
+    expect(result.current.draft.title).toBe("Chilli");
+    expect(result.current.draft.servings).toBe("4");
+    expect(result.current.submission?.tags).toEqual(["weeknight"]);
   });
 });

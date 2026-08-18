@@ -1,10 +1,9 @@
 import { api } from "@pantry/convex/api";
-import { setEquipmentOwnedOptimistic } from "@pantry/core/convex";
-import { useAsyncAction } from "@pantry/core/react";
-import { useMutation, useQuery } from "convex/react";
+import { equipmentName } from "@pantry/core";
+import { useMyKitchen } from "@pantry/core/data";
+import { TEST_IDS } from "@pantry/core/testing";
 import { useState } from "react";
-import { groupByCategory } from "../lib/equipmentFit";
-import { equipmentName, useEquipmentCatalog } from "../lib/useEquipmentCatalog";
+import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { KitchenUnlocks } from "./KitchenUnlocks";
 import { Button } from "./ui/Button";
@@ -21,26 +20,34 @@ import { Card } from "./ui/Card";
  * Checking something opens its unlocks inline: telling the app what you own is
  * a chore, so the payoff arrives in the same breath rather than on some other
  * screen the user has to go find.
+ *
+ * Presentation over `useMyKitchen()` since BL-0063 — the catalog request, the
+ * inventory subscription and the optimistic write are shared with the native
+ * screen; what stays here is the checkbox layout and where the spotlight goes.
  */
 export function MyKitchen() {
-  const { catalog, loading, error: catalogError } = useEquipmentCatalog();
-  const owned = useQuery(api.equipment.list);
-  const setOwned = useMutation(api.equipment.setOwned).withOptimisticUpdate(
-    setEquipmentOwnedOptimistic,
-  );
-  const { run, error: writeError } = useAsyncAction();
+  const {
+    catalog,
+    groups,
+    ownedIds,
+    ownedCount,
+    inventoryLoading,
+    loading,
+    catalogError,
+    error: writeError,
+    setOwned,
+  } = useMyKitchen({
+    listEquipment: useTracedAction(api.recipes.listEquipment, "recipes.listEquipment"),
+  });
   // Which device's unlocks are on screen. Set by checking a box (the discovery
   // moment) and by the per-row button (so it can be revisited later).
   const [spotlight, setSpotlight] = useState<string | null>(null);
 
-  const ownedIds = new Set((owned ?? []).map((row) => row.equipmentId));
-  const groups = groupByCategory(catalog);
-
   function toggle(equipmentId: string, next: boolean) {
-    // Optimistic, so the spotlight can open against a kitchen that already
-    // contains the device rather than waiting a round trip to look right.
+    // The write is optimistic, so the spotlight opens against a kitchen that
+    // already contains the device rather than waiting a round trip to look right.
     setSpotlight(next ? equipmentId : (current) => (current === equipmentId ? null : current));
-    void run(() => setOwned({ equipmentId, owned: next }));
+    setOwned(equipmentId, next);
   }
 
   return (
@@ -66,11 +73,11 @@ export function MyKitchen() {
         </div>
       )}
 
-      {owned !== undefined && (
+      {!inventoryLoading && (
         <p className="mt-4 text-xs text-muted">
-          {ownedIds.size === 0
+          {ownedCount === 0
             ? "Nothing in your kitchen yet."
-            : `${ownedIds.size} of ${catalog.length} in your kitchen.`}
+            : `${ownedCount} of ${catalog.length} in your kitchen.`}
         </p>
       )}
 
@@ -88,6 +95,7 @@ export function MyKitchen() {
                     <input
                       type="checkbox"
                       id={`equipment-${item.id}`}
+                      data-testid={TEST_IDS.recipes.equipment(item.id)}
                       checked={isOwned}
                       onChange={(e) => toggle(item.id, e.target.checked)}
                       className="h-4 w-4 shrink-0 accent-[var(--color-primary)]"
@@ -100,6 +108,7 @@ export function MyKitchen() {
                         variant="ghost"
                         size="sm"
                         aria-label={`What can I make with my ${item.name}?`}
+                        data-testid={TEST_IDS.recipes.unlocks(item.id)}
                         onClick={() => setSpotlight(item.id)}
                       >
                         What can I make?

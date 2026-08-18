@@ -36,6 +36,16 @@ const FIXED_IDS = [
   TEST_IDS.plan.generate,
   TEST_IDS.plan.suggest,
   TEST_IDS.plan.suggestAccept,
+  TEST_IDS.recipes.section("mine"),
+  TEST_IDS.recipes.section("catalog"),
+  TEST_IDS.recipes.section("kitchen"),
+  TEST_IDS.recipes.catalogSearch,
+  TEST_IDS.recipes.onlyMakeable,
+  TEST_IDS.recipes.clearFilters,
+  TEST_IDS.recipes.add,
+  TEST_IDS.recipes.importUrl,
+  TEST_IDS.recipes.importSubmit,
+  TEST_IDS.recipes.saveRecipe,
 ];
 
 describe("TEST_IDS", () => {
@@ -62,6 +72,16 @@ describe("TEST_IDS", () => {
       "plan.generate",
       "plan.suggest",
       "plan.suggest-accept",
+      "recipes.section.mine",
+      "recipes.section.catalog",
+      "recipes.section.kitchen",
+      "recipes.catalog-search",
+      "recipes.only-makeable",
+      "recipes.clear-filters",
+      "recipes.add",
+      "recipes.import-url",
+      "recipes.import-submit",
+      "recipes.save",
     ]);
   });
 
@@ -79,6 +99,26 @@ describe("TEST_IDS", () => {
     expect(TEST_IDS.plan.unplanned("Garlic Base 12-9")).toBe("plan.unplanned.garlic-base-12-9");
     expect(TEST_IDS.plan.meal("Garlic Base 12-9")).toBe("plan.meal.garlic-base-12-9");
     expect(TEST_IDS.recipes.item("E2E Aisle Walk")).toBe("recipes.item.e2e-aisle-walk");
+    expect(TEST_IDS.recipes.catalogItem("Weeknight Chilli")).toBe(
+      "recipes.catalog-item.weeknight-chilli",
+    );
+    expect(TEST_IDS.recipes.catalogAdd("Weeknight Chilli")).toBe(
+      "recipes.catalog-add.weeknight-chilli",
+    );
+    expect(TEST_IDS.recipes.equipment("stand_mixer")).toBe("recipes.equipment.stand-mixer");
+    expect(TEST_IDS.recipes.unlocks("stand_mixer")).toBe("recipes.unlocks.stand-mixer");
+    expect(TEST_IDS.recipes.edit("Weeknight Chilli")).toBe("recipes.edit.weeknight-chilli");
+    expect(TEST_IDS.recipes.remove("Weeknight Chilli")).toBe("recipes.remove.weeknight-chilli");
+  });
+
+  it("keeps the two filter groups apart, so 'italian' cannot mean two chips", () => {
+    // Diet and cuisine are open vocabularies over the same slug space; without
+    // the group in the key a spec tapping one would sometimes tap the other.
+    expect(TEST_IDS.recipes.catalogChip("diet", "vegan")).toBe("recipes.catalog-chip.diet-vegan");
+    expect(TEST_IDS.recipes.catalogChip("cuisine", "vegan")).toBe(
+      "recipes.catalog-chip.cuisine-vegan",
+    );
+    expect(TEST_IDS.recipes.catalogChip("time", "30")).toBe("recipes.catalog-chip.time-30");
   });
 
   it("slugs the same row to the same id however it is capitalised", () => {
@@ -92,6 +132,10 @@ describe("TEST_IDS", () => {
     expect(TEST_IDS.list.item("garlic").startsWith(TEST_IDS.list.itemPrefix)).toBe(true);
     expect(TEST_IDS.pantry.item("garlic").startsWith(TEST_IDS.pantry.itemPrefix)).toBe(true);
     expect(TEST_IDS.plan.meal("toast").startsWith(TEST_IDS.plan.mealPrefix)).toBe(true);
+    expect(TEST_IDS.recipes.item("toast").startsWith(TEST_IDS.recipes.itemPrefix)).toBe(true);
+    expect(
+      TEST_IDS.recipes.catalogItem("toast").startsWith(TEST_IDS.recipes.catalogItemPrefix),
+    ).toBe(true);
   });
 
   it("produces ids in the documented shape", () => {

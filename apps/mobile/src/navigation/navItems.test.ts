@@ -2,7 +2,15 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
 import { TEST_ID_PATTERN, testID } from "../testing/testIDs";
-import { cookModeHref, NAV_ITEMS, recipeHref, tabHref, tabTestID } from "./navItems";
+import {
+  cookModeHref,
+  editRecipeHref,
+  NAV_ITEMS,
+  NEW_RECIPE_HREF,
+  recipeHref,
+  tabHref,
+  tabTestID,
+} from "./navItems";
 
 const appRoot = path.resolve(__dirname, "../..");
 
@@ -77,8 +85,22 @@ describe("the recipe hrefs", () => {
   it("address route files this app actually has", () => {
     expect(existsSync(path.join(appRoot, "app", "recipe", "[id]", "index.tsx"))).toBe(true);
     expect(existsSync(path.join(appRoot, "app", "recipe", "[id]", "cook.tsx"))).toBe(true);
+    expect(existsSync(path.join(appRoot, "app", "recipe", "[id]", "edit.tsx"))).toBe(true);
+    expect(existsSync(path.join(appRoot, "app", "recipes", "new.tsx"))).toBe(true);
     expect(recipeHref("r1")).toBe("/recipe/r1");
     expect(cookModeHref("r1")).toBe("/recipe/r1/cook");
+    expect(editRecipeHref("r1")).toBe("/recipe/r1/edit");
+    expect(NEW_RECIPE_HREF).toBe("/recipes/new");
+  });
+
+  it("keeps the add funnel off the recipes tab's own path", () => {
+    // `app/(tabs)/recipes.tsx` owns `/recipes` and `app/recipes/new.tsx` owns
+    // `/recipes/new` — different routes that share a prefix, which is fine, and
+    // an `app/recipes/index.tsx` appearing later would NOT be: two files would
+    // then claim `/recipes` and which one wins is not something to leave to
+    // resolution order.
+    expect(existsSync(path.join(appRoot, "app", "(tabs)", "recipes.tsx"))).toBe(true);
+    expect(existsSync(path.join(appRoot, "app", "recipes", "index.tsx"))).toBe(false);
   });
 
   // Recipe ids come from recipe-service, not from this app, so a path is built

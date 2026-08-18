@@ -65,11 +65,19 @@ export function useRecipeDetail(
     forRecipe,
     listEquipment,
     now,
+    enabled = true,
   }: {
     getRecipe?: GetRecipe;
     forRecipe?: PrepForRecipe;
     listEquipment?: ListEquipment;
     now?: Date;
+    /**
+     * `false` makes every request a no-op, for a screen that mounts before it
+     * knows whether there is a recipe to load — the rules of hooks mean it
+     * cannot simply skip the call. `loading` then stays false and `missing`
+     * never becomes true, so nothing downstream mistakes "not asked" for "gone".
+     */
+    enabled?: boolean;
   } = {},
 ): UseRecipeDetail {
   const getRecipeAction = useAction(api.recipes.get);
@@ -77,11 +85,17 @@ export function useRecipeDetail(
   const fetchRecipe = getRecipe ?? getRecipeAction;
   const fetchCatalog = listEquipment ?? listEquipmentAction;
 
-  const loadRecipe = useCallback(() => fetchRecipe({ id: recipeId }), [fetchRecipe, recipeId]);
+  const loadRecipe = useCallback(
+    () =>
+      enabled
+        ? fetchRecipe({ id: recipeId })
+        : Promise.resolve<FunctionReturnType<typeof api.recipes.get>>(null),
+    [enabled, fetchRecipe, recipeId],
+  );
   const { data, loading, error, reload } = useAsyncData(loadRecipe);
   const recipe = data ?? undefined;
 
-  const { tasks, loading: prepLoading } = useRecipePrep(recipeId, { forRecipe, now });
+  const { tasks, loading: prepLoading } = useRecipePrep(recipeId, { forRecipe, now, enabled });
 
   // Reference data, the same for every user, so it is fetched once per screen
   // rather than per requirement. Carried through the dependency list as a
@@ -109,7 +123,7 @@ export function useRecipeDetail(
   return {
     recipe,
     loading,
-    missing: !loading && error === null && data === null,
+    missing: enabled && !loading && error === null && data === null,
     error,
     prepTasks: tasks,
     prepLoading,

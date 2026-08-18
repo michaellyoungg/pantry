@@ -1,4 +1,12 @@
-import type { CookingMethod, Ingredient, PrepTaskInput, RecipeEquipment } from "@pantry/types";
+import type {
+  CookingMethod,
+  Ingredient,
+  PrepTaskInput,
+  Recipe,
+  RecipeEquipment,
+} from "@pantry/types";
+import { formatTotalMinutes } from "./discovery";
+import { formatServings } from "./servings";
 
 // The import-review draft: the state a recipe sits in between "parsed from a
 // URL" (or typed by hand) and "saved". Every transition is a pure function of
@@ -125,6 +133,39 @@ export function withImportedRecipe(draft: RecipeDraft, imported: ImportedRecipe)
     tags: imported.tags ?? [],
     sourceUrl: imported.sourceUrl ?? "",
     prepTasks: imported.prepTasks ?? [],
+  };
+}
+
+/**
+ * A draft seeded from a recipe that already exists — the edit half of the one
+ * review surface (BL-0020).
+ *
+ * Seeded in full, never partially: `recipes.update` replaces the whole recipe,
+ * so a field this drops is a field the next save clears. `url` stays blank
+ * because it is the import box's scratch input, while `sourceUrl` carries the
+ * stored attribution through so an edit cannot quietly erase where a recipe
+ * came from.
+ *
+ * Only the user's own prep tasks come across. Rule- and model-derived ones are
+ * separate producers with their own provenance; they are offered for override
+ * rather than rewritten here, which is what keeps BL-0044's sources honest.
+ */
+export function draftFromRecipe(recipe: Recipe): RecipeDraft {
+  return {
+    title: recipe.title,
+    servings: formatServings(recipe.servings),
+    ingredients: recipe.ingredients.length ? recipe.ingredients : [emptyIngredient()],
+    steps: recipe.steps ?? [],
+    equipment: recipe.equipment ?? [],
+    methods: recipe.methods ?? [],
+    cuisine: recipe.cuisine ?? "",
+    totalMinutes: formatTotalMinutes(recipe.totalMinutes),
+    tags: recipe.tags ?? [],
+    sourceUrl: recipe.sourceUrl ?? "",
+    prepTasks: (recipe.prepTasks ?? [])
+      .filter((task) => task.source === "manual")
+      .map((task) => ({ key: task.key, window: task.window, text: task.text })),
+    url: "",
   };
 }
 

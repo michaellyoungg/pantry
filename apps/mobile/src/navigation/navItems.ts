@@ -77,6 +77,18 @@ export function cookModeHref(recipeId: string): Href {
   return `${recipePath(recipeId)}/cook`;
 }
 
+/**
+ * The add funnel (BL-0063). Plural, and outside the `(tabs)` group, because it
+ * is a screen you enter and leave rather than a destination: the tab keeps its
+ * scroll position underneath, and finishing is a back gesture.
+ */
+export const NEW_RECIPE_HREF: Href = "/recipes/new";
+
+/** The edit form for one recipe — the same review surface, seeded. */
+export function editRecipeHref(recipeId: string): Href {
+  return `${recipePath(recipeId)}/edit`;
+}
+
 export interface MobileNavItem {
   /** File-based route name inside `app/(tabs)`. */
   readonly name: string;

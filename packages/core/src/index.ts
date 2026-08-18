@@ -17,6 +17,15 @@ export {
   windowEndingOn,
 } from "./calendar";
 export { COOKING_METHOD_LABELS, COOKING_METHODS } from "./cookingMethods";
+export {
+  applyCatalogFilter,
+  type CatalogFilter,
+  cuisinesIn,
+  dietsIn,
+  emptyCatalogFilter,
+  isFilterActive,
+  toggleFacet,
+} from "./catalogFilter";
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
 export {
   COOK_TIME_BUCKETS,
@@ -38,6 +47,17 @@ export {
   isOverdue,
   type PantryRow,
 } from "./expiry";
+export {
+  type EquipmentGroup,
+  equipmentName,
+  FIT_LABELS,
+  type FitLabel,
+  type FitTally,
+  groupByCategory,
+  hiddenSummary,
+  missingLabel,
+  tallyFits,
+} from "./equipmentFit";
 export { formatQuantity } from "./formatQuantity";
 export {
   type AisleGroup,
@@ -158,6 +178,7 @@ export {
   stateKey,
 } from "./prep";
 export {
+  draftFromRecipe,
   draftImportUrl,
   draftSubmission,
   emptyDraft,
@@ -171,6 +192,7 @@ export {
   withServings,
   withSteps,
 } from "./recipeDraft";
+export { formatServings, MAX_SERVINGS, parseServings } from "./servings";
 export { DAY_FULL, DAYS, weekdayOf } from "./week";
 export {
   type SuggestedPick,
