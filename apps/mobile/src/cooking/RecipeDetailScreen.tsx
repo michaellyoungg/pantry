@@ -226,7 +226,7 @@ export function RecipeDetailScreen({ recipeId }: { recipeId: string }) {
                     className="flex-row gap-3 border-t border-border py-2"
                     // Steps have no identity beyond their position: two lines of
                     // a method can legitimately read identically.
-                    // biome-ignore lint/suspicious/noArrayIndexKey: position IS a step's identity
+                    // oxlint-disable-next-line react/no-array-index-key -- position IS a step's identity
                     key={index}
                     testID={id("step")}
                   >
