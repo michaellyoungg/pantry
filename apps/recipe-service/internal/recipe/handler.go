@@ -54,6 +54,7 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	mux.HandleFunc("POST /catalog/{id}/add", traced(h.addFromCatalog))
 	mux.HandleFunc("GET /equipment", traced(h.listEquipment))
 	mux.HandleFunc("DELETE /recipes/{id}", traced(h.deleteRecipe))
+	mux.HandleFunc("DELETE /users/me/recipes", traced(h.deleteUserRecipes))
 	mux.HandleFunc("PUT /recipes/{id}", traced(h.updateRecipe))
 	mux.HandleFunc("POST /recipes/import", traced(h.importRecipe))
 	mux.HandleFunc("POST /grocery-list", traced(h.groceryList))
@@ -276,6 +277,32 @@ func (h *handlers) deleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// deleteUserRecipes erases the caller's whole recipe corpus — the
+// recipe-service half of account deletion (BL-0068).
+//
+// Scoped to the authenticated user id and nothing else, which is the whole
+// safety story: catalog recipes are ordinary rows owned by the CatalogUserID
+// sentinel, so a user's delete cannot reach them. The one way it could is a
+// caller presenting the sentinel AS its user id, and that is refused outright
+// rather than trusted — there is no legitimate "delete the catalog account",
+// and the blast radius if there were is every user's browse-and-pick corpus.
+//
+// Idempotent: deleting nothing is 200 with a count of zero, so Convex can retry
+// a cascade that failed halfway without special-casing the second attempt.
+func (h *handlers) deleteUserRecipes(w http.ResponseWriter, r *http.Request) {
+	userID := userIDFrom(r.Context())
+	if userID == CatalogUserID {
+		writeError(w, r, http.StatusForbidden, "the shared catalog cannot be deleted")
+		return
+	}
+	deleted, err := h.store.DeleteUserRecipes(r.Context(), userID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "could not delete the user's recipes", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"deleted": deleted})
 }
 
 // updateRecipe replaces the whole recipe, so an absent field clears the stored

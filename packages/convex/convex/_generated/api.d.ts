@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as account from "../account.js";
 import type * as auth from "../auth.js";
 import type * as basket from "../basket.js";
 import type * as equipment from "../equipment.js";
@@ -34,6 +35,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
   auth: typeof auth;
   basket: typeof basket;
   equipment: typeof equipment;

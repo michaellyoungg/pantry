@@ -49,3 +49,18 @@ The Convex backend + dashboard run as services in the repo-root
 - `groceryList.mergeGroceryList` is **internal** (called only by the action).
 
 All functions are scoped to `DEV_USER_ID` ("dev-user") until real auth (see backlog BL-0004).
+
+## Account deletion — read this before adding a table
+
+`account.deleteAccount` (action) erases a user everywhere: it calls
+`DELETE /users/me/recipes` on recipe-service first, then runs
+`account.purgeUserData` — one internal mutation, so the Convex half is one
+transaction. recipe-service goes first because the `users` row is the only
+handle anyone has on those Postgres recipes; failing this way round leaves the
+account intact and the button retryable, and both halves are idempotent.
+
+Nothing infers which tables hold user data — the cascade in `convex/account.ts`
+is written out by hand. **If you add a user-scoped table to `schema.ts`, add it
+there.** `account.test.ts` seeds a row in every table the schema declares and
+requires the database to be empty afterwards, so a table you forget fails by
+name rather than quietly retaining someone's data after they asked you not to.

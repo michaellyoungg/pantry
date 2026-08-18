@@ -105,7 +105,7 @@ it can be filtered/sorted/updated programmatically.
 | [BL-0065](BL-0065-native-nutrition-surfaces.md) | Native nutrition surfaces (facts panel, goals, plan rollup, recipe fit) | proposed | mobile | L |
 | [BL-0066](BL-0066-native-settings-preferences.md) | Native settings and preferences (taste, avoid list, equipment, household) | proposed | mobile | M |
 | [BL-0067](BL-0067-native-history.md) | Native history (habit review) | proposed | mobile | M |
-| [BL-0068](BL-0068-account-deletion.md) | In-app account deletion (cascade across Convex and recipe-service) | in-progress | auth | M |
+| [BL-0068](BL-0068-account-deletion.md) | In-app account deletion (cascade across Convex and recipe-service) | done | auth | M |
 | [BL-0069](BL-0069-public-store-launch.md) | Public store launch (App Store + Google Play) | proposed | mobile | M |
 | [BL-0070](BL-0070-parallel-e2e-backend-isolation.md) | Unpin the e2e suite from a single worker (backend isolation) | done | infra | M |
 | [BL-0071](BL-0071-portable-test-selectors.md) | Emit portable test selectors from the shared web primitives | done | web | M |

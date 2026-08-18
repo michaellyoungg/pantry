@@ -153,6 +153,19 @@ func (s *PostgresStore) DeleteRecipe(ctx context.Context, id, userID string) err
 	return nil
 }
 
+// DeleteUserRecipes drops the user's whole recipe corpus in one statement. The
+// child tables (ingredients, steps, tags, equipment, methods, prep tasks) all
+// hang off recipes with ON DELETE CASCADE, so this is genuinely everything —
+// see schema.sql. The nutrition and pricing tables are deliberately untouched:
+// they are food knowledge keyed by canonical item, not user data.
+func (s *PostgresStore) DeleteUserRecipes(ctx context.Context, userID string) (int, error) {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM recipes WHERE user_id = $1`, userID)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 func (s *PostgresStore) FindCloneOf(ctx context.Context, userID, sourceRecipeID string) (Recipe, error) {
 	if sourceRecipeID == "" {
 		return Recipe{}, ErrNotFound

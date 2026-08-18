@@ -1,6 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Pressable, Text } from "react-native";
 import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { DeleteAccount } from "../../src/settings/DeleteAccount";
 import { surfaceTestIDs } from "../../src/testing/testIDs";
 
 const id = surfaceTestIDs("settings");
@@ -22,6 +23,13 @@ export default function SettingsScreen() {
       >
         <Text className="text-base text-danger">Sign out</Text>
       </Pressable>
+
+      {/*
+        And deletion, for a harder reason than convenience: App Store guideline
+        5.1.1(v) requires in-app account deletion from any build that offers
+        account creation, so this ships before the screen it belongs to (BL-0068).
+      */}
+      <DeleteAccount />
     </PlaceholderScreen>
   );
 }

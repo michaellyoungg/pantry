@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { DeleteAccount } from "../components/DeleteAccount";
 import { HouseholdSize } from "../components/HouseholdSize";
 import { NutritionGoals } from "../components/NutritionGoals";
 import { Preferences } from "../components/Preferences";
@@ -14,6 +15,10 @@ import { Card } from "../components/ui/Card";
  * page heading, where it would read as a statement about everything on the page
  * — including the avoid list, which is not an estimate and is not subject to
  * the identification caveat at all.
+ *
+ * Account deletion (BL-0068) sits at the bottom: Settings is where someone
+ * looks for it, and the bottom is where it stops being the first thing a
+ * mis-tap lands on.
  */
 function SettingsPage() {
   return (
@@ -52,6 +57,10 @@ function SettingsPage() {
           and the contrast is the clearest way to explain either: above removes
           recipes, this only reorders them (BL-0030). */}
       <TastePreferences />
+
+      {/* Last, and after a gap: everything above is something you came here to
+          change, and this is the one thing you cannot change back. */}
+      <DeleteAccount />
     </div>
   );
 }
