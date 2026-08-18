@@ -1,0 +1,286 @@
+# The Maestro flows, on a real device image, once a night (BL-0073).
+#
+# Why nightly and not per PR: a run needs an emulator or simulator plus a full
+# native build — tens of minutes and gigabytes of toolchain per platform, on
+# every pull request including the docs-only ones. That is the same conclusion
+# Bluesky reached (`nightly-e2e.yml`, 120-minute timeout on a macOS runner), and
+# `docs/mobile-testing-strategy.md` has the reasoning. The PR gate keeps the
+# static half instead: lint, typecheck, and the jest suite that parses these
+# flows and renders the screens they drive.
+#
+# ⚠ The two device jobs are OFF until someone turns them on, and that is
+# deliberate rather than tidy. This repo's CI has been blocked at the account
+# level before, and neither job has ever executed — nobody should discover the
+# cost of a macOS runner from a bill. Turn them on with repository variables
+# (Settings → Secrets and variables → Actions → Variables):
+#
+#   MOBILE_E2E_NIGHTLY=enabled   the Android job. ubuntu-latest, ~$0.50/night
+#                                on a private repo, free on a public one.
+#   MOBILE_E2E_IOS=enabled       the iOS job. macOS runners bill at 10x Linux,
+#                                so ~$5/night — and it needs Docker on macOS,
+#                                which GitHub's image does not ship. The job
+#                                installs Colima for it and says so if that
+#                                fails; a self-hosted Mac is the other answer.
+#
+# The `flows` job below always runs, costs seconds, and reports which of the two
+# is switched on — so a nightly that is doing nothing says so every morning
+# rather than being quietly absent. Read `docs/mobile-e2e.md` before flipping
+# either variable; it carries the triage rule that decides who owns a red run.
+#
+# Scheduled workflows only run from the default branch, so nothing here fires
+# until it is merged.
+name: Nightly mobile e2e
+
+on:
+  schedule:
+    # 07:00 UTC — after the working day everywhere the repo is worked, so a red
+    # run is waiting rather than arriving mid-afternoon.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Which device jobs to run
+        type: choice
+        options: [both, android, ios]
+        default: both
+
+permissions:
+  contents: read
+  # The triage job files (or updates) the one issue a red nightly gets.
+  issues: write
+
+# One nightly at a time. Not cancel-in-progress: a run this long that is
+# superseded halfway has still spent the runner, and its artifacts are the only
+# record of what it saw.
+concurrency:
+  group: nightly-mobile-e2e
+  cancel-in-progress: false
+
+jobs:
+  # Everything about the flows that does NOT need a device. Cheap, always on,
+  # and the only job here that can catch a broken flow file while the device
+  # jobs are switched off.
+  flows:
+    name: Flow syntax + gate status
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Maestro 2.x needs 17+; scripts/install-maestro.sh checks and says so.
+          java-version: "17"
+
+      - name: Install Maestro (pinned, checksum-verified)
+        run: bash scripts/install-maestro.sh
+
+      - name: Check every flow and subflow parses
+        run: |
+          set -euo pipefail
+          for flow in apps/mobile/e2e/flows/*.yml apps/mobile/e2e/subflows/*.yml; do
+            echo "==> $flow"
+            "$HOME/.maestro/bin/maestro" check-syntax "$flow"
+          done
+
+      - name: Report which device jobs are switched on
+        run: |
+          {
+            echo "### Nightly mobile e2e"
+            echo
+            echo "| Platform | Variable | State |"
+            echo "| --- | --- | --- |"
+            echo "| Android | \`MOBILE_E2E_NIGHTLY\` | ${ANDROID:-unset} |"
+            echo "| iOS | \`MOBILE_E2E_IOS\` | ${IOS:-unset} |"
+            echo
+            echo "Set a variable to \`enabled\` to run that platform. See docs/mobile-e2e.md."
+          } >>"$GITHUB_STEP_SUMMARY"
+        env:
+          ANDROID: ${{ vars.MOBILE_E2E_NIGHTLY }}
+          IOS: ${{ vars.MOBILE_E2E_IOS }}
+
+  android:
+    name: Android (emulator)
+    needs: flows
+    if: vars.MOBILE_E2E_NIGHTLY == 'enabled' && (github.event.inputs.platform || 'both') != 'ios'
+    runs-on: ubuntu-latest
+    # Bluesky's equivalent job uses 120. A prebuild plus a Gradle debug build is
+    # most of it; the flows themselves are minutes.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # An x86_64 emulator image needs hardware acceleration, and the runner's
+      # /dev/kvm is not world-writable by default. This udev rule is the
+      # standard fix and is what reactivecircus/android-emulator-runner
+      # documents; without it the emulator falls back to software rendering and
+      # takes longer to boot than this job is allowed to run.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Fail here, loudly, rather than twenty minutes later inside a build. The
+      # runner image this job assumes is the GitHub-hosted Linux one; a
+      # self-hosted runner without nested virtualization cannot do this at all,
+      # and the message should say so rather than timing out.
+      - name: Assert the runner can actually boot an emulator
+        run: |
+          test -w /dev/kvm || {
+            echo "::error::/dev/kvm is not writable — this runner cannot boot an Android emulator."
+            echo "GitHub-hosted ubuntu runners support KVM; a self-hosted one needs nested virtualization."
+            exit 1
+          }
+
+      - name: Install Maestro (pinned, checksum-verified)
+        run: pnpm maestro:install
+
+      # The action owns the AVD, its cache, and the boot wait; `script` runs
+      # once the device reports ready, which is exactly the precondition
+      # scripts/mobile-e2e.sh checks for and refuses to proceed without.
+      - name: Run the flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: pnpm test:e2e:mobile --platform android
+
+      # A nightly failure nobody can debug from the artifacts is a nightly
+      # failure nobody fixes. Maestro writes its recordings, per-command
+      # screenshots and device logs into e2e-results; metro.log is there too,
+      # and it is where "the app talked to the wrong backend" shows up.
+      - name: Collect device logs
+        if: ${{ failure() }}
+        run: |
+          mkdir -p apps/mobile/e2e-results
+          adb logcat -d > apps/mobile/e2e-results/logcat.txt || true
+
+      - name: Upload artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-e2e-android
+          path: apps/mobile/e2e-results
+          retention-days: 14
+          if-no-files-found: warn
+
+  ios:
+    name: iOS (simulator)
+    needs: flows
+    if: vars.MOBILE_E2E_IOS == 'enabled' && (github.event.inputs.platform || 'both') != 'android'
+    # Apple does not license the simulator off macOS, so there is no other
+    # option for this platform — and macOS minutes bill at 10x Linux, which is
+    # why this job has a switch of its own.
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The stack is compose, and GitHub's macOS image ships no Docker daemon —
+      # Docker Desktop is not installed and could not be licensed here anyway.
+      # Colima is the supported way to get one. It is the least proven step in
+      # this file; if it is what keeps failing, a self-hosted Mac with Docker
+      # already on it is the answer rather than more retries here.
+      - name: Start a Docker daemon (Colima)
+        run: |
+          brew install colima docker docker-compose
+          colima start --cpu 3 --memory 8 --disk 20
+          docker info >/dev/null || {
+            echo "::error::no Docker daemon on this runner — the compose stack cannot start."
+            exit 1
+          }
+
+      - name: Install Maestro (pinned, checksum-verified)
+        run: pnpm maestro:install
+
+      - name: Boot a simulator
+        run: |
+          "$HOME/.maestro/bin/maestro" start-device --platform ios
+          xcrun simctl list devices booted
+
+      - name: Run the flows
+        run: pnpm test:e2e:mobile --platform ios
+
+      - name: Collect device logs
+        if: ${{ failure() }}
+        run: |
+          mkdir -p apps/mobile/e2e-results
+          xcrun simctl spawn booted log collect --output apps/mobile/e2e-results/ios.logarchive || true
+
+      - name: Upload artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-e2e-ios
+          path: apps/mobile/e2e-results
+          retention-days: 14
+          if-no-files-found: warn
+
+  # One issue, updated — not one a night. A suite that files a new issue every
+  # morning is a suite people mute, and the triage rule in docs/mobile-e2e.md
+  # depends on the thread being readable: how many nights, and since when.
+  triage:
+    name: File the nightly failure
+    needs: [flows, android, ios]
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Open or update the nightly issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: "Nightly mobile e2e is red"
+        run: |
+          set -euo pipefail
+          body="$(printf '%s\n' \
+            "The nightly mobile e2e run failed: $RUN_URL" \
+            "" \
+            "Recordings, device logs and \`metro.log\` are attached to that run as artifacts." \
+            "Triage rule, in full, is in \`docs/mobile-e2e.md\`; the short version is that" \
+            "whoever owns the change that first turned it red owns the fix, and three red" \
+            "nights in a row means the suite is switched off deliberately and a backlog item" \
+            "is filed — not left ringing.")"
+          number="$(gh issue list --state open --search "$TITLE in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
