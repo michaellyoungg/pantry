@@ -13,7 +13,7 @@ can reuse it instead of reimplementing it.
 | `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
-| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
+| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
 
@@ -82,7 +82,10 @@ errors differently.
 5. **Leave per-platform concerns in the view**: which sheet is open, whether a
    disclosure is expanded, confirmation prompts, animation, navigation. A hook
    may own an animation's *duration* and *which rows are mid-flight* — both
-   clients need those — but never the animation itself.
+   clients need those — but never the animation itself. Instrumentation is one
+   of these: `useHome` accepts the generate action as an optional argument so
+   `apps/web` can hand it the traced wrapper BL-0027 built, while *whether and
+   when* to call it stays in the hook.
 
 `src/data` is the one subtree besides `src/react` allowed to import React, and
 the one besides `src/convex` excluded from `tsconfig.dom-free.json` (the Convex
@@ -98,6 +101,7 @@ components, and carry their own migration when they are ported.
 | Screen | Hook | Web view |
 | --- | --- | --- |
 | Grocery list | `useGroceryList` | `apps/web/src/components/GroceryList.tsx` |
+| Home | `useHome` | `apps/web/src/components/Home.tsx` |
 | Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
 
 ## The rule this package exists to enforce

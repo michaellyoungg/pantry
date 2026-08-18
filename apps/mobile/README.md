@@ -17,6 +17,8 @@ is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks),
 
 | Route | Status | Item |
 | --- | --- | --- |
+| `index` (home) | ported — `src/home/` | [BL-0062](../../docs/backlog/BL-0062-native-home-dashboard.md) |
+| `list` | ported — `src/grocery/` | [BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md) |
 | `pantry` | ported — `src/pantry/` | [BL-0059](../../docs/backlog/BL-0059-native-pantry.md) |
 | everything else | placeholder | see each screen's `portedBy` |
 
@@ -133,6 +135,17 @@ one and sets the pattern for the rest:
 
 Offline is [BL-0058](../../docs/backlog/BL-0058-offline-grocery-cache-replay.md) and is
 expected to replace the grocery screen's data source in place.
+
+Home (`src/home/`,
+[BL-0062](../../docs/backlog/BL-0062-native-home-dashboard.md)) is the launch
+screen, and follows the same split. Which single next action to offer is
+`deriveHomeState` in `@pantry/core`, reached through `useHome()`; the web
+dashboard renders from the same hook, so the two clients cannot reach different
+conclusions about the same account. What this client decides is layout and
+routing — the week strip is seven full-width rows rather than seven columns,
+because forty points per day is an ellipsis, and CTAs stack rather than sitting
+side by side. `tabHref()` in `src/navigation/navItems.ts` is the one place a
+shared destination becomes an Expo Router href.
 
 ## Styling
 
