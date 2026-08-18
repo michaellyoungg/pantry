@@ -727,7 +727,7 @@ describe("addManualItem", () => {
     vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
     const bodies: unknown[] = [];
     globalThis.fetch = (async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(String(init.body)));
+      bodies.push(JSON.parse(init.body as string));
       return new Response(JSON.stringify({ items }), {
         status: 200,
         headers: { "content-type": "application/json" },

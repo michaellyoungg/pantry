@@ -28,7 +28,7 @@ function recordRequests(reply: (body: Recorded) => PrepTasksResponse = emptyResp
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
-      const parsed = JSON.parse(String(init.body));
+      const parsed = JSON.parse(init.body as string);
       const recorded: Recorded = {
         path: new URL(url).pathname,
         meals: parsed.meals,

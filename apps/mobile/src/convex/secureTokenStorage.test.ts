@@ -50,6 +50,9 @@ describe("splitIntoChunks", () => {
     for (const chunk of chunks) {
       // Spreading iterates code points, so a *lone* surrogate — the signature of
       // a split character — shows up as a single unit in the surrogate range.
+      // That code-point behaviour is the assertion, not an accident, so the
+      // rule warning against spreading a string is inverted here.
+      // oxlint-disable-next-line typescript/no-misused-spread -- the code-point split is what this test detects
       const hasLoneSurrogate = [...chunk].some((unit) => {
         const codePoint = unit.codePointAt(0) ?? 0;
         return codePoint >= 0xd800 && codePoint <= 0xdfff;

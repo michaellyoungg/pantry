@@ -83,7 +83,7 @@ describe("impression de-duplication", () => {
     }
     const rows = await allEvents(t);
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.recipeId).sort()).toEqual(["r1", "r2"]);
+    expect(rows.map((r) => r.recipeId).sort((a, b) => a.localeCompare(b))).toEqual(["r1", "r2"]);
   });
 
   it("records a fresh impression once the window has passed", async () => {

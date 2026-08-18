@@ -115,7 +115,7 @@ export function WeekPlan() {
                             aria-label={`Remove ${i.title} from ${day.fullLabel}`}
                             onClick={() => {
                               gen.clearError();
-                              act.run(() => unschedule({ recipeId: i.recipeId }));
+                              void act.run(() => unschedule({ recipeId: i.recipeId }));
                             }}
                             className="shrink-0 text-muted hover:text-text"
                           >
@@ -137,7 +137,7 @@ export function WeekPlan() {
                                 aria-label={`Decrease servings for ${i.title}`}
                                 onClick={() => {
                                   gen.clearError();
-                                  act.run(() =>
+                                  void act.run(() =>
                                     setServings({
                                       recipeId: i.recipeId,
                                       servingsMultiplier: decreaseServings(mult),
@@ -154,7 +154,7 @@ export function WeekPlan() {
                                 aria-label={`Increase servings for ${i.title}`}
                                 onClick={() => {
                                   gen.clearError();
-                                  act.run(() =>
+                                  void act.run(() =>
                                     setServings({
                                       recipeId: i.recipeId,
                                       servingsMultiplier: increaseServings(mult),
@@ -174,7 +174,7 @@ export function WeekPlan() {
                             }
                             onClick={() => {
                               gen.clearError();
-                              act.run(() =>
+                              void act.run(() =>
                                 setType({
                                   recipeId: i.recipeId,
                                   type: toggledType(i),
@@ -196,7 +196,7 @@ export function WeekPlan() {
                             aria-pressed={cooked}
                             onClick={() => {
                               gen.clearError();
-                              act.run(() =>
+                              void act.run(() =>
                                 cooked
                                   ? unmarkCooked({ recipeId: i.recipeId })
                                   : markCooked({ recipeId: i.recipeId }),
@@ -243,7 +243,7 @@ export function WeekPlan() {
                   <DayPicker
                     onPick={(weekday) => {
                       gen.clearError();
-                      act.run(() => schedule({ recipeId: i.recipeId, weekday }));
+                      void act.run(() => schedule({ recipeId: i.recipeId, weekday }));
                     }}
                   />
                   <Button
@@ -251,7 +251,7 @@ export function WeekPlan() {
                     size="sm"
                     onClick={() => {
                       gen.clearError();
-                      act.run(() => removeFromBasket({ recipeId: i.recipeId }));
+                      void act.run(() => removeFromBasket({ recipeId: i.recipeId }));
                     }}
                   >
                     Remove
@@ -267,7 +267,7 @@ export function WeekPlan() {
         <Button
           onClick={() => {
             act.clearError();
-            gen.run(() => generate({}));
+            void gen.run(() => generate({}));
           }}
           disabled={gen.pending || !canGenerateList(items)}
         >

@@ -40,7 +40,7 @@ export function MyKitchen() {
     // Optimistic, so the spotlight can open against a kitchen that already
     // contains the device rather than waiting a round trip to look right.
     setSpotlight(next ? equipmentId : (current) => (current === equipmentId ? null : current));
-    run(() => setOwned({ equipmentId, owned: next }));
+    void run(() => setOwned({ equipmentId, owned: next }));
   }
 
   return (

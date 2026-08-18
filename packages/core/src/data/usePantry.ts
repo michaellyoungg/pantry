@@ -63,21 +63,21 @@ export function usePantry(): UsePantry {
 
   const cycleState = useCallback(
     (item: PantryItem) => {
-      run(() => setState({ id: item._id, state: NEXT_STATE[item.state] }));
+      void run(() => setState({ id: item._id, state: NEXT_STATE[item.state] }));
     },
     [run, setState],
   );
 
   const toggleUseItUp = useCallback(
     (item: PantryItem) => {
-      run(() => setUseItUp({ id: item._id, useItUp: !item.useItUp }));
+      void run(() => setUseItUp({ id: item._id, useItUp: !item.useItUp }));
     },
     [run, setUseItUp],
   );
 
   const remove = useCallback(
     (item: PantryItem) => {
-      run(() => removeItem({ id: item._id }));
+      void run(() => removeItem({ id: item._id }));
     },
     [run, removeItem],
   );

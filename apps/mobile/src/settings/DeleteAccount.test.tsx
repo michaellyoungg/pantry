@@ -70,7 +70,7 @@ describe("DeleteAccount", () => {
     await fireEvent.changeText(screen.getByTestId("settings.delete-confirm-input"), "DELETE");
     await fireEvent.press(screen.getByTestId("settings.delete-confirm"));
 
-    expect(screen.getByTestId("settings.delete-error").children.join("")).toMatch(/down/);
+    expect(screen.getByTestId("settings.delete-error")).toHaveTextContent(/down/);
     expect(mockSignOut).not.toHaveBeenCalled();
   });
 

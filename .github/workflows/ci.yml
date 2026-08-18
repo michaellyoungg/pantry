@@ -41,8 +41,8 @@ jobs:
       # oxlint fails the build on errors only; the warn-level rules
       # (exhaustive-deps, no-array-index-key, no-non-null-assertion) surface
       # without blocking, which is the posture Biome ran with before it.
-      - name: Lint (oxlint)
-        run: pnpm exec oxlint
+      - name: Lint (oxlint, type-aware)
+        run: pnpm exec oxlint --type-aware
 
       - name: Format (oxfmt)
         run: pnpm exec oxfmt --check
