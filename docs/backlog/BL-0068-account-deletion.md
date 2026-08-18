@@ -1,7 +1,7 @@
 ---
 id: BL-0068
 title: In-app account deletion (cascade across Convex and recipe-service)
-status: proposed
+status: in-progress
 area: auth
 effort: M
 related_specs: [2026-08-16-mobile-client-parity-design.md]
