@@ -57,7 +57,9 @@ func (c *Client) SearchStores(
 		"filter.limit":         {strconv.Itoa(maxStoreResults)},
 	}
 	var body locationSearch
-	if err := c.get(ctx, "/locations", query, &body); err != nil {
+	// The store list is not cached: it is fetched once, when a user is actively
+	// choosing, and holding it would be a copy of API content for no gain.
+	if _, err := c.get(ctx, "/locations", query, &body); err != nil {
 		return nil, err
 	}
 	out := make([]pricing.StoreLocation, 0, len(body.Data))

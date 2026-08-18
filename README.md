@@ -85,10 +85,14 @@ It is opt-in per user on top of that: a shelf price requires a store, and no
 store is selected until someone picks one on the grocery list.
 
 **Read the provider's developer terms before enabling this.** They are accepted
-at registration, and
+at registration, at <https://developer-ce.kroger.com/terms>. Their caching
+clause is load-bearing here — it prohibits building databases or permanent
+copies of API content and keeping "cached copies longer than permitted by the
+cache header" — so prices are held in memory only, never in Postgres or Convex,
+and each entry lives exactly as long as its own response's `Cache-Control` /
+`Expires` header allows (nothing at all when there is no such header).
 [`docs/superpowers/specs/2026-08-17-real-store-prices-design.md`](docs/superpowers/specs/2026-08-17-real-store-prices-design.md)
-records what could and could not be verified about what they permit for caching
-and display.
+records the clause and what it forced, including the call-budget consequence.
 
 ## Testing
 

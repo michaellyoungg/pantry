@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"pantry/apps/recipe-service/internal/pricing"
 )
@@ -100,7 +101,7 @@ func (c *Client) Quote(
 			limiter <- struct{}{}
 			defer func() { <-limiter }()
 
-			quote, found, err := c.searchOne(ctx, out.LocationID, q.Term)
+			quote, found, ttl, err := c.searchOne(ctx, out.LocationID, q.Term)
 			switch {
 			case errors.Is(err, errRateLimited):
 				mu.Lock()
@@ -117,7 +118,7 @@ func (c *Client) Quote(
 				}
 				return
 			}
-			c.putCache(out.LocationID, q.Key, cacheEntry{quote: quote, found: found, day: c.day()})
+			c.putCache(out.LocationID, q.Key, cacheEntry{quote: quote, found: found}, ttl)
 			if !found {
 				return
 			}
@@ -135,10 +136,14 @@ func (c *Client) Quote(
 }
 
 // searchOne resolves one search term to the best usable shelf price at a store.
-func (c *Client) searchOne(ctx context.Context, locationID, term string) (pricing.StoreQuote, bool, error) {
+// The returned duration is how long that answer may be cached, straight from
+// the response's own cache headers; zero means it may not be.
+func (c *Client) searchOne(
+	ctx context.Context, locationID, term string,
+) (pricing.StoreQuote, bool, time.Duration, error) {
 	term = strings.TrimSpace(term)
 	if term == "" {
-		return pricing.StoreQuote{}, false, nil
+		return pricing.StoreQuote{}, false, 0, nil
 	}
 	query := url.Values{
 		"filter.term":       {term},
@@ -146,16 +151,18 @@ func (c *Client) searchOne(ctx context.Context, locationID, term string) (pricin
 		"filter.limit":      {strconv.Itoa(productsPerTerm)},
 	}
 	var body productSearch
-	if err := c.get(ctx, "/products", query, &body); err != nil {
-		return pricing.StoreQuote{}, false, err
+	header, err := c.get(ctx, "/products", query, &body)
+	if err != nil {
+		return pricing.StoreQuote{}, false, 0, err
 	}
+	ttl := cacheTTL(header, c.now())
 	for _, p := range body.Data {
 		if q, ok := quoteFrom(p); ok {
-			return q, true, nil
+			return q, true, ttl, nil
 		}
 	}
 	// No error: the store genuinely carries nothing priceable for this term.
-	return pricing.StoreQuote{}, false, nil
+	return pricing.StoreQuote{}, false, ttl, nil
 }
 
 // quoteFrom reduces a product to a comparable price, or reports that it cannot.

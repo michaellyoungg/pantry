@@ -16,50 +16,60 @@ break because a retailer's API is slow, rate-limited, misconfigured, or down.**
 Real prices are an upgrade on a number the service can already produce offline
 from a compiled-in table. Anything that cannot be upgraded is left as it was.
 
-## Terms of use — what is and isn't verified
+## Terms of use — what they permit, and what that forced
 
 The backlog item asks for this first, and names it as a possible stop condition:
 *"Read the terms first and record what they permit for caching and display — if
 they forbid what this needs, say so and stop."*
 
-**Verified (2026-08-17):**
+The terms are at **<https://developer-ce.kroger.com/terms>**. They are
+JS-rendered and did not load for any automated fetch attempted during design,
+which is what an earlier draft of this document wrongly recorded as "could not
+be verified" — they are readable in a browser, and the clause that governs this
+design is:
 
-- The Products API's rate limit is **10,000 calls/day per client**, enforced per
-  endpoint across all its operations. The Locations API is quoted at 1,600/day.
-- Price data requires a `locationId` on the request. Without one the API returns
-  products with no price at all, which is why real prices are inherently
-  per-store and therefore inherently opt-in — there is no accidental-price path.
+> Scrape, build databases, or otherwise create permanent copies of such content,
+> or keep cached copies longer than permitted by the cache header
 
-**NOT verified:** the text of Kroger's developer Terms of Service. Every
-unauthenticated fetch of `developer.kroger.com` (and the `developer-ce` mirror)
-timed out, the pages are JS-rendered, and the terms themselves sit behind
-developer registration. This is the *same* obstacle BL-0023's research hit, and
-the reason increment 1 chose BLS. Nothing found in search reproduces the terms'
-wording on caching, storage, or display.
+That is a prohibited-use clause, and it is **not** a stop condition: it permits
+caching, on terms. It does set two hard constraints, and the second of them
+changed the design.
 
-So the stop condition is **not** met — nothing was found that forbids this — but
-neither was permission confirmed. The resolution is to make being wrong cheap
-and to put the decision in front of the human who can actually make it:
+**Constraint 1 — no databases, no permanent copies.** The price cache is
+in-process, unshared, and dies with the container. Nothing from the API is
+written to Postgres or to Convex. What *is* persisted is the user's own choice
+of store — a `locationId` and its name — which is their selection, not API
+content. The 24-hour `maxCacheTTL` ceiling exists for this clause too: a
+generous `max-age` should not become a permanent copy in all but name.
 
-- **The integration lands dark.** With `PRICING_STORE_PROVIDER` unset — the
-  default, and what CI and every current deployment run — no code path here can
-  reach Kroger, and the estimate is byte-for-byte the increment-1 estimate.
-- **The operator who enables it is the party who accepted the terms.** Turning
-  the flag on requires credentials, and obtaining credentials requires
-  registering as a developer, which is where the terms are agreed. The person
-  with the credentials is the person who read them.
-- **Caching is conservative and legible.** Prices are held per (store,
-  ingredient) for **one day** and never written to Postgres or Convex — the
-  cache is in-process and dies with the container. If the terms turn out to
-  forbid caching entirely, the fix is one constant; if they forbid displaying
-  prices, the fix is not enabling the flag.
-- **Provenance is always shown.** The UI names the store, the count of lines it
-  priced, and that the rest are averages.
+**Constraint 2 — cache lifetime comes from the cache header, not from us.** The
+first version of this design cached each (store, ingredient) pair for a calendar
+day, chosen because shelf prices move daily. That is not ours to choose. The
+cache now reads `Cache-Control`/`Expires` off each products response and holds
+the entry for exactly that long:
 
-**This needs a human decision before the flag is turned on in any environment:**
-someone with a Kroger developer account must read the terms and confirm what
-they permit for caching and display. The code is written so that decision is a
-config change, not a rewrite.
+- `max-age` / `s-maxage` sets the window; `s-maxage` wins, because this cache is
+  shared across every user of the process.
+- `no-store`, `no-cache`, `private`, or `max-age=0` → **not cached at all**.
+  `private` counts because a shared cache is what this is.
+- No cache header, or an already-elapsed `Expires` → **not cached at all**. The
+  conservative reading of "longer than permitted by the cache header" is that a
+  header permitting nothing permits nothing.
+- Whatever the header says, capped at 24 hours.
+
+Not caching is always safe here: it costs calls against the daily budget, never
+correctness. See the call-budget consequences in Decision 5.
+
+**On display.** The clause quoted above governs copying and retention, not
+display, and nothing found in the terms forbids showing a price to the user who
+asked for it. The UI names the store the price came from and when it was
+fetched, which is the honest presentation regardless.
+
+**Still worth a human's eyes before enabling the flag anywhere:** the clause
+above is the one that governs this design, but it is one clause of a longer
+agreement, and the agreement is accepted at registration by whoever obtains the
+credentials. That person should read the rest of it — particularly anything on
+commercial use and attribution — before turning `PRICING_STORE_PROVIDER` on.
 
 ## Decision 1 — layer over the averages, never replace them
 
@@ -127,28 +137,39 @@ deployment that made it, and location id `01400376` means something else at a
 different retailer — so `pricingEstimate` ignores a selection whose provider is
 not the configured one, rather than pricing against it.
 
-## Decision 5 — the call budget is spent per (store, ingredient, day)
+## Decision 5 — the call budget is spent per (store, ingredient), for as long as the cache header allows
 
 Kroger's Products API allows ~10,000 calls/day. One product search per distinct
-ingredient, cached for the calendar day, keyed by store:
+ingredient, per store, cached for exactly as long as that response permits:
 
 - Lines sharing a normalized identity collapse to one lookup
   (`StoreQueries` dedupes), so a 30-line list with repeats is fewer than 30
   calls.
-- **Misses are cached too.** An ingredient the catalogue does not carry is a
-  stable fact for the day; re-asking would spend the budget learning it over
-  and over.
+- **Misses are cached on the same terms.** An ingredient the catalogue does not
+  carry is as much a property of that response as a price is, and re-asking
+  inside the window would spend the budget learning the same thing repeatedly.
 - A hard **30-lookup ceiling per list**, logged when hit rather than silently
   truncated — a silent truncation reads as "your store doesn't carry these".
 - Lookups run six-at-a-time behind an 8-second whole-step deadline, so a cold
-  list stays inside the request timeout. After the first list of the day, the
-  cache serves everything.
+  list stays inside the request timeout.
 - A 429 enters a cooldown (honouring `Retry-After`) during which nothing goes
   out and every line falls back to the average.
 
+**The budget arithmetic depends on what Kroger's cache header actually says,
+and that is worth measuring once the flag is on.** If products responses carry a
+usable `max-age`, a store's common ingredients are fetched once per window and
+steady-state traffic is small. If they carry no cache header — or `no-store` —
+then nothing is cached, and each cold list view costs up to 30 calls: roughly
+**330 list views per day** against the 10,000 limit before the rate limiter
+starts answering, at which point every line falls back to the averages and the
+list still renders. That ceiling is the honest cost of complying with the
+caching clause rather than choosing our own TTL, and the 30-lookup-per-list cap
+is what keeps a single request from spending the budget on its own.
+
 The cache is in-process and unshared. A second replica repeats the first list of
-the day; that is a handful of calls against a 10,000/day budget, and is much
-cheaper than the coordination a shared cache would need.
+each window; that is cheaper than the coordination a shared cache would need,
+and a shared cache would also be much closer to the "database of content" the
+terms prohibit.
 
 ## Degradation matrix
 
@@ -176,7 +197,10 @@ affect the bill.
 No test in the repo makes a live third-party call. `internal/kroger/testdata`
 holds recorded response shapes — token, product search, a product with no price,
 a product with marketing copy for a pack size, an empty result, a locations
-search — served by `httptest`. The suite runs with no credentials and no
+search — served by `httptest`. Cache headers are test input rather than
+scenery: `TestCacheTTL` covers the parsing directly, and
+`TestQuoteDoesNotCacheWhatTheHeaderForbids` proves a response that permits no
+caching is re-fetched every time and still returns its price. The suite runs with no credentials and no
 network, which is also the only way CI can run it: the CI jobs have no Kroger
 account.
 
@@ -186,9 +210,9 @@ account.
   BL-0066's settings work, not this.
 - **Sale-aware recommendations** — the `onSale` flag is now carried per line,
   which is the input BL-0047 needs, but nothing recommends from it here.
-- **A shared/persistent price cache.** In-process and per-day is enough for the
-  budget; anything durable raises exactly the caching question the unread terms
-  leave open.
+- **A shared/persistent price cache.** The terms prohibit building databases or
+  permanent copies of API content, so a durable price store is not merely
+  unnecessary — it is the thing the clause is about.
 - **Aisle data.** The Products API returns `aisleLocations`, which would improve
   BL-0003's aisle ordering. It is a separate feature with a separate fallback
   story.

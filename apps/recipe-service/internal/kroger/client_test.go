@@ -27,10 +27,18 @@ type recorder struct {
 	authzs   []string
 	statuses map[string]int
 	bodies   map[string]string
+	// headers is the Cache-Control (or Expires) each path answers with. Kroger's
+	// developer terms bound our cache by exactly this, so it is test input, not
+	// scenery.
+	headers map[string]map[string]string
 }
 
 func newRecorder() *recorder {
-	return &recorder{statuses: map[string]int{}, bodies: map[string]string{}}
+	return &recorder{
+		statuses: map[string]int{},
+		bodies:   map[string]string{},
+		headers:  map[string]map[string]string{},
+	}
 }
 
 func (r *recorder) count(path string) int {
@@ -66,6 +74,7 @@ func newTestClient(t *testing.T, rec *recorder) *Client {
 		rec.authzs = append(rec.authzs, r.Header.Get("Authorization"))
 		status, hasStatus := rec.statuses[r.URL.Path]
 		body, hasBody := rec.bodies[r.URL.Path]
+		headers := rec.headers[r.URL.Path]
 		rec.mu.Unlock()
 
 		if hasStatus && status != http.StatusOK {
@@ -81,6 +90,9 @@ func newTestClient(t *testing.T, rec *recorder) *Client {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		for name, value := range headers {
+			w.Header().Set(name, value)
+		}
 		_, _ = w.Write([]byte(body))
 	}))
 	t.Cleanup(srv.Close)
@@ -91,6 +103,9 @@ func newTestClient(t *testing.T, rec *recorder) *Client {
 	}
 	c.baseURL = srv.URL
 	rec.bodies["/connect/oauth2/token"] = fixture(t, "token.json")
+	// Most tests are not about caching, so give products a modest cacheable
+	// window by default and let the caching tests override it.
+	rec.headers["/products"] = map[string]string{"Cache-Control": "max-age=600"}
 	return c
 }
 
@@ -184,12 +199,13 @@ func TestQuoteSendsTheLocationAndBearerToken(t *testing.T) {
 	}
 }
 
-func TestQuoteCachesPerStorePerDay(t *testing.T) {
+func TestQuoteCachesOnlyAsLongAsTheCacheHeaderAllows(t *testing.T) {
 	rec := newRecorder()
 	c := newTestClient(t, rec)
 	rec.bodies["/products"] = fixture(t, "products_eggs.json")
-	day := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
-	c.now = func() time.Time { return day }
+	rec.headers["/products"] = map[string]string{"Cache-Control": "max-age=600"}
+	now := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
 
 	queries := []pricing.StoreQuery{{Key: "eggs", Term: "large eggs"}}
 	for range 3 {
@@ -198,7 +214,7 @@ func TestQuoteCachesPerStorePerDay(t *testing.T) {
 		}
 	}
 	if n := rec.count("/products"); n != 1 {
-		t.Errorf("product lookups on one day = %d, want 1 — the daily budget is the point", n)
+		t.Errorf("lookups inside the cache window = %d, want 1 — the call budget is the point", n)
 	}
 
 	// A different store is a different shelf, so it costs its own lookup.
@@ -206,16 +222,64 @@ func TestQuoteCachesPerStorePerDay(t *testing.T) {
 		t.Fatalf("Quote: %v", err)
 	}
 	if n := rec.count("/products"); n != 2 {
-		t.Errorf("product lookups after a second store = %d, want 2", n)
+		t.Errorf("lookups after a second store = %d, want 2", n)
 	}
 
-	// Tomorrow the shelf may have moved; the cache must not outlive the day.
-	c.now = func() time.Time { return day.AddDate(0, 0, 1) }
+	// Past max-age the copy may not be kept, which the developer terms require
+	// and a moving shelf price wants anyway.
+	c.now = func() time.Time { return now.Add(601 * time.Second) }
 	if _, err := c.Quote(context.Background(), "01400376", queries); err != nil {
 		t.Fatalf("Quote: %v", err)
 	}
 	if n := rec.count("/products"); n != 3 {
-		t.Errorf("product lookups the next day = %d, want 3", n)
+		t.Errorf("lookups after max-age elapsed = %d, want 3", n)
+	}
+}
+
+// The terms permit keeping a copy only as long as the cache header allows, so a
+// response that permits nothing is not kept at all — even though that costs a
+// call on every list view.
+func TestQuoteDoesNotCacheWhatTheHeaderForbids(t *testing.T) {
+	cases := []struct {
+		name   string
+		header map[string]string
+	}{
+		{"no cache header at all", map[string]string{}},
+		{"no-store", map[string]string{"Cache-Control": "no-store"}},
+		{"no-cache", map[string]string{"Cache-Control": "no-cache"}},
+		// This cache is shared across every user of the process, so "private"
+		// means it is not ours to hold.
+		{"private", map[string]string{"Cache-Control": "private, max-age=600"}},
+		{"max-age=0", map[string]string{"Cache-Control": "max-age=0"}},
+		{"already expired", map[string]string{
+			"Date":    "Mon, 17 Aug 2026 09:00:00 GMT",
+			"Expires": "Mon, 17 Aug 2026 09:00:00 GMT",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := newRecorder()
+			c := newTestClient(t, rec)
+			rec.bodies["/products"] = fixture(t, "products_eggs.json")
+			rec.headers["/products"] = tc.header
+			c.now = func() time.Time { return time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC) }
+
+			queries := []pricing.StoreQuery{{Key: "eggs", Term: "large eggs"}}
+			for range 3 {
+				got, err := c.Quote(context.Background(), "01400376", queries)
+				if err != nil {
+					t.Fatalf("Quote: %v", err)
+				}
+				// Not caching costs calls, never correctness: the price is still
+				// there on every pass.
+				if _, ok := got.Quotes["eggs"]; !ok {
+					t.Fatal("no quote returned; not caching must not cost the price")
+				}
+			}
+			if n := rec.count("/products"); n != 3 {
+				t.Errorf("lookups = %d, want 3 — this response may not be held", n)
+			}
+		})
 	}
 }
 
@@ -234,8 +298,9 @@ func TestQuoteCachesMissesToo(t *testing.T) {
 			t.Fatalf("quotes = %v, want none for an item the store does not carry", got.Quotes)
 		}
 	}
-	// An ingredient the catalogue does not stock is a stable fact for the day.
-	// Re-asking would spend the call budget learning it over and over.
+	// A miss is as much a property of that response as a price is, so it is held
+	// on the same terms. Re-asking inside the window would spend the call budget
+	// learning the same thing over and over.
 	if n := rec.count("/products"); n != 1 {
 		t.Errorf("lookups for an uncarried item = %d, want 1", n)
 	}
@@ -475,6 +540,47 @@ func TestDescribe(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := describe(product{Brand: c.brand, Description: c.desc}); got != c.want {
 				t.Errorf("describe = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// cacheTTL is where the developer terms' caching rule actually lives, so it is
+// tested directly rather than only through Quote.
+func TestCacheTTL(t *testing.T) {
+	now := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name   string
+		header http.Header
+		want   time.Duration
+	}{
+		{"max-age", http.Header{"Cache-Control": {"max-age=600"}}, 10 * time.Minute},
+		{"max-age with other directives", http.Header{"Cache-Control": {"public, max-age=300"}}, 5 * time.Minute},
+		{"quoted value", http.Header{"Cache-Control": {`max-age="300"`}}, 5 * time.Minute},
+		{"uppercase", http.Header{"Cache-Control": {"MAX-AGE=300"}}, 5 * time.Minute},
+		// s-maxage is the directive addressed to a shared cache, and this is one.
+		{"s-maxage wins", http.Header{"Cache-Control": {"max-age=600, s-maxage=60"}}, time.Minute},
+		{"expires", http.Header{
+			"Date":    {"Mon, 17 Aug 2026 09:00:00 GMT"},
+			"Expires": {"Mon, 17 Aug 2026 09:05:00 GMT"},
+		}, 5 * time.Minute},
+		// Cache-Control outranks Expires, so a no-store next to a future Expires
+		// still permits nothing.
+		{"no-store beats expires", http.Header{
+			"Cache-Control": {"no-store"},
+			"Expires":       {"Mon, 17 Aug 2026 23:00:00 GMT"},
+		}, 0},
+		// A year-long max-age would be a permanent copy in all but name, which
+		// the terms prohibit outright.
+		{"capped", http.Header{"Cache-Control": {"max-age=31536000"}}, maxCacheTTL},
+		{"nothing", http.Header{}, 0},
+		{"unparsable max-age", http.Header{"Cache-Control": {"max-age=soon"}}, 0},
+		{"unparsable expires", http.Header{"Expires": {"soon"}}, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := cacheTTL(c.header, now); got != c.want {
+				t.Errorf("cacheTTL = %v, want %v", got, c.want)
 			}
 		})
 	}
