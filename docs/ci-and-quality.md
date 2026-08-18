@@ -10,7 +10,7 @@ that keep `main` green.
 
 | Job | Steps |
 | --- | --- |
-| **Node** | oxlint (lint, type-aware) · oxfmt (format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · Knip (dead code / unused deps) |
+| **Node** | oxlint (syntax lint) · oxfmt (format + import order) · backlog index freshness · TypeScript typecheck · Vitest with coverage (incl. design-token drift guard) plus `jest-expo` for `apps/mobile` · build · oxlint --type-aware · Knip (dead code / unused deps) |
 | **Go** | `gofmt` check · `go vet` · `go test -race -cover` · `golangci-lint` · `govulncheck` (advisory) |
 
 `.github/dependabot.yml` opens weekly dependency-update PRs for npm, Go modules,
@@ -29,13 +29,14 @@ repo.
 Everything CI runs is available through pnpm from the repo root:
 
 ```bash
-pnpm lint            # oxlint --type-aware + oxfmt --check (TS) + go vet (via turbo)
-pnpm format          # oxfmt (format + import order), then oxlint --type-aware --fix
+pnpm lint            # oxlint (syntax) + oxfmt --check (TS) + go vet (via turbo)
+pnpm lint:types      # builds workspace deps, then oxlint --type-aware
+pnpm format          # oxfmt (format + import order), then oxlint --fix
 pnpm typecheck       # tsc across all packages
 pnpm test            # Vitest + jest-expo (apps/mobile) + go test
 pnpm test:coverage   # Vitest with coverage thresholds enforced
 pnpm knip            # unused files / exports / dependencies
-pnpm check           # lint + typecheck + test in one shot
+pnpm check           # lint + typecheck + lint:types + test in one shot
 pnpm backlog:index   # regenerate the docs/backlog/README.md index table
 ```
 
@@ -79,15 +80,27 @@ golangci-lint run    # install: https://golangci-lint.run/welcome/install/
   error outside `packages/core/src/react`. See
   [`packages/core/README.md`](../packages/core/README.md).
 
-  Runs with **`--type-aware`** (the `oxlint-tsgolint` package), which is the one
-  thing the previous linter could not do at all: rules that need the type
-  checker rather than just the syntax tree. `typescript/no-floating-promises` is
-  the reason it is worth the extra ~2.4s — an un-awaited promise is invisible to
-  a syntax-only linter, and this repo fires a lot of them deliberately. The
-  deliberate ones now say so with `void`; a new one that is *not* deliberate is
-  a CI failure rather than a silently dropped rejection. Also live:
-  `no-base-to-string` (caught a real `"[object Object]"` risk in the OTLP span
-  exporter), `no-misused-spread`, `require-array-sort-compare`.
+- **`pnpm lint:types`** — oxlint again, with **`--type-aware`** (the
+  `oxlint-tsgolint` package). This is the one thing the previous linter could
+  not do at all: rules that need the type checker rather than just the syntax
+  tree. `typescript/no-floating-promises` is the reason it is worth the extra
+  ~2.4s — an un-awaited promise is invisible to a syntax-only linter, and this
+  repo fires a lot of them deliberately. The deliberate ones now say so with
+  `void`; a new one that is *not* deliberate fails CI rather than silently
+  dropping a rejection. Also live: `no-base-to-string` (caught a real
+  `"[object Object]"` risk in the OTLP span exporter), `no-misused-spread`,
+  `require-array-sort-compare`.
+
+  **It is a separate script because it needs `dist/` to exist**, the same
+  reason `typecheck` carries `dependsOn: ["^build"]` in `turbo.json`. Type-aware
+  rules resolve `@pantry/*` through each package's emitted `.d.ts`, so running
+  it on a clean checkout without building first turns every workspace type into
+  an `error` type and produces ~17 bogus `no-redundant-type-constituents`
+  failures — and a *stale* `dist/` is worse, because it lints green against
+  stale types. `lint:types` therefore runs `turbo run build` itself (cached, so
+  it is nearly free once warm), and CI runs the type-aware pass **after** its
+  build step. Plain `pnpm lint` stays syntax-only and needs nothing built, which
+  is what keeps it a ~0.1s pre-push check.
 
   Three ways this config fails **silently**, all covered by
   `packages/core/src/oxlintConfig.test.ts` — read that file before editing it:

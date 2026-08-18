@@ -12,12 +12,13 @@
     "test:coverage": "turbo run test:coverage",
     "test:integration": "bash scripts/integration.sh",
     "test:e2e": "bash scripts/e2e.sh",
-    "lint": "oxlint --type-aware && oxfmt --check && turbo run lint",
-    "format": "oxfmt && oxlint --type-aware --fix",
+    "lint": "oxlint && oxfmt --check && turbo run lint",
+    "format": "oxfmt && oxlint --fix",
     "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
     "backlog:index": "node scripts/backlog-index.mjs",
     "backlog:index:check": "node scripts/backlog-index.mjs --check",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm lint:types && pnpm test",
+    "lint:types": "turbo run build && oxlint --type-aware"
   },
   "devDependencies": {
     "knip": "^6.32.2",
