@@ -256,6 +256,22 @@ export type UseGroceryList = {
 };
 
 /**
+ * A list to derive from in place of the live subscription (BL-0058).
+ *
+ * `useOfflineGroceryList` passes the durable cache with its queued check-offs
+ * written over it, so everything below — the cart partition, the aisle walk,
+ * the transition and highlight windows — is computed from what the shopper is
+ * actually looking at rather than from what the server last managed to say. The
+ * alternative, deriving outside this hook and merging the two halves back
+ * together, would leave a queued tick skipping its animation into the cart.
+ *
+ * Passing one skips the query outright — the offline hook holds the
+ * subscription itself, and two subscriptions to the same query is one more than
+ * anybody needs.
+ */
+export type GroceryListOverride = { lines: GroceryLine[]; loading: boolean };
+
+/**
  * Everything the grocery list screen needs, with no view attached (BL-0055).
  *
  * Three subscriptions, seven mutations plus one action with their optimistic
@@ -267,9 +283,10 @@ export type UseGroceryList = {
  * field is expanded, and the confirmation prompt before {@link clear} — those
  * are presentation, and the prompt has no cross-platform form.
  */
-export function useGroceryList(): UseGroceryList {
-  const data = useQuery(api.groceryList.getGroceryList);
-  const lines = data ?? [];
+export function useGroceryList(override?: GroceryListOverride): UseGroceryList {
+  const data = useQuery(api.groceryList.getGroceryList, override === undefined ? {} : "skip");
+  const lines = override?.lines ?? data ?? [];
+  const loading = override?.loading ?? data === undefined;
   // Shared with the leftovers prompt rather than re-derived: Convex dedupes the
   // subscription, and the predicate for "still unanswered" belongs in one place.
   const pendingLeftovers = useQuery(api.groceryList.leftoverProposals) ?? [];
@@ -319,9 +336,9 @@ export function useGroceryList(): UseGroceryList {
   const { active, removed } = partitionRemoved(lines);
   const leaving = useCartTransition(
     active.filter((line) => line.checked).map((line) => line._id),
-    data !== undefined,
+    !loading,
   );
-  const highlighted = useRemoteHighlight(lines, ownEdits, data !== undefined);
+  const highlighted = useRemoteHighlight(lines, ownEdits, !loading);
   // A line that has been ticked but is still animating stays in the walk.
   const { toBuy, inCart } = partitionCart(active, (line) => line.checked && !leaving.has(line._id));
 
@@ -393,7 +410,7 @@ export function useGroceryList(): UseGroceryList {
 
   return {
     lines,
-    loading: data === undefined,
+    loading,
     active,
     removed,
     toBuy,

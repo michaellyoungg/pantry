@@ -180,7 +180,11 @@ export const toggleItem = mutation({
     if (userId === null) throw new Error("Not authenticated");
     const row = await ctx.db.get(id);
     if (row === null || row.userId !== userId) throw new Error("Not found");
-    await ctx.db.patch(id, { checked });
+    // Stamped on every toggle, including one that lands on the value already
+    // there: the stamp says "somebody spoke about this line", which is what an
+    // offline device reconciling on reconnect needs to know (BL-0058). A
+    // no-change write that left the stamp alone would read as silence.
+    await ctx.db.patch(id, { checked, checkedAt: Date.now() });
 
     // Rows predating BL-0021 have no canonical key and can't be joined to a
     // pantry item; leave the pantry untouched for them.

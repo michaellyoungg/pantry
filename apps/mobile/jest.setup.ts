@@ -18,3 +18,10 @@ jest.mock("expo-secure-store", () => {
     }),
   };
 });
+
+// The offline grocery cache's backing store (BL-0058). The package ships its
+// own in-memory Jest double, so this is the upstream implementation rather than
+// a hand-rolled Map that could drift from it.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);

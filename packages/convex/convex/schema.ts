@@ -87,6 +87,17 @@ export default defineSchema({
     quantity: v.number(),
     aisle: v.string(),
     checked: v.boolean(),
+    // When `checked` was last written, on the *server's* clock (BL-0058).
+    // Absent on a line nobody has ever ticked.
+    //
+    // It exists for offline reconciliation and only for that: a device coming
+    // back from the freezer aisle holds a queued check-off formed against the
+    // list as it last saw it, and has to decide whether that intent is still
+    // current or whether another shopper has since spoken. Comparing this
+    // number against the one cached beside the line answers that with two
+    // server timestamps and no reference to the device's own clock, which on a
+    // phone that has been offline is not to be trusted.
+    checkedAt: v.optional(v.number()),
     // Set during generation when a pantry row for this canonicalItem is in
     // state "have". Purely an annotation — the line is still shown, still in
     // its original position, still checkable. Cleared per-line by needItAnyway.

@@ -25,23 +25,35 @@
  *    alternative is scrolling to the end of a list to finish.
  * 4. **Bottom sheets, never centred dialogs.** See `Sheet`.
  *
- * Offline is explicitly *not* here: this screen assumes connectivity and is
- * expected to be replaced in place by BL-0058.
+ * 5. **It works with no signal** (BL-0058). The data source is
+ *    `useOfflineGroceryList`, so the list is cached on the device and a tap
+ *    made in the freezer aisle is queued and replayed on reconnect. The two
+ *    things this file owns about that are both statements to the shopper: the
+ *    banner saying it is happening, and the sheet for the rare queued tap the
+ *    replay could not settle on its own. The reconciliation itself is
+ *    `@pantry/core`, where it is tested without a renderer.
  */
 import { titleCase } from "@pantry/core";
-import { type GroceryLine, useGroceryList } from "@pantry/core/data";
+import { type GroceryLine, useOfflineGroceryList } from "@pantry/core/data";
 import { useState } from "react";
 import { Pressable, SectionList, Text, View } from "react-native";
+import { groceryCacheStore } from "../offline/groceryCacheStore";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
 import { AddItemField } from "./AddItemField";
 import { DoneShoppingSheet } from "./DoneShoppingSheet";
 import { GroceryRow } from "./GroceryRow";
 import { CONTROL_TARGET_HEIGHT } from "./hitTargets";
 import { LeftoverPrompts } from "./LeftoverPrompts";
+import { OfflineBanner } from "./OfflineBanner";
 import { ProvenanceSheet } from "./ProvenanceSheet";
+import { ReplayConflictSheet } from "./ReplayConflictSheet";
 import { Sheet, SheetButton } from "./Sheet";
 
 const id = surfaceTestIDs("list");
+
+// Module scope: the store is a handle on device storage, not state, and one is
+// all the app ever needs. The hook documents that it wants a stable one.
+const cacheStore = groceryCacheStore();
 
 /** A heading over one part of the list that is not an aisle. */
 function GroupHeading({
@@ -87,7 +99,8 @@ export function GroceryScreen() {
     resolveLeftover,
     clear,
     finish,
-  } = useGroceryList();
+    offline,
+  } = useOfflineGroceryList(cacheStore);
 
   // Which line's provenance sheet is open, by row id — not the row itself, so
   // the sheet keeps re-rendering from live data while it is open.
@@ -97,6 +110,7 @@ export function GroceryScreen() {
   const [adding, setAdding] = useState(false);
 
   const showingSources = lines.find((line) => line._id === showingSourcesFor);
+  const [conflict] = offline.conflicts;
 
   const footer = (
     <View>
@@ -184,6 +198,13 @@ export function GroceryScreen() {
           ) : null
         }
         ListFooterComponent={footer}
+        ListHeaderComponent={
+          // Above the walk, not in the thumb bar: it is status, and there is
+          // nothing on it to press.
+          offline.online ? null : (
+            <OfflineBanner queued={offline.queued} syncedAt={offline.syncedAt} />
+          )
+        }
         renderItem={({ item: line }: { item: GroceryLine }) => (
           <GroceryRow
             highlighted={highlighted.has(line._id)}
@@ -276,6 +297,16 @@ export function GroceryScreen() {
         </View>
       </View>
 
+      {/* One at a time, in the order they were found. Answering the first
+          reveals the next, which is the only way a queue of separate questions
+          about separate lines can be read at a till. */}
+      {conflict !== undefined && (
+        <ReplayConflictSheet
+          conflict={conflict}
+          onApply={() => offline.applyConflict(conflict)}
+          onDismiss={() => offline.dismissConflict(conflict)}
+        />
+      )}
       {showingSources?.sources && (
         <ProvenanceSheet
           item={showingSources.item}

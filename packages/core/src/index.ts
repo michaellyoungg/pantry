@@ -46,6 +46,24 @@ export {
   titleCase,
   trackSwipe,
 } from "./grocery";
+export {
+  applyPending,
+  type CollapsedCheckoff,
+  collapsePending,
+  decodeGroceryCache,
+  encodeGroceryCache,
+  GROCERY_CACHE_VERSION,
+  type GroceryCache,
+  groceryLineKey,
+  type KeyedLine,
+  type OfflineStore,
+  type PendingCheckoff,
+  planReplay,
+  type ReplayableLine,
+  type ReplayConflict,
+  type ReplayPlan,
+  type ReplayWrite,
+} from "./groceryOffline";
 // Only the state itself crosses the boundary: `deriveHomeState` is called by
 // `useHome` in @pantry/core/data, and a view renders the answer, never derives it.
 export type { HomeState } from "./home";

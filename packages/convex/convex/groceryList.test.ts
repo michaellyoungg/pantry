@@ -58,6 +58,34 @@ describe("groceryList", () => {
     expect(rows[0].checked).toBe(true);
   });
 
+  it("stamps every toggle with the server clock, so an offline replay can tell who spoke last", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity(identity);
+    const id = await t.run(async (ctx) =>
+      ctx.db.insert("groceryList", {
+        userId: USER_ID,
+        item: "eggs",
+        unit: "count",
+        quantity: 6,
+        aisle: "other",
+        checked: false,
+      }),
+    );
+    // Never ticked, so there is nothing to compare against yet (BL-0058).
+    expect((await asUser.query(api.groceryList.getGroceryList, {}))[0].checkedAt).toBeUndefined();
+
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    const first = (await asUser.query(api.groceryList.getGroceryList, {}))[0].checkedAt;
+    expect(first).toBeGreaterThan(0);
+
+    // A toggle that lands on the value already there still counts as somebody
+    // speaking about the line — leaving the stamp alone would read as silence
+    // to a device deciding whether its queued intent is still current.
+    await asUser.mutation(api.groceryList.toggleItem, { id, checked: true });
+    const second = (await asUser.query(api.groceryList.getGroceryList, {}))[0].checkedAt;
+    expect(second).toBeGreaterThanOrEqual(first ?? 0);
+  });
+
   it("rejects toggling another user's item (IDOR guard)", async () => {
     const t = convexTest(schema, modules);
     const id = await t.run(async (ctx) =>
