@@ -4,7 +4,9 @@ import {
   goalChips,
   goalLabel,
   goalSummary,
+  goalVerdict,
   hardConstraintCount,
+  parseGoalValue,
   unverifiedLabel,
 } from "./nutritionGoals";
 
@@ -201,5 +203,54 @@ describe("hardConstraintCount", () => {
 
   it("ignores paused goals, which filter nothing", () => {
     expect(hardConstraintCount([target({ hard: true, active: false })])).toBe(0);
+  });
+});
+
+describe("goalVerdict", () => {
+  const summary = (over: Partial<ReturnType<typeof goalSummary>> = {}) => ({
+    met: 2,
+    judged: 2,
+    unknown: 0,
+    onTrack: true,
+    ...over,
+  });
+
+  it("fits only when every goal was judged and met", () => {
+    expect(goalVerdict(summary())).toBe("fits");
+  });
+
+  // Silence is not a pass: one unmeasured goal beside a met one is "can't tell",
+  // never "misses" and never "fits".
+  it("cannot tell while any goal is unmeasured", () => {
+    expect(goalVerdict(summary({ met: 1, judged: 1, unknown: 1, onTrack: false }))).toBe("unknown");
+  });
+
+  it("misses when every goal was judged and one was not met", () => {
+    expect(goalVerdict(summary({ met: 1, judged: 2, onTrack: false }))).toBe("misses");
+  });
+});
+
+describe("parseGoalValue", () => {
+  it("takes a plain amount", () => {
+    expect(parseGoalValue("150")).toBe(150);
+    expect(parseGoalValue(" 2.5 ")).toBe(2.5);
+  });
+
+  // Number("") is 0, which would store "at most 0 mg of sodium" for someone who
+  // tabbed past the field.
+  it("refuses an empty field rather than reading it as zero", () => {
+    expect(parseGoalValue("")).toBeNull();
+    expect(parseGoalValue("   ")).toBeNull();
+  });
+
+  it("refuses what is not a usable amount", () => {
+    expect(parseGoalValue("lots")).toBeNull();
+    expect(parseGoalValue("-1")).toBeNull();
+    expect(parseGoalValue("Infinity")).toBeNull();
+  });
+
+  // A zero goal is odd but well-formed — "no added sugar" is a real intention.
+  it("allows zero", () => {
+    expect(parseGoalValue("0")).toBe(0);
   });
 });

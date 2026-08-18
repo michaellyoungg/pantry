@@ -1,17 +1,13 @@
 import { api } from "@pantry/convex/api";
-import {
-  type DayNutritionSummary,
-  type NutritionGaps,
-  type NutritionSummary,
-  nutritionFactsLabel,
-  type PlannedItem,
-  planNutritionSignature,
-  rollUpWeekNutrition,
+import type {
+  NutritionGaps,
+  NutritionSummary,
+  PlannedItem,
+  PlanNutritionDay,
+  WeekNutritionRollup,
 } from "@pantry/core";
-import { useAsyncData } from "@pantry/core/react";
-import type { NutritionEstimate } from "@pantry/types";
-import { useQuery } from "convex/react";
-import { useCallback, useState } from "react";
+import { usePlanNutrition } from "@pantry/core/data";
+import { useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { ErrorText } from "./ErrorText";
 import { NutritionFactsPanel } from "./NutritionFactsPanel";
@@ -26,13 +22,12 @@ import { Card } from "./ui/Card";
  * Every figure is labelled *estimated* and every incomplete one says what it is
  * missing. That is the whole point of the surface: a day whose dinner we could
  * not account for must read as a day we could not account for, never as a
- * quietly smaller number. All of the deciding happens in @pantry/core — this
- * component is presentation over `rollUpWeekNutrition`.
+ * quietly smaller number. All of the deciding happens in `@pantry/core` — this
+ * is presentation over `usePlanNutrition`.
  */
 export function PlanNutrition({ items }: { items: PlannedItem[] }) {
   const planNutrition = useTracedAction(api.nutrition.planNutrition, "nutrition.planNutrition");
-  const load = useCallback(() => planNutrition({}), [planNutrition]);
-  const { data, loading, error, reload } = useAsyncData(load, [planNutritionSignature(items)]);
+  const { view, loading, error, reload } = usePlanNutrition(items, { planNutrition });
 
   if (error) {
     return (
@@ -46,7 +41,7 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
       </Card>
     );
   }
-  if (!data) {
+  if (!view) {
     return (
       <Card title="Estimated nutrition">
         <p className="text-sm text-muted">
@@ -56,8 +51,7 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
     );
   }
 
-  const rollup = rollUpWeekNutrition(data);
-  if (rollup.plannedDays === 0) {
+  if (view.rollup.plannedDays === 0) {
     return (
       <Card title="Estimated nutrition">
         <p className="text-sm text-muted">Put a recipe on a day to see what your week comes to.</p>
@@ -65,26 +59,23 @@ export function PlanNutrition({ items }: { items: PlannedItem[] }) {
     );
   }
 
-  const planned = rollup.days.filter((d) => d.summary.kind !== "empty");
-  const estimateByDay = new Map(data.days.map((d) => [d.weekday, d.estimate]));
-
   return (
     <Card title="Estimated nutrition">
       <div className="flex flex-col gap-4">
         <WeekSummary
-          summary={rollup.week}
-          dailyAverage={rollup.dailyAverage}
-          plannedDays={rollup.plannedDays}
+          summary={view.rollup.week}
+          dailyAverage={view.rollup.dailyAverage}
+          plannedDays={view.rollup.plannedDays}
         />
         <ul className="flex flex-col divide-y divide-border">
-          {planned.map((day) => (
-            <DayRow key={day.weekday} day={day} estimate={estimateByDay.get(day.weekday)} />
+          {view.days.map((day) => (
+            <DayRow key={day.weekday} day={day} />
           ))}
         </ul>
         {/* Goal status against the very same rollup (BL-0038). Sharing the
             one fetch is what keeps the two halves of this card from ever
             disagreeing about whether a day is knowable. */}
-        <PlanGoals days={data.days} week={data.week} />
+        {view.goals !== null && <PlanGoals goals={view.goals} />}
         {loading && <p className="text-xs text-muted">Refreshing…</p>}
       </div>
     </Card>
@@ -97,7 +88,7 @@ function WeekSummary({
   plannedDays,
 }: {
   summary: NutritionSummary;
-  dailyAverage: ReturnType<typeof rollUpWeekNutrition>["dailyAverage"];
+  dailyAverage: WeekNutritionRollup["dailyAverage"];
   plannedDays: number;
 }) {
   const days = `${plannedDays} planned ${plannedDays === 1 ? "day" : "days"}`;
@@ -135,16 +126,9 @@ function WeekSummary({
   );
 }
 
-function DayRow({
-  day,
-  estimate,
-}: {
-  day: DayNutritionSummary;
-  estimate: NutritionEstimate | undefined;
-}) {
+function DayRow({ day }: { day: PlanNutritionDay }) {
   const { summary } = day;
   const [open, setOpen] = useState(false);
-  const targets = useQuery(api.nutritionTargets.list) ?? [];
 
   return (
     <li className="flex flex-col gap-1 py-2">
@@ -160,23 +144,22 @@ function DayRow({
             {summary.kind === "unavailable" && ` (about ${summary.coveragePercent}%)`}
           </span>
         )}
-        {/* Only a day we would put a number on gets a panel. The coverage rule
-            decides that, in exactly one place, for every nutrition surface —
+        {/* Only a day we would put a number on gets a panel, and the rollup
+            decides that — `factsRows` is empty for every other day. The
+            coverage rule runs in exactly one place for every nutrition surface:
             a quasi-official label over figures the rest of the app has agreed
             not to trust is the artifact this whole track exists to prevent. */}
-        {summary.kind === "estimate" && estimate && (
+        {day.factsRows.length > 0 && (
           <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
             {open ? "Hide Nutrition Facts" : "Nutrition Facts"}
           </Button>
         )}
       </div>
       {summary.kind !== "empty" && <GapNote gaps={summary.gaps} />}
-      {open && summary.kind === "estimate" && estimate && (
+      {open && day.factsRows.length > 0 && summary.kind === "estimate" && (
         <NutritionFactsPanel
           className="mt-1 max-w-md"
-          // A day is the period the Daily Value is defined against, so the day's
-          // own total is the figure — no divisor, and no per-serving idea here.
-          rows={nutritionFactsLabel(estimate.nutrients, { targets, period: "day" })}
+          rows={day.factsRows}
           servingsLabel={`${day.fullLabel} · whole day`}
           coveragePercent={summary.coveragePercent}
         />

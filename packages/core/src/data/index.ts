@@ -67,7 +67,23 @@ export {
   type UseOfflineGroceryList,
   useOfflineGroceryList,
 } from "./useOfflineGroceryList";
+export {
+  type GoalDraft,
+  type GoalGroup,
+  type UseNutritionGoals,
+  useNutritionGoals,
+} from "./useNutritionGoals";
+export {
+  type NutritionTargetRow,
+  type UseNutritionTargets,
+  useNutritionTargets,
+} from "./useNutritionTargets";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
+export {
+  type EstimatePlanNutrition,
+  type UsePlanNutrition,
+  usePlanNutrition,
+} from "./usePlanNutrition";
 export { type PrepForPlan, type UsePlanPrep, usePlanPrep } from "./usePlanPrep";
 export { type WeekPlanRow, type UsePlanWeek, usePlanWeek } from "./usePlanWeek";
 export {
@@ -83,6 +99,11 @@ export {
   type UseRecipeDetail,
   useRecipeDetail,
 } from "./useRecipeDetail";
+export {
+  type EstimateRecipeNutrition,
+  type UseRecipeNutrition,
+  useRecipeNutrition,
+} from "./useRecipeNutrition";
 export { type PrepForRecipe, type UseRecipePrep, useRecipePrep } from "./useRecipePrep";
 export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";
 export { type UseWeekSuggestion, useWeekSuggestion } from "./useWeekSuggestion";

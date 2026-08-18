@@ -27,6 +27,7 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cookModeHref } from "../navigation/navItems";
+import { RecipeNutrition } from "../nutrition/RecipeNutrition";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
 import { STEP_CONTROL_HEIGHT } from "./legibility";
 import { PrepSourceBadge } from "./PrepSourceBadge";
@@ -191,6 +192,15 @@ export function RecipeDetailScreen({ recipeId }: { recipeId: string }) {
                     {ingredientLine(ing)}
                   </Text>
                 ))}
+              </Section>
+            )}
+
+            {/* Estimated nutrition (BL-0036, BL-0049) sits under the
+                ingredients because that is what it is an estimate of — and
+                below the method, which is what the cook came for. */}
+            {recipe.ingredients.length > 0 && (
+              <Section title="Nutrition" testID={id("nutrition-section")}>
+                <RecipeNutrition recipeId={recipeId} />
               </Section>
             )}
 

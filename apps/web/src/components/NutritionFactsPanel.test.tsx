@@ -1,8 +1,8 @@
-import { nutritionFactsLabel } from "@pantry/core";
+import { NUTRITION_FACTS_FOOTNOTES, nutritionFactsLabel } from "@pantry/core";
 import type { NutrientAmount, NutritionTarget } from "@pantry/types";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { NUTRITION_FACTS_FOOTNOTES, NutritionFactsPanel } from "./NutritionFactsPanel";
+import { NutritionFactsPanel } from "./NutritionFactsPanel";
 
 const UNITS: Record<string, string> = {
   "1008": "kcal",

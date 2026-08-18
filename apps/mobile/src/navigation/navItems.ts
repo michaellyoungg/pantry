@@ -89,6 +89,13 @@ export function editRecipeHref(recipeId: string): Href {
   return `${recipePath(recipeId)}/edit`;
 }
 
+/**
+ * The nutrition goal editor (BL-0065). Settings content on web, its own screen
+ * here — a phone has no room to stack an editor under four other cards — so it
+ * is a stack route reached from Settings rather than a tab.
+ */
+export const NUTRITION_GOALS_HREF: Href = "/nutrition/goals";
+
 export interface MobileNavItem {
   /** File-based route name inside `app/(tabs)`. */
   readonly name: string;

@@ -11,6 +11,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
+import { PlanNutrition } from "../nutrition/PlanNutrition";
 import { surfaceTestIDs } from "../testing/testIDs";
 import { DayPager } from "./DayPager";
 import { MoveToDaySheet } from "./MoveToDaySheet";
@@ -109,6 +110,11 @@ export function PlanScreen() {
         />
 
         <SuggestWeekCard items={items} />
+
+        {/* What the week comes to (BL-0037) and how it sits against the user's
+            goals (BL-0038). It follows the pager: the week's answer, plus the
+            day on screen. */}
+        <PlanNutrition items={items} weekday={selected} />
 
         <Pressable
           accessibilityLabel="Generate grocery list"

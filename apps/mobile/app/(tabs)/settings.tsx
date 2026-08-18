@@ -1,6 +1,8 @@
 import { useAuthActions } from "@convex-dev/auth/react";
+import { Link } from "expo-router";
 import { Pressable, Text } from "react-native";
 import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { NUTRITION_GOALS_HREF } from "../../src/navigation/navItems";
 import { DeleteAccount } from "../../src/settings/DeleteAccount";
 import { surfaceTestIDs } from "../../src/testing/testIDs";
 
@@ -23,6 +25,22 @@ export default function SettingsScreen() {
       >
         <Text className="text-base text-danger">Sign out</Text>
       </Pressable>
+
+      {/*
+        Nutrition goals (BL-0065). Settings content on web too — here it is a
+        whole screen, because the editor does not fit under the rest of this
+        one, so what lives on Settings is the way in.
+      */}
+      <Link asChild href={NUTRITION_GOALS_HREF}>
+        <Pressable
+          accessibilityLabel="Nutrition goals"
+          accessibilityRole="link"
+          className="mt-4 rounded-lg border border-border px-4 py-3"
+          testID={id("nutrition-goals")}
+        >
+          <Text className="text-base text-text">Nutrition goals</Text>
+        </Pressable>
+      </Link>
 
       {/*
         And deletion, for a harder reason than convenience: App Store guideline
