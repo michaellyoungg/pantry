@@ -114,7 +114,7 @@ export const TEST_IDS = {
     suggestAccept: plan("suggest-accept"),
   },
 
-  /** The user's own recipes. */
+  /** The user's own recipes, the catalog, and the kitchen they share a tab with. */
   recipes: {
     /**
      * A row of "My recipes". Named by id rather than by list membership because
@@ -127,5 +127,35 @@ export const TEST_IDS = {
      * `uniqueSuffix()`, which is what keeps the suite clear of it.
      */
     item: (title: string): TestID => recipes("item", testIDKey(title)),
+    itemPrefix: testIDPrefix("recipes", "item"),
+    /**
+     * Which of the three views is on screen (BL-0063). Web draws them as links
+     * in a sub-nav and native as a segmented control, so the journey "browse
+     * the catalog" needs one name for the control that gets it there.
+     */
+    section: (section: "mine" | "catalog" | "kitchen"): TestID => recipes("section", section),
+    /** A catalog row, keyed by title for the same reason `item` is. */
+    catalogItem: (title: string): TestID => recipes("catalog-item", testIDKey(title)),
+    catalogItemPrefix: testIDPrefix("recipes", "catalog-item"),
+    /** Clones the catalog recipe into the user's own recipes and baskets it. */
+    catalogAdd: (title: string): TestID => recipes("catalog-add", testIDKey(title)),
+    catalogSearch: recipes("catalog-search"),
+    /** One filter chip. The group is in the key so `diet` and `cuisine` can collide. */
+    catalogChip: (group: "time" | "diet" | "cuisine", value: string): TestID =>
+      recipes("catalog-chip", `${group}-${testIDKey(value)}`),
+    onlyMakeable: recipes("only-makeable"),
+    clearFilters: recipes("clear-filters"),
+    /** One equipment checkbox in My Kitchen, keyed by its catalog slug. */
+    equipment: (equipmentId: string): TestID => recipes("equipment", testIDKey(equipmentId)),
+    /** "What can I make?" — opens the unlocks panel for one device. */
+    unlocks: (equipmentId: string): TestID => recipes("unlocks", testIDKey(equipmentId)),
+    /** The add funnel: the entry point, the URL box, and the save. */
+    add: recipes("add"),
+    importUrl: recipes("import-url"),
+    importSubmit: recipes("import-submit"),
+    saveRecipe: recipes("save"),
+    /** Opens the edit form for one recipe, and the delete it sits beside. */
+    edit: (title: string): TestID => recipes("edit", testIDKey(title)),
+    remove: (title: string): TestID => recipes("remove", testIDKey(title)),
   },
 } as const;

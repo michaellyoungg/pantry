@@ -2,6 +2,10 @@
  * Servings is nullable end to end (BL-0035). A blank field means "yield
  * unknown", which is a different thing from zero — every per-serving figure
  * downstream is omitted rather than computed when it is unknown.
+ *
+ * Lived in `apps/web/src/lib` until BL-0063 gave the native client a recipe
+ * editor of its own; it is string handling against the service's accepted
+ * range, so both editors parse a typed yield the same way.
  */
 
 /** Matches recipe-service's accepted range; it rejects anything outside it. */

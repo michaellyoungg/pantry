@@ -1,6 +1,13 @@
 import type { EquipmentDef, EquipmentFit } from "@pantry/types";
 import { describe, expect, it } from "vitest";
-import { groupByCategory, hiddenSummary, missingLabel, tallyFits } from "./equipmentFit";
+import {
+  equipmentName,
+  FIT_LABELS,
+  groupByCategory,
+  hiddenSummary,
+  missingLabel,
+  tallyFits,
+} from "./equipmentFit";
 
 const def = (id: string, name: string, category: EquipmentDef["category"]): EquipmentDef => ({
   id,
@@ -74,5 +81,22 @@ describe("hiddenSummary", () => {
 
   it("says nothing when nothing is hidden", () => {
     expect(hiddenSummary({ makeable: 4, blocked: 0, unknown: 0 })).toBeNull();
+  });
+});
+
+describe("equipmentName", () => {
+  it("resolves a slug to the catalog's name", () => {
+    expect(equipmentName(CATALOG, "skillet")).toBe("Skillet");
+  });
+
+  it("falls back to the slug rather than rendering nothing", () => {
+    expect(equipmentName(CATALOG, "sous_vide")).toBe("sous_vide");
+  });
+});
+
+describe("FIT_LABELS", () => {
+  it("words an unclassified recipe as ignorance, never as encouragement", () => {
+    expect(FIT_LABELS.unknown.label).toMatch(/unknown/i);
+    expect(FIT_LABELS.unknown.description).toMatch(/can't tell/i);
   });
 });

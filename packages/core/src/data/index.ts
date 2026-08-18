@@ -38,7 +38,26 @@ export {
   type UseGroceryList,
   useGroceryList,
 } from "./useGroceryList";
+export {
+  type AddFromCatalog,
+  type ListCatalog,
+  type ListEquipmentDefs,
+  type Makeability,
+  type UseCatalog,
+  useCatalog,
+} from "./useCatalog";
 export { type GenerateGroceryList, type HomeMeal, type UseHome, useHome } from "./useHome";
+export { useHouseholdSize } from "./useHouseholdSize";
+export { type UnlockedBy, type UseKitchenUnlocks, useKitchenUnlocks } from "./useKitchenUnlocks";
+export { type UseMyKitchen, useMyKitchen } from "./useMyKitchen";
+export {
+  type ListRecipes,
+  type RecipeEdit,
+  type RemoveRecipe,
+  type UpdateRecipe,
+  type UseMyRecipes,
+  useMyRecipes,
+} from "./useMyRecipes";
 export {
   type OfflineStatus,
   type UseOfflineGroceryList,
