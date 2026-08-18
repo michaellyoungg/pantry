@@ -29,6 +29,7 @@ export {
   CART_TRANSITION_MS,
   type FinishChoice,
   type GroceryLine,
+  type GroceryListOverride,
   type LeftoverProposal,
   REMOTE_HIGHLIGHT_MS,
   type RecentItem,
@@ -38,5 +39,19 @@ export {
   useGroceryList,
 } from "./useGroceryList";
 export { type GenerateGroceryList, type HomeMeal, type UseHome, useHome } from "./useHome";
+export {
+  type OfflineStatus,
+  type UseOfflineGroceryList,
+  useOfflineGroceryList,
+} from "./useOfflineGroceryList";
 export { type PantryItem, type PantryState, type UsePantry, usePantry } from "./usePantry";
+export { type PrepForPlan, type UsePlanPrep, usePlanPrep } from "./usePlanPrep";
+export {
+  type GetRecipe,
+  type ListEquipment,
+  type RecipeEquipmentLine,
+  type UseRecipeDetail,
+  useRecipeDetail,
+} from "./useRecipeDetail";
+export { type PrepForRecipe, type UseRecipePrep, useRecipePrep } from "./useRecipePrep";
 export { type UseItUpVariant, type UseUseItUp, useUseItUp } from "./useUseItUp";

@@ -3,11 +3,13 @@ import type { CookingMethod } from "@pantry/types";
 /**
  * Display labels for the closed cooking-method enum (BL-0041).
  *
- * The list lives here rather than in `@pantry/types` because that package ships
- * as `dist` only: the Vite dev server the e2e stack runs resolves it without a
- * build step only while every import from it is `import type`. Typing this as a
- * total `Record<CookingMethod, string>` means a method added to the union
- * without a label here fails to compile, so the duplication cannot drift.
+ * The labels live here rather than in `@pantry/types` because that package
+ * ships as `dist` only: the Vite dev server the e2e stack runs resolves it
+ * without a build step only while every import from it is `import type`. This
+ * is the headless domain layer instead, so both clients read one list. Typing
+ * it as a total `Record<CookingMethod, string>` means a method added to the
+ * union without a label here fails to compile, so the duplication cannot
+ * drift.
  *
  * Declaration order is display order — it mirrors the service's enum order.
  */

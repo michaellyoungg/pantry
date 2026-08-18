@@ -18,9 +18,14 @@ is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks),
 | Route | Status | Item |
 | --- | --- | --- |
 | `index` (home) | ported — `src/home/` | [BL-0062](../../docs/backlog/BL-0062-native-home-dashboard.md) |
-| `list` | ported — `src/grocery/` | [BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md) |
+| `list` | ported — `src/grocery/`, offline-capable | [BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md), [BL-0058](../../docs/backlog/BL-0058-offline-grocery-cache-replay.md) |
 | `pantry` | ported — `src/pantry/` | [BL-0059](../../docs/backlog/BL-0059-native-pantry.md) |
+| `recipe/[id]`, `recipe/[id]/cook` | ported — `src/cooking/` | [BL-0061](../../docs/backlog/BL-0061-native-cooking-mode.md) |
 | everything else | placeholder | see each screen's `portedBy` |
+
+The recipe routes are a **stack**, not a tab: cooking is entered from a specific
+meal and left again, and the tab bar is the shared destination list in
+`@pantry/core` (BL-0054), which they are deliberately not part of.
 
 A ported screen is presentation over a `@pantry/core/data` hook and nothing
 else. If a screen needs domain logic that is not in one of those hooks yet, the
@@ -122,7 +127,8 @@ from `src/`. The grocery list
 ([BL-0057](../../docs/backlog/BL-0057-native-grocery-list.md)) is the first real
 one and sets the pattern for the rest:
 
-- **Every value on screen comes from `useGroceryList()` and `@pantry/core`.** The
+- **Every value on screen comes from a `@pantry/core/data` hook and
+  `@pantry/core`.** The
   aisle grouping, what to buy, what the recipes wanted, what is left over — all
   of it is the same code the web screen renders from. A rule about groceries
   written in `src/grocery/` would be a rule the two clients can disagree about.
@@ -137,9 +143,6 @@ one and sets the pattern for the rest:
 - **Sheets are bottom sheets, and are in-tree rather than `Alert.alert`** — the
   top of a phone is out of thumb reach, and an OS alert cannot be tested.
 
-Offline is [BL-0058](../../docs/backlog/BL-0058-offline-grocery-cache-replay.md) and is
-expected to replace the grocery screen's data source in place.
-
 Home (`src/home/`,
 [BL-0062](../../docs/backlog/BL-0062-native-home-dashboard.md)) is the launch
 screen, and follows the same split. Which single next action to offer is
@@ -149,7 +152,52 @@ conclusions about the same account. What this client decides is layout and
 routing — the week strip is seven full-width rows rather than seven columns,
 because forty points per day is an ellipsis, and CTAs stack rather than sitting
 side by side. `tabHref()` in `src/navigation/navItems.ts` is the one place a
-shared destination becomes an Expo Router href.
+shared destination becomes an Expo Router href, and `recipeHref()` /
+`cookModeHref()` beside it do the same for the stack routes below.
+
+Cooking (`src/cooking/`,
+[BL-0061](../../docs/backlog/BL-0061-native-cooking-mode.md)) is the other place
+this client earns its existence, and the split is the same again: the recipe,
+its derived lead-time prep (BL-0042) and the equipment catalog come from
+`useRecipeDetail()` / `usePlanPrep()`, and every label — cook time, cuisine,
+prep windows, cooking methods — is a `@pantry/core` helper the web surfaces call
+too. What is native:
+
+- **`CookModeScreen` has no web counterpart.** A laptop sits still on a desk;
+  a phone is propped against a mixing bowl. So the method becomes one step at a
+  time, drawn at a size deliberately outside the token scale
+  (`src/cooking/legibility.ts`, the reasoning and the numbers, asserted in
+  tests like `hitTargets.ts` is), and the screen is held awake for exactly as
+  long as that screen is mounted rather than for as long as the app is open.
+- **Recipe detail is a screen, not a disclosure.** Web expands a recipe row
+  inside a list you are deciding from; arriving here means you are about to
+  cook this thing, so it leads with the action and with what should already
+  have happened, and puts ingredients before the method.
+- **Prep check-off is the whole row.** Web draws a 16px checkbox next to a
+  mouse. The tick is optimistic in the shared hook, because a controlled Convex
+  checkbox without one appears to do nothing and then jump.
+
+### Offline (BL-0058)
+
+The grocery screen's data source is `useOfflineGroceryList`, and it is the only
+surface in the app with one — offline scope is the grocery list and nothing
+else. Three pieces:
+
+- **`@pantry/core`'s `groceryOffline.ts`** is the reconciliation, and it is pure:
+  the composite key a line keeps across a regeneration, the collapse of the
+  queue to one intent per line, the replay plan, and the cache codec. The
+  interesting cases are tested there, without a renderer.
+- **`@pantry/core/data`'s `useOfflineGroceryList`** is the wiring: read the
+  cache on mount, queue a tap when the socket is down, replay on reconnect.
+- **`src/offline/groceryCacheStore.ts`** is the device half — `AsyncStorage`,
+  not `expo-secure-store` (a list is not a secret, and SecureStore warns above
+  2048 bytes per value).
+
+What this screen owns is the two things the shopper is told: `OfflineBanner`
+(this is happening) and `ReplayConflictSheet` (one queued tick could not be
+settled — which of the two answers do you want). A queued check-off that cannot
+be replayed is never dropped silently: it lost a real purchase *and* the pantry
+inflow that purchase writes.
 
 ## Styling
 
@@ -169,9 +217,10 @@ which means the drift check fails once, on purpose, as the prompt to regenerate.
 
 - `@pantry/convex` and `@pantry/types` are **not** direct dependencies, and
   still do not need to be. `@pantry/core/data` owns the `@pantry/convex/api`
-  import on the app's behalf, and the one reference to `@pantry/types` (the
-  `Recommendation` row on the pantry screen) is `import type`, so it is erased
-  before anything has to resolve it. Both are in the Metro source map already,
+  import on the app's behalf, and every reference to `@pantry/types` (the
+  `Recommendation` row on the pantry screen; `Ingredient` and `PrepSource` in
+  `src/cooking/`) is `import type`, so it is erased before anything has to
+  resolve it. Both are in the Metro source map already,
   so the first screen needing a *runtime* import only adds a line to
   `package.json`.
 - `@pantry/core/data` ([BL-0055](../../docs/backlog/BL-0055-core-data-screen-hooks.md))

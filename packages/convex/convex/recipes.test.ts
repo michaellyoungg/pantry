@@ -44,6 +44,41 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("recipes.get", () => {
+  it("returns the recipe a cooking screen was opened for", async () => {
+    const recipe = { id: "r1", title: "Roast turkey", ingredients: [], steps: ["Cook it."] };
+    const fetchMock = stubRecipeService(recipe);
+    const t = convexTest(schema, modules);
+
+    const got = await t.withIdentity(identity).action(api.recipes.get, { id: "r1" });
+
+    expect(got).toMatchObject({ id: "r1", title: "Roast turkey" });
+    expect(fetchMock.mock.calls[0][0]).toBe("http://recipe-service.test/recipes/r1");
+  });
+
+  // The plan can outlive the recipe it points at, so a screen opened from it
+  // has to be able to say "this is gone" rather than "something went wrong".
+  it("resolves to null for a recipe that no longer exists", async () => {
+    stubRecipeService({ error: "recipe not found" }, { status: 404 });
+    const t = convexTest(schema, modules);
+
+    const got = await t.withIdentity(identity).action(api.recipes.get, { id: "gone" });
+
+    expect(got).toBeNull();
+  });
+
+  // ...but only for 404. A service that is down must not be reported to the
+  // user as an empty library.
+  it("still throws when recipe-service fails", async () => {
+    stubRecipeService({ error: "boom" }, { status: 500 });
+    const t = convexTest(schema, modules);
+
+    await expect(t.withIdentity(identity).action(api.recipes.get, { id: "r1" })).rejects.toThrow(
+      /failed: 500/,
+    );
+  });
+});
+
 describe("recipes.remove referential integrity", () => {
   it("drops the basket/week-plan row pointing at the deleted recipe", async () => {
     stubRecipeService(null, { status: 204 });

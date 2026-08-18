@@ -10,10 +10,10 @@ can reuse it instead of reimplementing it.
 
 | Import | Contains | May depend on |
 | --- | --- | --- |
-| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
+| `@pantry/core` | Pure functions: week-plan bucketing, the servings clamp, aisle grouping, the import-review draft, quantity formatting, the nutrition rollup (when a figure may be shown at all, and what it is missing), goal evaluation and the diet presets it reads, derived-prep windows and due dates, the discovery/cook-time formatting and the cooking-method labels — plus `NAV_ITEMS`, the shared list of navigation destinations | nothing but `@pantry/types` |
 | `@pantry/core/react` | Headless hooks: `useAsyncAction`, `useAsyncData`, `useRecipeDraft` | React |
 | `@pantry/core/convex` | Optimistic updates against the Convex client cache | `convex`, `@pantry/convex` |
-| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry` | React, `convex/react`, `@pantry/convex`, and the three above |
+| `@pantry/core/data` | One headless hook per screen: `useGroceryList`, `useHome`, `usePantry`, `usePlanPrep`, `useRecipeDetail` | React, `convex/react`, `@pantry/convex`, and the three above |
 | `@pantry/core/testing` | The test-selector contract: `testID()`, and `TEST_IDS`, the names both clients emit | nothing |
 
 Nothing here may touch the DOM, a renderer, or styling — including the hooks.
@@ -104,6 +104,27 @@ components, and carry their own migration when they are ported.
 | Grocery list | `useGroceryList` | `apps/web/src/components/GroceryList.tsx` |
 | Home | `useHome` | `apps/web/src/components/Home.tsx` |
 | Pantry | `usePantry` | `apps/web/src/components/Pantry.tsx` |
+| Use it up | `useUseItUp` | `apps/web/src/components/UseItUp.tsx` |
+| This week's prep | `usePlanPrep` | `apps/web/src/components/BeforeYouCook.tsx` |
+| A recipe's prep | `useRecipePrep` | `apps/web/src/components/RecipePrep.tsx` |
+| Recipe / cooking | `useRecipeDetail` | *(native only — web expands a recipe row inside a list it already holds)* |
+
+### Offline, and why only one hook has it
+
+`useOfflineGroceryList` (BL-0058) wraps `useGroceryList` with a durable cache
+and a replay queue, and `apps/mobile` is the only caller. Offline is a property
+of *that* client — a phone in a shop with no signal — not of the screen, so it
+is a wrapper rather than a flag inside the shared hook, and the web app keeps
+the plain one.
+
+The reconciliation is not in the hook. `src/groceryOffline.ts` is pure, in the
+platform-free entry point, and holds the whole of it: the `item|unit|aisle`
+composite a line keeps across a regeneration, the collapse of a queue of taps to
+one intent per line, the plan that re-resolves each intent against the list as
+it is *now*, and the cache codec. Two things it decides that nothing else can:
+that a queued tap loses to a server state stamped after this device's last view,
+and that a tap whose line the server no longer has is a conflict to surface
+rather than a write to drop. Both are tested there, without a renderer.
 
 ## Test selectors (`@pantry/core/testing`)
 

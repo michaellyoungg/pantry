@@ -1,7 +1,7 @@
+import { stateKey } from "@pantry/core";
 import type { PrepMeal, PrepTask } from "@pantry/types";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { stateKey } from "../lib/prep";
 import { MealPrepBadge } from "./MealPrepBadge";
 
 function task(over: Partial<PrepTask> = {}): PrepTask {

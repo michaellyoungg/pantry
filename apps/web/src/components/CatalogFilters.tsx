@@ -1,10 +1,5 @@
+import { COOK_TIME_BUCKETS, type CookTimeBucketId, DIET_TAGS, humanizeSlug } from "@pantry/core";
 import type { Recipe } from "@pantry/types";
-import {
-  COOK_TIME_BUCKETS,
-  type CookTimeBucketId,
-  DIET_TAGS,
-  humanizeSlug,
-} from "../lib/discovery";
 
 /** The active filter selection. Empty/undefined everywhere means "show all". */
 export interface CatalogFilter {

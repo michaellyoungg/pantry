@@ -1,7 +1,7 @@
 ---
 id: BL-0064
 title: Native week planner
-status: proposed
+status: in-progress
 area: mobile
 effort: L
 related_specs: [2026-08-16-mobile-client-parity-design.md]

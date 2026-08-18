@@ -1,7 +1,7 @@
 ---
 id: BL-0058
 title: Offline grocery cache + collapse-and-replay reconciliation
-status: in-progress
+status: done
 area: mobile
 effort: L
 related_specs: [2026-08-16-mobile-client-parity-design.md]

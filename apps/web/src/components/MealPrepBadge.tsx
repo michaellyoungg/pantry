@@ -1,5 +1,5 @@
+import { hasLeadTime, PREP_WINDOW_LABELS, stateKey } from "@pantry/core";
 import type { PrepMeal } from "@pantry/types";
-import { hasLeadTime, PREP_WINDOW_LABELS, stateKey } from "../lib/prep";
 
 /**
  * Lead-time prep on a planned meal (BL-0042).

@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { NAV_ITEMS as SHARED_NAV_ITEMS } from "@pantry/core";
 import { TEST_ID_PATTERN, testID } from "../testing/testIDs";
-import { NAV_ITEMS, tabHref } from "./navItems";
+import { cookModeHref, NAV_ITEMS, recipeHref, tabHref } from "./navItems";
 
 const appRoot = path.resolve(__dirname, "../..");
 
@@ -61,5 +61,24 @@ describe("NAV_ITEMS", () => {
       const id = testID("nav", "tab", item.name === "index" ? "home" : item.name);
       expect(TEST_ID_PATTERN.test(id)).toBe(true);
     }
+  });
+});
+
+describe("the recipe hrefs", () => {
+  // Same assertion as the tabs above, for the stack routes cooking mode adds
+  // (BL-0061): a hand-written path has to address a route file that exists, or
+  // the screen navigates into a 404 that nothing else catches.
+  it("address route files this app actually has", () => {
+    expect(existsSync(path.join(appRoot, "app", "recipe", "[id]", "index.tsx"))).toBe(true);
+    expect(existsSync(path.join(appRoot, "app", "recipe", "[id]", "cook.tsx"))).toBe(true);
+    expect(recipeHref("r1")).toBe("/recipe/r1");
+    expect(cookModeHref("r1")).toBe("/recipe/r1/cook");
+  });
+
+  // Recipe ids come from recipe-service, not from this app, so a path is built
+  // from them rather than from a closed union — which makes escaping this
+  // file's job.
+  it("escape an id rather than letting it change the path", () => {
+    expect(recipeHref("a/b?c")).toBe("/recipe/a%2Fb%3Fc");
   });
 });
