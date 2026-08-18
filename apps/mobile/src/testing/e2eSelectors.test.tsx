@@ -18,8 +18,11 @@ jest.mock("@convex-dev/auth/react", () => ({
 
 // Deliberately shapeless: each screen has its own test asserting what it does
 // with real data, and this one only asks whether the selectors render at all.
+// One object stands in for every action's empty answer — the prep derivation's
+// and the nutrition rollup's alike — rather than a dispatch table this file has
+// no reason to maintain.
 jest.mock("convex/react", () => {
-  const empty = async () => ({ meals: [] });
+  const empty = async () => ({ meals: [], days: [], week: null });
   const mutation = Object.assign(async () => undefined, { withOptimisticUpdate: () => mutation });
   return { useQuery: () => [], useAction: () => empty, useMutation: () => mutation };
 });

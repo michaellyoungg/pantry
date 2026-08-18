@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 const mockState = { basket: [] as unknown[] };
 const mockAction = jest.fn(async () => ({ count: 3 }));
 const mockPrep = jest.fn(async () => ({ meals: [] }));
+const mockPlanNutrition = jest.fn(async () => ({ days: [], week: null }) as unknown);
 const mockMutations: Record<string, jest.Mock> = {};
 
 // Dispatched by function name: the screen's own action and the prep derivation
@@ -16,8 +17,12 @@ jest.mock("convex/react", () => {
   return {
     useQuery: (ref: unknown) =>
       getFunctionName(ref).startsWith("basket:") ? mockState.basket : [],
-    useAction: (ref: unknown) =>
-      getFunctionName(ref).endsWith("generateGroceryList") ? mockAction : mockPrep,
+    useAction: (ref: unknown) => {
+      const name = getFunctionName(ref);
+      if (name.endsWith("generateGroceryList")) return mockAction;
+      if (name === "nutrition:planNutrition") return mockPlanNutrition;
+      return mockPrep;
+    },
     useMutation: (ref: unknown) => {
       const name = getFunctionName(ref).split(":").pop() as string;
       mockMutations[name] ??= jest.fn(async () => undefined);
@@ -52,6 +57,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const key of Object.keys(mockMutations)) delete mockMutations[key];
   mockPrep.mockResolvedValue({ meals: [] });
+  mockPlanNutrition.mockResolvedValue({ days: [], week: null });
   mockState.basket = [];
 });
 

@@ -24,6 +24,7 @@ is `@pantry/core` (pure logic), `@pantry/core/react` (headless hooks),
 | `pantry` | ported — `src/pantry/` | [BL-0059](../../docs/backlog/BL-0059-native-pantry.md) |
 | `recipe/[id]`, `recipe/[id]/cook` | ported — `src/cooking/` | [BL-0061](../../docs/backlog/BL-0061-native-cooking-mode.md) |
 | `recipes/new`, `recipe/[id]/edit` | ported — `src/recipes/` | [BL-0063](../../docs/backlog/BL-0063-native-recipes-browse.md) |
+| `nutrition/goals` | ported — `src/nutrition/` | [BL-0065](../../docs/backlog/BL-0065-native-nutrition-surfaces.md) |
 | everything else | placeholder | see each screen's `portedBy` |
 
 The recipe routes are a **stack**, not a tab: cooking is entered from a specific
@@ -33,6 +34,20 @@ deliberately not part of. Web's three `/recipes` sub-routes are one tab here
 with a segmented control — a phone has no room for a second row of navigation
 under a tab bar, and the three views are peers over one subject rather than
 places you go.
+
+The nutrition surfaces (BL-0065) are not a route of their own except for the
+goal editor. The Nutrition Facts panel and the goal verdict live on the recipe
+screen, the week rollup lives on the planner, and the editor is a stack route
+because web keeps it on `/settings` beside four other cards and a phone has no
+room to stack it under them — Settings links to it.
+
+Two of those compose differently from web, and both are the pager's doing. The
+planner's nutrition card answers for the week and for the day you have paged to,
+rather than listing seven days at once; and the recipe's label sits behind a
+disclosure, so fifteen rows of a regulatory panel do not come between the
+ingredients and the method. Everything the two clients *decide* is shared —
+`recipeNutritionView` and `planNutritionView` in `@pantry/core` — so only the
+arrangement differs.
 
 A ported screen is presentation over a `@pantry/core/data` hook and nothing
 else. If a screen needs domain logic that is not in one of those hooks yet, the

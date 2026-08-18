@@ -13,6 +13,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 const mockGetRecipe = jest.fn(async () => null as unknown);
 const mockForRecipe = jest.fn(async () => null as unknown);
 const mockListEquipment = jest.fn(async () => [] as unknown);
+const mockNutrition = jest.fn(async () => null as unknown);
 const mockNavigate = jest.fn();
 const mockBack = jest.fn();
 
@@ -25,8 +26,12 @@ jest.mock("convex/react", () => {
       const name = getFunctionName(ref);
       if (name === "recipes:get") return mockGetRecipe;
       if (name === "recipes:listEquipment") return mockListEquipment;
+      if (name === "recipes:nutrition") return mockNutrition;
       return mockForRecipe;
     },
+    // The nutrition panel's goals (BL-0065). No goal is the ordinary state, and
+    // this suite is about the recipe rather than about the panel.
+    useQuery: () => [],
   };
 });
 
