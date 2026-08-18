@@ -1,7 +1,7 @@
 import { api } from "@pantry/convex/api";
+import { PREP_WINDOW_LABELS, toISODate } from "@pantry/core";
 import { useAsyncData } from "@pantry/core/react";
 import { useCallback } from "react";
-import { PREP_WINDOW_LABELS, toISODate } from "../lib/prep";
 import { useTracedAction } from "../telemetry/useTracedAction";
 import { PrepSourceBadge } from "./PrepSourceBadge";
 

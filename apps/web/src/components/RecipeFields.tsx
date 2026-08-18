@@ -1,3 +1,4 @@
+import { MAX_TOTAL_MINUTES } from "@pantry/core";
 import type {
   CookingMethod,
   EquipmentDef,
@@ -7,7 +8,6 @@ import type {
   RecipeEquipment,
 } from "@pantry/types";
 import { useId } from "react";
-import { MAX_TOTAL_MINUTES } from "../lib/discovery";
 import { EquipmentEditor } from "./EquipmentEditor";
 import { PrepEditor } from "./PrepEditor";
 import { ServingsField } from "./ServingsField";

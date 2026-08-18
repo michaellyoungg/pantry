@@ -1,7 +1,6 @@
+import { COOKING_METHOD_LABELS, formatDuration, humanizeSlug } from "@pantry/core";
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
 import { useEffect, useState } from "react";
-import { COOKING_METHOD_LABELS } from "../lib/cookingMethods";
-import { formatDuration, humanizeSlug } from "../lib/discovery";
 import { equipmentName } from "../lib/useEquipmentCatalog";
 import { RecipePrep } from "./RecipePrep";
 

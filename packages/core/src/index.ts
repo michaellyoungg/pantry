@@ -16,7 +16,21 @@ export {
   toISODate,
   windowEndingOn,
 } from "./calendar";
+export { COOKING_METHOD_LABELS, COOKING_METHODS } from "./cookingMethods";
 export { DIET_PRESETS, dietPreset, presetTargets } from "./dietPresets";
+export {
+  COOK_TIME_BUCKETS,
+  type CookTimeBucketId,
+  DIET_TAGS,
+  formatDuration,
+  formatTags,
+  formatTotalMinutes,
+  humanizeSlug,
+  MAX_TOTAL_MINUTES,
+  parseTags,
+  parseTotalMinutes,
+  slugifyFacet,
+} from "./discovery";
 export {
   EXPIRY_HORIZON_DAYS,
   expiringSoon,
@@ -132,6 +146,17 @@ export {
   toggledType,
   unscheduledItems,
 } from "./planner";
+export {
+  doneSet,
+  dueByToday,
+  formatDueOn,
+  hasLeadTime,
+  type PlannedRow,
+  PREP_WINDOW_LABELS,
+  type PrepTaskForMeal,
+  prepPlanSignature,
+  stateKey,
+} from "./prep";
 export {
   draftImportUrl,
   draftSubmission,

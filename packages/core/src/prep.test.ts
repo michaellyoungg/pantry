@@ -8,8 +8,6 @@ import {
   PREP_WINDOW_LABELS,
   prepPlanSignature,
   stateKey,
-  toISODate,
-  weekStartISO,
 } from "./prep";
 
 function task(over: Partial<PrepTask> = {}): PrepTask {
@@ -34,37 +32,6 @@ function meal(over: Partial<PrepMeal> = {}): PrepMeal {
     ...over,
   };
 }
-
-describe("toISODate", () => {
-  // The bug this prevents: toISOString() would render a local evening in
-  // August as the NEXT day for anyone east of UTC, silently moving every
-  // deadline by 24 hours.
-  it("uses local calendar parts, not UTC", () => {
-    const d = new Date(2026, 7, 5, 23, 30); // 5 Aug 2026, 23:30 local
-    expect(toISODate(d)).toBe("2026-08-05");
-  });
-
-  it("zero-pads months and days", () => {
-    expect(toISODate(new Date(2026, 0, 3))).toBe("2026-01-03");
-  });
-});
-
-describe("weekStartISO", () => {
-  it.each([
-    ["Monday", new Date(2026, 7, 3), "2026-08-03"],
-    ["Wednesday", new Date(2026, 7, 5), "2026-08-03"],
-    // Sunday is the END of this week, not the start of the next one — the
-    // planner runs Mon…Sun to match basket.weekday.
-    ["Sunday", new Date(2026, 7, 9), "2026-08-03"],
-    ["the next Monday", new Date(2026, 7, 10), "2026-08-10"],
-  ])("resolves %s to its Monday", (_label, now, want) => {
-    expect(weekStartISO(now)).toBe(want);
-  });
-
-  it("walks back across a month boundary", () => {
-    expect(weekStartISO(new Date(2026, 8, 2))).toBe("2026-08-31");
-  });
-});
 
 describe("dueByToday", () => {
   it("includes today and everything overdue", () => {

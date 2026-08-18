@@ -1,11 +1,11 @@
 import { api } from "@pantry/convex/api";
+import { doneSet, type PlannedRow, prepPlanSignature, startOfWeek, toISODate } from "@pantry/core";
 import { setPrepTaskDoneOptimistic } from "@pantry/core/convex";
 import { useAsyncData } from "@pantry/core/react";
 import type { PrepMeal } from "@pantry/types";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
-import { doneSet, type PlannedRow, prepPlanSignature, toISODate, weekStartISO } from "./prep";
 
 /**
  * The planned week's derived prep, plus check-off (BL-0042).
@@ -20,7 +20,7 @@ import { doneSet, type PlannedRow, prepPlanSignature, toISODate, weekStartISO } 
  */
 export function usePlanPrep(now: Date = new Date()) {
   const today = toISODate(now);
-  const weekStart = weekStartISO(now);
+  const weekStart = startOfWeek(today);
 
   const forPlan = useTracedAction(api.prepTasks.forPlan, "prepTasks.forPlan");
   // Optimistic: the box is a controlled input, so without this a tap cannot

@@ -1,10 +1,9 @@
 import { api } from "@pantry/convex/api";
-import { defaultServingsMultiplier } from "@pantry/core";
+import { defaultServingsMultiplier, formatDuration, humanizeSlug } from "@pantry/core";
 import { useAsyncAction, useAsyncData } from "@pantry/core/react";
 import type { EquipmentFit } from "@pantry/types";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
-import { formatDuration, humanizeSlug } from "../lib/discovery";
 import { FIT_BADGES, hiddenSummary, missingLabel, tallyFits } from "../lib/equipmentFit";
 import { useEquipmentCatalog } from "../lib/useEquipmentCatalog";
 import { useHouseholdSize } from "../lib/useHouseholdSize";
