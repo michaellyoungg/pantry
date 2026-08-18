@@ -11,14 +11,8 @@ import (
 	"pantry/apps/recipe-service/internal/recipe"
 )
 
-// field is one JSON property, reduced to what both sides can state: its name,
-// a coarse kind, whether it is always present, and whether it can be null.
-//
-// The kinds are deliberately coarse. A schema and a Go struct agree on "array"
-// but not on whether the element type is a $ref, so pretending to check more
-// than this would be a check that lies. What it does catch is every drift that
-// has actually happened here: a renamed field, a field one side forgot, a
-// number that became a string, and an optional that became required.
+// field is one JSON property. Kind is coarse — a schema and a Go struct agree on
+// "array", not on its element type.
 type field struct {
 	Name     string
 	Kind     string
@@ -30,10 +24,8 @@ type field struct {
 type binding struct {
 	Schema string
 	Go     reflect.Type
-	// Strict is false for request-only schemas. A struct the server only ever
-	// DECODES says nothing about what a client must send — `omitempty` is an
-	// encoding hint and Go fills an absent field with its zero value — so for
-	// those, names and kinds are checked and optionality is not.
+	// Strict is false for request-only schemas: a struct the server only decodes
+	// says nothing about what a client must send, so optionality is not compared.
 	Strict bool
 	Fields []field
 }
@@ -42,12 +34,8 @@ func bind(schema string, goType reflect.Type, strict bool, fields ...field) bind
 	return binding{Schema: schema, Go: goType, Strict: strict, Fields: fields}
 }
 
-// TestStructsMatchSpec is the whole point of this package: every Go type the
-// spec names must marshal to the shape the spec promises.
 func TestStructsMatchSpec(t *testing.T) {
-	// A generated table that came out empty would make every subtest below
-	// vanish and the package pass, which is the one failure this test cannot
-	// report on its own.
+	// An empty table would make every subtest vanish and the package pass.
 	if len(specBindings) == 0 {
 		t.Fatal("spec_gen_test.go bound no Go types; run `pnpm contract:codegen`")
 	}
@@ -63,9 +51,6 @@ func TestStructsMatchSpec(t *testing.T) {
 	}
 }
 
-// TestRoutesMatchSpec fails when an endpoint is added to the router without
-// being written down, or written down without being served. Either way a client
-// generated from the spec is wrong about the surface it is calling.
 func TestRoutesMatchSpec(t *testing.T) {
 	got := recipe.RoutePatterns()
 	if !slices.Equal(specRoutes, got) {
@@ -83,10 +68,8 @@ func jsonShape(t reflect.Type) []field {
 		if tag == "-" {
 			continue
 		}
-		// An untagged embedded struct is spliced into the parent object, which
-		// is how recipe.EquipmentMatch is "a Recipe plus three fields".
-		// encoding/json promotes through an unexported struct type too, so this
-		// is checked before the exportedness gate below.
+		// encoding/json promotes through an unexported embedded struct type, so
+		// this runs before the exportedness gate below.
 		if sf.Anonymous && tag == "" && deref(sf.Type).Kind() == reflect.Struct {
 			out = append(out, jsonShape(deref(sf.Type))...)
 			continue
@@ -104,8 +87,7 @@ func jsonShape(t reflect.Type) []field {
 		ft := sf.Type
 		nullable := false
 		if ft.Kind() == reflect.Pointer {
-			// A pointer without omitempty encodes nil as JSON null; with it, the
-			// field simply disappears. Only the first is a nullable field.
+			// nil encodes as null without omitempty, and disappears with it.
 			nullable = !omitempty
 			ft = ft.Elem()
 		}
@@ -121,7 +103,6 @@ func deref(t reflect.Type) reflect.Type {
 	return t
 }
 
-// kindOf names the JSON type a Go type encodes to, in the spec's vocabulary.
 func kindOf(t reflect.Type) string {
 	if t == reflect.TypeOf(time.Time{}) {
 		return "string"
@@ -145,12 +126,8 @@ func kindOf(t reflect.Type) string {
 	}
 }
 
-// compare reports every way the two shapes differ, rather than the first, so a
-// failing test names the whole drift instead of one field per run.
-//
-// Order is not compared: JSON object member order is not part of the contract,
-// and requiring the spec to list fields in Go declaration order would turn a
-// cosmetic edit into a test failure.
+// compare reports every difference, not the first. Field order is not compared:
+// it is not part of the contract.
 func compare(want, got []field, strict bool) []string {
 	problems := []string{}
 	byName := make(map[string]field, len(got))
@@ -203,11 +180,8 @@ func nullability(nullable bool) string {
 	return "non-null"
 }
 
-// ── The checker's own tests ───────────────────────────────────────────────
-//
-// specBindings only exercises jsonShape on shapes that currently AGREE, so
-// nothing above would notice if the reflection quietly stopped seeing
-// omitempty. These cover the cases the real structs depend on.
+// specBindings only exercises jsonShape on shapes that currently agree, so
+// nothing above would notice if the reflection stopped seeing omitempty.
 
 type embedded struct {
 	Inner string `json:"inner"`
@@ -276,8 +250,6 @@ func TestCompareNamesEveryDifference(t *testing.T) {
 	}
 }
 
-// A request-only binding must not fail merely because the server decodes a
-// field the client may omit — Go fills an absent field with its zero value.
 func TestCompareIgnoresOptionalityForRequests(t *testing.T) {
 	want := []field{{"useItUp", "boolean", false, false}}
 	got := []field{{"useItUp", "boolean", true, false}}

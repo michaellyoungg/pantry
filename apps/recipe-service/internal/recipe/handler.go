@@ -56,10 +56,8 @@ func NewRouterWithImporter(store Store, secret string, imp *Importer, opts ...Ro
 	return otelhttp.NewHandler(requireService(secret, mux), "recipe-service")
 }
 
-// routes is the whole HTTP surface, as data rather than as a run of
-// registration calls, so RoutePatterns can list it without a running server.
-// contract/openapi.yaml is checked against that list (BL-0007), which is what
-// stops an endpoint from being served without being written down.
+// routes is the HTTP surface as data, so RoutePatterns can list it without a
+// running server; contract/openapi.yaml is checked against that list.
 func (h *handlers) routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
 		"GET /healthz":                   h.healthz,

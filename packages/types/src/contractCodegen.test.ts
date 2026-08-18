@@ -1,15 +1,5 @@
-/**
- * Tests the subset of OpenAPI `scripts/contract-codegen.mjs` understands.
- *
- * Most of this package is rendered by that script, and the Go conformance table
- * it also renders is what pins the server structs to the same spec. A quiet bug
- * in the renderer therefore weakens both halves of the contract at once — and
- * `--check` would not notice, because it compares the generator against itself.
- *
- * These cases are the ones the real spec depends on: optionality, nullability,
- * `allOf` flattening, open maps, and the two rules that make the Go binding
- * table meaningful.
- */
+// Tests the OpenAPI subset scripts/contract-codegen.mjs understands. `--check`
+// compares the generator against itself, so it would not catch a bug here.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -53,8 +43,6 @@ describe("TypeScript rendering", () => {
       },
     });
 
-    // The distinction is the point: the server always sends the key, and its
-    // value can be null. An optional would let a caller forget to handle null.
     expect(ts).toContain("grams: number | null;");
   });
 
@@ -124,7 +112,6 @@ describe("TypeScript rendering", () => {
     const { ts } = render({
       Thing: {
         type: "object",
-        // One paragraph-long line, as `>-` produces.
         description: `${"word ".repeat(40)}end`,
         ...unbound,
         required: [],
@@ -225,7 +212,6 @@ describe("refusals", () => {
   });
 
   it("refuses a dangling $ref anywhere in the document, not just in a schema", () => {
-    // A response reference is never rendered, so nothing else would notice.
     expect(() =>
       render(
         {},
@@ -259,8 +245,6 @@ describe("the committed output", () => {
     const spec = parse(readFileSync(`${repoRoot}contract/openapi.yaml`, "utf8"));
     const rendered = generate(spec) as { ts: string; go: string };
 
-    // `pnpm contract:check` is the CI gate; this is the same assertion, so a
-    // stale file fails the unit suite too rather than only the lint-ish step.
     expect(readFileSync(`${repoRoot}packages/types/src/contract.generated.ts`, "utf8")).toBe(
       rendered.ts,
     );

@@ -1,20 +1,8 @@
 # The recipe-service HTTP contract — the single source of truth for the shapes
-# that cross the Convex/Go boundary (BL-0007).
+# that cross the Convex/Go boundary. Regenerate the TypeScript types and the Go
+# conformance table with `pnpm contract:codegen`.
 #
-# Two things are derived from this file and checked in:
-#
-#   - packages/types/src/contract.generated.ts — the TypeScript wire types every
-#     JS consumer imports through @pantry/types.
-#   - apps/recipe-service/internal/contract/spec_gen_test.go — the table the Go
-#     conformance test reflects the hand-written server structs against.
-#
-# Regenerate with `pnpm contract:codegen`; `pnpm contract:check` (CI) fails if
-# either output is stale. See contract/README.md for why the Go side is checked
-# rather than generated.
-#
-# Only a documented subset of OpenAPI is understood by the generator — see
-# contract/README.md#the-subset. Adding a keyword it does not know is a codegen
-# error, not a silent omission.
+# Only a documented subset of OpenAPI is understood; see contract/README.md.
 openapi: 3.1.0
 
 info:

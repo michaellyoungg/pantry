@@ -1,21 +1,12 @@
 // @pantry/types — the shapes shared across the TypeScript side of the monorepo.
 //
-// Most of this package is GENERATED. The recipe-service HTTP contract is
-// written once, in `contract/openapi.yaml`, and rendered into
-// `contract.generated.ts`; the Go server structs are checked against the same
-// spec by `apps/recipe-service/internal/contract` (BL-0007). Editing a wire
-// type here would silently un-share it, so edit the spec and run
-// `pnpm contract:codegen`.
+// The recipe-service wire types are generated from contract/openapi.yaml into
+// contract.generated.ts; edit the spec and run `pnpm contract:codegen`, never
+// this file. What stays below is what never crosses that wire — the shapes
+// Convex owns end to end.
 //
-// What stays hand-written below is everything that never crosses that wire:
-// the shapes Convex owns end to end. They live here rather than in
-// `@pantry/convex` because every client reads them.
-//
-// A star re-export rather than a named list, because the alternative is a
-// sixty-line index that has to be edited every time the spec gains a field —
-// exactly the hand-maintained mirror this package exists to retire. `export
-// type *` keeps the erase-on-import property the note on `CookingMethod`
-// depends on: nothing here is a runtime value.
+// A star re-export, and `type` so nothing here is a runtime value (see the note
+// on CookingMethod).
 export type * from "./contract.generated";
 
 import type {

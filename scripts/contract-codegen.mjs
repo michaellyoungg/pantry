@@ -1,26 +1,10 @@
 #!/usr/bin/env node
 /**
- * Renders the two checked-in artifacts of the recipe-service HTTP contract from
- * `contract/openapi.yaml`:
- *
- *   - packages/types/src/contract.generated.ts — the TypeScript wire types.
- *   - apps/recipe-service/internal/contract/spec_gen_test.go — the table the Go
- *     conformance test reflects the hand-written server structs against.
+ * Renders the TypeScript wire types and the Go conformance table from
+ * contract/openapi.yaml. See contract/README.md.
  *
  *   node scripts/contract-codegen.mjs           # write both
  *   node scripts/contract-codegen.mjs --check   # verify, exit 1 on drift (CI)
- *
- * The outputs are committed so neither `tsc` nor `go build` needs a codegen
- * step, and `--check` is what stops that convenience from turning into a stale
- * contract: it re-renders and compares, exactly like `pnpm backlog:index:check`.
- *
- * Only the subset of OpenAPI documented in contract/README.md is understood.
- * Anything else throws rather than being skipped — a generator that silently
- * drops a field is worse than no generator, because the drift it hides is the
- * drift it was written to catch.
- *
- * `generate` is exported so that subset has tests of its own; see
- * packages/types/src/contractCodegen.test.ts.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -33,19 +17,13 @@ const GO_OUT = fileURLToPath(
   new URL("apps/recipe-service/internal/contract/spec_gen_test.go", root),
 );
 
-/** Where an `x-go-types` entry's package lives, and which packages may appear. */
+/** Where an `x-go-types` entry's package lives, and which may appear. */
 const GO_MODULE = "pantry/apps/recipe-service/internal";
 const GO_PACKAGES = ["nutrition", "pricing", "recipe", "recommend"];
 
 const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "head", "options"];
 
-/**
- * Renders both artifacts from a parsed OpenAPI document.
- *
- * Everything is nested here so the schema map is a closure rather than module
- * state, which is what lets a test render a three-schema document without
- * touching the real spec.
- */
+/** Renders both artifacts from a parsed OpenAPI document. */
 export function generate(spec) {
   const schemas = spec.components?.schemas ?? {};
   checkRefs(spec);
@@ -124,13 +102,7 @@ export function generate(spec) {
     }
   }
 
-  /**
-   * Renders a description as a JSDoc block at the given indent.
-   *
-   * Long lines are re-wrapped so a folded YAML scalar (`>-`), which arrives as
-   * one paragraph-long line, reads the same as a literal one (`|-`). The spec
-   * author picks whichever suits the prose; the output looks the same either way.
-   */
+  /** Renders a description as a JSDoc block, rewrapped to a uniform width. */
   function tsDoc(description, indent) {
     if (!description) return null;
     const lines = description
@@ -197,10 +169,7 @@ export function generate(spec) {
     throw new Error(`${name}: unsupported type ${types[0]}`);
   }
 
-  /**
-   * Flattens a schema into the JSON fields it puts on the wire, resolving
-   * `allOf` the way Go flattens an embedded struct.
-   */
+  /** Flattens a schema into its wire fields, resolving allOf like an embedded struct. */
   function fieldsOf(name, schema, seen = new Set()) {
     if (schema.$ref) {
       const target = refName(schema.$ref);
@@ -244,8 +213,8 @@ export function generate(spec) {
           throw new Error(`${name}: needs x-go-types or x-go-unbound (with the reason)`);
         continue;
       }
-      // A `request` schema is decoded, never encoded, so a Go struct tag says
-      // nothing about what a client must send — only names and kinds are checked.
+      // A request schema is decoded, never encoded, so its Go tags say nothing
+      // about what a client must send.
       const strict = (schema["x-go-direction"] ?? "response") === "response";
       const fields = fieldsOf(name, schema);
       for (const goType of types) {
@@ -299,14 +268,10 @@ export function generate(spec) {
   return { ts: renderTs(), go: renderGo() };
 }
 
-/** How wide a JSDoc line may get, counting the indent and the leading `* `. */
+/** Width of a rendered JSDoc line, counting the indent and the leading `* `. */
 const DOC_WIDTH = 96;
 
-/**
- * Greedily wraps one line of prose. Continuations keep the line's own
- * indentation, plus a hanging indent under a markdown bullet, so a wrapped list
- * item still reads as one item.
- */
+/** Wraps one line, hanging continuations under a markdown bullet. */
 function rewrap(line, indent) {
   const own = /^\s*/.exec(line)[0];
   const words = line.trim().split(/\s+/);
@@ -329,14 +294,8 @@ function rewrap(line, indent) {
   return out;
 }
 
-/**
- * Resolves every `$ref` in the whole document, `paths` included.
- *
- * The renderers only ever walk `components.schemas`, so a typo in a response or
- * parameter reference would produce no output and no error — the spec would
- * quietly describe an endpoint nobody can read. This walks the document instead
- * of the part being rendered, for that reason.
- */
+// The renderers only walk components.schemas, so a bad $ref under `paths` would
+// otherwise produce no output and no error.
 function checkRefs(spec) {
   const walk = (node, path) => {
     if (node === null || typeof node !== "object") return;
@@ -361,11 +320,7 @@ function checkRefs(spec) {
   walk(spec, "#");
 }
 
-/**
- * Orders strings the way Go's `slices.Sort` does. The route list is compared to
- * `recipe.RoutePatterns()`, so the two sorts have to agree; locale-aware
- * comparison would not.
- */
+// Byte order, to agree with Go's slices.Sort; the default is locale-aware.
 function byteOrder(a, b) {
   if (a < b) return -1;
   return a > b ? 1 : 0;
@@ -381,10 +336,7 @@ function parenthesize(rendered) {
   return rendered.includes(" | ") ? `(${rendered})` : rendered;
 }
 
-/**
- * Emits `<prefix><type>;`, breaking a union across lines when it would run past
- * the 100 columns oxfmt formats to.
- */
+/** Emits `<prefix><type>;`, breaking a long union across lines. */
 function declare(prefix, rendered, indent) {
   const line = `${prefix}${rendered};`;
   if (line.length <= 100 || !rendered.includes(" | ")) return line;
@@ -420,7 +372,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 }
 
-/** Reads a generated file, treating "missing" as "empty" so --check fails on it. */
+/** Treats a missing file as empty, so --check fails on it. */
 function read(path) {
   try {
     return readFileSync(path, "utf8");
