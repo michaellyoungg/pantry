@@ -317,7 +317,7 @@ describe("cook-decrement (BL-0028)", () => {
     vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
     const calls: { url: string; body: unknown }[] = [];
     globalThis.fetch = (async (url: string, init: RequestInit) => {
-      calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
+      calls.push({ url: String(url), body: JSON.parse(init.body as string) });
       const lines = canonicalItems.map((canonicalItem) => ({
         item: canonicalItem,
         canonicalItem,

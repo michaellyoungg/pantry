@@ -121,7 +121,7 @@ export function useUseItUp(variant: UseItUpVariant = "nudge"): UseUseItUp {
   // not. Nothing downstream keys on this function's identity.
   const addToPlan = (recommendation: Recommendation): void => {
     const draft = drafts.get(recommendation.recipeId);
-    run(async () => {
+    void run(async () => {
       if (draft === undefined) {
         await addToBasket({
           recipeId: recommendation.recipeId,

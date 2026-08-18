@@ -345,7 +345,7 @@ export function useGroceryList(override?: GroceryListOverride): UseGroceryList {
   const toggle = useCallback(
     (line: GroceryLine, checked: boolean) => {
       ownEdits.current.add(line._id);
-      run(() => toggleItem({ id: line._id, checked }));
+      void run(() => toggleItem({ id: line._id, checked }));
     },
     [run, toggleItem],
   );
@@ -359,7 +359,7 @@ export function useGroceryList(override?: GroceryListOverride): UseGroceryList {
       setUndo(snapshotOf(line));
       if (undoTimer.current) clearTimeout(undoTimer.current);
       undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
-      run(() => removeItem({ id: line._id }));
+      void run(() => removeItem({ id: line._id }));
     },
     [run, removeItem],
   );
@@ -368,12 +368,12 @@ export function useGroceryList(override?: GroceryListOverride): UseGroceryList {
     if (undo === null) return;
     setUndo(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
-    run(() => restoreItem({ line: undo }));
+    void run(() => restoreItem({ line: undo }));
   }, [undo, run, restoreItem]);
 
   const needItAnyway = useCallback(
     (line: GroceryLine) => {
-      run(() => needItAnywayMutation({ id: line._id }));
+      void run(() => needItAnywayMutation({ id: line._id }));
     },
     [run, needItAnywayMutation],
   );
@@ -385,25 +385,25 @@ export function useGroceryList(override?: GroceryListOverride): UseGroceryList {
       // silently here keeps a stray tap from raising an error the shopper did
       // nothing to deserve.
       if (entry.item === "") return;
-      run(() => addManualItem(entry));
+      void run(() => addManualItem(entry));
     },
     [run, addManualItem],
   );
 
   const resolveLeftover = useCallback(
     (proposal: LeftoverProposal, keep: boolean) => {
-      run(() => resolveLeftoverMutation({ id: proposal._id, keep }));
+      void run(() => resolveLeftoverMutation({ id: proposal._id, keep }));
     },
     [run, resolveLeftoverMutation],
   );
 
   const clear = useCallback(() => {
-    run(() => clearList({}));
+    void run(() => clearList({}));
   }, [run, clearList]);
 
   const finish = useCallback(
     (unbought: FinishChoice) => {
-      run(() => finishShopping({ unbought }));
+      void run(() => finishShopping({ unbought }));
     },
     [run, finishShopping],
   );

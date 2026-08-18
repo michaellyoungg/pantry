@@ -17,12 +17,14 @@
     "knip": "pnpm --filter @pantry/web exec tsr generate && knip",
     "backlog:index": "node scripts/backlog-index.mjs",
     "backlog:index:check": "node scripts/backlog-index.mjs --check",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm lint:types && pnpm test",
+    "lint:types": "turbo run build && oxlint --type-aware"
   },
   "devDependencies": {
     "knip": "^6.32.2",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "turbo": "^2.10.10",
     "typescript": "^7.0.2"
   }

@@ -36,7 +36,7 @@ describe("addAvoidItems", () => {
     const asked: string[][] = [];
     globalThis.fetch = (async (url: string, req: RequestInit) => {
       expect(String(url)).toBe("http://recipe-service/normalization/avoid");
-      const body = JSON.parse(String(req.body)) as { entries: string[] };
+      const body = JSON.parse(req.body as string) as { entries: string[] };
       asked.push(body.entries);
       return new Response(JSON.stringify(respond(body.entries)), {
         status: init.status ?? 200,

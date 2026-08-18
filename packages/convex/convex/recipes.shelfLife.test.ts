@@ -76,7 +76,7 @@ describe("generateGroceryList shelf-life lookup (BL-0029)", () => {
     vi.stubEnv("RECIPE_SERVICE_SECRET", "s3cret");
     globalThis.fetch = (async (url: string, init: RequestInit) => {
       const path = String(url).replace("http://recipe-service", "");
-      if (path === "/normalization/lookup") asked = JSON.parse(String(init.body));
+      if (path === "/normalization/lookup") asked = JSON.parse(init.body as string);
       const body =
         path === "/grocery-list"
           ? [

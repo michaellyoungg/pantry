@@ -36,7 +36,7 @@ function recordRequests(estimate: (body: Recorded) => NutritionEstimate = emptyE
     vi.fn(async (url: string, init: RequestInit) => {
       const recorded: Recorded = {
         path: new URL(url).pathname,
-        items: JSON.parse(String(init.body)).items,
+        items: JSON.parse(init.body as string).items,
       };
       calls.push(recorded);
       return new Response(JSON.stringify(estimate(recorded)), {

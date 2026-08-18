@@ -28,7 +28,7 @@ function recordRequests(reply: () => EquipmentMatchResult = emptyResult) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
-      calls.push({ path: new URL(url).pathname, body: JSON.parse(String(init.body)) });
+      calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body as string) });
       return new Response(JSON.stringify(reply()), {
         status: 200,
         headers: { "content-type": "application/json" },

@@ -41,6 +41,10 @@ jobs:
       # oxlint fails the build on errors only; the warn-level rules
       # (exhaustive-deps, no-array-index-key, no-non-null-assertion) surface
       # without blocking, which is the posture Biome ran with before it.
+      #
+      # Syntax-only, and deliberately first: it needs nothing built, runs in
+      # ~0.1s, and so is the cheapest possible signal on a bad push. The
+      # type-aware pass is a separate step below, after the build.
       - name: Lint (oxlint)
         run: pnpm exec oxlint
 
@@ -60,6 +64,15 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # MUST come after the build. Type-aware rules resolve the workspace
+      # packages through their emitted `dist/*.d.ts`, so with no `dist/` every
+      # `@pantry/*` type is an `error` type and the run collapses into a wall of
+      # `no-redundant-type-constituents`. Worse, a STALE `dist/` lints green
+      # against stale types. `pnpm lint:types` runs the build itself for the
+      # same reason; here the build above has already done it.
+      - name: Lint (oxlint, type-aware)
+        run: pnpm exec oxlint --type-aware
 
       - name: Dead code / unused deps (Knip)
         run: pnpm knip

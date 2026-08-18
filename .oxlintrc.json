@@ -17,12 +17,6 @@
     "react/exhaustive-deps": "warn",
     "react/no-array-index-key": "warn",
     "react/rules-of-hooks": "error",
-    "react/only-export-components": [
-      "warn",
-      {
-        "allowConstantExport": true
-      }
-    ],
     "typescript/no-non-null-assertion": "warn"
   },
   "overrides": [
@@ -106,15 +100,15 @@
       }
     },
     {
-      "files": ["apps/web/src/routes/**"],
-      "rules": {
-        "react/only-export-components": "off"
-      }
-    },
-    {
       "files": ["packages/convex/**"],
       "rules": {
         "react/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "**/test/**"],
+      "rules": {
+        "typescript/unbound-method": "off"
       }
     }
   ]

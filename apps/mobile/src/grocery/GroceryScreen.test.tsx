@@ -490,7 +490,7 @@ describe("GroceryScreen — with no signal (BL-0058)", () => {
     // Wrapped, because unmounting tears down the cache read's subscription and
     // React counts that as an update of its own.
     await act(async () => {
-      screen.unmount();
+      await screen.unmount();
     });
     mockState.lines = undefined;
     mockState.online = false;

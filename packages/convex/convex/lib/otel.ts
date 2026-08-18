@@ -61,7 +61,10 @@ function toOtlp(span: SpanShape): unknown {
   };
   if (span.parentSpanId) s.parentSpanId = span.parentSpanId;
   if (span.error !== undefined) {
-    const message = span.error instanceof Error ? span.error.message : String(span.error);
+    // Local, because narrowing a property access does not carry into the
+    // `String(...)` fallback.
+    const thrown: unknown = span.error;
+    const message = thrown instanceof Error ? thrown.message : String(thrown);
     s.status = { code: 2, message }; // STATUS_CODE_ERROR
   }
   return {
