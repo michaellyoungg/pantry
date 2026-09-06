@@ -36,13 +36,13 @@
   "dependencies": {
     "@pantry/convex": "workspace:^",
     "@pantry/types": "workspace:^",
-    "convex": "^1.44.0"
+    "convex": "^1.45.0"
   },
   "peerDependencies": {
     "react": "^19.2.8"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^30.0.1",
