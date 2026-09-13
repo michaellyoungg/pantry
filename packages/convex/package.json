@@ -24,12 +24,12 @@
     "@auth/core": "0.41.3",
     "@convex-dev/auth": "^0.0.95",
     "@pantry/types": "workspace:^",
-    "convex": "^1.44.0"
+    "convex": "^1.45.0"
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
-    "@types/node": "^26.2.0",
-    "convex-test": "^0.0.55",
+    "@types/node": "^26.5.1",
+    "convex-test": "^0.0.57",
     "vitest": "^4.1.10"
   }
 }
