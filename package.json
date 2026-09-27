@@ -25,12 +25,12 @@
     "lint:types": "turbo run build && oxlint --type-aware"
   },
   "devDependencies": {
-    "knip": "^6.32.2",
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "turbo": "^2.10.10",
+    "knip": "^6.38.0",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "turbo": "^2.11.3",
     "typescript": "^7.0.2",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   }
 }
