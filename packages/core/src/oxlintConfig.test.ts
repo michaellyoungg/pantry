@@ -114,7 +114,21 @@ describe("oxlint configuration", () => {
    */
   it("has no nested config shadowing the root one", () => {
     const nested: string[] = [];
-    const skip = new Set(["node_modules", ".git", ".turbo", "dist", ".claude"]);
+    // Gitignored directories cannot hold source, so walking them finds nothing
+    // and `.data` actively breaks the walk: the compose stack owns it, and its
+    // Postgres directory is uid 999 mode 700, so readdirSync throws EACCES and
+    // this test fails for anyone who has brought the local stack up as the
+    // README instructs. CI never saw it because CI never runs compose.
+    const skip = new Set([
+      "node_modules",
+      ".git",
+      ".turbo",
+      "dist",
+      ".claude",
+      ".data",
+      ".backups",
+      ".superpowers",
+    ]);
 
     const walk = (dir: string, relative: string) => {
       for (const entry of readdirSync(dir)) {
