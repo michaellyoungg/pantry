@@ -1,12 +1,12 @@
-import { context, trace } from "@opentelemetry/api";
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
-  BasicTracerProvider,
   InMemorySpanExporter,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { StackContextManager } from "@opentelemetry/sdk-trace-web";
+  StackContextManager,
+  TracerProvider,
+} from "@opentelemetry/sdk-trace";
 import { renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const actionMock = vi.hoisted(() => vi.fn((_args?: unknown) => Promise.resolve("ok")));
 vi.mock("convex/react", () => ({ useAction: () => actionMock }));
@@ -29,19 +29,27 @@ describe("useTracedAction (telemetry disabled → no active provider)", () => {
 });
 
 describe("useTracedAction (telemetry enabled → active provider)", () => {
-  beforeEach(() => {
-    actionMock.mockClear();
+  // One provider for the whole block: the hook's module-level tracer binds to
+  // the first real provider it sees, so a fresh provider per test would leave
+  // every later test's spans in the first test's exporter.
+  const exporter = new InMemorySpanExporter();
+
+  beforeAll(() => {
     // A real provider makes the hook's tracer.startSpan() yield a recording span.
     // A context manager is required too, or context.with() is a no-op and the
     // span never becomes active — so currentTraceparent() would see nothing.
-    const provider = new BasicTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(new InMemorySpanExporter())],
-    });
-    trace.setGlobalTracerProvider(provider);
+    trace.setGlobalTracerProvider(
+      new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] }),
+    );
     context.setGlobalContextManager(new StackContextManager().enable());
   });
 
-  afterEach(() => {
+  beforeEach(() => {
+    actionMock.mockClear();
+    exporter.reset();
+  });
+
+  afterAll(() => {
     trace.disable(); // reset the globals so other tests see a no-op tracer
     context.disable();
   });
@@ -55,6 +63,9 @@ describe("useTracedAction (telemetry enabled → active provider)", () => {
     const arg = actionMock.mock.calls[0][0] as { title: string; traceCtx?: string };
     expect(arg.traceCtx).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-9a-f]$/);
     expect(arg).toMatchObject({ title: "T", ingredients: [] });
+    const [span] = exporter.getFinishedSpans();
+    expect(span?.name).toBe("recipes.create");
+    expect(arg.traceCtx).toContain(span?.spanContext().spanId);
   });
 
   it("propagates the action's error (after recording it on the span)", async () => {
@@ -63,5 +74,7 @@ describe("useTracedAction (telemetry enabled → active provider)", () => {
       useTracedAction("recipes.remove" as never, "recipes.remove"),
     );
     await expect(result.current({ id: "x" } as never)).rejects.toThrow("boom");
+    const [span] = exporter.getFinishedSpans();
+    expect(span?.status.code).toBe(SpanStatusCode.ERROR);
   });
 });

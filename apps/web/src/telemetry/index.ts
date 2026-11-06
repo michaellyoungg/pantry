@@ -1,9 +1,8 @@
-import { context, trace } from "@opentelemetry/api";
+import { context, propagation, trace } from "@opentelemetry/api";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
+import { BatchSpanProcessor, StackContextManager, TracerProvider } from "@opentelemetry/sdk-trace";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 
 // The browser posts OTLP/HTTP to the host-published Alloy port; unset = disabled.
@@ -18,7 +17,7 @@ export function isTelemetryEnabled(): boolean {
 
 let started = false;
 
-// Registers the global WebTracerProvider. No-op (and no network) when the OTLP
+// Registers the global TracerProvider. No-op (and no network) when the OTLP
 // endpoint env is unset, so tests, e2e, and the default runtime are unaffected.
 export function initTelemetry(): void {
   if (started) return;
@@ -29,11 +28,18 @@ export function initTelemetry(): void {
   // Telemetry must never break app boot — even on the enabled path, a provider
   // construction failure is swallowed rather than propagated into main.tsx.
   try {
-    const provider = new WebTracerProvider({
+    const provider = new TracerProvider({
       resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "web" }),
-      spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: `${url}/v1/traces` }))],
+      spanProcessors: [
+        new BatchSpanProcessor({ exporter: new OTLPTraceExporter({ url: `${url}/v1/traces` }) }),
+      ],
     });
-    provider.register({ propagator: new W3CTraceContextPropagator() });
+    // SDK 3 dropped WebTracerProvider.register(), which installed all three of
+    // these. Without the context manager no span is ever active, and without
+    // the propagator nothing reaches Convex as a traceparent.
+    trace.setGlobalTracerProvider(provider);
+    context.setGlobalContextManager(new StackContextManager().enable());
+    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
   } catch (e) {
     console.error("telemetry init failed; continuing without it", e);
   }
