@@ -7,6 +7,11 @@
 # Sets the deployment environment and pushes the functions. This is the ONE
 # procedure both e2e and production use, so the two cannot drift.
 #
+#   --recipe-service-url   where Convex should reach recipe-service. Defaults to
+#                          $RECIPE_SERVICE_URL, which on Railway is a variable
+#                          on convex-backend holding
+#                          http://${{recipe-service.RAILWAY_PRIVATE_DOMAIN}}:8090
+#                          so Railway owns that hostname rather than this script.
 #   --preserve-auth-keys   keep an auth keypair the deployment already holds.
 #                          ALWAYS pass this in production: regenerating
 #                          JWT_PRIVATE_KEY signs out every existing session.
@@ -42,7 +47,13 @@ PROVISION_URL_EXPLICIT="${CONVEX_SELF_HOSTED_URL:+yes}"
 convex_say() { echo "$*" >&2; }
 
 SITE_URL=""
-RECIPE_SERVICE_URL=""
+# Seeded from the environment so a caller can let Railway supply it. The one
+# cross-service link Railway could not see was convex-backend -> recipe-service,
+# because this hostname lived only inside the Convex deployment and was written
+# here as a literal. Taking it from a variable means Railway holds it as a real
+# `${{recipe-service.RAILWAY_PRIVATE_DOMAIN}}` reference, which both draws the
+# dependency and survives the service being renamed or moved.
+RECIPE_SERVICE_URL="${RECIPE_SERVICE_URL:-}"
 PRESERVE_AUTH_KEYS=0
 
 # provision_write_auth_keys — mint an RS256 keypair and store it on the
@@ -109,7 +120,8 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$SITE_URL" ] || convex_die "--site-url is required"
-[ -n "$RECIPE_SERVICE_URL" ] || convex_die "--recipe-service-url is required"
+[ -n "$RECIPE_SERVICE_URL" ] ||
+  convex_die "no recipe-service URL: pass --recipe-service-url, or set RECIPE_SERVICE_URL (on Railway it is a variable on convex-backend)"
 [ -n "${RECIPE_SERVICE_SECRET:-}" ] || convex_die "RECIPE_SERVICE_SECRET is not set"
 
 # --preserve-auth-keys IS the production mode, so production has to name its

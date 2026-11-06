@@ -16,6 +16,12 @@
 # merged to explain it. Promote production here the same way you promote its
 # services, by choosing it in "Run workflow".
 #
+# RECIPE_SERVICE_URL is no longer written into this file. Railway holds it on
+# convex-backend as `http://${{recipe-service.RAILWAY_PRIVATE_DOMAIN}}:8090`, a
+# real reference, so that hostname has one owner. The repo variable below
+# mirrors it because a GitHub runner has no Railway credentials; giving CI a
+# Railway token would remove the mirror entirely.
+#
 # The runner never needs Railway's private network. RECIPE_SERVICE_URL is stored
 # on the deployment as a string for Convex itself to call, so a public runner
 # only has to reach the Convex backend's public domain.
@@ -72,11 +78,11 @@ jobs:
           CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_DEV_URL }}
           CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_DEV_ADMIN_KEY }}
           RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_DEV }}
+          RECIPE_SERVICE_URL: ${{ vars.RECIPE_SERVICE_URL }}
         run: |
           set -euo pipefail
           bash scripts/provision-convex.sh --preserve-auth-keys \
             --site-url "${{ vars.SITE_URL_DEV }}" \
-            --recipe-service-url http://recipe-service.railway.internal:8090 \
             > /dev/null
 
       - name: Provision production
@@ -85,9 +91,9 @@ jobs:
           CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_PROD_URL }}
           CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_PROD_ADMIN_KEY }}
           RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_PROD }}
+          RECIPE_SERVICE_URL: ${{ vars.RECIPE_SERVICE_URL }}
         run: |
           set -euo pipefail
           bash scripts/provision-convex.sh --preserve-auth-keys \
             --site-url "${{ vars.SITE_URL_PROD }}" \
-            --recipe-service-url http://recipe-service.railway.internal:8090 \
             > /dev/null
