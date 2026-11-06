@@ -15,12 +15,14 @@ restore drill are increment 3. Until increment 3 lands, **this deployment has
 no off-host backups**, so treat the data as losable and do not put anything in
 it you would be upset to lose.
 
-> **Not yet executed.** Nobody has run this procedure end to end. It is derived
-> from the design, from `docker-compose.yml`, and from the provisioning the e2e
-> suite already performs, so the variable names and the ordering are real, but
-> expect small things to be wrong on first contact. Correcting this file as you
-> go is part of the work, not an afterthought: a runbook nobody has executed is
-> a hypothesis.
+> **Executed 2026-11-05.** The procedure below is what actually worked, not
+> what was designed. First contact invalidated five of the design's decisions,
+> and each correction is marked **CORRECTED** inline with the reason. The
+> headline change: Convex is provisioned from Convex's own Railway template
+> rather than assembled by hand, because the template encodes three of those
+> corrections already. See [What first contact
+> changed](#what-first-contact-changed).
+
 
 ## Prerequisites
 
@@ -32,10 +34,29 @@ it you would be upset to lose.
   [Secrets that no backup contains](#secrets-that-no-backup-contains).
 - Docker locally, if you want to verify the web image before deploying it:
   `bash scripts/smoke-web-image.sh`.
+- **An SSH keypair, registered with Railway.** `railway ssh` is the only way to
+  reach a container, and both creating the second database and generating the
+  admin key need it. There is no way round it:
 
-The `railway` invocations below are written as the design specifies them. The
-CLI's exact flag spellings were not verified against an installed CLI, so check
-`railway <command> --help` if one is rejected, and fix it here when it is.
+  ```bash
+  ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
+  railway ssh keys add -k ~/.ssh/id_ed25519.pub -n "$(hostname)"
+  ssh-keyscan -t ed25519 ssh.railway.com >> ~/.ssh/known_hosts
+  ```
+
+  The `ssh-keyscan` line matters in a non-interactive shell: without the host
+  key on file, ssh tries to ask for confirmation, finds no askpass, and fails
+  with `Host key verification failed`.
+
+**Do not pass a secret to `railway add -v`.** The CLI echoes each variable it
+sets, value included, to stdout. Create the service first, then set secrets with
+`railway variable set`, which prints only the name.
+
+**`railway` flattens `${{Service.VAR}}` references.** A reference passed through
+`railway add -v` or `railway variable set` is resolved and stored as a literal,
+so a later password rotation does not propagate. Variables that must stay live
+references have to be set in the dashboard, or inherited from a template.
+
 
 ## Two circular dependencies, up front
 
@@ -54,109 +75,196 @@ normal here, and the redeploy is what fixes it.
 
 ## Bootstrap
 
-### 1. Project and Postgres, with both databases created by hand
-
-Create the project and add a Postgres service with a volume.
-
-Then create both databases yourself. `deploy/postgres-init/10-convex-db.sql`
-runs only on the first boot of an empty data directory of the **compose**
-Postgres image; Railway runs its own image and will never execute it. Without
-`convex_self_hosted` the backend exits with
-`FATAL: database "convex_self_hosted" does not exist`.
+### 1. Project, then Convex and Postgres from Convex's template
 
 ```bash
-railway connect Postgres
+railway init --name pantry
+railway deploy -t convex-and-postgres-official
 ```
 
-```sql
-CREATE DATABASE pantry;
-CREATE DATABASE convex_self_hosted;
+**CORRECTED.** The design said to create a Railway **managed** Postgres and put
+both databases on it. That is impossible. Self-hosted Convex cannot connect to
+Railway's managed Postgres at all:
+
+- the backend attempts a TLS handshake and rustls rejects the certificate with
+  `invalid peer certificate: Other(OtherError(CaUsedAsEndEntity))`, which is a
+  CA certificate being used as a leaf. Trusting a CA does not fix that, so
+  supplying one is not a workaround, and no build of the backend (checked both
+  the pinned digest and `:latest`) has a CA or sslmode flag at all;
+- `DO_NOT_REQUIRE_SSL=true` does **not** disable TLS. Its own help says "the
+  persistence won't require SSL ... It would still prefer SSL if available.
+  This should only be set in tests." The server offers TLS, so the client takes
+  it and dies. The design's entire "Correction to BL-0008" section rests on
+  this variable doing something it does not do.
+
+The template instead runs **`postgres:17` as an ordinary service** with
+`PGSSLMODE=disable` and `DO_NOT_REQUIRE_SSL=false`. With no TLS offered, the
+backend's preference finds nothing and connects in plaintext over Railway's
+WireGuard-encrypted private network, which is the security argument the design
+already made. This is why Convex's template "bundles its own Postgres", which
+the design dismissed in one line without establishing why it does that.
+
+The template creates three services: `Postgres`, `convex-backend` and
+`convex-dashboard`.
+
+**Pin both images.** The template ships `:latest`, which the design forbids.
+Resolve the digests and record what is running:
+
+```bash
+for i in convex-backend convex-dashboard; do
+  docker pull "ghcr.io/convex/$i:latest"
+  docker image inspect "ghcr.io/convex/$i:latest" --format '{{index .RepoDigests 0}}'
+done
+railway service source connect --service convex-backend  --image ghcr.io/convex/convex-backend@sha256:...
+railway service source connect --service convex-dashboard --image ghcr.io/convex/convex-dashboard@sha256:...
 ```
 
-One Postgres instance holds both, deliberately: two instances roughly doubles
-the largest line item for a one-household workload.
+Railway's API exposes no field for the digest a deploy actually pulled, so this
+records the digest `:latest` points at *now*. If the deploy happened long
+enough ago for `:latest` to have moved, pinning is an upgrade rather than a
+record.
 
-### 2. Convex backend, then its two domains, then redeploy
+**Note the dashboard.** The design said not to run one in production. The
+template includes it, and on a deployment you intend to operate by hand it is
+where the admin key gets pasted. Keeping it is a deliberate reversal; delete the
+service if you want the design's posture.
 
-Deploy `convex-backend` from the image pinned **by digest** in
-`docker-compose.yml`. Never `:latest`: Convex tags self-hosted images by git
-commit SHA rather than semver, so the digest is the only immutable reference.
-Bumping it is the upgrade procedure in
-[`self-hosted-convex-ops.md`](self-hosted-convex-ops.md), not a Railway action.
+### 2. Create the second database
 
-Attach a volume at `/convex/data`. It stays load-bearing even on Postgres:
-uploaded files (`/convex/data/storage`) and the generated instance credentials
-(`/convex/data/credentials`) live there, and no `pg_dump` captures them.
+The template's Postgres comes up with one database, `convex_self_hosted`.
+recipe-service needs `pantry` on the same instance:
 
-Set **all three** of `INSTANCE_SECRET`, `POSTGRES_URL` and
-`DO_NOT_REQUIRE_SSL=true` (see
-[the variable tables](#railway-service-variables)), then deploy.
+```bash
+railway ssh -s Postgres psql -U postgres -d convex_self_hosted -c 'CREATE DATABASE pantry;'
+```
 
-`DO_NOT_REQUIRE_SSL` has to be there for the **first** boot, not added
-afterwards: Railway's Postgres ships a self-signed certificate, so without it
-this first deploy fails on a TLS error. The spec's bootstrap step 2 names only
-the first two variables, which is a defect in the spec's ordering rather than a
-difference of opinion; it should be corrected to match this.
+Postgres is reached over `railway ssh` rather than a TCP proxy on purpose: a
+proxy would put the database on the public internet to run one statement.
 
-Now add **two** domains to this one service, because Railway maps one domain to
-one target port and the backend needs both:
+**There is no two-domain step.** The design called for two generated domains on
+the backend service, with target ports 3210 and 3211, because the site origin
+needed its own port. **CORRECTED:** the template serves the site origin as a
+**path** on the single public domain:
 
-| Domain | Target port | What |
-|---|---|---|
-| A | `3210` | the API. This is `CONVEX_SELF_HOSTED_URL` and `VITE_CONVEX_URL` |
-| B | `3211` | the site origin, where `http.ts` registers the Convex Auth routes |
+```
+CONVEX_CLOUD_ORIGIN = https://<backend domain>
+CONVEX_SITE_ORIGIN  = https://<backend domain>/http
+```
 
-Set `CONVEX_CLOUD_ORIGIN` to domain A and `CONVEX_SITE_ORIGIN` to domain B, both
-with `https://`, and redeploy.
+So one domain is enough:
+
+```bash
+railway domain -s convex-backend -p 3210
+railway domain -s convex-dashboard
+```
+
+The backend boots before a domain exists, so its origin variables resolve to
+nothing on the first deploy. Redeploy after adding the domain:
+
+```bash
+railway redeploy -s convex-backend -y
+curl -fsS https://<backend domain>/version   # prints "unknown"; a 200 is the signal
+```
+
+The template sets these as live `${{RAILWAY_PUBLIC_DOMAIN}}` references, so they
+pick up the new domain on their own. Variables you set yourself through the CLI
+would not: see the reference-flattening note in the prerequisites.
+
 
 ### 3. Generate the admin key and store it
 
 ```bash
-railway ssh --service convex-backend ./generate_admin_key.sh
+railway ssh -s convex-backend ./generate_admin_key.sh
 ```
 
-This derives a key from the instance credentials the backend already persisted.
-It does not restart or reconfigure anything. Put the key in the password manager
-now: it is the only management interface, because no dashboard runs.
+The key is `generate_key "$INSTANCE_NAME" "$INSTANCE_SECRET"`, so it is a
+deterministic function of those two values: the same pair always yields the same
+key, and `INSTANCE_SECRET` is therefore the root credential rather than one
+secret among several. `read_credentials.sh` resolves each from the environment,
+then `/convex/data/credentials/<file>`, then a generated default, writing it back
+to the volume either way, which is why that volume holds the root credential and
+why `INSTANCE_SECRET` is immutable after first boot.
+
+The **dashboard has no credential of its own** and no login of its own: it asks
+you to paste this key.
+
+**CORRECTED: `INSTANCE_NAME` matters, and the design never mentions it.** The
+template sets `convex_self_hosted`, with underscores. The local compose stack
+sets nothing, so it defaults to `convex-self-hosted`, with hyphens. That
+difference broke `convex_admin_key` in `scripts/lib/convex-deployment.sh`, whose
+`[a-z0-9-]+` prefix skipped the underscores and returned 81 of the key's 93
+characters, silently. Fixed in michaellyoungg/pantry#235; a deployment running
+without that fix derives an admin key that is rejected on every call.
+
 
 ### 4. recipe-service, private
 
-Deploy from `apps/recipe-service` with its existing Dockerfile. Its final stage
-is `server`, so the default build is correct.
+```bash
+railway add -s recipe-service
+railway variable set -s recipe-service "DATABASE_URL=postgres://postgres:<pw>@postgres.railway.internal:5432/pantry?sslmode=disable"
+railway variable set -s recipe-service PORT=8090
+railway variable set -s recipe-service "RECIPE_SERVICE_SECRET=<new 32-byte hex>"
+```
 
-Set its variables from [the variable tables](#railway-service-variables) before
-deploying: `DATABASE_URL`, `PORT`, and `RECIPE_SERVICE_SECRET`. Without them it
-crash-loops. **Generate `RECIPE_SERVICE_SECRET` here, and keep it**: step 6 sets
-the identical value on the Convex deployment, and if the two ever differ every
-recipe call 401s and the app renders as though the user owns nothing.
+**Give it no domain.** Only Convex calls it, and that was verified to work (see
+[What first contact changed](#what-first-contact-changed)), so it is reached at
+`recipe-service.railway.internal:8090` and has no public surface.
 
-**Give it no domain.** Only Convex calls it, so no public domain removes an
-entire attack surface at zero cost. It is reached at
-`recipe-service.railway.internal:8090`.
+**CORRECTED: the default build is not correct.** The design said "existing
+Dockerfile, its final stage is `server`, so the default build is correct."
+Railway's Railpack builder wins instead: it sees `apps/recipe-service/package.json`
+(the thin manifest that lets turbo treat the Go service as a workspace), assumes
+a Node app, and fails with `No start command detected` without ever reading the
+Dockerfile. Railway has no `DOCKERFILE` builder value to select; setting
+`dockerfilePath` is what switches it:
+
+```bash
+railway api 'mutation { serviceInstanceUpdate(
+  serviceId: "<recipe-service id>", environmentId: "<env id>",
+  input: { rootDirectory: "apps/recipe-service", dockerfilePath: "Dockerfile" }) }'
+```
+
+**CORRECTED: `railway up` archives the git repo root, not your shell's
+directory.** Running it from `apps/recipe-service` still uploads the whole repo,
+so with `rootDirectory` unset the Dockerfile is not at the archive root and the
+build fails with `couldn't locate the dockerfile at path Dockerfile in code
+archive`, after producing zero log lines. The working combination is: archive =
+repo root, `rootDirectory` selects the service, `dockerfilePath` is relative to
+it.
+
+```bash
+cd "$(git rev-parse --show-toplevel)" && railway up -s recipe-service -d -y
+```
+
+A build that fails this way logs nothing through `railway logs --build`. Read it
+with `railway api 'query { buildLogs(deploymentId: "...", limit: 200) { message } }'`
+instead, which does return the real error.
+
+A healthy start logs `store selected kind="postgres"` and
+`recipe-service listening port="8090"`, plus one line per optional feature it is
+degrading without (`ANTHROPIC_API_KEY unset`, and so on), which is the designed
+behaviour rather than a warning.
 
 ### 5. Web, and note its domain
 
-Root directory `/` (the repo root, **not** `apps/web`), Dockerfile
-`apps/web/Dockerfile`, and the variables from
-[the variable tables](#railway-service-variables).
-
-The root context is required: `@pantry/web` resolves `@pantry/core`,
-`@pantry/types`, `@pantry/design-tokens` and `@pantry/convex` through their
-built `dist/`, so they have to be built first. Building from `apps/web` alone
-resolves nothing.
-
-Pass the Convex API domain as a **build argument**, not a runtime variable:
-
-```
-VITE_CONVEX_URL=https://<domain A>
+```bash
+railway add -s web
+railway variable set -s web "VITE_CONVEX_URL=https://<backend domain>"
+railway api 'mutation { serviceInstanceUpdate(
+  serviceId: "<web id>", environmentId: "<env id>",
+  input: { dockerfilePath: "apps/web/Dockerfile" }) }'
+cd "$(git rev-parse --show-toplevel)" && railway up -s web -d -y
+railway domain -s web
 ```
 
-Vite inlines `VITE_*` at build time. Changing it later is a rebuild, not a
-variable edit, and that is the one failure in the table below whose fix is not
-"edit a variable and redeploy".
+`rootDirectory` stays unset here, because this image's context **is** the repo
+root: `@pantry/web` resolves four workspace packages through their built
+`dist/`.
 
-Note the domain Railway generates for this service. It is the app URL and it is
-what `SITE_URL` must become in the next step.
+`VITE_CONVEX_URL` is a service variable, which Railway passes to the Docker
+build, and Vite inlines it. Set it before the first build; changing it later is
+a rebuild, not a variable edit.
+
 
 ### 6. Provision the Convex deployment
 
@@ -222,10 +330,11 @@ is the entire risk surface of the deployment.
 | Service | Variable | Value |
 |---|---|---|
 | `convex-backend` | `INSTANCE_SECRET` | `openssl rand -hex 32`, **new for production**. Immutable after first boot |
-| | `POSTGRES_URL` | `postgres://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432` |
-| | `DO_NOT_REQUIRE_SSL` | `true` |
-| | `CONVEX_CLOUD_ORIGIN` | domain A (port 3210), with `https://` |
-| | `CONVEX_SITE_ORIGIN` | domain B (port 3211), with `https://` |
+| | `POSTGRES_URL` | `${{Postgres.CONVEX_DATABASE_URL}}` — a server URL, no database path. Set by the template as a live reference |
+| | `INSTANCE_NAME` | `convex_self_hosted`. Half of the admin key; see step 3 |
+| | `DO_NOT_REQUIRE_SSL` | `false`. **Not** `true`: it only *prefers* SSL and is documented as test-only. TLS is disabled server-side with `PGSSLMODE=disable` on Postgres instead |
+| | `CONVEX_CLOUD_ORIGIN` | the backend's one domain, with `https://` |
+| | `CONVEX_SITE_ORIGIN` | the same domain plus `/http` — a path, not a second domain or port |
 | | `DISABLE_BEACON` | `true` |
 | | `RUST_LOG` | `info` |
 | | `DOCUMENT_RETENTION_DELAY` | `172800` |
@@ -330,33 +439,54 @@ The Playwright suite is deliberately **not** pointed at production. It would
 work, since it signs up a fresh unique account per run, but it would accumulate
 junk accounts in a database that is now real.
 
-## Risks to resolve on first contact
+## What first contact changed
 
-The design lists five open questions that only a real environment can answer.
-Record the actual finding here as you hit each one.
+Executed 2026-11-05 against project `pantry`. The loop works over the public
+internet: sign-up and recipe creation both passed in a real browser, and the
+recipe landed in the `pantry` database, so the whole path (browser → Convex Auth
+→ a Convex action → recipe-service over the private network → Postgres) is
+verified end to end.
 
-1. Whether Convex's Postgres client tolerates Railway's self-signed
-   certificate, and whether a CA can be supplied instead of
-   `DO_NOT_REQUIRE_SSL`.
-2. **Highest risk:** whether a Convex action's `fetch` resolves
-   `recipe-service.railway.internal` over the IPv6 private network from inside
-   the V8 isolate. If it does not, give `recipe-service` a public domain, set
-   `RECIPE_SERVICE_URL` to it, and record that the private-only decision was
-   reversed. `X-Service-Secret` still authenticates the caller, which is
-   precisely what that secret is for. This degrades the design rather than
-   blocking it.
-3. Whether Railway cron services run to completion and exit, for `seed`
-   (increment 2) and `backup` (increment 3).
-4. Whether `convex-backend` needs to bind `::` for Railway's public proxy.
-   Railway's private network is IPv6; environments created after 2025-10-16 are
-   dual-stack. The Go service listens on `":"+PORT`, Go's dual-stack wildcard,
-   so it is already correct.
-5. What a week of steady state actually costs. Railway bills actual usage rather
-   than allocated limits, so a mostly-idle backend with a 4 GB ceiling should
-   cost far less than 4 GB.
+The design listed five risks. Three are now answered:
 
-One more, added during increment 1: `scripts/provision-convex.sh` decides
-whether a keypair already exists by looking for `JWT_PRIVATE_KEY` in
-`convex env list --names-only`. Confirm on the first run that the name appears
-there once set. If it does not, `--preserve-auth-keys` silently regenerates the
-keypair on every provision and signs everyone out.
+1. **Can Convex use Railway's managed Postgres, with a CA instead of
+   `DO_NOT_REQUIRE_SSL`?** **No, and no.** The certificate is a CA used as an
+   end entity, which trust cannot repair, and no build of the backend accepts a
+   CA or an sslmode. The managed instance is unusable; `postgres:17` as a
+   service with `PGSSLMODE=disable` is the answer. This invalidates the design's
+   Postgres topology decision *and* its "Correction to BL-0008".
+2. **Does a Convex action's `fetch` resolve `recipe-service.railway.internal`
+   from inside the V8 isolate?** **Yes.** This was the design's highest risk and
+   it needs no mitigation: creating a recipe in the browser reached
+   recipe-service over the private network and wrote to Postgres. The
+   private-only decision stands, and `recipe-service` keeps no public domain.
+4. **Must `convex-backend` bind `::` for Railway's proxy?** **No.** The template
+   sets `PORT=3210` and the public domain targets it; the backend answers
+   `/version` over the public internet unmodified.
+
+Two remain open:
+
+3. **Railway cron run-to-completion semantics** for `seed` and `backup`. Not
+   exercised: the catalog seed is a separate build target of the recipe-service
+   Dockerfile and Railway does not express a build target as cleanly as compose
+   does, so seeding is still unsolved here. Until it runs, `GET /catalog`, the
+   `/recipes/catalog` route and catalog-sourced recommendations are empty.
+5. **What a week of steady state costs.** Still a projection.
+
+Two further corrections the design could not have anticipated:
+
+- **`railway.toml` is deprecated.** The CLI warns that config-as-code files stop
+  working after **2026-12-01** and points at `railway config migrate` and a
+  code-based authoring file (`.railway/railway.ts`). Increment 2 planned to add
+  `railway.toml` per service; it should adopt the authoring file instead. A
+  `railway.toml` added during this deploy was also simply ignored — the
+  `dockerfilePath` had to be set through the API.
+- **The CLI leaks secrets and flattens references.** `railway add -v` echoes
+  every value it sets to stdout, and both `add -v` and `variable set` resolve
+  `${{Service.VAR}}` to a literal at submit time, so a variable that must track
+  a rotated password cannot be set from the CLI at all.
+
+## Risks the design listed
+
+Superseded by [What first contact changed](#what-first-contact-changed), which
+records the answers. Kept here only as the list the design asked to be closed.
