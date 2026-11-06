@@ -12,6 +12,21 @@
 # The commit is pinned. `serviceInstanceDeployV2` takes a sha, so what ships is
 # a specific commit rather than "whatever the branch pointed at when Railway
 # got round to it", and the run log records exactly what was promoted by whom.
+#
+# ORDER IS DEPENDENCY ORDER, AND EACH STEP WAITS.
+#
+#   topology -> recipe-service -> Convex functions -> web
+#
+# Backend leads because the failure that matters is a new frontend calling a
+# function that is not deployed yet. BL-0075 requires a breaking change to ship
+# expand-then-contract, so removals only happen in a later release once no
+# client needs the old shape; that makes "backend first" safe in both
+# directions. Convex sits in the middle: it calls recipe-service, and web calls
+# it.
+#
+# The waits are load-bearing. serviceInstanceDeployV2 returns as soon as the
+# deploy is queued, so without them the ordering would be nominal and web could
+# go live against functions that are still building.
 name: Promote to production
 
 on:
@@ -66,7 +81,7 @@ jobs:
       # Then the services, each pinned to this exact commit. Railway builds
       # from the service's own git source, so nothing here uploads a working
       # tree the way `railway up` does.
-      - name: Deploy services at ${{ steps.sha.outputs.sha }}
+      - name: Deploy backend services at ${{ steps.sha.outputs.sha }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
           PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
@@ -74,18 +89,15 @@ jobs:
           SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
-          ids="$(railway api "query { project(id: \"$PROJECT_ID\") { services { edges { node { id name } } } } }")"
-          for svc in web recipe-service seed; do
-            id="$(printf '%s' "$ids" | jq -r --arg n "$svc" '.data.project.services.edges[].node | select(.name==$n) | .id')"
-            [ -n "$id" ] && [ "$id" != "null" ] || { echo "::error::no service id for $svc"; exit 1; }
-            echo "deploying $svc ($id) at $SHA"
-            railway api "mutation { serviceInstanceDeployV2(serviceId: \"$id\", environmentId: \"$ENV_ID\", commitSha: \"$SHA\") }"
-            echo "- \`$svc\` deployed at \`${SHA:0:9}\`" >> "$GITHUB_STEP_SUMMARY"
-          done
+          . "$GITHUB_WORKSPACE/.github/scripts/railway-deploy.sh"
+          deploy_service recipe-service
+          deploy_service seed
+          wait_for_service recipe-service
+          wait_for_service seed
 
-      # Last, because the schema belongs to the code that was just deployed.
-      # --preserve-auth-keys is mandatory: regenerating JWT_PRIVATE_KEY would
-      # sign out every session ever issued.
+      # Convex after recipe-service, because its actions call it, and before
+      # web, because web calls Convex. --preserve-auth-keys is mandatory:
+      # regenerating JWT_PRIVATE_KEY would sign out every session ever issued.
       - name: Provision Convex
         env:
           CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_PROD_URL }}
@@ -97,3 +109,15 @@ jobs:
           bash scripts/provision-convex.sh --preserve-auth-keys \
             --site-url "${{ vars.SITE_URL_PROD }}" > /dev/null
           echo "Convex schema and functions provisioned." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy web at ${{ steps.sha.outputs.sha }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          ENV_ID: ${{ vars.RAILWAY_PROD_ENV_ID }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          . "$GITHUB_WORKSPACE/.github/scripts/railway-deploy.sh"
+          deploy_service web
+          wait_for_service web
