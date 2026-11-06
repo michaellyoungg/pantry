@@ -88,8 +88,15 @@ Attach a volume at `/convex/data`. It stays load-bearing even on Postgres:
 uploaded files (`/convex/data/storage`) and the generated instance credentials
 (`/convex/data/credentials`) live there, and no `pg_dump` captures them.
 
-Set `INSTANCE_SECRET` and `POSTGRES_URL` (see
+Set **all three** of `INSTANCE_SECRET`, `POSTGRES_URL` and
+`DO_NOT_REQUIRE_SSL=true` (see
 [the variable tables](#railway-service-variables)), then deploy.
+
+`DO_NOT_REQUIRE_SSL` has to be there for the **first** boot, not added
+afterwards: Railway's Postgres ships a self-signed certificate, so without it
+this first deploy fails on a TLS error. The spec's bootstrap step 2 names only
+the first two variables, which is a defect in the spec's ordering rather than a
+difference of opinion; it should be corrected to match this.
 
 Now add **two** domains to this one service, because Railway maps one domain to
 one target port and the backend needs both:
@@ -117,6 +124,12 @@ now: it is the only management interface, because no dashboard runs.
 Deploy from `apps/recipe-service` with its existing Dockerfile. Its final stage
 is `server`, so the default build is correct.
 
+Set its variables from [the variable tables](#railway-service-variables) before
+deploying: `DATABASE_URL`, `PORT`, and `RECIPE_SERVICE_SECRET`. Without them it
+crash-loops. **Generate `RECIPE_SERVICE_SECRET` here, and keep it**: step 6 sets
+the identical value on the Convex deployment, and if the two ever differ every
+recipe call 401s and the app renders as though the user owns nothing.
+
 **Give it no domain.** Only Convex calls it, so no public domain removes an
 entire attack surface at zero cost. It is reached at
 `recipe-service.railway.internal:8090`.
@@ -124,7 +137,8 @@ entire attack surface at zero cost. It is reached at
 ### 5. Web, and note its domain
 
 Root directory `/` (the repo root, **not** `apps/web`), Dockerfile
-`apps/web/Dockerfile`.
+`apps/web/Dockerfile`, and the variables from
+[the variable tables](#railway-service-variables).
 
 The root context is required: `@pantry/web` resolves `@pantry/core`,
 `@pantry/types`, `@pantry/design-tokens` and `@pantry/convex` through their
@@ -158,6 +172,12 @@ bash scripts/provision-convex.sh --preserve-auth-keys \
   --recipe-service-url http://recipe-service.railway.internal:8090
 ```
 
+Both exports are required, not conventional: with `--preserve-auth-keys` the
+script refuses to run unless `CONVEX_SELF_HOSTED_URL` and
+`CONVEX_SELF_HOSTED_ADMIN_KEY` are set explicitly, because both otherwise
+resolve to the local compose stack and a production run would silently
+reconfigure your laptop instead.
+
 `--preserve-auth-keys` is **mandatory in production and must never be omitted.**
 Without it the script mints a fresh RS256 keypair, and rotating
 `JWT_PRIVATE_KEY` invalidates every session that has ever been issued. The e2e
@@ -166,8 +186,9 @@ suite omits the flag on purpose, which is what makes each run self-isolating.
 Everything other than the keypair is set on every run, so a rotated
 `RECIPE_SERVICE_SECRET` still propagates.
 
-This is the same script the e2e suite runs on every push, which is the point:
-production and e2e cannot drift, because there is one procedure.
+This is the same script the browser e2e suite runs on every push, and the
+nightly mobile runner too, which is the point: production and e2e cannot drift,
+because there is one procedure.
 
 ### 7. Push the Convex functions
 

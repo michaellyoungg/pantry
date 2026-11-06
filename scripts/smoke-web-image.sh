@@ -54,6 +54,27 @@ code="$(curl -sS -o /dev/null -w '%{http_code}' \
   "http://127.0.0.1:$HOST_PORT/assets/definitely-not-real.js")"
 [ "$code" = "404" ] || fail "missing asset returned $code, expected 404"
 
+echo "==> index.html is not cached, hashed assets are cached forever"
+# index.html names the hashed bundles, so a browser that keeps an old copy after
+# a deploy requests bundles that no longer exist and renders nothing until a
+# hard reload. The bundles themselves are fingerprinted, so their content at a
+# given URL never changes and they can be cached immutably.
+root_cc="$(curl -sS -D- -o /dev/null "http://127.0.0.1:$HOST_PORT/" |
+  tr -d '\r' | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p')"
+case "$root_cc" in
+*no-cache* | *no-store*) ;;
+*) fail "/ served with Cache-Control '$root_cc'; a stale index.html points at bundles that no longer exist" ;;
+esac
+
+asset="$(docker exec "$CID" sh -c 'ls /srv/assets | head -1')"
+[ -n "$asset" ] || fail "no files under /srv/assets"
+asset_cc="$(curl -sS -D- -o /dev/null "http://127.0.0.1:$HOST_PORT/assets/$asset" |
+  tr -d '\r' | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p')"
+case "$asset_cc" in
+*immutable*) ;;
+*) fail "/assets/$asset served with Cache-Control '$asset_cc'; fingerprinted assets should be immutable" ;;
+esac
+
 echo "==> the Convex URL was inlined at build time"
 docker exec "$CID" sh -c 'grep -rq "127.0.0.1:3210" /srv/assets' ||
   fail "VITE_CONVEX_URL was not inlined — check the ARG/ENV pair in the Dockerfile"
