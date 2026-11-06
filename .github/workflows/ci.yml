@@ -1,8 +1,19 @@
 name: CI
 
+# Pull requests only. A merge to main does not re-run this.
+#
+# Every PR runs the full suite, Playwright included, so the merge commit's run
+# was re-proving a verdict already reached minutes earlier on a near-identical
+# tree. It also used to gate deployment: the Railway deploy triggers waited on
+# the commit's check suite, which is why this ran on main at all. Those triggers
+# no longer wait, so the run was pure latency and CI minutes.
+#
+# What this gives up: two PRs that pass separately can break together, and
+# nothing now catches that. The browser suite was already skipped on main
+# before this, so in practice that gap predates this change. If it starts
+# biting, the answer is a merge queue, which re-tests the combination before
+# it lands rather than after.
 on:
-  push:
-    branches: [main]
   pull_request:
   # Lets you trigger CI on demand from the Actions tab ("Run workflow")
   # or via `gh workflow run CI --ref <branch>`.
@@ -206,22 +217,6 @@ jobs:
     # (Convex Auth, Convex reactivity, the controlled checkbox). Heavier than the
     # other jobs, so it runs on its own. See scripts/e2e.sh.
     #
-    # Deliberately NOT run on a push to main. Every PR is gated on this job, and
-    # a squash merge produces a near-identical tree, so the main run is almost
-    # pure duplication: it re-downloads Chromium, rebuilds the whole compose
-    # stack, and re-proves what the PR just proved.
-    #
-    # It is also load-bearing for deployment. GitHub reports ONE combined check
-    # suite per commit, and the Railway deploy triggers for the dev environment
-    # wait on that suite, so this job alone held every dev deploy for the length
-    # of a full browser run. Moving it to its own workflow would not help; the
-    # suite is per app, not per workflow.
-    #
-    # What this gives up: two PRs that pass separately can still break together,
-    # and this job on main was the only thing that would have caught it. If that
-    # starts happening, the answer is a merge queue or a scheduled run against
-    # main, not blocking every deploy on a duplicate.
-    if: github.event_name != 'push'
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
