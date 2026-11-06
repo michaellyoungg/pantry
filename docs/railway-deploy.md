@@ -372,39 +372,35 @@ every user.
 
 Work the [smoke checklist](#smoke-checklist). All seven steps must pass.
 
-## There is no continuous deployment
+## How code reaches each environment
 
-Measured 2026-11-05, in both environments: **zero repo triggers on any
-service.** Nothing deploys on merge, and nothing deploys to `dev` from git at
-all.
+**`dev` deploys itself from `main`; production is promoted by hand.** The
+asymmetry is deliberate: production's schema must not run ahead of the web
+bundle that uses it, so nothing reaches production without someone choosing it.
 
-| Service | Source today | Deploys on merge? |
+| Service | `dev` | `production` |
 |---|---|---|
-| `web`, `seed` | uploaded working tree | no |
-| `recipe-service` | repo `michaellyoungg/pantry`, but **no trigger** | no |
-| `Postgres`, `convex-backend`, `convex-dashboard` | pinned images | no, and correctly so: an image bump is a deliberate ops action |
-| Convex functions | `scripts/provision-convex.sh`, run by hand | no; `.github/workflows/` has only CI and the nightly mobile e2e |
+| `web`, `recipe-service`, `seed` | repo trigger on `main`, deploys once the commit's CI check suite passes | no trigger; promoted by hand |
+| Convex functions | `.github/workflows/deploy-convex.yml` on a push to `main` that touches `packages/convex/` or the provisioning scripts | the same workflow, run by hand with `environment: production` |
+| `Postgres`, `convex-backend`, `convex-dashboard` | pinned images, no trigger | pinned images, no trigger |
 
-Every deployment described in this runbook was therefore performed from one
-laptop, with the working-tree hazard above. A `dev` environment created by
-duplication inherits *configuration* but no git wiring, so merged code reaches
-neither environment on its own.
+The pinned images never deploy on their own, correctly: an image bump is a
+deliberate ops action.
 
-What increment 2 owes, beyond what its plan already names:
+Railway waits for GitHub's check suite for the commit, and GitHub reports one
+suite per commit across every workflow, so a `dev` deploy is as slow as the
+slowest CI job on `main`. That is why the browser e2e job is skipped on a push
+to `main` (michaellyoungg/pantry#241).
 
-1. A **repo trigger per deployable service** (`web`, `recipe-service`, `seed`),
-   with `watchPatterns` so an unrelated merge does not rebuild everything.
-2. A **branch to environment mapping**, which is the question "how does merged
-   code reach dev versus prod" actually asks. Railway configures the branch per
-   service instance, so each environment's instance points at its own branch.
-3. A **Convex functions workflow**, because functions live in git and reach a
-   deployment only through `provision-convex.sh`. It needs one job per
-   environment, each with its own `CONVEX_SELF_HOSTED_URL` and admin key, and
-   it must pass `--preserve-auth-keys`.
+Promoting a service to production still means `railway up` from a clean
+checkout of the commit you mean, with the working-tree hazard described under
+recipe-service. Promote the Convex functions in the same sitting, so the schema
+and the code that reads it move together.
 
-Note that increment 2's plan to express this as `railway.toml` is obsolete;
-see the deprecation note in [What first contact
-changed](#what-first-contact-changed).
+These triggers were created by hand in Railway, not from code. Capturing them,
+with `watchPatterns` so an unrelated merge does not rebuild every service, is
+what increment 2's `.railway/railway.ts` owes; `railway.toml` is obsolete, see
+the deprecation note in [What first contact changed](#what-first-contact-changed).
 
 ## The configuration contract
 
