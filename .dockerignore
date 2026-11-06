@@ -1,0 +1,30 @@
+# Build context exclusions for builds that use the REPO ROOT as context —
+# today just apps/web/Dockerfile (BL-0006). apps/recipe-service builds with its
+# own directory as the context, so it reads its own rules, not these.
+#
+# node_modules is the load-bearing line. pnpm installs a store of symlinks
+# pointing at absolute host paths; copying the host tree over the one the image
+# just installed replaces working modules with dangling links, and the failure
+# surfaces as an unresolvable import rather than as a copy error.
+**/node_modules
+.git
+.github
+
+# Build output. The image builds its own; a stale host dist copied in is how a
+# build "succeeds" while serving last week's bundle.
+**/dist
+**/.turbo
+apps/web/src/routeTree.gen.ts
+
+# Local state and secrets — none of it belongs in an image layer.
+.data
+.backups
+.env
+.env.*
+!.env.example
+
+# Test and agent artifacts.
+**/playwright-report
+**/test-results
+.superpowers
+.claude
