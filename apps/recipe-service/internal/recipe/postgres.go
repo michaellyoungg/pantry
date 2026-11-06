@@ -19,10 +19,34 @@ type PostgresStore struct {
 	pool *pgxpool.Pool
 }
 
+// StartupConnectWindow is how long NewPostgresStore keeps trying before giving
+// up. It is sized to outlast a database redeploy rather than a database outage:
+// long enough that a routine Postgres restart does not kill this process, short
+// enough that a genuinely misconfigured deployment still fails while someone is
+// watching.
+const StartupConnectWindow = 2 * time.Minute
+
+// NewPostgresStore connects, applies the schema and seeds the equipment
+// catalog, retrying until StartupConnectWindow expires.
+//
+// Every step here can fail simply because Postgres is restarting, and this
+// process used to exit when it did. That made any database redeploy fatal: the
+// container runtime restarts the process a bounded number of times, Postgres
+// is still coming up, the budget is spent, and the service stays down until a
+// human notices. Retrying here is what turns a restart into a pause.
 func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
+	return retryConnect(ctx, StartupConnectWindow, 500*time.Millisecond,
+		func(ctx context.Context) (*PostgresStore, error) {
+			return newPostgresStore(ctx, dsn)
+		})
+}
+
+func newPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("parse dsn: %w", err)
+		// A malformed DSN never becomes valid, so fail now rather than
+		// spending the whole window discovering that again.
+		return nil, errPermanent{fmt.Errorf("parse dsn: %w", err)}
 	}
 	// Query spans become children of the HTTP server span, so a slow endpoint
 	// shows exactly which statement cost the time. When no tracer provider is
