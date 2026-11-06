@@ -1,7 +1,7 @@
 ---
 id: BL-0060
 title: EAS build + private distribution (TestFlight, Play internal)
-status: proposed
+status: in-progress
 area: mobile
 effort: M
 related_specs: [2026-08-16-mobile-client-parity-design.md]
