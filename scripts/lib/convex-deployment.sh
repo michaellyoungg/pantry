@@ -34,7 +34,9 @@ convex_wait_ready() {
     sleep 2
     waited=$((waited + 2))
   done
-  if [ "${#COMPOSE[@]}" -gt 0 ]; then
+  # `${#COMPOSE[@]}` on a wholly unset COMPOSE aborts under `set -u`, and a
+  # caller with no compose stack (production) legitimately has none.
+  if [ -n "${COMPOSE+x}" ] && [ "${#COMPOSE[@]}" -gt 0 ]; then
     echo "--- convex-backend logs (last 30 lines) ---" >&2
     "${COMPOSE[@]}" logs --tail 30 convex-backend >&2 2>&1 || true
     echo "--- container state ---" >&2
@@ -54,7 +56,7 @@ convex_admin_key() {
     printf '%s\n' "$CONVEX_SELF_HOSTED_ADMIN_KEY"
     return 0
   fi
-  [ "${#COMPOSE[@]}" -gt 0 ] ||
+  { [ -n "${COMPOSE+x}" ] && [ "${#COMPOSE[@]}" -gt 0 ]; } ||
     convex_die "no CONVEX_SELF_HOSTED_ADMIN_KEY and no COMPOSE invocation to read one from"
 
   local raw key

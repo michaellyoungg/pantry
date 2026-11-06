@@ -1,0 +1,36 @@
+# Production static server for the Vite SPA (BL-0006).
+#
+# Railway injects PORT. The two handle blocks are deliberate:
+#   * /assets/* is served strictly, so a missing bundle returns 404 rather
+#     than being handed index.html — which would surface in the browser as a
+#     confusing MIME-type error instead of a clear missing-file error.
+#   * everything else falls back to index.html, because TanStack Router owns
+#     routing on the client and no file exists at /plan.
+:{$PORT:8080} {
+	root * /srv
+	encode gzip
+
+	# Caddy logs no requests at all without this, so the web service would
+	# produce nothing in Railway's log view. The one failure mode this image has
+	# that only appears in production is the SPA fallback, and diagnosing it
+	# without request logs means guessing.
+	log
+
+	handle /assets/* {
+		# Vite fingerprints these filenames, so the bytes at a given URL never
+		# change and the browser never needs to ask again.
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	handle {
+		# index.html must not be cached. It names the hashed bundles, so a
+		# browser reusing an old copy after a deploy requests bundles that no
+		# longer exist and renders a blank page until someone hard-reloads.
+		# Served with only ETag/Last-Modified, browsers cache it heuristically,
+		# which is exactly that failure.
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
