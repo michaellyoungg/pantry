@@ -22,5 +22,7 @@
       "metro": false,
       "ignoreDependencies": ["expo-updates", "react-native-css-interop"]
     }
-  }
+  },
+  "ignoreDependencies": ["railway"],
+  "ignore": [".railway/**"]
 }
