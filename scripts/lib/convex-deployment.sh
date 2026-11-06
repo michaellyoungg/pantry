@@ -61,7 +61,15 @@ convex_admin_key() {
 
   local raw key
   raw="$("${COMPOSE[@]}" exec -T convex-backend ./generate_admin_key.sh | tr -d '\r')"
-  key="$(printf '%s\n' "$raw" | grep -oE '[a-z0-9-]+\|[A-Za-z0-9|]+' | tail -n1)"
+  # Take the last line that contains a "|" and strip whitespace, rather than
+  # matching the instance name against a character class. The key is
+  # "<INSTANCE_NAME>|<hex>", and INSTANCE_NAME is operator-supplied: Convex's
+  # own Railway template sets `convex_self_hosted`, whose underscores a
+  # `[a-z0-9-]+` prefix silently skips, yielding a truncated key that looks
+  # plausible and is rejected by every subsequent call. The local compose stack
+  # never set INSTANCE_NAME, so it defaulted to `convex-self-hosted` and the
+  # hyphens hid this.
+  key="$(printf '%s\n' "$raw" | grep -E '\|' | tail -n1 | tr -d '[:space:]')"
   [ -n "$key" ] || convex_die "could not parse an admin key out of generate_admin_key.sh"
   printf '%s\n' "$key"
 }
