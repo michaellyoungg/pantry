@@ -21,9 +21,12 @@
 # change has to be made by a human who has read the plan.
 #
 # AND THE APPLY IS VERIFIED, because "applied" is not evidence of applied.
-# Railway reported status:"applied" with no diagnostics for a volume region
-# change it did not perform, leaving the plan permanently dirty. The re-plan
-# after the apply is what turns that into a failed run instead of a green one.
+# Railway reported status:"applied" with no diagnostics for dev's volume region
+# change and left the volume where it was, because a volume cannot leave the
+# region of the service that mounts it and that service is in the old region.
+# An apply cannot converge on that, and a plan-then-apply run cannot notice: it
+# plans the same change again next run, forever. The re-plan after the apply is
+# what turns that into a failed run instead of a green one.
 name: Railway IaC
 
 on:

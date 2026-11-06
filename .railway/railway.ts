@@ -47,10 +47,20 @@ export default defineRailway((c) => {
   const repo = "michaellyoungg/pantry";
   // One region for everything, in both environments. Railway Metal regions
   // carry a datacenter code (eqdc4a is Equinix DC4); bare cloud names like
-  // us-west2 are the legacy fleet. Duplicating production into dev put dev's
-  // VOLUMES in us-west2 while its services ran here, so dev was split across
-  // two regions and two fleets, which is the cross-region latency the Metal
-  // docs warn about. Pinning it here is what stops that recurring.
+  // us-west2 are the legacy fleet.
+  //
+  // DECLARING THIS DOES NOT MOVE ANYTHING. `railway config plan` does not diff
+  // deploy.multiRegionConfig, so a service in the wrong region is reported as
+  // no change at all. Production is wholly on Metal, but dev still runs web,
+  // convex-backend and convex-dashboard in us-west2 against this declaration,
+  // and the plan has never once mentioned them.
+  //
+  // That is also why dev's convex-backend-volume will not move. A volume lives
+  // in the region of the service that mounts it, and convex-backend is in
+  // us-west2, so the region change on the volume is impossible on its own:
+  // Railway reports it as applied and leaves it where it is. Moving dev means
+  // moving the services first, through serviceInstanceUpdate, which for
+  // convex-backend means moving 83MB of Convex data with it.
   const region = "us-east4-eqdc4a";
   const deployTrigger: { branch?: string; checkSuites?: boolean } =
     c.isEnvironment("production")
