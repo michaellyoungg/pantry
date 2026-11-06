@@ -1,0 +1,99 @@
+# Promote a commit to production (BL-0006, increment 2).
+#
+# Production has no deploy trigger. Nothing reaches it by merging, pushing a
+# branch, or anything else automatic: it moves only when someone runs this.
+#
+# It replaces a `release` branch, which moved the services and the Railway
+# topology but NOT the Convex schema. That needed a second, separate action,
+# and a promotion you have to remember two halves of is one you will eventually
+# do half of. The three steps now run in one place, in order, against one
+# commit.
+#
+# The commit is pinned. `serviceInstanceDeployV2` takes a sha, so what ships is
+# a specific commit rather than "whatever the branch pointed at when Railway
+# got round to it", and the run log records exactly what was promoted by whom.
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit to promote"
+        type: string
+        default: main
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      - name: Resolve the commit
+        id: sha
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "### Promoting \`${sha:0:9}\`" >> "$GITHUB_STEP_SUMMARY"
+          git log -1 --format='%s' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm i -g @railway/cli
+
+      # Infrastructure first: a service should never deploy into a topology
+      # that has not caught up with it. No --confirm-destructive, so anything
+      # destructive stops the promotion rather than proceeding unattended.
+      - name: Apply the Railway topology
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          railway config plan --environment production
+          railway config apply --environment production --yes
+
+      # Then the services, each pinned to this exact commit. Railway builds
+      # from the service's own git source, so nothing here uploads a working
+      # tree the way `railway up` does.
+      - name: Deploy services at ${{ steps.sha.outputs.sha }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          ENV_ID: ${{ vars.RAILWAY_PROD_ENV_ID }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ids="$(railway api "query { project(id: \"$PROJECT_ID\") { services { edges { node { id name } } } } }")"
+          for svc in web recipe-service seed; do
+            id="$(printf '%s' "$ids" | jq -r --arg n "$svc" '.data.project.services.edges[].node | select(.name==$n) | .id')"
+            [ -n "$id" ] && [ "$id" != "null" ] || { echo "::error::no service id for $svc"; exit 1; }
+            echo "deploying $svc ($id) at $SHA"
+            railway api "mutation { serviceInstanceDeployV2(serviceId: \"$id\", environmentId: \"$ENV_ID\", commitSha: \"$SHA\") }"
+            echo "- \`$svc\` deployed at \`${SHA:0:9}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      # Last, because the schema belongs to the code that was just deployed.
+      # --preserve-auth-keys is mandatory: regenerating JWT_PRIVATE_KEY would
+      # sign out every session ever issued.
+      - name: Provision Convex
+        env:
+          CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_PROD_URL }}
+          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_PROD_ADMIN_KEY }}
+          RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_PROD }}
+          RECIPE_SERVICE_URL: ${{ vars.RECIPE_SERVICE_URL }}
+        run: |
+          set -euo pipefail
+          bash scripts/provision-convex.sh --preserve-auth-keys \
+            --site-url "${{ vars.SITE_URL_PROD }}" > /dev/null
+          echo "Convex schema and functions provisioned." >> "$GITHUB_STEP_SUMMARY"

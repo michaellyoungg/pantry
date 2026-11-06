@@ -6,10 +6,9 @@
 # laptop, which has the same flaw as `railway up`: it applies whatever is
 # checked out, and nothing records who changed the infrastructure or when.
 #
-# Branch mapping mirrors the deployments themselves, which is the point: the
-# same push that moves the code moves the infrastructure it runs on.
-#   main    -> dev
-#   release -> production
+# This applies DEV only. Production's topology is applied by promote.yml, as
+# the first step of a promotion, so a service never deploys into a topology
+# that has not caught up with it, and only one workflow owns production.
 #
 # Tokens are scoped to ONE environment, so there are two, and dev's cannot
 # touch production. That is a property worth keeping: the blast radius of a
@@ -23,7 +22,7 @@ name: Railway IaC
 
 on:
   push:
-    branches: [main, release]
+    branches: [main]
     paths:
       - ".railway/**"
       - ".github/workflows/railway-iac.yml"
@@ -42,12 +41,12 @@ on:
 
 concurrency:
   # Never two applies against the same environment at once.
-  group: railway-iac-${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+  group: railway-iac-${{ github.event.inputs.environment || 'dev' }}
   cancel-in-progress: false
 
 jobs:
   apply:
-    name: ${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+    name: ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -73,9 +72,6 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "mode=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref_name }}" = "release" ]; then
-            echo "env=production" >> "$GITHUB_OUTPUT"
-            echo "mode=apply" >> "$GITHUB_OUTPUT"
           else
             echo "env=dev" >> "$GITHUB_OUTPUT"
             echo "mode=apply" >> "$GITHUB_OUTPUT"

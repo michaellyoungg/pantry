@@ -10,13 +10,22 @@ import {
 } from "railway/iac";
 
 export default defineRailway((c) => {
-  // Which branch each environment deploys from. dev follows main, so every
-  // merge lands there; production follows `release`, which only moves when
-  // someone pushes it, which is what makes promotion deliberate.
+  // A git source WITH a branch is a deploy trigger in Railway; omitting the
+  // branch leaves the service a repo to build from and nothing that fires on a
+  // push. That distinction is the whole deployment model:
   //
-  // checkSuites is false on purpose: a merged PR has already run the full
-  // suite, so waiting for the merge commit's checks re-proves a known verdict
-  // and delays the deploy. CI does not run on main at all any more.
+  //   dev        tracks main, so every merge deploys.
+  //   production has no trigger. It is deployed by the "Promote to production"
+  //              workflow, which pins an exact commit rather than following a
+  //              branch, so what shipped is a sha and not "whatever main was".
+  //
+  // Promotion used to be a push to a `release` branch. That moved the services
+  // and the topology but NOT the Convex schema, which needed a second action
+  // nobody would remember. One workflow now does all three in order.
+  //
+  // checkSuites is false on dev: a merged PR has already run the full suite, so
+  // waiting on the merge commit re-proves a known verdict. CI does not run on
+  // main at all.
   const repo = "michaellyoungg/pantry";
   // One region for everything, in both environments. Railway Metal regions
   // carry a datacenter code (eqdc4a is Equinix DC4); bare cloud names like
@@ -25,8 +34,7 @@ export default defineRailway((c) => {
   // two regions and two fleets, which is the cross-region latency the Metal
   // docs warn about. Pinning it here is what stops that recurring.
   const region = "us-east4-eqdc4a";
-  const branch = c.isEnvironment("production") ? "release" : "main";
-  const deployTrigger = { branch, checkSuites: false };
+  const deployTrigger = c.isEnvironment("production") ? {} : { branch: "main", checkSuites: false };
   const Postgres = postgres("Postgres", { region });
   Postgres.networking = { privateNetworkEndpoint: "postgres", tcpProxies: { "5432": {} } };
   // The postgres() helper defaults to postgres:18 and DatabaseConfig has no
@@ -67,14 +75,17 @@ export default defineRailway((c) => {
   // a timer, which is itself outbound traffic, so recipe-service may never
   // actually go idle. Sleeping it costs nothing if so; making it effective
   // means shortening the pool's idle timeouts.
-  const sleepWhenIdle = !c.isEnvironment("production");
+  // Declared only where true: Railway reports an unset sleepApplication as
+  // null, so declaring `false` leaves a change that every plan reports and no
+  // apply can ever settle.
+  const sleepWhenIdle = c.isEnvironment("production") ? {} : { sleepApplication: true };
   const web = service("web", {
     // No rootDirectory: this image's build context IS the repo root, because
     // @pantry/web resolves four workspace packages through their built dist/.
     source: github(repo, deployTrigger),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "apps/web/Dockerfile" },
     replicas: { [region]: 1 },
-    deploy: { sleepApplication: sleepWhenIdle },
+    deploy: { ...sleepWhenIdle },
   });
   const convexDashboard = service("convex-dashboard", {
     source: image(
@@ -82,7 +93,7 @@ export default defineRailway((c) => {
     ),
     build: { buildEnvironment: "V3", builder: "RAILPACK" },
     replicas: { [region]: 1 },
-    deploy: { sleepApplication: sleepWhenIdle },
+    deploy: { ...sleepWhenIdle },
   });
   const seed = service("seed", {
     // The import omitted this, so an apply would have nulled seed's source and
@@ -98,7 +109,7 @@ export default defineRailway((c) => {
     source: github(repo, { ...deployTrigger, rootDirectory: "apps/recipe-service" }),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     replicas: { [region]: 1 },
-    deploy: { sleepApplication: sleepWhenIdle },
+    deploy: { ...sleepWhenIdle },
   });
   const ConvexPostgresOfficial = group("Convex & Postgres - Official", [
     Postgres,

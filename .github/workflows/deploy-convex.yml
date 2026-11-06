@@ -9,12 +9,10 @@
 # alone. Regenerating JWT_PRIVATE_KEY would sign out every session ever issued,
 # and the flag's absence is what keeps the e2e suite self-isolating.
 #
-# DEV IS AUTOMATIC, PRODUCTION IS NOT, and that asymmetry is deliberate.
-# Production's Railway services carry no deploy trigger and are promoted by
-# hand, so auto-deploying production's SCHEMA would let it run ahead of the web
-# bundle that uses it: a removed field would break the live app with nothing
-# merged to explain it. Promote production here the same way you promote its
-# services, by choosing it in "Run workflow".
+# DEV ONLY. Production's schema is deployed by promote.yml, as the last step of
+# a promotion, after the services carrying the code that uses it. Keeping it
+# here as a separate manual run is what made promotion two actions instead of
+# one, and the forgettable half was always this one.
 #
 # RECIPE_SERVICE_URL is no longer written into this file. Railway holds it on
 # convex-backend as `http://${{recipe-service.RAILWAY_PRIVATE_DOMAIN}}:8090`, a
@@ -36,22 +34,16 @@ on:
       - "scripts/lib/convex-deployment.sh"
       - ".github/workflows/deploy-convex.yml"
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Which deployment to provision"
-        type: choice
-        options: [dev, production]
-        default: dev
 
 concurrency:
   # Never two pushes to the same deployment at once; do not cancel a run that is
   # midway through applying a schema.
-  group: deploy-convex-${{ github.event.inputs.environment || 'dev' }}
+  group: deploy-convex-dev
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: ${{ github.event.inputs.environment || 'dev' }}
+    name: dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -68,12 +60,7 @@ jobs:
 
       # A push always targets dev. Only an explicit dispatch can select
       # production, so there is no path from a merge to production's schema.
-      - name: Resolve target
-        id: target
-        run: echo "env=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'dev' }}" >> "$GITHUB_OUTPUT"
-
       - name: Provision dev
-        if: steps.target.outputs.env == 'dev'
         env:
           CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_DEV_URL }}
           CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_DEV_ADMIN_KEY }}
@@ -83,17 +70,4 @@ jobs:
           set -euo pipefail
           bash scripts/provision-convex.sh --preserve-auth-keys \
             --site-url "${{ vars.SITE_URL_DEV }}" \
-            > /dev/null
-
-      - name: Provision production
-        if: steps.target.outputs.env == 'production'
-        env:
-          CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_PROD_URL }}
-          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_PROD_ADMIN_KEY }}
-          RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_PROD }}
-          RECIPE_SERVICE_URL: ${{ vars.RECIPE_SERVICE_URL }}
-        run: |
-          set -euo pipefail
-          bash scripts/provision-convex.sh --preserve-auth-keys \
-            --site-url "${{ vars.SITE_URL_PROD }}" \
             > /dev/null
