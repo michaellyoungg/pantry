@@ -2,16 +2,23 @@
 #
 # Functions live in git and reach a deployment only through
 # scripts/provision-convex.sh, so without this a merged schema change silently
-# does not reach either environment until someone remembers to run it by hand.
+# does not reach either environment until someone remembers to run it.
 #
-# `--preserve-auth-keys` is mandatory and is why this is safe to run on every
-# merge: it sets every other deployment variable but leaves an existing RS256
-# keypair alone. Regenerating JWT_PRIVATE_KEY would sign out every existing
-# session, and the flag's absence is what keeps the e2e suite self-isolating.
+# `--preserve-auth-keys` is mandatory and is what makes this safe unattended: it
+# sets every other deployment variable but leaves an existing RS256 keypair
+# alone. Regenerating JWT_PRIVATE_KEY would sign out every session ever issued,
+# and the flag's absence is what keeps the e2e suite self-isolating.
 #
-# The runner never needs to reach recipe-service. RECIPE_SERVICE_URL is stored
-# on the Convex deployment as a string for Convex itself to call over Railway's
-# private network, so a public runner only has to reach the Convex backend.
+# DEV IS AUTOMATIC, PRODUCTION IS NOT, and that asymmetry is deliberate.
+# Production's Railway services carry no deploy trigger and are promoted by
+# hand, so auto-deploying production's SCHEMA would let it run ahead of the web
+# bundle that uses it: a removed field would break the live app with nothing
+# merged to explain it. Promote production here the same way you promote its
+# services, by choosing it in "Run workflow".
+#
+# The runner never needs Railway's private network. RECIPE_SERVICE_URL is stored
+# on the deployment as a string for Convex itself to call, so a public runner
+# only has to reach the Convex backend's public domain.
 name: Deploy Convex
 
 on:
@@ -23,32 +30,23 @@ on:
       - "scripts/lib/convex-deployment.sh"
       - ".github/workflows/deploy-convex.yml"
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which deployment to provision"
+        type: choice
+        options: [dev, production]
+        default: dev
 
 concurrency:
-  group: deploy-convex-${{ github.ref }}
+  # Never two pushes to the same deployment at once; do not cancel a run that is
+  # midway through applying a schema.
+  group: deploy-convex-${{ github.event.inputs.environment || 'dev' }}
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: ${{ matrix.environment }}
+    name: ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
-    strategy:
-      # Deliberately not parallel: these push schema to two live deployments,
-      # and a failure against dev should be visible before production runs.
-      max-parallel: 1
-      fail-fast: true
-      matrix:
-        include:
-          - environment: dev
-            url_var: CONVEX_DEV_URL
-            site_var: SITE_URL_DEV
-            key_secret: CONVEX_DEV_ADMIN_KEY
-            rss_secret: RECIPE_SERVICE_SECRET_DEV
-          - environment: production
-            url_var: CONVEX_PROD_URL
-            site_var: SITE_URL_PROD
-            key_secret: CONVEX_PROD_ADMIN_KEY
-            rss_secret: RECIPE_SERVICE_SECRET_PROD
     steps:
       - uses: actions/checkout@v7
 
@@ -62,17 +60,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Provision ${{ matrix.environment }}
+      # A push always targets dev. Only an explicit dispatch can select
+      # production, so there is no path from a merge to production's schema.
+      - name: Resolve target
+        id: target
+        run: echo "env=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'dev' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Provision dev
+        if: steps.target.outputs.env == 'dev'
         env:
-          CONVEX_SELF_HOSTED_URL: ${{ vars[matrix.url_var] }}
-          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets[matrix.key_secret] }}
-          RECIPE_SERVICE_SECRET: ${{ secrets[matrix.rss_secret] }}
+          CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_DEV_URL }}
+          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_DEV_ADMIN_KEY }}
+          RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_DEV }}
         run: |
           set -euo pipefail
-          # The script refuses to run in --preserve-auth-keys mode without an
-          # explicit URL and admin key, precisely so a missing secret cannot
-          # silently retarget this at a local stack.
           bash scripts/provision-convex.sh --preserve-auth-keys \
-            --site-url "${{ vars[matrix.site_var] }}" \
+            --site-url "${{ vars.SITE_URL_DEV }}" \
+            --recipe-service-url http://recipe-service.railway.internal:8090 \
+            > /dev/null
+
+      - name: Provision production
+        if: steps.target.outputs.env == 'production'
+        env:
+          CONVEX_SELF_HOSTED_URL: ${{ vars.CONVEX_PROD_URL }}
+          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_PROD_ADMIN_KEY }}
+          RECIPE_SERVICE_SECRET: ${{ secrets.RECIPE_SERVICE_SECRET_PROD }}
+        run: |
+          set -euo pipefail
+          bash scripts/provision-convex.sh --preserve-auth-keys \
+            --site-url "${{ vars.SITE_URL_PROD }}" \
             --recipe-service-url http://recipe-service.railway.internal:8090 \
             > /dev/null
