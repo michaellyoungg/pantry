@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Rehearse a Convex image upgrade before changing the pin (BL-0008).
 #
-#   docker pull ghcr.io/get-convex/convex-backend:latest
+#   docker pull ghcr.io/convex/convex-backend:latest
 #   CONVEX_CANDIDATE_IMAGE="$(docker image inspect \
-#     ghcr.io/get-convex/convex-backend:latest --format '{{index .RepoDigests 0}}')" \
+#     ghcr.io/convex/convex-backend:latest --format '{{index .RepoDigests 0}}')" \
 #     scripts/convex-upgrade-rehearsal.sh
 #
 # docker-compose.yml pins the backend by digest, so upgrading is a deliberate
@@ -85,7 +85,7 @@ refresh_admin_key() {
 TABLES="groceryList pantryItems"
 SEED_DIR="$ROOT/scripts/fixtures/convex-drill"
 
-PINNED="$(grep -oE 'ghcr\.io/get-convex/convex-backend@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | head -n1)"
+PINNED="$(grep -oE 'ghcr\.io/convex/convex-backend@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | head -n1)"
 [ -n "$PINNED" ] || fail "could not read the pinned convex-backend digest out of docker-compose.yml"
 
 echo "==> rehearsing upgrade"
