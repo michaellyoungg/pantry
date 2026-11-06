@@ -1,0 +1,78 @@
+# Deploy Convex functions and schema (BL-0006, increment 2).
+#
+# Functions live in git and reach a deployment only through
+# scripts/provision-convex.sh, so without this a merged schema change silently
+# does not reach either environment until someone remembers to run it by hand.
+#
+# `--preserve-auth-keys` is mandatory and is why this is safe to run on every
+# merge: it sets every other deployment variable but leaves an existing RS256
+# keypair alone. Regenerating JWT_PRIVATE_KEY would sign out every existing
+# session, and the flag's absence is what keeps the e2e suite self-isolating.
+#
+# The runner never needs to reach recipe-service. RECIPE_SERVICE_URL is stored
+# on the Convex deployment as a string for Convex itself to call over Railway's
+# private network, so a public runner only has to reach the Convex backend.
+name: Deploy Convex
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/convex/**"
+      - "scripts/provision-convex.sh"
+      - "scripts/lib/convex-deployment.sh"
+      - ".github/workflows/deploy-convex.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-convex-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Deliberately not parallel: these push schema to two live deployments,
+      # and a failure against dev should be visible before production runs.
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        include:
+          - environment: dev
+            url_var: CONVEX_DEV_URL
+            site_var: SITE_URL_DEV
+            key_secret: CONVEX_DEV_ADMIN_KEY
+            rss_secret: RECIPE_SERVICE_SECRET_DEV
+          - environment: production
+            url_var: CONVEX_PROD_URL
+            site_var: SITE_URL_PROD
+            key_secret: CONVEX_PROD_ADMIN_KEY
+            rss_secret: RECIPE_SERVICE_SECRET_PROD
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Provision ${{ matrix.environment }}
+        env:
+          CONVEX_SELF_HOSTED_URL: ${{ vars[matrix.url_var] }}
+          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets[matrix.key_secret] }}
+          RECIPE_SERVICE_SECRET: ${{ secrets[matrix.rss_secret] }}
+        run: |
+          set -euo pipefail
+          # The script refuses to run in --preserve-auth-keys mode without an
+          # explicit URL and admin key, precisely so a missing secret cannot
+          # silently retarget this at a local stack.
+          bash scripts/provision-convex.sh --preserve-auth-keys \
+            --site-url "${{ vars[matrix.site_var] }}" \
+            --recipe-service-url http://recipe-service.railway.internal:8090 \
+            > /dev/null
