@@ -15,7 +15,7 @@
 #
 # ORDER IS DEPENDENCY ORDER, AND EACH STEP WAITS.
 #
-#   topology -> recipe-service -> Convex functions -> web
+#   topology check -> recipe-service -> Convex functions -> web
 #
 # Backend leads because the failure that matters is a new frontend calling a
 # function that is not deployed yet. BL-0075 requires a breaking change to ship
@@ -26,7 +26,9 @@
 #
 # The waits are load-bearing. serviceInstanceDeployV2 returns as soon as the
 # deploy is queued, so without them the ordering would be nominal and web could
-# go live against functions that are still building.
+# go live against functions that are still building. Each wait follows the
+# deployment id this run started, NOT the service's latest deployment, because
+# other things queue deployments too (see the topology step).
 name: Promote to production
 
 on:
@@ -38,7 +40,9 @@ on:
         default: main
 
 concurrency:
-  group: promote-production
+  # Shared with the Railway IaC workflow, so a topology apply cannot run
+  # underneath a promotion. The group name is the environment, not the workflow.
+  group: railway-production
   cancel-in-progress: false
 
 jobs:
@@ -67,16 +71,40 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npm i -g @railway/cli
 
-      # Infrastructure first: a service should never deploy into a topology
-      # that has not caught up with it. No --confirm-destructive, so anything
-      # destructive stops the promotion rather than proceeding unattended.
-      - name: Apply the Railway topology
+      # Infrastructure first: a service should never deploy into a topology that
+      # has not caught up with it. But this CHECKS rather than applies.
+      #
+      # `railway config apply` queues its own deployments for every service it
+      # changes, from that service's configured branch, and does not wait. An
+      # apply here would therefore race the pinned deployments in the next step:
+      # two deployments per service, and whichever finished first would decide
+      # what went live. Production's history still shows such a cluster, tagged
+      # meta.patchId=iac-change-set/..., from when this step applied.
+      #
+      # So a stale topology FAILS the promotion instead. --detailed-exit-code
+      # exits 2 when changes are pending; applying them is a deliberate act, done
+      # through the Railway IaC workflow with the plan in front of a human.
+      - name: Check the Railway topology is current
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
         run: |
           set -euo pipefail
-          railway config plan --environment production
-          railway config apply --environment production --yes
+          code=0
+          railway config plan --environment production --detailed-exit-code || code=$?
+          case "$code" in
+          0) echo "Topology is current." ;;
+          2)
+            echo "::error::Production's topology does not match .railway/railway.ts." \
+                 "Apply it first: run the 'Railway IaC' workflow with" \
+                 "environment=production, mode=apply, then re-run this promotion." \
+                 "Applying it here would queue deployments that race the pinned ones."
+            exit 1
+            ;;
+          *)
+            echo "::error::railway config plan failed with exit $code"
+            exit 1
+            ;;
+          esac
 
       # Then the services, each pinned to this exact commit. Railway builds
       # from the service's own git source, so nothing here uploads a working
@@ -121,3 +149,34 @@ jobs:
           . "$GITHUB_WORKSPACE/.github/scripts/railway-deploy.sh"
           deploy_service web
           wait_for_service web
+
+      # A promotion is four steps against three systems, so a failure leaves a
+      # defined but non-obvious half-state. The worst is a failed Convex step:
+      # provision-convex.sh writes SITE_URL, RECIPE_SERVICE_URL and
+      # RECIPE_SERVICE_SECRET BEFORE pushing functions, so Convex can be left
+      # holding this commit's variables and the previous commit's functions,
+      # with web still on the previous commit too.
+      - name: Say what the failure left behind
+        if: failure()
+        run: |
+          {
+            echo "### Promotion of \`${SHA:0:9}\` FAILED"
+            echo
+            echo "The steps above that passed have already taken effect; production is"
+            echo "part-way through this promotion. Check which step failed, then:"
+            echo
+            echo "- **topology check** — nothing changed. Apply the topology, re-run."
+            echo "- **backend services** — recipe-service and/or seed may be on this"
+            echo "  commit while Convex and web are on the previous one."
+            echo "- **Convex** — Convex's env vars are on this commit and its functions"
+            echo "  may not be. Re-run the promotion for the SAME commit; the script is"
+            echo "  idempotent and --preserve-auth-keys keeps sessions alive."
+            echo "- **web** — backend is on this commit, web is not. Re-run."
+            echo
+            echo "Rolling BACK means promoting the previous commit, which works for"
+            echo "services but NOT across a Convex schema narrowing: Convex rejects a"
+            echo "push whose schema does not validate existing documents. Roll forward"
+            echo "if the schema changed."
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
