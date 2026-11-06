@@ -5,6 +5,7 @@ import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { useCallback } from "react";
 import { toISODate } from "../calendar";
 import { useAsyncData } from "../react/useAsyncData";
+import { useNow } from "../react/useNow";
 
 /** `prepTasks.forRecipe`. Injectable so web can pass its traced wrapper. */
 export type PrepForRecipe = (
@@ -39,13 +40,14 @@ export function useRecipePrep(
   recipeId: string,
   {
     forRecipe,
-    now = new Date(),
+    now,
     enabled = true,
   }: { forRecipe?: PrepForRecipe; now?: Date; enabled?: boolean } = {},
 ): UseRecipePrep {
   const forRecipeAction = useAction(api.prepTasks.forRecipe);
   const derive = forRecipe ?? forRecipeAction;
-  const cookDate = toISODate(now);
+  const clock = useNow();
+  const cookDate = toISODate(now ?? new Date(clock));
 
   const load = useCallback(
     () =>

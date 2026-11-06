@@ -14,7 +14,7 @@ import {
   toISODate,
   windowEndingOn,
 } from "@pantry/core";
-import { useAsyncAction } from "@pantry/core/react";
+import { useAsyncAction, useNow } from "@pantry/core/react";
 import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
@@ -56,7 +56,9 @@ const DIRECTION_STYLE = {
   unknown: "text-muted",
 } as const;
 
-export function HabitReview({ today = toISODate(new Date()) }: { today?: string }) {
+export function HabitReview({ today: todayOverride }: { today?: string }) {
+  const now = useNow();
+  const today = todayOverride ?? toISODate(new Date(now));
   const [windowDays, setWindowDays] = useState<number>(7);
   const window = useMemo(() => windowEndingOn(today, windowDays), [today, windowDays]);
 

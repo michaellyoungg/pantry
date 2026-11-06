@@ -15,6 +15,7 @@
  */
 import { formatUseBy, isOverdue, titleCase } from "@pantry/core";
 import { type PantryItem, usePantry } from "@pantry/core/data";
+import { useNow } from "@pantry/core/react";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { surfaceTestIDs, testIDKey } from "../testing/testIDs";
@@ -132,7 +133,7 @@ function PantryRow({
   onConfirmRemove: () => void;
 }) {
   const key = testIDKey(item.canonicalItem);
-  const now = Date.now();
+  const now = useNow();
   const overdue = item.useBy !== undefined && isOverdue(item.useBy, now);
 
   return (
