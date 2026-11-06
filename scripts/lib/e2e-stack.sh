@@ -23,6 +23,38 @@ e2e_die() {
   exit 1
 }
 
+# e2e_ensure_secrets — give .env a real value for every ephemeral secret the
+# compose stack interpolates.
+#
+# Ensured per VARIABLE and per VALUE, which are two separate traps.
+#
+# Gating on the FILE existing left a .env that exists but is missing a name
+# unrepaired forever. Matching `^NAME=` alone left the likelier case unrepaired
+# too: .env.example ships CONVEX_INSTANCE_SECRET= and RECIPE_SERVICE_SECRET=
+# with EMPTY values and tells you to copy it and fill them in, and compose's
+# ${VAR:?} fails on null exactly as it does on unset. So the match requires a
+# value. Either way the symptom lands four steps later as "required variable
+# RECIPE_SERVICE_SECRET is missing a value", which names the variable but not
+# the reason. CI never sees any of it, because CI has no .env at all.
+#
+# Appending, never rewriting the file, is the other half: CONVEX_INSTANCE_SECRET
+# is what the backend derived ./.data/convex/credentials from, so handing it a
+# fresh value locks it out of its own data.
+e2e_ensure_secrets() {
+  local name
+  touch .env
+  for name in CONVEX_INSTANCE_SECRET RECIPE_SERVICE_SECRET; do
+    if grep -qE "^${name}=.+" .env; then continue; fi
+    # Drop a valueless assignment before appending, so the file does not carry
+    # the same name twice and leave the winner to source order.
+    if grep -q "^${name}=" .env; then
+      grep -v "^${name}=" .env >.env.tmp && mv .env.tmp .env
+    fi
+    echo "${name}=$(openssl rand -hex 32)" >>.env
+    echo "==> set $name in .env"
+  done
+}
+
 # Register with `trap e2e_stack_teardown EXIT`.
 e2e_stack_teardown() {
   if [ "${E2E_KEEP_STACK:-0}" = "1" ]; then
@@ -41,22 +73,7 @@ e2e_stack_up() {
   local site_url=$1
 
   # --- 1. ephemeral secrets (root .env is gitignored) ----------------------
-  # Ensured per VARIABLE, not per file. Gating on the file's existence left a
-  # .env that exists but is missing a name unrepaired forever, and the failure
-  # lands four steps later as a compose interpolation error that names the
-  # variable but not the reason. CI never saw it because CI has no .env at all.
-  #
-  # Appending, never rewriting, is the other half: CONVEX_INSTANCE_SECRET is
-  # what the backend derived ./.data/convex/credentials from, so a fresh value
-  # there locks the backend out of its own data.
-  local name
-  touch .env
-  for name in CONVEX_INSTANCE_SECRET RECIPE_SERVICE_SECRET; do
-    if ! grep -q "^${name}=" .env; then
-      echo "${name}=$(openssl rand -hex 32)" >>.env
-      echo "==> appended $name to .env"
-    fi
-  done
+  e2e_ensure_secrets
   # shellcheck disable=SC1091
   set -a && . ./.env && set +a
 
@@ -93,8 +110,14 @@ e2e_stack_up() {
   # last line of stdout and every progress line goes to stderr, which is why
   # `tail -n1` is enough to separate them.
   export CONVEX_SELF_HOSTED_URL="$E2E_CONVEX_URL"
+  # Cleared deliberately. convex_admin_key honours an inherited key, and the
+  # code this replaced always derived one from the container. The runbook tells
+  # the operator to export a PRODUCTION key for step 6, so without this a
+  # `pnpm test:e2e` in that same shell carries it into the local run and gets it
+  # rejected, nowhere near the cause. The siblings do the same:
+  # convex-restore-drill.sh and convex-upgrade-rehearsal.sh both unset it.
   CONVEX_SELF_HOSTED_ADMIN_KEY="$(
-    bash scripts/provision-convex.sh \
+    CONVEX_SELF_HOSTED_ADMIN_KEY= bash scripts/provision-convex.sh \
       --site-url "$site_url" \
       --recipe-service-url "$E2E_RECIPE_SERVICE_INTERNAL_URL" | tail -n1
   )"
