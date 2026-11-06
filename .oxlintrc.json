@@ -17,9 +17,6 @@
   "rules": {
     "react/exhaustive-deps": "warn",
     "react/no-array-index-key": "warn",
-    "react/purity": "off",
-    "react/refs": "off",
-    "react/set-state-in-effect": "off",
     "react/rules-of-hooks": "error",
     "typescript/no-non-null-assertion": "warn"
   },
