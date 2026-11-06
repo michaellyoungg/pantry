@@ -14,6 +14,13 @@ ENTRYPOINT ["/seed"]
 
 FROM gcr.io/distroless/static-debian12:nonroot AS server
 COPY --from=build /out/recipe-service /recipe-service
+# The seed binary ships in the server image too, so a platform that cannot
+# select a build stage can still run the catalog seed by overriding the start
+# command. Railway is such a platform: its service config exposes
+# `dockerfilePath` and `startCommand` but no Docker build target, so the `seed`
+# stage above is unreachable there and the catalog would stay empty forever.
+# Compose still builds that stage directly (`target: seed`).
+COPY --from=build /out/seed /seed
 EXPOSE 8090
 USER nonroot:nonroot
 ENTRYPOINT ["/recipe-service"]
