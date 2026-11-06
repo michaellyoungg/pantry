@@ -6,10 +6,11 @@
 # laptop, which has the same flaw as `railway up`: it applies whatever is
 # checked out, and nothing records who changed the infrastructure or when.
 #
-# Branch mapping mirrors the deployments themselves, which is the point: the
-# same push that moves the code moves the infrastructure it runs on.
-#   main    -> dev
-#   release -> production
+# This is the ONLY thing that applies topology, for BOTH environments. Dev
+# applies automatically on a push; production is applied by dispatching this
+# workflow deliberately. promote.yml only CHECKS that production's topology is
+# current and fails if it is not, because an apply queues its own deployments
+# and those would race the pinned ones a promotion is about to start.
 #
 # Tokens are scoped to ONE environment, so there are two, and dev's cannot
 # touch production. That is a property worth keeping: the blast radius of a
@@ -17,13 +18,20 @@
 #
 # `--confirm-destructive` is deliberately NOT passed. A plan that would destroy
 # a resource therefore FAILS here rather than proceeding, and a destructive
-# change has to be made by a human who has read the plan. Both environments
-# currently plan clean, so a destroy appearing is itself the signal.
+# change has to be made by a human who has read the plan.
+#
+# AND THE APPLY IS VERIFIED, because "applied" is not evidence of applied.
+# Railway reported status:"applied" with no diagnostics for dev's volume region
+# change and left the volume where it was, because a volume cannot leave the
+# region of the service that mounts it and that service is in the old region.
+# An apply cannot converge on that, and a plan-then-apply run cannot notice: it
+# plans the same change again next run, forever. The re-plan after the apply is
+# what turns that into a failed run instead of a green one.
 name: Railway IaC
 
 on:
   push:
-    branches: [main, release]
+    branches: [main]
     paths:
       - ".railway/**"
       - ".github/workflows/railway-iac.yml"
@@ -41,13 +49,14 @@ on:
         default: plan
 
 concurrency:
-  # Never two applies against the same environment at once.
-  group: railway-iac-${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+  # Never two applies against the same environment at once, and never an apply
+  # underneath a promotion: promote.yml shares this group for production.
+  group: railway-${{ github.event.inputs.environment || 'dev' }}
   cancel-in-progress: false
 
 jobs:
   apply:
-    name: ${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+    name: ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -73,9 +82,6 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "mode=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref_name }}" = "release" ]; then
-            echo "env=production" >> "$GITHUB_OUTPUT"
-            echo "mode=apply" >> "$GITHUB_OUTPUT"
           else
             echo "env=dev" >> "$GITHUB_OUTPUT"
             echo "mode=apply" >> "$GITHUB_OUTPUT"
@@ -104,3 +110,28 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ steps.target.outputs.env == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEV }}
         run: railway config apply --environment "${{ steps.target.outputs.env }}" --yes
+
+      # Confirm the apply converged. Railway has reported a change as applied
+      # and not made it, which a plan-then-apply run cannot notice: the next run
+      # plans the same change again and the drift survives indefinitely.
+      - name: Verify the apply converged
+        if: steps.target.outputs.mode == 'apply'
+        env:
+          RAILWAY_TOKEN: ${{ steps.target.outputs.env == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEV }}
+        run: |
+          set -euo pipefail
+          code=0
+          railway config plan --environment "${{ steps.target.outputs.env }}" --detailed-exit-code || code=$?
+          case "$code" in
+          0) echo "Converged: ${{ steps.target.outputs.env }} matches .railway/railway.ts." ;;
+          2)
+            echo "::error::The apply reported success but ${{ steps.target.outputs.env }}" \
+                 "still does not match .railway/railway.ts. The plan above lists what" \
+                 "Railway did not actually change."
+            exit 1
+            ;;
+          *)
+            echo "::error::railway config plan failed with exit $code"
+            exit 1
+            ;;
+          esac
