@@ -2,7 +2,10 @@
 
 **Date:** 2026-08-16
 **Backlog item:** BL-0006
-**Status:** design approved, not yet implemented
+**Status:** increment 1 implemented and merged 2026-11-05
+(michaellyoungg/pantry#232); increments 2-4 outstanding. The procedure it
+produced is [`docs/railway-deploy.md`](../../railway-deploy.md), which has not
+yet been executed against a real Railway project.
 
 ## Problem
 
@@ -51,10 +54,10 @@ ceremonial. A demo can run Convex on SQLite on a container disk. This cannot.
 |---|---|---|
 | Convex hosting | Self-hosted on Railway | Re-affirms BL-0006/BL-0008. Convex Cloud was reconsidered and rejected again — see "Alternatives considered" |
 | Convex store | Postgres from day one | Migrating SQLite → Postgres later is a snapshot-and-restore, not a config flip; the backend comes up *empty* on Postgres |
-| Postgres instances | **One**, two databases | `pantry` + `convex_self_hosted` on a single Railway Postgres. Two instances doubles cost for a household-scale app |
-| Convex ports | Two generated domains on one service | Railway maps one domain to one target port; the backend needs both 3210 (API) and 3211 (site — `http.ts` registers Convex Auth routes) |
+| Postgres instances | **One**, two databases | `pantry` + `convex_self_hosted` on a single Postgres. Two instances doubles cost for a household-scale app. **SUPERSEDED in part:** one instance holds both, but it must be a self-run `postgres:17` service, not Railway's managed Postgres, which self-hosted Convex cannot connect to at all |
+| Convex ports | Two generated domains on one service | Railway maps one domain to one target port; the backend needs both 3210 (API) and 3211 (site — `http.ts` registers Convex Auth routes). **SUPERSEDED:** one domain suffices; the site origin is served as a path, `https://<domain>/http` |
 | recipe-service exposure | **Private only** | Only Convex calls it. No public domain removes an entire attack surface at zero cost |
-| Postgres TLS | `DO_NOT_REQUIRE_SSL=true` | Railway's Postgres image ships a *self-signed* certificate; the private network is already WireGuard-encrypted. See "Correction to BL-0008" |
+| Postgres TLS | `DO_NOT_REQUIRE_SSL=true` | **SUPERSEDED:** that flag only *prefers* SSL and is documented as test-only, so the backend still negotiates TLS and dies on the certificate. TLS is disabled server-side (`PGSSLMODE=disable`) on a self-run Postgres instead. The conclusion that plaintext over the WireGuard-encrypted private network is acceptable still holds; the mechanism was wrong |
 | Web hosting | Static build, Caddy, own Dockerfile | Needs an SPA fallback; a root-context build because it depends on four workspace packages |
 | Convex functions deploy | GitHub Actions on `main` | Functions live in git, not in any Railway service |
 | Backup destination | Cloudflare R2 | 10 GB free, zero egress, S3-compatible |
@@ -62,6 +65,17 @@ ceremonial. A demo can run Convex on SQLite on a container disk. This cannot.
 | Domain | Railway subdomains initially | No domain owned yet; swap procedure documented in increment 4 |
 
 ## Correction to BL-0008
+
+> **This whole section is SUPERSEDED.** It rests on `DO_NOT_REQUIRE_SSL=true`
+> keeping the backend off TLS. It does not: the flag's own help says it "would
+> still prefer SSL if available" and "should only be set in tests". Against
+> Railway's managed Postgres the backend therefore attempts TLS and aborts with
+> `invalid peer certificate: Other(OtherError(CaUsedAsEndEntity))` — a CA
+> certificate used as a leaf, which trusting a CA cannot repair, and no build of
+> the backend takes a CA or sslmode option. The instruction this section
+> reversed was also wrong, so neither posture works: the managed instance is
+> simply unusable. See `docs/railway-deploy.md`, "What first contact changed".
+
 
 `docs/self-hosted-convex-ops.md` and BL-0006 both carry a deferred instruction:
 drop `DO_NOT_REQUIRE_SSL` "so the backend requires TLS to a managed database."
@@ -232,9 +246,16 @@ Both resolve as "create → read the generated domain → set the variable →
 redeploy." The order:
 
 1. Create the project and the Postgres service. Create both databases by hand.
-2. Deploy `convex-backend` with `INSTANCE_SECRET` and `POSTGRES_URL`. Add two
-   domains with target ports 3210 and 3211. Set the two origin variables to
-   those domains. Redeploy.
+2. Deploy `convex-backend` with `INSTANCE_SECRET`, `POSTGRES_URL` **and
+   `DO_NOT_REQUIRE_SSL=true`**. Add two domains with target ports 3210 and 3211.
+   Set the two origin variables to those domains. Redeploy.
+
+   All three are needed for the **first** boot. `DO_NOT_REQUIRE_SSL` is not a
+   later hardening decision to be revisited: Railway's Postgres ships a
+   self-signed certificate, so without it this first deploy fails on a TLS
+   error, at the step this design spent a whole section explaining. Earlier
+   revisions named only the first two variables, and the runbook inherited that
+   omission faithfully before it was caught in review.
 3. Generate the admin key inside the container; store it.
 4. Deploy `recipe-service` (private, no domain).
 5. Deploy `web`; note its generated domain.
@@ -365,5 +386,10 @@ Increment 3's verification *is* the restore drill.
   roughly doubles the largest line item for a household-scale workload.
 - **The official Convex Railway template.** A useful reference, but it bundles
   its own Postgres and an unpinned image, and this design deviates on both.
+  **SUPERSEDED:** deviating on the bundled Postgres was the error. The template
+  bundles `postgres:17` because self-hosted Convex cannot talk to a managed
+  Railway Postgres, so that detail was load-bearing rather than incidental.
+  Increment 1 was ultimately deployed from this template, with both images
+  pinned afterwards.
 - **Backups from GitHub Actions.** Off-host by construction, but would require
   exposing Postgres publicly for `pg_dump`.

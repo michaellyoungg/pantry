@@ -234,18 +234,18 @@ but it also means nothing reminds you.
 **Cadence.** Check monthly, and whenever a Convex client-library bump lands via
 Dependabot (`convex` in `packages/convex/package.json`) — a client substantially
 newer than the backend is the most likely source of a self-hosted mismatch.
-Watch releases on `get-convex/convex-backend` and the self-hosting docs.
+Watch releases on `convex/convex-backend` and the self-hosting docs.
 
 **Procedure.**
 
 ```bash
 # 1. see whether there is anything to take
-docker pull ghcr.io/get-convex/convex-backend:latest
-docker image inspect ghcr.io/get-convex/convex-backend:latest \
+docker pull ghcr.io/convex/convex-backend:latest
+docker image inspect ghcr.io/convex/convex-backend:latest \
   --format '{{index .RepoDigests 0}}'
 
 # 2. rehearse it before touching the pin
-CONVEX_CANDIDATE_IMAGE="ghcr.io/get-convex/convex-backend@sha256:…" \
+CONVEX_CANDIDATE_IMAGE="ghcr.io/convex/convex-backend@sha256:…" \
   scripts/convex-upgrade-rehearsal.sh
 
 # 3. only then edit the pin, both images together
@@ -295,7 +295,7 @@ operator's secret store:
 ```bash
 docker run --rm -p 6791:6791 \
   -e NEXT_PUBLIC_DEPLOYMENT_URL=https://<backend-host> \
-  ghcr.io/get-convex/convex-dashboard@sha256:…
+  ghcr.io/convex/convex-dashboard@sha256:…
 ```
 
 Rationale: a permanently-hosted dashboard puts a login form backed by a single
@@ -476,6 +476,16 @@ These bullets cannot be settled honestly against a laptop, and guessing at a
 platform nobody has stood up yet produces documentation that is wrong in ways
 nobody notices until it matters. They belong with
 [BL-0006](backlog/BL-0006-railway-deploy.md):
+
+> **Resolved.** These are answered in
+> [`superpowers/specs/2026-08-16-railway-deployment-design.md`](superpowers/specs/2026-08-16-railway-deployment-design.md),
+> and the procedure they produced is [`railway-deploy.md`](railway-deploy.md).
+>
+> Note that the TLS item below is **reversed** there: Railway's Postgres image
+> ships a self-signed certificate, so a client requiring verified TLS has no
+> chain to verify against, and Railway's private network is already
+> WireGuard-encrypted. `DO_NOT_REQUIRE_SSL=true` therefore stays. Do not "fix"
+> it back; see that spec's "Correction to BL-0008" for the full argument.
 
 - **Where backups are stored, and on what schedule.** `scripts/convex-backup.sh`
   is the mechanism and is environment-agnostic; the cron/scheduler that invokes

@@ -42,7 +42,9 @@ A hybrid, multi-service monorepo:
 - **`packages/*`** — other shared TypeScript packages (types, etc.).
 
 Local development runs everything via `docker compose`. Production targets
-Railway (self-hosted Convex + Postgres).
+Railway (self-hosted Convex + Postgres): the bootstrap procedure, the full
+configuration contract and the smoke checklist are in
+[`docs/railway-deploy.md`](docs/railway-deploy.md).
 
 ## Local development
 
