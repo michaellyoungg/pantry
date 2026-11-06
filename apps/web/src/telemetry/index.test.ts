@@ -1,9 +1,10 @@
-import { context, trace } from "@opentelemetry/api";
+import { context, propagation, trace } from "@opentelemetry/api";
 import {
-  BasicTracerProvider,
   InMemorySpanExporter,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+  StackContextManager,
+  TracerProvider,
+} from "@opentelemetry/sdk-trace";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { currentTraceparent, initTelemetry, isTelemetryEnabled } from "./index";
 
@@ -11,6 +12,8 @@ describe("initTelemetry", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     trace.disable(); // reset the global provider so tests don't leak into each other
+    context.disable();
+    propagation.disable();
   });
 
   it("is a no-op when the endpoint is unset (registers no global provider)", () => {
@@ -27,8 +30,23 @@ describe("initTelemetry", () => {
       initTelemetry(); // second call must be a no-op, not throw or double-register
     }).not.toThrow();
     expect(isTelemetryEnabled()).toBe(true);
+
+    // The context manager and the W3C propagator are what carry a span from the
+    // browser into the Convex action. Without either, the inject sees no span.
+    const span = trace.getTracer("test").startSpan("s");
+    const carrier: Record<string, string> = {};
+    context.with(trace.setSpan(context.active(), span), () =>
+      propagation.inject(context.active(), carrier),
+    );
+    span.end();
+    expect(carrier.traceparent).toBe(currentTraceparentFor(span));
   });
 });
+
+function currentTraceparentFor(span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>) {
+  const sc = span.spanContext();
+  return `00-${sc.traceId}-${sc.spanId}-0${(sc.traceFlags & 1).toString(16)}`;
+}
 
 describe("isTelemetryEnabled", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -51,13 +69,15 @@ describe("currentTraceparent", () => {
 
   it("returns a well-formed W3C traceparent for the active span", () => {
     // Register a real (in-memory) provider so a started span has a valid context.
-    const provider = new BasicTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(new InMemorySpanExporter())],
+    const provider = new TracerProvider({
+      spanProcessors: [new SimpleSpanProcessor({ exporter: new InMemorySpanExporter() })],
     });
+    context.setGlobalContextManager(new StackContextManager().enable());
     const tracer = provider.getTracer("test");
     const span = tracer.startSpan("op");
     const tp = context.with(trace.setSpan(context.active(), span), () => currentTraceparent());
     span.end();
+    context.disable();
     expect(tp).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-9a-f]$/);
     const sc = span.spanContext();
     expect(tp).toBe(`00-${sc.traceId}-${sc.spanId}-0${sc.traceFlags.toString(16)}`);

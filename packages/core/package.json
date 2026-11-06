@@ -36,7 +36,7 @@
   "dependencies": {
     "@pantry/convex": "workspace:^",
     "@pantry/types": "workspace:^",
-    "convex": "^1.48.0"
+    "convex": "^1.49.0"
   },
   "peerDependencies": {
     "react": "^19.3.1"
