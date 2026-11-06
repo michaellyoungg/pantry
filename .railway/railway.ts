@@ -62,10 +62,9 @@ export default defineRailway((c) => {
   // moving the services first, through serviceInstanceUpdate, which for
   // convex-backend means moving 83MB of Convex data with it.
   const region = "us-east4-eqdc4a";
-  const deployTrigger: { branch?: string; checkSuites?: boolean } =
-    c.isEnvironment("production")
-      ? { branch: undefined }
-      : { branch: "main", checkSuites: false };
+  const deployTrigger: { branch?: string; checkSuites?: boolean } = c.isEnvironment("production")
+    ? { branch: undefined }
+    : { branch: "main", checkSuites: false };
   const Postgres = postgres("Postgres", { region });
   Postgres.networking = {
     privateNetworkEndpoint: "postgres",
@@ -112,9 +111,7 @@ export default defineRailway((c) => {
   // Declared only where true: Railway reports an unset sleepApplication as
   // null, so declaring `false` leaves a change that every plan reports and no
   // apply can ever settle.
-  const sleepWhenIdle = c.isEnvironment("production")
-    ? {}
-    : { sleepApplication: true };
+  const sleepWhenIdle = c.isEnvironment("production") ? {} : { sleepApplication: true };
   // Railway's edge cache, on in both environments. Production already had it on
   // and this file did not declare it, so the first production apply would have
   // turned it off — graded `safe`, so --confirm-destructive would not have
