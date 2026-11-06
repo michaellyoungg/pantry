@@ -24,6 +24,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+# Captured BEFORE sourcing the lib, which defaults CONVEX_SELF_HOSTED_URL to
+# the local stack. After that point a defaulted value is indistinguishable from
+# a deliberate one, and the difference decides whether a production run talks to
+# production or to the operator's laptop.
+PROVISION_URL_EXPLICIT="${CONVEX_SELF_HOSTED_URL:+yes}"
+
 # shellcheck source=lib/convex-deployment.sh
 . "$ROOT/scripts/lib/convex-deployment.sh"
 
@@ -59,15 +66,24 @@ provision_write_auth_keys() {
 # provision_has_auth_keys — true when the deployment already holds a private key.
 #
 # This reads the NAME LIST rather than `env get JWT_PRIVATE_KEY`'s exit status,
-# which is what the plan specified. An unset name is not documented to exit
-# non-zero, and if it exits 0 the guard reads as "keys present" and skips the
-# one-time generation on a FRESH production deployment, leaving sign-in broken
-# with no keypair at all. That is the exact failure this flag exists to prevent,
-# so the check is written to fail in the safe direction: anything other than a
-# positive sighting of the name means generate. The value is a secret and is
-# never read or printed.
+# because `env get` on an unset name exits 0 and prints nothing, so its status
+# answers nothing at all.
+#
+# A FAILED listing is fatal rather than an answer. The two wrong answers are not
+# symmetric. Reading "absent" when keys exist regenerates the keypair on a live
+# deployment, which voids every issued session and discards the old private key:
+# unrecoverable, and the single thing --preserve-auth-keys exists to prevent.
+# Reading "present" when they do not exist leaves sign-in broken on a fresh
+# deployment, which the smoke test catches immediately and a re-run without the
+# flag fixes, with no data touched. So when the listing cannot be trusted, this
+# refuses to decide instead of guessing toward the irreversible outcome.
+#
+# The value is a secret and is never read or printed.
 provision_has_auth_keys() {
-  convex_cli env list --names-only 2>/dev/null | grep -qx 'JWT_PRIVATE_KEY'
+  local names
+  names="$(convex_cli env list --names-only)" ||
+    convex_die "could not list the deployment env vars, so refusing to decide about the auth keypair; re-run once the deployment answers"
+  printf '%s\n' "$names" | grep -qx 'JWT_PRIVATE_KEY'
 }
 
 while [ $# -gt 0 ]; do
@@ -96,11 +112,35 @@ done
 [ -n "$RECIPE_SERVICE_URL" ] || convex_die "--recipe-service-url is required"
 [ -n "${RECIPE_SERVICE_SECRET:-}" ] || convex_die "RECIPE_SERVICE_SECRET is not set"
 
-# The lib reads COMPOSE as an ARRAY when it needs to reach the backend
-# container to generate an admin key. Default it for the local stack; in
-# production the caller supplies CONVEX_SELF_HOSTED_ADMIN_KEY and it is unused.
-if ! declare -p COMPOSE >/dev/null 2>&1; then
-  COMPOSE=(docker compose)
+# --preserve-auth-keys IS the production mode, so production has to name its
+# target. Both of these otherwise resolve toward the LOCAL stack:
+# CONVEX_SELF_HOSTED_URL defaults to 127.0.0.1:3210, and the admin key is
+# derived by running generate_admin_key.sh inside the local container. A
+# production run missing either one sets SITE_URL on the operator's laptop to
+# the production domain, pushes functions there, prints "provisioned", and exits
+# 0 while production is untouched. That is discovered several steps later, at the
+# smoke test, and it breaks local dev on the way.
+if [ "$PRESERVE_AUTH_KEYS" = "1" ]; then
+  [ -n "$PROVISION_URL_EXPLICIT" ] ||
+    convex_die "--preserve-auth-keys is the production mode: set CONVEX_SELF_HOSTED_URL explicitly, or this would target $CONVEX_SELF_HOSTED_URL"
+  [ -n "${CONVEX_SELF_HOSTED_ADMIN_KEY:-}" ] ||
+    convex_die "--preserve-auth-keys is the production mode: set CONVEX_SELF_HOSTED_ADMIN_KEY explicitly, or this would derive one from the local compose container"
+fi
+
+# The lib reaches for the backend CONTAINER through COMPOSE, to derive an admin
+# key and to dump logs when a wait times out. Default it for the local stack
+# only: production has no container, and defaulting it there makes a timeout
+# print 30 lines of a healthy, unrelated local backend immediately above "the
+# backend did not answer", which is worse than no diagnosis.
+#
+# Tested for an ARRAY rather than mere existence, because a stray scalar COMPOSE
+# in the environment expands to one word and surfaces as "could not parse an
+# admin key" instead of naming the real problem.
+if [ "$PRESERVE_AUTH_KEYS" != "1" ]; then
+  case "$(declare -p COMPOSE 2>/dev/null || true)" in
+  "declare -a"*) ;;
+  *) COMPOSE=(docker compose) ;;
+  esac
 fi
 
 convex_wait_ready 120
