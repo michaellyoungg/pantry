@@ -1,6 +1,6 @@
 import { COOKING_METHOD_LABELS, equipmentName, formatDuration, humanizeSlug } from "@pantry/core";
 import type { EquipmentDef, Ingredient, Recipe } from "@pantry/types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RecipePrep } from "./RecipePrep";
 
 function ingredientLine(ing: Ingredient): string {
@@ -53,7 +53,11 @@ export function RecipeDetails({
   // The prop can flip on an ALREADY MOUNTED row: opening the provenance sheet
   // for a second recipe re-points `openRecipeId` without remounting the list, so
   // seeding state once would leave that row stubbornly closed (BL-0019).
-  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
+  const [seenDefaultOpen, setSeenDefaultOpen] = useState(defaultOpen);
+  if (defaultOpen !== seenDefaultOpen) {
+    setSeenDefaultOpen(defaultOpen);
+    setOpen(defaultOpen);
+  }
   const steps = recipe.steps ?? [];
   const equipment = recipe.equipment ?? [];
   const methods = recipe.methods ?? [];

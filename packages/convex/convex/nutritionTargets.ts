@@ -38,8 +38,8 @@ type TargetInput = {
   hard?: boolean;
 };
 
-async function requireUser(ctx: { auth: MutationCtx["auth"] }): Promise<string> {
-  const userId = await getAuthUserId(ctx as Parameters<typeof getAuthUserId>[0]);
+async function requireUser(ctx: Parameters<typeof getAuthUserId>[0]): Promise<string> {
+  const userId = await getAuthUserId(ctx);
   if (userId === null) throw new Error("Not authenticated");
   return userId;
 }

@@ -9,7 +9,7 @@ import {
   toISODate,
 } from "@pantry/core";
 import type { RecipeEdit } from "@pantry/core/data";
-import { useAsyncData } from "@pantry/core/react";
+import { useAsyncData, useNow } from "@pantry/core/react";
 import type { EquipmentDef, Recipe } from "@pantry/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTracedAction } from "../telemetry/useTracedAction";
@@ -54,7 +54,8 @@ export function RecipeEditDialog({
   // be overridden rather than merely worked around. A recipe being edited has
   // no cook date, so today stands in and the resolved dates are never shown.
   const forRecipe = useTracedAction(api.prepTasks.forRecipe, "prepTasks.forRecipe");
-  const cookDate = toISODate(new Date());
+  const now = useNow();
+  const cookDate = toISODate(new Date(now));
   const loadPrep = useCallback(
     () => forRecipe({ recipeId: recipe.id, cookDate }),
     [forRecipe, recipe.id, cookDate],

@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { expiringSoon, type PantryRow } from "../expiry";
 import { useAsyncAction } from "../react/useAsyncAction";
 import { useAsyncData } from "../react/useAsyncData";
+import { useNow } from "../react/useNow";
 
 /**
  * Where the card is rendered, which changes what it is *for*.
@@ -68,7 +69,7 @@ export function useUseItUp(variant: UseItUpVariant = "nudge"): UseUseItUp {
   const acceptGenerated = useAction(api.recommendations.acceptGenerated);
   const addToBasket = useMutation(api.basket.add);
 
-  const now = Date.now();
+  const now = useNow();
   const batch = expiringSoon(rows, now);
 
   // The nudge gate also means the common case — nothing expiring — costs no
