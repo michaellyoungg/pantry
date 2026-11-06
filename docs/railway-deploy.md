@@ -236,6 +236,32 @@ it.
 cd "$(git rev-parse --show-toplevel)" && railway up -s recipe-service -d -y
 ```
 
+**CORRECTED, and the more dangerous half: `railway up` deploys your local
+WORKING TREE.** Not `main`, not the pushed branch, not the commit the PR
+merged: whatever is checked out and saved on disk at that moment, including
+uncommitted edits. Nothing in the output says which commit it shipped, and the
+deploy is reported as a success either way.
+
+This has already produced a silent production/dev divergence. The seed service
+was deployed to `production` from a branch carrying the Dockerfile change that
+ships `/seed`, and to `dev` a few minutes later from a different branch cut
+before that change merged. Both builds reported SUCCESS. Dev's image simply had
+no `/seed` at the path its start command names, so the container died before
+executing anything and produced **zero** log lines, in both `railway logs` and
+the `buildLogs` API. The catalog stayed empty next to a green deploy, and the
+cause was invisible from Railway entirely: the only way to see it was to diff
+the working tree's Dockerfile against `main`.
+
+So before any `railway up`, confirm what you are shipping:
+
+```bash
+git status --porcelain && git log --oneline -1
+```
+
+A dirty tree or a branch that is not the one you mean to deploy is the bug.
+This is also the strongest argument for finishing increment 2: a git-triggered
+deploy cannot ship a tree that exists only on one laptop.
+
 A build that fails this way logs nothing through `railway logs --build`. Read it
 with `railway api 'query { buildLogs(deploymentId: "...", limit: 200) { message } }'`
 instead, which does return the real error.
@@ -345,6 +371,40 @@ every user.
 ### 9. Smoke test
 
 Work the [smoke checklist](#smoke-checklist). All seven steps must pass.
+
+## There is no continuous deployment
+
+Measured 2026-11-05, in both environments: **zero repo triggers on any
+service.** Nothing deploys on merge, and nothing deploys to `dev` from git at
+all.
+
+| Service | Source today | Deploys on merge? |
+|---|---|---|
+| `web`, `seed` | uploaded working tree | no |
+| `recipe-service` | repo `michaellyoungg/pantry`, but **no trigger** | no |
+| `Postgres`, `convex-backend`, `convex-dashboard` | pinned images | no, and correctly so: an image bump is a deliberate ops action |
+| Convex functions | `scripts/provision-convex.sh`, run by hand | no; `.github/workflows/` has only CI and the nightly mobile e2e |
+
+Every deployment described in this runbook was therefore performed from one
+laptop, with the working-tree hazard above. A `dev` environment created by
+duplication inherits *configuration* but no git wiring, so merged code reaches
+neither environment on its own.
+
+What increment 2 owes, beyond what its plan already names:
+
+1. A **repo trigger per deployable service** (`web`, `recipe-service`, `seed`),
+   with `watchPatterns` so an unrelated merge does not rebuild everything.
+2. A **branch to environment mapping**, which is the question "how does merged
+   code reach dev versus prod" actually asks. Railway configures the branch per
+   service instance, so each environment's instance points at its own branch.
+3. A **Convex functions workflow**, because functions live in git and reach a
+   deployment only through `provision-convex.sh`. It needs one job per
+   environment, each with its own `CONVEX_SELF_HOSTED_URL` and admin key, and
+   it must pass `--preserve-auth-keys`.
+
+Note that increment 2's plan to express this as `railway.toml` is obsolete;
+see the deprecation note in [What first contact
+changed](#what-first-contact-changed).
 
 ## The configuration contract
 
