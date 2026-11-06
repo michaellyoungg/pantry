@@ -9,11 +9,16 @@ The design and the reasoning behind every choice here are in
 This document is the procedure only. Where the two disagree, the spec is the
 authority and this file is stale.
 
-This is **increment 1**: a manual bootstrap. Automating it (`railway.toml`,
-deploy-on-merge, a cron seed) is increment 2, and off-host backups with a
-restore drill are increment 3. Until increment 3 lands, **this deployment has
-no off-host backups**, so treat the data as losable and do not put anything in
-it you would be upset to lose.
+The **bootstrap** below is increment 1, and it is a one-time procedure: both
+environments already exist, so read it to understand how the pieces fit, not as
+something to run. Day-to-day deployment is increment 2 and is automated. Start
+at [How code reaches each environment](#how-code-reaches-each-environment)
+instead.
+
+Increment 3 is off-host backups with a restore drill, and it has **not landed**.
+**This deployment has no off-host backups**, Railway's own manual volume
+backups need a Pro workspace, and nothing alerts if a backup stops. Treat the
+data as losable and do not put anything in it you would be upset to lose.
 
 > **Executed 2026-11-05.** The procedure below is what actually worked, not
 > what was designed. First contact invalidated five of the design's decisions,
@@ -74,6 +79,12 @@ So the first deploy of a service is expected to come up misconfigured. That is
 normal here, and the redeploy is what fixes it.
 
 ## Bootstrap
+
+> **Historical, 2026-11-05. Do not run this.** Both environments exist. This
+> section records how they were built, and the `railway up` commands in it are
+> the hazard documented at step 4, not current practice. To deploy, see
+> [How code reaches each environment](#how-code-reaches-each-environment).
+
 
 ### 1. Project, then Convex and Postgres from Convex's template
 
@@ -259,8 +270,8 @@ git status --porcelain && git log --oneline -1
 ```
 
 A dirty tree or a branch that is not the one you mean to deploy is the bug.
-This is also the strongest argument for finishing increment 2: a git-triggered
-deploy cannot ship a tree that exists only on one laptop.
+This hazard is why nothing deploys with `railway up` any more: a git-triggered
+or sha-pinned deploy cannot ship a tree that exists only on one laptop.
 
 A build that fails this way logs nothing through `railway logs --build`. Read it
 with `railway api 'query { buildLogs(deploymentId: "...", limit: 200) { message } }'`
@@ -374,38 +385,143 @@ Work the [smoke checklist](#smoke-checklist). All seven steps must pass.
 
 ## How code reaches each environment
 
-**`dev` deploys itself from `main`; production is promoted by hand.** The
-asymmetry is deliberate: production's schema must not run ahead of the web
-bundle that uses it, so nothing reaches production without someone choosing it.
+**`dev` deploys itself from `main`; production moves only when someone runs the
+promote pipeline.** The asymmetry is deliberate: production's schema must not
+run ahead of the web bundle that uses it, so nothing reaches production without
+someone choosing it.
 
 | Service | `dev` | `production` |
 |---|---|---|
-| `web`, `recipe-service`, `seed` | repo trigger on `main`, deploys once the commit's CI check suite passes | no trigger; promoted by hand |
-| Convex functions | `.github/workflows/deploy-convex.yml` on a push to `main` that touches `packages/convex/` or the provisioning scripts | the same workflow, run by hand with `environment: production` |
+| `web`, `recipe-service`, `seed` | repo trigger on `main`, ungated | **no trigger**; deployed only by `promote.yml` |
+| Convex functions | `deploy-convex.yml` on a push to `main` touching `packages/convex/` or the provisioning scripts | a step inside `promote.yml` |
 | `Postgres`, `convex-backend`, `convex-dashboard` | pinned images, no trigger | pinned images, no trigger |
+| Topology (`.railway/railway.ts`) | `railway-iac.yml` on a push to `main` touching `.railway/**` | `railway-iac.yml`, dispatched by hand |
 
 The pinned images never deploy on their own, correctly: an image bump is a
 deliberate ops action.
 
-Railway waits for GitHub's check suite for the commit, and GitHub reports one
-suite per commit across every workflow, so a `dev` deploy is as slow as the
-slowest CI job on `main`. That is why the browser e2e job is skipped on a push
-to `main` (michaellyoungg/pantry#241).
+**Production has no deploy trigger at all.** Verify with:
 
-Promoting a service to production still means `railway up` from a clean
-checkout of the commit you mean, with the working-tree hazard described under
-recipe-service. Promote the Convex functions in the same sitting, so the schema
-and the code that reads it move together.
+```bash
+railway api 'query {
+  project(id: "f5b68447-7f5c-4a2f-91ab-bb94518813e7") {
+    services { edges { node {
+      name
+      repoTriggers { edges { node { branch environmentId } } }
+    } } }
+  }
+}'
+```
 
-These triggers were created by hand in Railway, not from code. Capturing them,
-with `watchPatterns` so an unrelated merge does not rebuild every service, is
-what increment 2's `.railway/railway.ts` owes; `railway.toml` is obsolete, see
-the deprecation note in [What first contact changed](#what-first-contact-changed).
+Only `dev` rows should come back. There is no `release` branch any more; it was
+deleted once the pipeline replaced it. Pushing a branch cannot reach production.
+
+`checkSuites` is `false` on dev's triggers, so a merge deploys immediately
+rather than waiting on CI. A merged PR has already run the full suite, and CI
+does not run on `main` at all, so waiting would re-prove a known verdict
+against a commit no workflow tests. The cost is that a broken `main` reaches
+dev within seconds and nothing stands in the way.
+
+**The trigger, not the pipeline, is what deploys dev.** Railway watches the
+branch itself and builds on push, with no GitHub Actions involvement. A
+`railway config apply` WRITES that trigger record, and separately queues its
+own deployments for services whose config it changed; it is not what deploys a
+merge. The two are distinguishable in the deployment history: a trigger
+deployment carries `meta.commitHash` and `meta.branch` with no `meta.patchId`,
+and an apply-queued one carries `meta.patchId = iac-change-set/...`.
+
+`watchPatterns` is **unset**, so the trigger fires on any file change. The
+merge of michaellyoungg/pantry#257 touched only `.github/**` and `.railway/**`
+and still rebuilt all three dev services two seconds later. Capturing
+`watchPatterns` in `.railway/railway.ts` is outstanding work.
+
+### Promoting to production
+
+Run the **Promote to production** workflow, with `ref` set to a branch, tag or
+commit. It pins the commit and does four things in dependency order, waiting on
+each:
+
+1. **Checks** that production's topology matches `.railway/railway.ts`, using
+   `--detailed-exit-code`. It does not apply. An apply queues its own
+   deployments for every service it changes, from that service's configured
+   branch, and does not wait, so applying here would race the pinned
+   deployments this run is about to start. A stale topology therefore fails the
+   promotion: apply it first with `railway-iac.yml`, then re-run.
+2. `recipe-service` and `seed`, both pinned to the commit.
+3. The Convex schema and functions, via `scripts/provision-convex.sh
+   --preserve-auth-keys`.
+4. `web`.
+
+Backend leads because the failure that matters is a new frontend calling a
+function that is not deployed yet. BL-0075 requires breaking changes to ship
+expand-then-contract, with removals deferred to a later release once no client
+needs the old shape, which is what makes leading with the backend safe in both
+directions.
+
+Each wait follows **the deployment id this run started**, not the service's
+latest deployment, and asserts the deployed `meta.commitHash` is the promoted
+sha. Confirm a promotion did what it claims by checking that exactly one
+deployment per service exists at that sha with no `meta.patchId`:
+
+```bash
+railway api 'query {
+  deployments(first: 20, input: {
+    projectId: "f5b68447-7f5c-4a2f-91ab-bb94518813e7"
+    environmentId: "9fe64abd-057b-469a-8dd7-7b10d0873058"
+  }) { edges { node { status createdAt meta service { name } } } }
+}'
+```
+
+A `meta.patchId` of `iac-change-set/...` means a topology apply queued that
+deployment, not the promotion, and the two are racing.
+
+**Do not use `railway up` to deploy anything.** It uploads the working tree
+rather than building a commit, which has already caused one silent divergence
+between environments (michaellyoungg/pantry#238). Railway builds each git
+service from its own source at the sha the promotion pins.
+
+### Rolling back
+
+There is no rollback automation. The two options, in order of preference:
+
+- **Roll forward.** Fix on `main`, then promote the new commit. Always correct.
+- **Promote an older commit.** Works for the three git services. It does **not**
+  work across a Convex schema narrowing, because Convex rejects a push whose
+  schema does not validate existing documents, so the one direction you most
+  need this is the one that can fail. Check what the schema did between the two
+  commits before relying on it.
+
+`deploymentRollback` exists in Railway's API and `Deployment.canRollback` is
+true on recent deployments, but nothing in this repo uses it, and it would move
+a service without moving the Convex functions, so it reintroduces exactly the
+skew the ordering above exists to prevent.
+
+A promotion that fails part-way leaves a defined but non-obvious state, and the
+run's summary says which step failed and what that implies. The worst case is a
+failed Convex step: `provision-convex.sh` writes `SITE_URL`,
+`RECIPE_SERVICE_URL` and `RECIPE_SERVICE_SECRET` **before** it pushes
+functions, so Convex can hold the new commit's variables and the old commit's
+functions. Re-running the promotion for the same commit is idempotent and is
+the fix.
 
 ## The configuration contract
 
 Configuration lives in **three** places and only one of them is Railway. This
 is the entire risk surface of the deployment.
+
+**None of it is in version control.** `.railway/railway.ts` declares
+`variables: { managed: false }`, so IaC manages topology only and reports every
+variable as `preserve`. Confirm with `railway config plan`, which prints
+`variables: unmanaged · 33 on Railway not managed`.
+
+That keeps secrets out of git, which is worth keeping: the authoring file holds
+no values, and neither workflow passes `--show-values` or
+`--decrypt-variables`. The cost is that the 33 variables per environment are
+unreviewed, undiffed between environments, and unrestorable from this repo. The
+tables below are the only record of what they should be, and a plan will never
+tell you one is missing or wrong. Read
+[Pairs that must agree](#pairs-that-must-agree-and-how-each-fails) with that in
+mind: nothing enforces any of those pairs.
 
 ### Railway service variables
 
@@ -563,9 +679,10 @@ Two further corrections the design could not have anticipated:
 - **`railway.toml` is deprecated.** The CLI warns that config-as-code files stop
   working after **2026-12-01** and points at `railway config migrate` and a
   code-based authoring file (`.railway/railway.ts`). Increment 2 planned to add
-  `railway.toml` per service; it should adopt the authoring file instead. A
-  `railway.toml` added during this deploy was also simply ignored — the
-  `dockerfilePath` had to be set through the API.
+  `railway.toml` per service and adopted the authoring file instead, which is
+  now the source of truth for topology. A `railway.toml` added during this
+  deploy was also simply ignored, and the `dockerfilePath` had to be set
+  through the API.
 - **The CLI leaks secrets and flattens references.** `railway add -v` echoes
   every value it sets to stdout, and both `add -v` and `variable set` resolve
   `${{Service.VAR}}` to a literal at submit time, so a variable that must track
