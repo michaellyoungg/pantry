@@ -477,6 +477,16 @@ platform nobody has stood up yet produces documentation that is wrong in ways
 nobody notices until it matters. They belong with
 [BL-0006](backlog/BL-0006-railway-deploy.md):
 
+> **Resolved.** These are answered in
+> [`superpowers/specs/2026-08-16-railway-deployment-design.md`](superpowers/specs/2026-08-16-railway-deployment-design.md),
+> and the procedure they produced is [`railway-deploy.md`](railway-deploy.md).
+>
+> Note that the TLS item below is **reversed** there: Railway's Postgres image
+> ships a self-signed certificate, so a client requiring verified TLS has no
+> chain to verify against, and Railway's private network is already
+> WireGuard-encrypted. `DO_NOT_REQUIRE_SSL=true` therefore stays. Do not "fix"
+> it back; see that spec's "Correction to BL-0008" for the full argument.
+
 - **Where backups are stored, and on what schedule.** `scripts/convex-backup.sh`
   is the mechanism and is environment-agnostic; the cron/scheduler that invokes
   it, the off-host destination, and the retention window are properties of the
