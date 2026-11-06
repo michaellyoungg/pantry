@@ -23,8 +23,6 @@ e2e_die() {
   exit 1
 }
 
-e2e_convex_cli() { pnpm --filter @pantry/convex exec convex "$@"; }
-
 # Register with `trap e2e_stack_teardown EXIT`.
 e2e_stack_teardown() {
   if [ "${E2E_KEEP_STACK:-0}" = "1" ]; then
@@ -81,47 +79,25 @@ e2e_stack_up() {
   echo "==> seeding the shared recipe catalog"
   docker compose run --rm --build -T seed
 
-  echo "==> waiting for convex-backend to answer /version"
-  for _ in $(seq 1 60); do
-    if curl -fsS "$E2E_CONVEX_URL/version" >/dev/null 2>&1; then break; fi
-    sleep 2
-  done
-  curl -fsS "$E2E_CONVEX_URL/version" >/dev/null || e2e_die "convex-backend did not become healthy"
-
-  # --- 3. admin key + CLI target ------------------------------------------
-  echo "==> generating Convex admin key"
-  # The self-hosted image ships generate_admin_key.sh in the working dir. If the
-  # path ever changes, inspect it with: docker compose exec convex-backend ls
-  local admin_key
-  admin_key="$(docker compose exec -T convex-backend ./generate_admin_key.sh | tr -d '\r')"
-  # Keep only the token, in case the script prints a surrounding label/blank line.
-  admin_key="$(printf '%s\n' "$admin_key" | grep -oE 'convex-self-hosted\|[A-Za-z0-9|]+' | tail -n1)"
-  [ -n "$admin_key" ] || e2e_die "could not parse the admin key from generate_admin_key.sh"
+  # --- 3-5. provision the deployment (shared with production, BL-0006) -----
+  # scripts/provision-convex.sh is the ONE provisioning procedure: it waits for
+  # the backend, mints an admin key, sets the deployment env, writes the auth
+  # keypair, and pushes the functions. Production runs the same script, so the
+  # two cannot drift.
+  #
+  # e2e deliberately does NOT pass --preserve-auth-keys. A fresh keypair per run
+  # is what keeps the suite self-isolating; production must never rotate it,
+  # because that signs out every existing session.
+  #
+  # It runs in a subshell, so its exports do not reach us. The admin key is its
+  # last line of stdout and every progress line goes to stderr, which is why
+  # `tail -n1` is enough to separate them.
   export CONVEX_SELF_HOSTED_URL="$E2E_CONVEX_URL"
-  export CONVEX_SELF_HOSTED_ADMIN_KEY="$admin_key"
-
-  # --- 4. deployment env ---------------------------------------------------
-  echo "==> setting Convex deployment env"
-  e2e_convex_cli env set SITE_URL "$site_url"
-  e2e_convex_cli env set RECIPE_SERVICE_URL "$E2E_RECIPE_SERVICE_INTERNAL_URL"
-  e2e_convex_cli env set RECIPE_SERVICE_SECRET "$RECIPE_SERVICE_SECRET"
-
-  # Convex Auth needs an RS256 keypair (JWT_PRIVATE_KEY + JWKS). Newlines in the
-  # PKCS8 are stored as spaces, per @convex-dev/auth's convention. Use Node's
-  # built-in crypto so this has no dependency on `jose` being hoisted to a place
-  # the repo-root `node` can resolve.
-  echo "==> generating Convex Auth keys"
-  local keys jwt_private_key jwks
-  keys="$(node -e 'const c=require("crypto");const {publicKey,privateKey}=c.generateKeyPairSync("rsa",{modulusLength:2048});const pk=privateKey.export({type:"pkcs8",format:"pem"}).toString();const jwk=publicKey.export({format:"jwk"});const jwks=JSON.stringify({keys:[{use:"sig",...jwk}]});process.stdout.write(pk.trimEnd().replace(/\n/g," ")+"\n"+jwks+"\n");')"
-  jwt_private_key="$(printf '%s\n' "$keys" | sed -n '1p')"
-  jwks="$(printf '%s\n' "$keys" | sed -n '2p')"
-  # Use the NAME=value form: the private key value starts with "-----BEGIN",
-  # which the CLI's option parser would otherwise mistake for a flag. Splitting
-  # on the first "=" keeps the leading dashes as part of the value.
-  e2e_convex_cli env set "JWT_PRIVATE_KEY=$jwt_private_key"
-  e2e_convex_cli env set "JWKS=$jwks"
-
-  # --- 5. push functions ---------------------------------------------------
-  echo "==> deploying Convex functions"
-  e2e_convex_cli dev --once
+  CONVEX_SELF_HOSTED_ADMIN_KEY="$(
+    bash scripts/provision-convex.sh \
+      --site-url "$site_url" \
+      --recipe-service-url "$E2E_RECIPE_SERVICE_INTERNAL_URL" | tail -n1
+  )"
+  [ -n "$CONVEX_SELF_HOSTED_ADMIN_KEY" ] || e2e_die "provision-convex.sh returned no admin key"
+  export CONVEX_SELF_HOSTED_ADMIN_KEY
 }
