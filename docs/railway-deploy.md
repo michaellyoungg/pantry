@@ -307,14 +307,40 @@ with the same two exports in your shell:
 pnpm --filter @pantry/convex exec convex dev --once
 ```
 
-### 8. Seed the shared catalog, once
+### 8. Seed the shared catalog
 
-Run the recipe-service image's `seed` stage against `pantry`. Without it,
-`GET /catalog`, the `/recipes/catalog` route, add-catalog-recipe-to-basket and
-catalog-sourced recommendations are all empty for every user.
+**CORRECTED: this needs its own service and a start-command override.** The
+seed is a separate build stage of the recipe-service Dockerfile, and Railway's
+service config has `dockerfilePath` and `startCommand` but **no Docker build
+target**, so it will only ever build the final stage. The server image
+therefore also ships `/seed` (michaellyoungg/pantry#237), which is what makes
+this possible at all.
 
-Recipes upsert by stable id, so re-running is inert. Increment 2 makes this a
-daily cron so catalog changes in code apply themselves.
+```bash
+railway add -s seed
+railway variable set -s seed --skip-deploys "DATABASE_URL=<same as recipe-service>"
+railway api 'mutation { serviceInstanceUpdate(
+  serviceId: "<seed id>", environmentId: "<env id>",
+  input: { rootDirectory: "apps/recipe-service", dockerfilePath: "Dockerfile",
+           startCommand: "/seed", cronSchedule: "0 7 * * *",
+           restartPolicyType: NEVER }) }'
+cd "$(git rev-parse --show-toplevel)" && railway up -s seed -d -y
+railway cron run --service seed --yes      # deploying does NOT run it
+railway cron list --service seed
+```
+
+A **cron service does not run when you deploy it**; it waits for its schedule,
+and the deploy reporting `SUCCESS` only means the build succeeded. The first run
+has to be triggered off-schedule, which is why the catalog can appear empty next
+to a green deploy.
+
+The run finishes with status `EXITED`, so Railway cron services do run to
+completion rather than restart-looping. Expect 57 catalog recipes; the seed
+upserts by stable id, so the daily schedule is inert when nothing changed.
+
+Without this, `GET /catalog`, the `/recipes/catalog` route,
+add-catalog-recipe-to-basket and catalog-sourced recommendations are empty for
+every user.
 
 ### 9. Smoke test
 
@@ -447,7 +473,7 @@ recipe landed in the `pantry` database, so the whole path (browser → Convex Au
 → a Convex action → recipe-service over the private network → Postgres) is
 verified end to end.
 
-The design listed five risks. Three are now answered:
+The design listed five risks. Four are now answered:
 
 1. **Can Convex use Railway's managed Postgres, with a CA instead of
    `DO_NOT_REQUIRE_SSL`?** **No, and no.** The certificate is a CA used as an
@@ -466,11 +492,14 @@ The design listed five risks. Three are now answered:
 
 Two remain open:
 
-3. **Railway cron run-to-completion semantics** for `seed` and `backup`. Not
-   exercised: the catalog seed is a separate build target of the recipe-service
-   Dockerfile and Railway does not express a build target as cleanly as compose
-   does, so seeding is still unsolved here. Until it runs, `GET /catalog`, the
-   `/recipes/catalog` route and catalog-sourced recommendations are empty.
+3. **Railway cron run-to-completion semantics** for `seed` and `backup`.
+   **Answered: yes, they run to completion and exit** (`EXITED`), and they do
+   **not** run on deploy, so the first run needs `railway cron run`. Getting
+   there required shipping the seed binary in the server image, because Railway
+   cannot select a Docker build target; see step 8.
+
+One remains open:
+
 5. **What a week of steady state costs.** Still a projection.
 
 Two further corrections the design could not have anticipated:

@@ -72,6 +72,11 @@ Code shipped in michaellyoungg/pantry#232 (web image, `scripts/provision-convex.
 defect, the renamed Convex ghcr path, and an admin-key parse that truncated on
 an underscored instance name.
 
+The catalog is seeded: 57 recipes, by a `seed` cron service running the binary
+the server image now ships (#237), since Railway cannot select a Docker build
+target. Railway cron services run to completion and exit, but do not run on
+deploy, so the first run needs `railway cron run`.
+
 Risks resolved: a Convex action's `fetch` **does** reach
 `recipe-service.railway.internal` from the V8 isolate, so the private-only
 decision stands and no public domain is needed; the backend needs no `::` bind.
@@ -81,10 +86,6 @@ the design's "Correction to BL-0008" is void.
 
 Still open, and why this stays `in-progress`:
 
-- **The catalog is not seeded.** The seed is a separate build target of the
-  recipe-service Dockerfile, which Railway does not express as cleanly as
-  compose does. Until it runs, `GET /catalog`, `/recipes/catalog` and
-  catalog-sourced recommendations are empty in production.
 - **No off-host backups.** That is increment 3, and until it lands the
   deployment's data is losable. It is currently treated as a throwaway.
 - **Increment 2 needs rethinking.** It planned a `railway.toml` per service;
