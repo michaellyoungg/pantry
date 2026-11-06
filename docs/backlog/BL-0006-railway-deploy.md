@@ -57,3 +57,39 @@ exists — the local drill proves the procedure, not this environment.
 - Railway in M1 — rejected; premature yak-shaving.
 - Convex Cloud (managed) instead of self-hosted — rejected; self-hosting matches
   the all-local / one-platform philosophy. See BL-0008 for hardening.
+
+## Progress
+
+**Increment 1 deployed 2026-11-05.** The loop works over the public internet:
+sign-up and recipe creation passed in a real browser against the deployment, and
+the recipe reached the `pantry` database, so browser → Convex Auth → a Convex
+action → recipe-service over the private network → Postgres is verified end to
+end. The procedure, and every way it diverged from the design, is in
+[`docs/railway-deploy.md`](../railway-deploy.md).
+
+Code shipped in michaellyoungg/pantry#232 (web image, `scripts/provision-convex.sh`,
+`--preserve-auth-keys`, the runbook), with #233, #234 and #235 fixing a spec
+defect, the renamed Convex ghcr path, and an admin-key parse that truncated on
+an underscored instance name.
+
+The catalog is seeded: 57 recipes, by a `seed` cron service running the binary
+the server image now ships (#237), since Railway cannot select a Docker build
+target. Railway cron services run to completion and exit, but do not run on
+deploy, so the first run needs `railway cron run`.
+
+Risks resolved: a Convex action's `fetch` **does** reach
+`recipe-service.railway.internal` from the V8 isolate, so the private-only
+decision stands and no public domain is needed; the backend needs no `::` bind.
+Resolved negatively: Railway's **managed** Postgres cannot be used at all, so
+Convex runs against a self-run `postgres:17` with TLS disabled server-side, and
+the design's "Correction to BL-0008" is void.
+
+Still open, and why this stays `in-progress`:
+
+- **No off-host backups.** That is increment 3, and until it lands the
+  deployment's data is losable. It is currently treated as a throwaway.
+- **Increment 2 needs rethinking.** It planned a `railway.toml` per service;
+  the CLI now warns config-as-code stops working after 2026-12-01 in favour of
+  a code-based authoring file, and a `railway.toml` added during this deploy was
+  ignored outright.
+- **Steady-state cost** is still a projection, not a measurement.
