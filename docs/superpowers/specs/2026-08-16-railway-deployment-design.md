@@ -2,7 +2,10 @@
 
 **Date:** 2026-08-16
 **Backlog item:** BL-0006
-**Status:** design approved, not yet implemented
+**Status:** increment 1 implemented and merged 2026-11-05
+(michaellyoungg/pantry#232); increments 2-4 outstanding. The procedure it
+produced is [`docs/railway-deploy.md`](../../railway-deploy.md), which has not
+yet been executed against a real Railway project.
 
 ## Problem
 
@@ -232,9 +235,16 @@ Both resolve as "create → read the generated domain → set the variable →
 redeploy." The order:
 
 1. Create the project and the Postgres service. Create both databases by hand.
-2. Deploy `convex-backend` with `INSTANCE_SECRET` and `POSTGRES_URL`. Add two
-   domains with target ports 3210 and 3211. Set the two origin variables to
-   those domains. Redeploy.
+2. Deploy `convex-backend` with `INSTANCE_SECRET`, `POSTGRES_URL` **and
+   `DO_NOT_REQUIRE_SSL=true`**. Add two domains with target ports 3210 and 3211.
+   Set the two origin variables to those domains. Redeploy.
+
+   All three are needed for the **first** boot. `DO_NOT_REQUIRE_SSL` is not a
+   later hardening decision to be revisited: Railway's Postgres ships a
+   self-signed certificate, so without it this first deploy fails on a TLS
+   error, at the step this design spent a whole section explaining. Earlier
+   revisions named only the first two variables, and the runbook inherited that
+   omission faithfully before it was caught in review.
 3. Generate the admin key inside the container; store it.
 4. Deploy `recipe-service` (private, no domain).
 5. Deploy `web`; note its generated domain.
