@@ -1,5 +1,6 @@
 import { formatUseBy, isOverdue, titleCase } from "@pantry/core";
 import { usePantry } from "@pantry/core/data";
+import { useNow } from "@pantry/core/react";
 import { TEST_IDS } from "@pantry/core/testing";
 import { ErrorText } from "./ErrorText";
 import { Button } from "./ui/Button";
@@ -21,7 +22,7 @@ const STATE_STYLE = {
  */
 export function Pantry() {
   const { items, groups, error, cycleState, toggleUseItUp, remove } = usePantry();
-  const now = Date.now();
+  const now = useNow();
 
   return (
     <Card title="Pantry">

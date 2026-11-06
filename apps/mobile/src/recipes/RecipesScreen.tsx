@@ -13,7 +13,7 @@
  */
 import { TEST_IDS } from "@pantry/core/testing";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CONTROL_TARGET_HEIGHT } from "../components/hitTargets";
@@ -50,10 +50,12 @@ export function RecipesScreen({ section: requested }: { section?: string } = {})
   // a segment — the initial state above would never see it. Switching segments
   // by hand afterwards leaves the parameter alone, so this does not fight the
   // control.
-  useEffect(() => {
+  const [seenRequested, setSeenRequested] = useState(requested);
+  if (requested !== seenRequested) {
+    setSeenRequested(requested);
     const wanted = asSection(requested);
     if (wanted !== undefined) setSection(wanted);
-  }, [requested]);
+  }
 
   return (
     <View className="flex-1 bg-bg" testID={id("screen")}>

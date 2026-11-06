@@ -7,6 +7,7 @@ import { startOfWeek, toISODate } from "../calendar";
 import { setPrepTaskDoneOptimistic } from "../convex/optimistic";
 import { doneSet, type PlannedRow, prepPlanSignature } from "../prep";
 import { useAsyncData } from "../react/useAsyncData";
+import { useNow } from "../react/useNow";
 
 /**
  * `prepTasks.forPlan`, as the surfaces call it.
@@ -49,12 +50,13 @@ export type UsePlanPrep = {
  */
 export function usePlanPrep({
   forPlan,
-  now = new Date(),
+  now,
 }: {
   forPlan?: PrepForPlan;
   now?: Date;
 } = {}): UsePlanPrep {
-  const today = toISODate(now);
+  const clock = useNow();
+  const today = toISODate(now ?? new Date(clock));
   const weekStart = startOfWeek(today);
 
   const forPlanAction = useAction(api.prepTasks.forPlan);

@@ -95,7 +95,9 @@ export function useOfflineGroceryList(store: OfflineStore): UseOfflineGroceryLis
   // not a value, and listing it would re-read and re-write the cache for every
   // caller that forgets to memoize one.
   const storeRef = useRef(store);
-  storeRef.current = store;
+  useEffect(() => {
+    storeRef.current = store;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +131,7 @@ export function useOfflineGroceryList(store: OfflineStore): UseOfflineGroceryLis
    */
   useEffect(() => {
     if (!ready || server === undefined) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- mirrors the server subscription into durable storage
     setCache((current) =>
       current.pending.length > 0
         ? current
@@ -169,6 +172,7 @@ export function useOfflineGroceryList(store: OfflineStore): UseOfflineGroceryLis
     // second time over the answer.
     setCache((current) => ({ ...current, pending: [] }));
     if (plan.conflicts.length > 0) {
+      // oxlint-disable-next-line react/set-state-in-effect -- the replay is a round of server writes
       setConflicts((current) => [...current, ...plan.conflicts]);
     }
     const byId = new Map(server.map((line) => [line._id, line]));
