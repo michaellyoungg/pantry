@@ -49,18 +49,24 @@ export default defineRailway((c) => {
   // carry a datacenter code (eqdc4a is Equinix DC4); bare cloud names like
   // us-west2 are the legacy fleet.
   //
-  // DECLARING THIS DOES NOT MOVE ANYTHING. `railway config plan` does not diff
-  // deploy.multiRegionConfig, so a service in the wrong region is reported as
-  // no change at all. Production is wholly on Metal, but dev still runs web,
-  // convex-backend and convex-dashboard in us-west2 against this declaration,
-  // and the plan has never once mentioned them.
+  // DECLARING THIS DOES NOT MOVE ANYTHING, so do not read a clean plan as
+  // proof of where anything runs. `railway config plan` does not diff
+  // deploy.multiRegionConfig: a service in the wrong region reads as no change
+  // at all. Dev ran web, convex-backend and convex-dashboard in us-west2
+  // against this exact declaration and no plan ever mentioned it. Both
+  // environments are wholly on Metal as of 2026-11-06, moved by hand.
   //
-  // That is also why dev's convex-backend-volume will not move. A volume lives
-  // in the region of the service that mounts it, and convex-backend is in
-  // us-west2, so the region change on the volume is impossible on its own:
-  // Railway reports it as applied and leaves it where it is. Moving dev means
-  // moving the services first, through serviceInstanceUpdate, which for
-  // convex-backend means moving 83MB of Convex data with it.
+  // Services move with serviceInstanceUpdate(multiRegionConfig) plus a
+  // redeploy. A VOLUME's region is immutable: VolumeInstanceUpdateInput has no
+  // region field, no migration mutation is exposed, and an apply reports the
+  // change as applied and does nothing. What does work is poking the instance
+  // with volumeInstanceUpdate(input: { state: DELETING }), which makes the
+  // reconciler apply the region this file already declared; it MIGRATES rather
+  // than deletes, and dev's 83MB of Convex data came across intact.
+  //
+  // Never reach for volumeDelete to undo this. A volume is one project-level
+  // id with one instance per environment, so deleting by volumeId takes
+  // production's copy with it.
   const region = "us-east4-eqdc4a";
   const deployTrigger: { branch?: string; checkSuites?: boolean } = c.isEnvironment("production")
     ? { branch: undefined }
