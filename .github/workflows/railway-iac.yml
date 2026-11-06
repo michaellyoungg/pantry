@@ -1,0 +1,106 @@
+# Apply the declared Railway topology (BL-0006, increment 2).
+#
+# `.railway/railway.ts` is the source of truth for builders, deploy triggers,
+# regions, volumes, cron schedules and serverless flags. Until this workflow
+# existed, applying it meant someone running `railway config apply` from a
+# laptop, which has the same flaw as `railway up`: it applies whatever is
+# checked out, and nothing records who changed the infrastructure or when.
+#
+# Branch mapping mirrors the deployments themselves, which is the point: the
+# same push that moves the code moves the infrastructure it runs on.
+#   main    -> dev
+#   release -> production
+#
+# Tokens are scoped to ONE environment, so there are two, and dev's cannot
+# touch production. That is a property worth keeping: the blast radius of a
+# leaked CI credential stops at the environment it was issued for.
+#
+# `--confirm-destructive` is deliberately NOT passed. A plan that would destroy
+# a resource therefore FAILS here rather than proceeding, and a destructive
+# change has to be made by a human who has read the plan. Both environments
+# currently plan clean, so a destroy appearing is itself the signal.
+name: Railway IaC
+
+on:
+  push:
+    branches: [main, release]
+    paths:
+      - ".railway/**"
+      - ".github/workflows/railway-iac.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which environment to apply"
+        type: choice
+        options: [dev, production]
+        default: dev
+      mode:
+        description: "plan only, or apply"
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+concurrency:
+  # Never two applies against the same environment at once.
+  group: railway-iac-${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: ${{ github.event.inputs.environment || (github.ref_name == 'release' && 'production' || 'dev') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      # The `railway` SDK types .railway/railway.ts; the CLI runs plan/apply.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Resolve target
+        id: target
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+            echo "mode=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "release" ]; then
+            echo "env=production" >> "$GITHUB_OUTPUT"
+            echo "mode=apply" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=dev" >> "$GITHUB_OUTPUT"
+            echo "mode=apply" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Always print the plan, including before an apply, so the run's log is a
+      # record of what changed rather than just that something did.
+      # One token per environment: selected by name so neither is ever present
+      # in a run targeting the other.
+      - name: Plan
+        env:
+          RAILWAY_TOKEN: ${{ steps.target.outputs.env == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEV }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::error::No Railway token for ${{ steps.target.outputs.env }}." \
+                 "Create a project token scoped to that environment in the Railway" \
+                 "dashboard (Project Settings -> Tokens) and store it as" \
+                 "RAILWAY_TOKEN_PRODUCTION or RAILWAY_TOKEN_DEV."
+            exit 1
+          fi
+          railway config plan --environment "${{ steps.target.outputs.env }}"
+
+      - name: Apply
+        if: steps.target.outputs.mode == 'apply'
+        env:
+          RAILWAY_TOKEN: ${{ steps.target.outputs.env == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEV }}
+        run: railway config apply --environment "${{ steps.target.outputs.env }}" --yes
