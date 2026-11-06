@@ -43,13 +43,22 @@ e2e_stack_up() {
   local site_url=$1
 
   # --- 1. ephemeral secrets (root .env is gitignored) ----------------------
-  if [ ! -f .env ]; then
-    {
-      echo "CONVEX_INSTANCE_SECRET=$(openssl rand -hex 32)"
-      echo "RECIPE_SERVICE_SECRET=$(openssl rand -hex 32)"
-    } >.env
-    echo "==> wrote .env (ephemeral secrets)"
-  fi
+  # Ensured per VARIABLE, not per file. Gating on the file's existence left a
+  # .env that exists but is missing a name unrepaired forever, and the failure
+  # lands four steps later as a compose interpolation error that names the
+  # variable but not the reason. CI never saw it because CI has no .env at all.
+  #
+  # Appending, never rewriting, is the other half: CONVEX_INSTANCE_SECRET is
+  # what the backend derived ./.data/convex/credentials from, so a fresh value
+  # there locks the backend out of its own data.
+  local name
+  touch .env
+  for name in CONVEX_INSTANCE_SECRET RECIPE_SERVICE_SECRET; do
+    if ! grep -q "^${name}=" .env; then
+      echo "${name}=$(openssl rand -hex 32)" >>.env
+      echo "==> appended $name to .env"
+    fi
+  done
   # shellcheck disable=SC1091
   set -a && . ./.env && set +a
 
